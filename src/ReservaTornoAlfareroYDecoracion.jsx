@@ -521,7 +521,7 @@ if (turnosConfig) {
                 htmlFor="fechaInicio"
                 className="block font-bold text-sm mb-1"
               >
-                Selecciona el día de tu primera clase:
+                Selecciona la fecha de inicio de tu bono:
               </label>
               <DateInputReserva
                 id="fechaInicio"
@@ -554,6 +554,10 @@ if (turnosConfig) {
                     {Object.keys(claseConfig?.horarios || {}).join(", ")}.
                   </p>
                 )}
+                <div className="mt-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+                La fecha de inicio del bono no constituye una reserva de clase.
+                Deberás gestionar cada reserva desde tu perfil, en “Mis bonos”.
+                </div>
             </div>
 
             <div>
