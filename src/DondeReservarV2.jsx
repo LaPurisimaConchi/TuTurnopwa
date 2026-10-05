@@ -309,7 +309,7 @@ export default function DondeReservarV2() {
             📸 @lapurisimaconchi
           </a>
 
-          <p className="text-xs text-gray-400 mt-2">Más de 5.000 seguidores</p>
+          <p className="text-xs text-gray-400 mt-2">Más de 6.000 seguidores</p>
         </div>
       </div>
 
