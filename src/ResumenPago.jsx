@@ -4,6 +4,7 @@ import { getAuth } from "firebase/auth";
 import { ref, set, get, update, push } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { simularPagoAdmin } from "./utils/pagoAdmin";
 
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
@@ -412,6 +413,13 @@ export default function ResumenPago() {
         uid: auth.currentUser.uid,
       });
 
+      if (await simularPagoAdmin(orderId)) {
+        navigate("/pago/exito", {
+          state: { pagoSimuladoPorAdministrador: true, orderId },
+        });
+        return;
+      }
+
       irAPasarela({
         precio: totalEuros,
         orderId,
@@ -419,7 +427,7 @@ export default function ResumenPago() {
       });
     } catch (error) {
       console.error("Error al crear pedido pendiente:", error);
-      alert("No se pudo preparar el pago.");
+      alert(error?.message || "No se pudo preparar el pago.");
     } finally {
       setCargando(false);
     }

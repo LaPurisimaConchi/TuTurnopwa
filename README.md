@@ -105,7 +105,7 @@ proxy: {
 }
 ```
 
-**Implicación:** en desarrollo, los pagos Redsys y el webhook usan la infraestructura de producción. Para probar pagos sin afectar producción, conviene desplegar un entorno de staging en Vercel con credenciales de test.
+**Implicación:** en desarrollo, los pagos Redsys y el webhook usan la infraestructura de producción. Las cuentas administradoras pueden simular la confirmación de un pago sin abrir Redsys; para probar pagos reales con Redsys sin afectar producción, conviene desplegar un entorno de staging en Vercel con credenciales de test.
 
 ### Otros comandos
 
@@ -162,6 +162,7 @@ TuTurnopwa/
 ├── api/                      # Vercel Serverless Functions (PRODUCCIÓN para pagos)
 │   ├── crear-sesion.js       # Crea sesión Redsys y redirige al TPV
 │   ├── notificacionTPV.js    # Webhook de confirmación de pago
+│   ├── pago-admin.js         # Confirma pagos simulados con autenticación admin
 │   ├── _firebaseAdmin.js     # Inicialización Admin SDK
 │   ├── _cors.js
 │   ├── ping.js
@@ -270,6 +271,8 @@ Usuario logueado → Reserva*.jsx → validación plazas/bloqueos
   → /pago/exito
 ```
 
+**Pago de prueba para administradores:** al confirmar un pago desde los resúmenes de pago (incluidos The Club y Tearium) o desde el pago individual de grupo, una cuenta autorizada evita Redsys y confirma el pedido mediante `POST /api/pago-admin`. El servidor verifica el token de Firebase, el email administrador y que el pedido pertenezca a esa cuenta antes de actualizar los registros. La lista de emails autorizados se comparte desde `src/utils/administradores.js`. Las cuentas normales continúan usando Redsys.
+
 **Canje con tarjeta regalo:** algunos flujos confirman directamente sin pasarela (`desdeTarjetaRegalo: true`).
 
 **Conteo de plazas:** `utils/contarPlazasDia.js` solo cuenta reservas con `Confirmada` + `pagado` en el nodo `reservas/`.
@@ -351,6 +354,8 @@ Procesa según `pedidosPendientes/{orderId}.tipo`:
 | `pago_grupo_individual` | `confirmarPagoIndividualGrupo` |
 | `tarjeta_regalo` | `guardarTarjetaRegaloPagada` |
 | `esBono: true` | `guardarBonoPagado` |
+
+**Simulación admin:** `POST /api/pago-admin` recibe `orderId` y un token Firebase en `Authorization: Bearer ...`. Solo permite emails de `src/utils/administradores.js` y pedidos pertenecientes al usuario autenticado. Confirma el pedido y registra `simuladoPorAdministrador: true`; no inicia un cargo en Redsys.
 
 ---
 

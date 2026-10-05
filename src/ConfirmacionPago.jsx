@@ -169,6 +169,13 @@ const ConfirmacionPago = () => {
               Gracias por tu reserva. Te esperamos en el taller con muchas ganas.
             </p>
 
+            {location.state?.pagoSimuladoPorAdministrador ? (
+              <p style={styles.text}>
+                Pago de prueba confirmado para la cuenta de administrador; no se
+                ha realizado ningún cargo.
+              </p>
+            ) : null}
+
             {errorCarga ? <p style={styles.errorText}>{errorCarga}</p> : null}
             
 

@@ -1,5 +1,10 @@
 import React, { useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
+import { ref, set } from "firebase/database";
+import { dbRealtime } from "./firebase";
+import { esAdministrador } from "./utils/administradores";
+import { simularPagoAdmin } from "./utils/pagoAdmin";
 
 export default function ResumenPagoTearium() {
   const location = useLocation();
@@ -114,6 +119,30 @@ export default function ResumenPagoTearium() {
     if (!aceptaPoliticas || cargando) return;
     try {
       setCargando(true);
+      if (esAdministrador(getAuth().currentUser)) {
+        const orderId = String(datos.orderId || Date.now());
+        await set(ref(dbRealtime, `pedidosPendientes/${orderId}`), {
+          orderId,
+          uid: datos.uid,
+          tipo: "reserva",
+          clase: datos.clase || "Pinta tu pieza - Tearium",
+          claseId: datos.claseId || "pintatupieza_tearium",
+          fecha: datos.fecha || "",
+          turno: datos.turno || "",
+          metodo: datos.metodo || "general",
+          plazas: plazasNum,
+          precioTotal: totalEuros,
+          estadoPago: "pendiente",
+          procesado: false,
+          creadoEn: new Date().toISOString(),
+        });
+        await simularPagoAdmin(orderId);
+        navigate("/pago/exito", {
+          state: { pagoSimuladoPorAdministrador: true, orderId },
+        });
+        return;
+      }
+
       await irAPasarela({
         precio: totalEuros,
         orderId: Date.now().toString(),

@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { getAuth } from "firebase/auth";
+import { ref, set } from "firebase/database";
+import { dbRealtime } from "./firebase";
+import { esAdministrador } from "./utils/administradores";
+import { simularPagoAdmin } from "./utils/pagoAdmin";
 
 export default function ResumenPagoTheClub() {
   const location = useLocation();
+  const navigate = useNavigate();
   const datos = location.state || {};
   const { payMethod: payMethodFromState } = datos;
 
@@ -46,15 +52,42 @@ export default function ResumenPagoTheClub() {
     window.location.href = `/api/crear-sesion?${qs.toString()}`;
   }
 
-  const handlePagar = () => {
+  const handlePagar = async () => {
     if (!aceptaPoliticas) return;
     try {
       setCargando(true);
+      if (esAdministrador(getAuth().currentUser)) {
+        const orderId = String(datos.orderId || Date.now());
+        await set(ref(dbRealtime, `pedidosPendientes/${orderId}`), {
+          orderId,
+          uid: datos.uid,
+          tipo: "reserva",
+          clase: datos.clase || "",
+          claseId: datos.claseId || "",
+          fecha: datos.fecha || "",
+          turno: datos.turno || "",
+          metodo: datos.metodo || "",
+          plazas,
+          precioTotal: totalEuros,
+          estadoPago: "pendiente",
+          procesado: false,
+          creadoEn: new Date().toISOString(),
+        });
+        await simularPagoAdmin(orderId);
+        navigate("/pago/exito", {
+          state: { pagoSimuladoPorAdministrador: true, orderId },
+        });
+        return;
+      }
+
       irAPasarela({
         precio: totalEuros,
         orderId: Date.now().toString(),
         payMethod: payMethodFromState || "card",
       });
+    } catch (error) {
+      console.error("Error al procesar el pago de The Club:", error);
+      alert(error?.message || "No se pudo preparar el pago.");
     } finally {
       setCargando(false);
     }

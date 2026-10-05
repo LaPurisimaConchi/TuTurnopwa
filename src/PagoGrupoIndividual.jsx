@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 import { ref, get, push, set } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { simularPagoAdmin } from "./utils/pagoAdmin";
 
 const PagoGrupoIndividual = () => {
   const { grupoId } = useParams();
+  const navigate = useNavigate();
 
  
 
@@ -151,6 +154,7 @@ const handleCrearPagoPendiente = async () => {
     await set(nuevoPagoRef, pagoIndividual);
     await set(ref(dbRealtime, `pedidosPendientes/${orderId}`), {
   orderId,
+  uid: getAuth().currentUser?.uid || "",
   tipo: "pago_grupo_individual",
   grupoId: grupo.id,
   pagoIndividualId,
@@ -164,6 +168,12 @@ const handleCrearPagoPendiente = async () => {
   procesado: false,
   creadoEn: ahoraISO,
 });
+
+    if (await simularPagoAdmin(orderId)) {
+      navigate(`/pago-grupo-exitoso/${grupo.id}`);
+      return;
+    }
+
     console.log("pago individual pendiente creado:", {
       grupoId: grupo.id,
       pagoIndividualId,

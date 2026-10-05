@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ref, get, push, remove, set } from "firebase/database";
+import { ref, get, push, remove, runTransaction, set, update } from "firebase/database";
 import { useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
@@ -64,6 +64,14 @@ const AdminDetalleBonoNuevo = () => {
   const [notasInternas, setNotasInternas] = useState([]);
   const [nuevaNota, setNuevaNota] = useState("");
   const [guardandoNota, setGuardandoNota] = useState(false);
+  const [editandoFechaInicio, setEditandoFechaInicio] = useState(false);
+  const [fechaInicioEditada, setFechaInicioEditada] = useState("");
+  const [guardandoFechaInicio, setGuardandoFechaInicio] = useState(false);
+  const [editandoCaducidad, setEditandoCaducidad] = useState(false);
+  const [fechaCaducidadEditada, setFechaCaducidadEditada] = useState("");
+  const [guardandoCaducidad, setGuardandoCaducidad] = useState(false);
+  const [anadiendoClase, setAnadiendoClase] = useState(false);
+  const [descontandoClase, setDescontandoClase] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -181,6 +189,176 @@ useEffect(() => {
   }, [uid, bonoId]);
 
   const estadoVisible = useMemo(() => obtenerEstadoVisibleBono(bono), [bono]);
+
+  const guardarFechaInicio = async () => {
+    if (!uid || !bonoId || !fechaInicioEditada) return;
+
+    try {
+      setGuardandoFechaInicio(true);
+      const actualizadoEn = new Date().toISOString();
+      await update(ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}`), {
+        fechaInicio: fechaInicioEditada,
+        actualizadoEn,
+      });
+
+      setBono((actual) => ({
+        ...actual,
+        fechaInicio: fechaInicioEditada,
+        actualizadoEn,
+      }));
+      setEditandoFechaInicio(false);
+    } catch (error) {
+      console.error("Error al cambiar la fecha de inicio del bono:", error);
+      alert("No se pudo cambiar la fecha de inicio. Revisa la consola.");
+    } finally {
+      setGuardandoFechaInicio(false);
+    }
+  };
+
+  const guardarFechaCaducidad = async () => {
+    if (!uid || !bonoId || !fechaCaducidadEditada) return;
+
+    try {
+      setGuardandoCaducidad(true);
+      const actualizadoEn = new Date().toISOString();
+      await update(ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}`), {
+        fechaCaducidadBono: fechaCaducidadEditada,
+        actualizadoEn,
+      });
+
+      setBono((actual) => ({
+        ...actual,
+        fechaCaducidadBono: fechaCaducidadEditada,
+        actualizadoEn,
+      }));
+      setEditandoCaducidad(false);
+    } catch (error) {
+      console.error("Error al cambiar la fecha de caducidad del bono:", error);
+      alert("No se pudo cambiar la fecha de caducidad. Revisa la consola.");
+    } finally {
+      setGuardandoCaducidad(false);
+    }
+  };
+
+  const anadirClase = async () => {
+    if (!uid || !bonoId) return;
+
+    try {
+      setAnadiendoClase(true);
+      const bonoRef = ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}`);
+      const bonoInicialSnap = await get(bonoRef);
+      if (!bonoInicialSnap.exists()) {
+        throw new Error("No se encontró el bono en la base de datos.");
+      }
+      const bonoInicial = bonoInicialSnap.val();
+      const actualizadoEn = new Date().toISOString();
+      let primeraEjecucion = true;
+      const resultado = await runTransaction(bonoRef, (bonoActual) => {
+        const datosBono = bonoActual || (primeraEjecucion ? bonoInicial : null);
+        primeraEjecucion = false;
+        if (!datosBono) return;
+
+        const numeroClases = Number(datosBono.numeroClases || 0);
+        const clasesConsumidas = Number(datosBono.clasesConsumidas || 0);
+        const clasesRestantes = Number(
+          datosBono.clasesRestantes ?? Math.max(numeroClases - clasesConsumidas, 0)
+        );
+        const estabaCaducado =
+          String(datosBono.estadoBono || "").toLowerCase() === "caducado";
+
+        return {
+          ...datosBono,
+          numeroClases: numeroClases + 1,
+          clasesRestantes: clasesRestantes + 1,
+          estadoBono: estabaCaducado ? datosBono.estadoBono : "activo",
+          actualizadoEn,
+        };
+      });
+
+      if (!resultado.committed) {
+        throw new Error("No se pudo actualizar el bono porque ya no existe.");
+      }
+
+      const bonoActualizado = resultado.snapshot.val();
+      setBono((actual) => ({
+        ...actual,
+        numeroClases: Number(bonoActualizado.numeroClases || 0),
+        clasesRestantes: Number(bonoActualizado.clasesRestantes || 0),
+        estadoBono: bonoActualizado.estadoBono || "activo",
+        actualizadoEn: bonoActualizado.actualizadoEn || actualizadoEn,
+      }));
+    } catch (error) {
+      console.error("Error al añadir una clase al bono:", error);
+      const detalle = error instanceof Error ? error.message : String(error);
+      alert(`No se pudo añadir la clase al bono. ${detalle}`);
+    } finally {
+      setAnadiendoClase(false);
+    }
+  };
+
+  const descontarClase = async () => {
+    if (!uid || !bonoId) return;
+
+    try {
+      setDescontandoClase(true);
+      const bonoRef = ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}`);
+      const bonoInicialSnap = await get(bonoRef);
+      if (!bonoInicialSnap.exists()) {
+        throw new Error("No se encontró el bono en la base de datos.");
+      }
+      const bonoInicial = bonoInicialSnap.val();
+      const actualizadoEn = new Date().toISOString();
+      let primeraEjecucion = true;
+      const resultado = await runTransaction(bonoRef, (bonoActual) => {
+        const datosBono = bonoActual || (primeraEjecucion ? bonoInicial : null);
+        primeraEjecucion = false;
+        if (!datosBono) return;
+
+        const numeroClases = Number(datosBono.numeroClases || 0);
+        const clasesConsumidas = Number(datosBono.clasesConsumidas || 0);
+        const clasesRestantes = Number(
+          datosBono.clasesRestantes ?? Math.max(numeroClases - clasesConsumidas, 0)
+        );
+
+        if (clasesRestantes <= 0) return;
+
+        const nuevasRestantes = clasesRestantes - 1;
+        const estabaCaducado =
+          String(datosBono.estadoBono || "").toLowerCase() === "caducado";
+
+        return {
+          ...datosBono,
+          clasesConsumidas: clasesConsumidas + 1,
+          clasesRestantes: nuevasRestantes,
+          estadoBono: estabaCaducado
+            ? datosBono.estadoBono
+            : nuevasRestantes === 0
+              ? "agotado"
+              : "activo",
+          actualizadoEn,
+        };
+      });
+
+      if (!resultado.committed) {
+        throw new Error("El bono no tiene clases restantes para descontar.");
+      }
+
+      const bonoActualizado = resultado.snapshot.val();
+      setBono((actual) => ({
+        ...actual,
+        clasesConsumidas: Number(bonoActualizado.clasesConsumidas || 0),
+        clasesRestantes: Number(bonoActualizado.clasesRestantes || 0),
+        estadoBono: bonoActualizado.estadoBono || "agotado",
+        actualizadoEn: bonoActualizado.actualizadoEn || actualizadoEn,
+      }));
+    } catch (error) {
+      console.error("Error al descontar una clase del bono:", error);
+      const detalle = error instanceof Error ? error.message : String(error);
+      alert(`No se pudo descontar una clase. ${detalle}`);
+    } finally {
+      setDescontandoClase(false);
+    }
+  };
 
   const porcentajeUso = useMemo(() => {
     if (!bono || !bono.numeroClases || bono.numeroClases <= 0) return 0;
@@ -300,15 +478,107 @@ useEffect(() => {
 
               <div style={styles.gridResumen}>
                 <div style={styles.cardResumen}>
-                  <span style={styles.label}>Fecha inicio</span>
-                  <span style={styles.valorGrande}>{bono.fechaInicio || "—"}</span>
+                  <div style={styles.caducidadHeader}>
+                    <span style={styles.label}>Fecha inicio</span>
+                    {!editandoFechaInicio && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFechaInicioEditada(bono.fechaInicio || "");
+                          setEditandoFechaInicio(true);
+                        }}
+                        style={styles.botonAccion}
+                      >
+                        Cambiar fecha
+                      </button>
+                    )}
+                  </div>
+                  {editandoFechaInicio ? (
+                    <div style={styles.editarCaducidad}>
+                      <input
+                        type="date"
+                        value={fechaInicioEditada}
+                        onChange={(event) =>
+                          setFechaInicioEditada(event.target.value)
+                        }
+                        style={styles.inputFecha}
+                        aria-label="Nueva fecha de inicio"
+                      />
+                      <div style={styles.accionesCaducidad}>
+                        <button
+                          type="button"
+                          onClick={guardarFechaInicio}
+                          disabled={guardandoFechaInicio || !fechaInicioEditada}
+                          style={styles.botonAccion}
+                        >
+                          {guardandoFechaInicio ? "Guardando..." : "Guardar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditandoFechaInicio(false)}
+                          disabled={guardandoFechaInicio}
+                          style={styles.botonAccionSecundario}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={styles.valorGrande}>{bono.fechaInicio || "—"}</span>
+                  )}
                 </div>
 
                 <div style={styles.cardResumen}>
-                  <span style={styles.label}>Caduca</span>
-                  <span style={styles.valorGrande}>
-                    {bono.fechaCaducidadBono || "—"}
-                  </span>
+                  <div style={styles.caducidadHeader}>
+                    <span style={styles.label}>Caduca</span>
+                    {!editandoCaducidad && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFechaCaducidadEditada(bono.fechaCaducidadBono || "");
+                          setEditandoCaducidad(true);
+                        }}
+                        style={styles.botonAccion}
+                      >
+                        Cambiar fecha
+                      </button>
+                    )}
+                  </div>
+                  {editandoCaducidad ? (
+                    <div style={styles.editarCaducidad}>
+                      <input
+                        type="date"
+                        value={fechaCaducidadEditada}
+                        onChange={(event) =>
+                          setFechaCaducidadEditada(event.target.value)
+                        }
+                        style={styles.inputFecha}
+                        aria-label="Nueva fecha de caducidad"
+                      />
+                      <div style={styles.accionesCaducidad}>
+                        <button
+                          type="button"
+                          onClick={guardarFechaCaducidad}
+                          disabled={guardandoCaducidad || !fechaCaducidadEditada}
+                          style={styles.botonAccion}
+                        >
+                          {guardandoCaducidad ? "Guardando..." : "Guardar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditandoCaducidad(false)}
+                          disabled={guardandoCaducidad}
+                          style={styles.botonAccionSecundario}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={styles.valorGrande}>
+                      {bono.fechaCaducidadBono || "—"}
+                    </span>
+                  )}
                 </div>
 
                 <div style={styles.cardResumen}>
@@ -341,6 +611,47 @@ useEffect(() => {
                   <span style={styles.label}>Restantes</span>
                   <span style={styles.valorGrande}>{bono.clasesRestantes}</span>
                 </div>
+              </div>
+
+              <div style={styles.accionesClases}>
+                <button
+                  type="button"
+                  onClick={anadirClase}
+                  disabled={anadiendoClase || descontandoClase}
+                  style={{
+                    ...styles.botonAccion,
+                    opacity: anadiendoClase || descontandoClase ? 0.6 : 1,
+                    cursor: anadiendoClase || descontandoClase ? "wait" : "pointer",
+                  }}
+                >
+                  {anadiendoClase ? "Añadiendo..." : "Añadir una clase"}
+                </button>
+                <button
+                  type="button"
+                  onClick={descontarClase}
+                  disabled={
+                    descontandoClase ||
+                    anadiendoClase ||
+                    bono.clasesRestantes <= 0
+                  }
+                  style={{
+                    ...styles.botonAccionSecundario,
+                    opacity:
+                      descontandoClase ||
+                      anadiendoClase ||
+                      bono.clasesRestantes <= 0
+                        ? 0.6
+                        : 1,
+                    cursor:
+                      descontandoClase ||
+                      anadiendoClase ||
+                      bono.clasesRestantes <= 0
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {descontandoClase ? "Descontando..." : "Descontar una clase"}
+                </button>
               </div>
 
               <div style={styles.progresoBox}>
@@ -620,6 +931,57 @@ const styles = {
     display: "flex",
     flexDirection: "column",
     gap: 8,
+  },
+  caducidadHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  editarCaducidad: {
+    display: "grid",
+    gap: 10,
+  },
+  inputFecha: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1px solid #eadfbe",
+    borderRadius: 10,
+    padding: "9px 10px",
+    font: "inherit",
+    color: "#2f2f2f",
+  },
+  accionesCaducidad: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  botonAccion: {
+    backgroundColor: "#7a6331",
+    color: "#fff",
+    border: "none",
+    borderRadius: 999,
+    padding: "8px 13px",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  botonAccionSecundario: {
+    backgroundColor: "#fff",
+    color: "#7a6331",
+    border: "1px solid #d8cba8",
+    borderRadius: 999,
+    padding: "8px 13px",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  accionesClases: {
+    display: "flex",
+    gap: 10,
+    flexWrap: "wrap",
+    marginBottom: 18,
   },
   gridUso: {
     display: "grid",

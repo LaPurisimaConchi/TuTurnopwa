@@ -603,7 +603,7 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
                   {desdeTarjeta ? "Tarjeta regalo" : `${precioBase}€`}
                 </p>
                 <p>
-                  <strong>Extra torno:</strong>{" "}
+                  <strong>Torno extra:</strong>{" "}
                   {desdeTarjeta ? "0€" : `${extraTorno}€`}
                 </p>
                 <p>

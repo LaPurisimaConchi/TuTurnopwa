@@ -18,3 +18,4 @@ if (!admin.apps.length) {
 }
 
 export const adminDb = admin.database();
+export const adminAuth = admin.auth();

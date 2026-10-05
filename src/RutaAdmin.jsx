@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-
-const correosAdmin = [
-  "aliciasmelero@gmail.com",
-  "lapurisimaconchioficial@gmail.com",
-];
+import { esAdministrador } from "./utils/administradores";
 
 const RutaAdmin = ({ children }) => {
   const [usuario, setUsuario] = useState(undefined);
@@ -24,7 +20,7 @@ const RutaAdmin = ({ children }) => {
     return <p style={{ padding: 40, textAlign: "center" }}>Cargando...</p>;
   }
 
-  if (!usuario || !correosAdmin.includes(usuario.email)) {
+  if (!esAdministrador(usuario)) {
     return <Navigate to="/portada" replace />;
   }
 
