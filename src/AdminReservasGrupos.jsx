@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ref, get, push, remove, set } from "firebase/database";
+import { ref, get, push, remove, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { useLocation } from "react-router-dom";
@@ -17,6 +17,9 @@ const [nombreManual, setNombreManual] = useState({});
 const [telefonoManual, setTelefonoManual] = useState({});
 const [metodoManual, setMetodoManual] = useState({});
 const [guardandoManual, setGuardandoManual] = useState({});
+const [editandoFechaGrupo, setEditandoFechaGrupo] = useState({});
+const [fechaGrupoEditada, setFechaGrupoEditada] = useState({});
+const [guardandoFechaGrupo, setGuardandoFechaGrupo] = useState({});
 
 const [filtroFecha, setFiltroFecha] = useState("");
 const [filtroEstadoPago, setFiltroEstadoPago] = useState("");
@@ -422,6 +425,96 @@ const cancelarGrupoManual = async (r) => {
   }
 };
 
+const guardarFechaGrupo = async (r) => {
+  const nuevaFecha = fechaGrupoEditada[r.id];
+
+  if (
+    !nuevaFecha ||
+    nuevaFecha === r.fecha ||
+    r.cancelada ||
+    r.estado === "Cancelada"
+  ) {
+    return;
+  }
+
+  const confirmar = window.confirm(
+    `¿Seguro que quieres cambiar la fecha de este grupo del ${r.fecha || "—"} al ${nuevaFecha}?`
+  );
+
+  if (!confirmar) return;
+
+  try {
+    setGuardandoFechaGrupo((prev) => ({ ...prev, [r.id]: true }));
+
+    const ahora = new Date();
+    const fechaCambio = ahora.toLocaleString("es-ES");
+    const actualizacion = {
+      [`reservasGrupos/${r.id}/fecha`]: nuevaFecha,
+      [`reservasGrupos/${r.id}/fechaAnterior`]: r.fecha || "",
+      [`reservasGrupos/${r.id}/fechaOriginal`]: r.fechaOriginal || r.fecha || "",
+      [`reservasGrupos/${r.id}/ultimaFechaAnterior`]: r.fecha || "",
+      [`reservasGrupos/${r.id}/fechaReprogramada`]: nuevaFecha,
+      [`reservasGrupos/${r.id}/reprogramada`]: true,
+      [`reservasGrupos/${r.id}/reprogramadaEn`]: fechaCambio,
+      [`reservasGrupos/${r.id}/reprogramadaPor`]: "Berto",
+      [`reservasGrupos/${r.id}/actualizadoEn`]: ahora.toISOString(),
+    };
+    let notaInterna;
+    let notaInternaId;
+
+    if (r.orderId) {
+      notaInterna = {
+        texto: `Fecha de reserva de grupo cambiada por Berto. Antes: ${r.fecha || "—"}. Ahora: ${nuevaFecha}.`,
+        fecha: fechaCambio,
+      };
+      const nuevaNotaRef = push(
+        ref(dbRealtime, `reservasNotas/${r.orderId}/notasInternas`)
+      );
+      notaInternaId = nuevaNotaRef.key;
+      actualizacion[
+        `reservasNotas/${r.orderId}/notasInternas/${notaInternaId}`
+      ] = notaInterna;
+    }
+
+    await update(ref(dbRealtime), actualizacion);
+
+    setReservas((prev) =>
+      prev.map((grupo) =>
+        grupo.id === r.id
+          ? {
+              ...grupo,
+              fecha: nuevaFecha,
+              fechaAnterior: r.fecha || "",
+              fechaOriginal: r.fechaOriginal || r.fecha || "",
+              ultimaFechaAnterior: r.fecha || "",
+              fechaReprogramada: nuevaFecha,
+              reprogramada: true,
+              reprogramadaEn: fechaCambio,
+              reprogramadaPor: "Berto",
+              actualizadoEn: ahora.toISOString(),
+              ...(notaInterna
+                ? {
+                    notasInternas: [
+                      ...(grupo.notasInternas || []),
+                      { id: notaInternaId, ...notaInterna },
+                    ],
+                  }
+                : {}),
+            }
+          : grupo
+      )
+    );
+    setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: false }));
+    setFechaGrupoEditada((prev) => ({ ...prev, [r.id]: "" }));
+    alert("Fecha de la reserva de grupo actualizada correctamente.");
+  } catch (error) {
+    console.error("Error al cambiar la fecha de la reserva de grupo:", error);
+    alert("No se pudo cambiar la fecha de la reserva de grupo.");
+  } finally {
+    setGuardandoFechaGrupo((prev) => ({ ...prev, [r.id]: false }));
+  }
+};
+
   const limpiarFiltros = () => {
     setFiltroFecha("");
     setFiltroEstadoPago("");
@@ -568,9 +661,84 @@ const cancelarGrupoManual = async (r) => {
                         <h2 style={styles.cardTitulo}>
                           {r.clase || "Reserva de grupo"}
                         </h2>
-                        <p style={styles.cardSubtitulo}>
-                          {r.fecha || "—"} · {r.turno || "—"}
-                        </p>
+                        <div style={styles.fechaGrupo}>
+                          <p style={styles.cardSubtitulo}>
+                            {r.fecha || "—"} · {r.turno || "—"}
+                          </p>
+                          {!editandoFechaGrupo[r.id] &&
+                            !r.cancelada &&
+                            r.estado !== "Cancelada" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFechaGrupoEditada((prev) => ({
+                                    ...prev,
+                                    [r.id]: r.fecha || "",
+                                  }));
+                                  setEditandoFechaGrupo((prev) => ({
+                                    ...prev,
+                                    [r.id]: true,
+                                  }));
+                                }}
+                                style={styles.botonCambiarFecha}
+                              >
+                                Cambiar fecha
+                              </button>
+                            )}
+                        </div>
+                        {editandoFechaGrupo[r.id] && (
+                          <div style={styles.editarFechaGrupo}>
+                            <label style={styles.label} htmlFor={`fecha-grupo-${r.id}`}>
+                              Nueva fecha
+                            </label>
+                            <input
+                              id={`fecha-grupo-${r.id}`}
+                              type="date"
+                              value={fechaGrupoEditada[r.id] || ""}
+                              onChange={(event) =>
+                                setFechaGrupoEditada((prev) => ({
+                                  ...prev,
+                                  [r.id]: event.target.value,
+                                }))
+                              }
+                              style={styles.input}
+                              disabled={guardandoFechaGrupo[r.id]}
+                            />
+                            <div style={styles.accionesFechaGrupo}>
+                              <button
+                                type="button"
+                                onClick={() => guardarFechaGrupo(r)}
+                                style={styles.botonGuardar}
+                                disabled={
+                                  guardandoFechaGrupo[r.id] ||
+                                  !fechaGrupoEditada[r.id] ||
+                                  fechaGrupoEditada[r.id] === r.fecha
+                                }
+                              >
+                                {guardandoFechaGrupo[r.id]
+                                  ? "Guardando..."
+                                  : "Guardar fecha"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditandoFechaGrupo((prev) => ({
+                                    ...prev,
+                                    [r.id]: false,
+                                  }));
+                                  setFechaGrupoEditada((prev) => ({
+                                    ...prev,
+                                    [r.id]: "",
+                                  }));
+                                }}
+                                style={styles.botonSecundario}
+                                disabled={guardandoFechaGrupo[r.id]}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div style={styles.badges}>
@@ -1115,6 +1283,35 @@ textoProgreso: {
     margin: "6px 0 0 0",
     color: "#7a7a7a",
     fontSize: "0.95rem",
+  },
+  fechaGrupo: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  botonCambiarFecha: {
+    marginTop: 6,
+    padding: "6px 10px",
+    border: "1px solid #e5d8b8",
+    backgroundColor: "#fff8da",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontWeight: 600,
+    color: "#5b4a2d",
+    fontSize: "0.85rem",
+  },
+  editarFechaGrupo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+    marginTop: 10,
+    maxWidth: 320,
+  },
+  accionesFechaGrupo: {
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
   },
   badges: {
     display: "flex",
