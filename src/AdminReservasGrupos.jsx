@@ -20,6 +20,9 @@ const [guardandoManual, setGuardandoManual] = useState({});
 const [editandoFechaGrupo, setEditandoFechaGrupo] = useState({});
 const [fechaGrupoEditada, setFechaGrupoEditada] = useState({});
 const [guardandoFechaGrupo, setGuardandoFechaGrupo] = useState({});
+const [editandoPlazoPago, setEditandoPlazoPago] = useState({});
+const [plazoPagoEditado, setPlazoPagoEditado] = useState({});
+const [guardandoPlazoPago, setGuardandoPlazoPago] = useState({});
 
 const [filtroFecha, setFiltroFecha] = useState("");
 const [filtroEstadoPago, setFiltroEstadoPago] = useState("");
@@ -63,6 +66,18 @@ useEffect(() => {
 
   return `${horas}h ${minutos}m`;
 };
+
+  const convertirAFechaHoraLocal = (fecha) => {
+    if (!fecha) return "";
+
+    const fechaValida = new Date(fecha);
+    if (Number.isNaN(fechaValida.getTime())) return "";
+
+    const diferenciaZona = fechaValida.getTimezoneOffset() * 60_000;
+    return new Date(fechaValida.getTime() - diferenciaZona)
+      .toISOString()
+      .slice(0, 16);
+  };
 
   useEffect(() => {
     if (fechaDesdeURL) {
@@ -515,6 +530,124 @@ const guardarFechaGrupo = async (r) => {
   }
 };
 
+const guardarPlazoPago = async (r) => {
+  const nuevaFechaLimite = new Date(plazoPagoEditado[r.id] || "");
+  const limiteActual = r.fechaLimitePago
+    ? new Date(r.fechaLimitePago)
+    : null;
+  const reactivarPorCaducidad =
+    r.estado === "cancelada_por_caducidad";
+
+  if (
+    Number.isNaN(nuevaFechaLimite.getTime()) ||
+    nuevaFechaLimite <= new Date() ||
+    (limiteActual &&
+      !Number.isNaN(limiteActual.getTime()) &&
+      nuevaFechaLimite <= limiteActual)
+  ) {
+    alert("El nuevo límite debe ser posterior al plazo actual y estar en el futuro.");
+    return;
+  }
+
+  const confirmar = window.confirm(
+    `¿Quieres ampliar el plazo de pago hasta ${nuevaFechaLimite.toLocaleString("es-ES")}?`
+  );
+  if (!confirmar) return;
+
+  try {
+    setGuardandoPlazoPago((prev) => ({ ...prev, [r.id]: true }));
+
+    const ahora = new Date();
+    const nuevaFechaISO = nuevaFechaLimite.toISOString();
+    const fechaCambio = ahora.toLocaleString("es-ES");
+    const actualizacion = {
+      [`reservasGrupos/${r.id}/fechaLimitePago`]: nuevaFechaISO,
+      [`reservasGrupos/${r.id}/fechaLimitePagoAnterior`]:
+        r.fechaLimitePago || "",
+      [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaEn`]:
+        ahora.toISOString(),
+      [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaPor`]: "Berto",
+    };
+    if (reactivarPorCaducidad) {
+      actualizacion[`reservasGrupos/${r.id}/estado`] =
+        "pendiente_pago_individual";
+      actualizacion[`reservasGrupos/${r.id}/estadoPago`] =
+        Number(r.plazasPagadas || 0) > 0 ? "parcial" : "pendiente";
+      actualizacion[`reservasGrupos/${r.id}/cancelada`] = false;
+      actualizacion[`reservasGrupos/${r.id}/canceladaEn`] = null;
+      actualizacion[`reservasGrupos/${r.id}/motivoCancelacion`] = null;
+    }
+    let notaInterna;
+    let notaInternaId;
+
+    if (r.orderId) {
+      notaInterna = {
+        texto: `${reactivarPorCaducidad ? "Reserva reactivada y plazo de pago ampliado" : "Plazo de pago ampliado"} por Berto. Antes: ${
+          r.fechaLimitePago
+            ? new Date(r.fechaLimitePago).toLocaleString("es-ES")
+            : "sin fecha"
+        }. Nuevo límite: ${nuevaFechaLimite.toLocaleString("es-ES")}.`,
+        fecha: fechaCambio,
+      };
+      const nuevaNotaRef = push(
+        ref(dbRealtime, `reservasNotas/${r.orderId}/notasInternas`)
+      );
+      notaInternaId = nuevaNotaRef.key;
+      actualizacion[
+        `reservasNotas/${r.orderId}/notasInternas/${notaInternaId}`
+      ] = notaInterna;
+    }
+
+    await update(ref(dbRealtime), actualizacion);
+
+    setReservas((prev) =>
+      prev.map((grupo) =>
+        grupo.id === r.id
+          ? {
+              ...grupo,
+              fechaLimitePago: nuevaFechaISO,
+              fechaLimitePagoAnterior: r.fechaLimitePago || "",
+              fechaLimitePagoActualizadaEn: ahora.toISOString(),
+              fechaLimitePagoActualizadaPor: "Berto",
+              ...(reactivarPorCaducidad
+                ? {
+                    estado: "pendiente_pago_individual",
+                    estadoPago:
+                      Number(r.plazasPagadas || 0) > 0
+                        ? "parcial"
+                        : "pendiente",
+                    cancelada: false,
+                    canceladaEn: null,
+                    motivoCancelacion: null,
+                  }
+                : {}),
+              ...(notaInterna
+                ? {
+                    notasInternas: [
+                      ...(grupo.notasInternas || []),
+                      { id: notaInternaId, ...notaInterna },
+                    ],
+                  }
+                : {}),
+            }
+          : grupo
+      )
+    );
+    setEditandoPlazoPago((prev) => ({ ...prev, [r.id]: false }));
+    setPlazoPagoEditado((prev) => ({ ...prev, [r.id]: "" }));
+    alert(
+      reactivarPorCaducidad
+        ? "Reserva reactivada y fecha límite de pago ampliada correctamente."
+        : "Fecha límite de pago ampliada correctamente."
+    );
+  } catch (error) {
+    console.error("Error al ampliar la fecha límite de pago:", error);
+    alert("No se pudo ampliar la fecha límite de pago.");
+  } finally {
+    setGuardandoPlazoPago((prev) => ({ ...prev, [r.id]: false }));
+  }
+};
+
   const limpiarFiltros = () => {
     setFiltroFecha("");
     setFiltroEstadoPago("");
@@ -799,8 +932,72 @@ const guardarFechaGrupo = async (r) => {
   <strong>Tiempo restante:</strong>{" "}
   {calcularTiempoRestante(r.fechaLimitePago)}
 </p>
-  </>
-)}
+        {!editandoPlazoPago[r.id] &&
+          Number(r.plazasPendientes ?? 0) > 0 &&
+          (!r.cancelada || r.estado === "cancelada_por_caducidad") &&
+          (r.estado !== "Cancelada" ||
+            r.estado === "cancelada_por_caducidad") && (
+            <button
+              type="button"
+              onClick={() => {
+                setPlazoPagoEditado((prev) => ({
+                  ...prev,
+                  [r.id]: convertirAFechaHoraLocal(r.fechaLimitePago),
+                }));
+                setEditandoPlazoPago((prev) => ({ ...prev, [r.id]: true }));
+              }}
+              style={styles.botonCambiarFecha}
+            >
+              Ampliar plazo de pago
+            </button>
+          )}
+        {editandoPlazoPago[r.id] && (
+          <div style={styles.editarFechaGrupo}>
+            <label style={styles.label} htmlFor={`plazo-pago-${r.id}`}>
+              Nuevo límite de pago
+            </label>
+            <input
+              id={`plazo-pago-${r.id}`}
+              type="datetime-local"
+              value={plazoPagoEditado[r.id] || ""}
+              onChange={(event) =>
+                setPlazoPagoEditado((prev) => ({
+                  ...prev,
+                  [r.id]: event.target.value,
+                }))
+              }
+              style={styles.input}
+              disabled={guardandoPlazoPago[r.id]}
+            />
+            <div style={styles.accionesFechaGrupo}>
+              <button
+                type="button"
+                onClick={() => guardarPlazoPago(r)}
+                style={styles.botonGuardar}
+                disabled={
+                  guardandoPlazoPago[r.id] || !plazoPagoEditado[r.id]
+                }
+              >
+                {guardandoPlazoPago[r.id]
+                  ? "Guardando..."
+                  : "Guardar nuevo plazo"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditandoPlazoPago((prev) => ({ ...prev, [r.id]: false }));
+                  setPlazoPagoEditado((prev) => ({ ...prev, [r.id]: "" }));
+                }}
+                style={styles.botonSecundario}
+                disabled={guardandoPlazoPago[r.id]}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    )}
 
 <p><strong>Total:</strong> {r.precioTotal}€</p>
 <p><strong>OrderId:</strong> {r.orderId || "—"}</p>
