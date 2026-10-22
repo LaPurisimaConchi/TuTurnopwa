@@ -1,9 +1,10 @@
 // src/BloqueoReserva.jsx
 import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 export default function BloqueoReserva({ children }) {
+  const location = useLocation();
   const [usuarioLogueado, setUsuarioLogueado] = useState(null);
   const [cargando, setCargando] = useState(true);
 
@@ -34,6 +35,13 @@ export default function BloqueoReserva({ children }) {
         </p>
         <Link
           to="/registro"
+          state={{
+            from: {
+              pathname: location.pathname,
+              search: location.search,
+              hash: location.hash,
+            },
+          }}
           className="inline-block mt-4 bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-bold px-5 py-2 rounded-lg"
         >
           Registrarse

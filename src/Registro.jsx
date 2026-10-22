@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { ref, set } from "firebase/database";
 import { auth, dbRealtime } from "./firebase";
@@ -7,6 +7,7 @@ import BotonVolver from "./BotonVolver";
 
 export default function Registro() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
@@ -70,7 +71,7 @@ export default function Registro() {
       bonos: {},
     });
 
-    navigate("/perfil");
+    navigate(location.state?.from || "/perfil", { replace: true });
   } catch (error) {
     setError("Error al registrar: " + error.message);
   }
