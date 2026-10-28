@@ -195,8 +195,8 @@ window.location.href =
     orderId,
     amountCents: String(amountCents),
     payMethod: "card",
-    okUrl: `https://app.lapurisimaconchi.com/pago-grupo-exitoso/${grupo.id}`,
-    koUrl: `https://app.lapurisimaconchi.com/pago-grupo-error/${grupo.id}`,
+    okUrl: `${window.location.origin}/pago-grupo-exitoso/${grupo.id}`,
+    koUrl: `${window.location.origin}/pago-grupo-error/${grupo.id}`,
   }).toString();
 
     

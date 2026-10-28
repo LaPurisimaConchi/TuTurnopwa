@@ -2,12 +2,17 @@
 import crypto from "crypto";
 export const config = { runtime: "nodejs" };
 
-// Sustituir esto por process.env.VARIABLES en producción
-const FUC = "368564464"; //process.env.REDSYS_FUC;
-const TERMINAL = "001"; //process.env.REDSYS_TERMINAL;
-const CURRENCY = "978"; //process.env.REDSYS_CURRENCY;
+// Sin variables TPV_* / APP_BASE_URL se usan los valores de producción.
+// En staging (Preview) se definen para usar el TPV de pruebas de Redsys.
+// Nombres nuevos a propósito: los REDSYS_FUC, REDSYS_URL_* antiguos de Vercel no se leen.
+const FUC = process.env.TPV_FUC || "368564464";
+const TERMINAL = process.env.TPV_TERMINAL || "001";
+const CURRENCY = "978";
 const REDSYS_SECRET_KEY = process.env.REDSYS_SECRET_KEY;
-const TPV_URL = "https://sis.redsys.es/sis/realizarPago";
+const TPV_URL = process.env.TPV_URL || "https://sis.redsys.es/sis/realizarPago";
+const APP_BASE_URL = (process.env.APP_BASE_URL || "https://app.lapurisimaconchi.com").replace(/\/+$/, "");
+// Query opcional para la URL de notificación (p. ej. el bypass de la protección de Vercel en staging)
+const NOTIFY_QUERY = process.env.TPV_NOTIFY_QUERY || "";
 
 // ---------- utils ----------
 const isHttps = (u) => typeof u === "string" && /^https:\/\//i.test(u);
@@ -104,14 +109,14 @@ if (!cents || !/^\d+$/.test(cents) || Number(cents) < 1) {
    // URLs
 const URL_OK = isHttps(okUrl)
   ? okUrl
-  : "https://app.lapurisimaconchi.com/pago/exito";
+  : `${APP_BASE_URL}/pago/exito`;
 
 const URL_KO = isHttps(koUrl)
   ? koUrl
-  : "https://app.lapurisimaconchi.com/pago/error";
+  : `${APP_BASE_URL}/pago/error`;
 
 const URL_NOTIFY =
-  "https://app.lapurisimaconchi.com/api/notificacionTPV";
+  `${APP_BASE_URL}/api/notificacionTPV${NOTIFY_QUERY ? `?${NOTIFY_QUERY}` : ""}`;
 
 if (!isHttps(URL_OK) || !isHttps(URL_KO)) {
   return res.status(400).send(

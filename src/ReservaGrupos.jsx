@@ -312,7 +312,7 @@ const turnoFinal = horario;
 const nuevaReservaRef = ref(dbRealtime, "reservasGrupos");
 const grupoRef = push(nuevaReservaRef);
 const grupoId = grupoRef.key;
-const enlacePagoGrupo = `https://app.lapurisimaconchi.com/pago-grupo/${grupoId}`;
+const enlacePagoGrupo = `${window.location.origin}/pago-grupo/${grupoId}`;
 
 const reservaGrupo = {
   uid: user.uid,
