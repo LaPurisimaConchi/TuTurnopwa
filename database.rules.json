@@ -1,0 +1,86 @@
+{
+  "rules": {
+    "usuarios": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "usuariosNotas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "reservas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "reservasGrupos": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+
+      "$grupoId": {
+        ".read": "auth != null || data.child('modoPago').val() === 'individual'",
+
+        "pagosIndividuales": {
+          "$pagoId": {
+            ".write": "auth != null || root.child('reservasGrupos').child($grupoId).child('modoPago').val() === 'individual'"
+          }
+        }
+      }
+    },
+    "reservasNotas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "clasesNotas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "bloqueosFechas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "fechasHabilitadas": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "notificaciones": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "clases": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "tarjetas_regalo": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "tarjetasRegalo": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "codigosTarjetaRegalo": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "solicitudesEliminacion": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "solicitudesCambiosClases": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "esperaFundamentalMini": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "pedidosPendientes": {
+      "$orderId": {
+        ".read": "auth != null",
+        ".write": "auth != null || newData.child('tipo').val() === 'pago_grupo_individual'"
+      }
+    },
+    ".read": false,
+    ".write": false
+  }
+}
