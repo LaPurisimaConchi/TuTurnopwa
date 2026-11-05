@@ -1,3 +1,4 @@
+// Prueba de despliegue en Vercel: este comentario no cambia el comportamiento
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
