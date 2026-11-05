@@ -9,6 +9,7 @@ import PantallaConVolver from "./PantallaConVolver";
 import {
   cargarGaleria,
   estadoTaller,
+  exigeCuenta,
   formatearEuros,
   metodosDelTaller,
   precioDesde,
@@ -173,6 +174,13 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 className="shrink-0"
                 texto={esBono ? "Comprar bono" : "Reservar ahora"}
               />
+              {exigeCuenta(clase) && (
+                <p className="text-xs text-gray-500 mt-2">
+                  {esBono
+                    ? "Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil."
+                    : "Para reservar este taller necesitas una cuenta."}
+                </p>
+              )}
             </div>
 
             {clase.regalable !== false && (

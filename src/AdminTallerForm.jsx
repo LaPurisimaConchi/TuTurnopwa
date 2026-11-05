@@ -212,6 +212,7 @@ export default function AdminTallerForm() {
     setForm((prev) => ({
       ...prev,
       tipoProducto: tipo,
+      requiereCuenta: tipo === "bono" ? true : prev.tipoProducto === "bono" ? false : prev.requiereCuenta,
       modalidad: tipo === "bono" ? "unico" : prev.modalidad,
       grupo: tipo === "bono" ? GRUPO_BONOS : prev.grupo === GRUPO_BONOS ? "crear_piezas" : prev.grupo,
     }));
@@ -1265,6 +1266,25 @@ export default function AdminTallerForm() {
                 />
                 Se puede regalar con tarjeta regalo
               </label>
+            )}
+
+            {!esFijo && (
+              <div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={esBono || form.requiereCuenta}
+                    disabled={esBono}
+                    onChange={(e) => cambiar("requiereCuenta", e.target.checked)}
+                  />
+                  Hace falta cuenta para comprarlo
+                </label>
+                <p className="text-xs text-gray-500 ml-6 mt-1">
+                  {esBono
+                    ? "Los bonos siempre piden cuenta: las clases se reservan desde el perfil."
+                    : "Sin marcar, se puede reservar sin registrarse. Márcalo si la reserva se gestiona desde el perfil."}
+                </p>
+              </div>
             )}
 
             <div className="sm:w-1/2">

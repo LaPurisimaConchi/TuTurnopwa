@@ -191,6 +191,13 @@ export const METODOS_TALLER = [
 export const imagenPorDefecto = (claseId) =>
   TALLERES_FIJOS[claseId] ? `/img/miniaturas/${claseId}.jpg` : "/img/logoPCsin.png";
 
+// Los bonos siempre piden cuenta: se gestionan desde el perfil y, comprados como
+// invitado, quedarían en una sesión anónima que no se puede volver a abrir. Un
+// taller puede exigirla con la marca requiereCuenta (casilla del formulario).
+export function exigeCuenta(clase = {}) {
+  return clase.tipoProducto === "bono" || clase.requiereCuenta === true;
+}
+
 export function estadoTaller(clase = {}) {
   if (typeof clase.estado === "string" && clase.estado.trim()) {
     return clase.estado.trim().toLowerCase();

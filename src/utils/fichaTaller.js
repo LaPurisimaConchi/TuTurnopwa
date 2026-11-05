@@ -4,6 +4,7 @@
 import {
   GRUPOS_TALLER,
   METODOS_TALLER,
+  exigeCuenta,
   metodosDelTaller,
   variantesDelTaller,
 } from "../catalogoTalleres";
@@ -52,6 +53,7 @@ export const FORMULARIO_VACIO = {
   estado: "activa",
   enPortada: true,
   regalable: true,
+  requiereCuenta: false,
   orden: "",
 };
 
@@ -186,6 +188,7 @@ export function formularioDesdeClase(id, clase = {}) {
     estado: clase.estado || (clase.activa === false ? "oculta" : "activa"),
     enPortada: clase.enPortada !== false,
     regalable: clase.regalable !== false,
+    requiereCuenta: exigeCuenta(clase),
     orden: clase.orden != null ? String(clase.orden) : "",
   };
 }
@@ -265,6 +268,7 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
     activa: form.estado === "activa",
     enPortada: !!form.enPortada,
     regalable: !!form.regalable,
+    requiereCuenta: esBono || !!form.requiereCuenta,
     orden: form.orden === "" ? 999 : Number(form.orden),
     ...(esBono
       ? {

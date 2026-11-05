@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Link, useLocation } from "react-router-dom";
 
-export default function BloqueoReserva({ children }) {
+// permitirVisitante: la pantalla se ve sin sesión y pide los datos al guardar
+export default function BloqueoReserva({ children, permitirVisitante = false }) {
   const location = useLocation();
   const [usuarioLogueado, setUsuarioLogueado] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -24,7 +25,7 @@ export default function BloqueoReserva({ children }) {
     );
   }
 
-  if (!usuarioLogueado) {
+  if (!usuarioLogueado && !permitirVisitante) {
     return (
       <div className="text-center text-gray-700 bg-yellow-100 border border-yellow-300 rounded-xl p-6 max-w-xl mx-auto shadow">
         <p className="text-lg font-semibold">

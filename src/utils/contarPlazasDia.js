@@ -1,38 +1,7 @@
 // src/utils/contarPlazasDia.js
 import { ref, get, child } from "firebase/database";
 import { dbRealtime } from "../firebase";
-
-function normalizarMetodo(data = {}) {
-  const valor = (
-    data.metodo ||
-    data.tipoClase ||
-    data.tipo ||
-    ""
-  )
-    .toString()
-    .trim()
-    .toLowerCase();
-
-  if (valor === "torno") return "torno";
-
-  if (
-    valor === "modelado a mano" ||
-    valor === "modelado" ||
-    valor === "decoración con esmaltes" ||
-    valor === "decoracion con esmaltes"
-  ) {
-    return "modelado";
-  }
-
-  return "";
-}
-
-function esReservaValida(data = {}) {
-  const estado = (data.estado || "").toString().trim().toLowerCase();
-  const estadoPago = (data.estadoPago || "").toString().trim().toLowerCase();
-
-  return estado === "confirmada" && estadoPago === "pagado";
-}
+import { esReservaValida, plazasPorMetodo } from "./plazasOcupadas";
 
 function pareceReservaDirecta(obj) {
   if (!obj || typeof obj !== "object") return false;
@@ -55,52 +24,7 @@ function pareceReservaDirecta(obj) {
 export async function contarPlazasPorMetodo(fechaStr, turnoStr = "") {
   try {
     const snapshot = await get(child(ref(dbRealtime), "reservas"));
-    let torno = 0;
-    let modelado = 0;
-
-    if (!snapshot.exists()) {
-      return { torno: 0, modelado: 0 };
-    }
-
-    const sumarReserva = (data) => {
-      if (!data || typeof data !== "object") return;
-      if (!esReservaValida(data)) return;
-
-      const plazas = Number(data.plazas || 1);
-      const metodo = normalizarMetodo(data);
-
-      if (metodo === "torno") {
-        torno += plazas;
-      } else if (metodo === "modelado") {
-        modelado += plazas;
-      }
-    };
-
-    snapshot.forEach((claseSnap) => {
-      const fechaSnap = claseSnap.child(fechaStr);
-      if (!fechaSnap.exists()) return;
-
-     fechaSnap.forEach((turnoSnap) => {
-  if (turnoStr && turnoSnap.key !== turnoStr) return;
-
-  turnoSnap.forEach((tipoSnap) => {
-          const tipoVal = tipoSnap.val();
-
-          if (!tipoVal || typeof tipoVal !== "object") return;
-
-          if (pareceReservaDirecta(tipoVal)) {
-            sumarReserva(tipoVal);
-            return;
-          }
-
-          tipoSnap.forEach((reservaSnap) => {
-            sumarReserva(reservaSnap.val());
-          });
-        });
-      });
-    });
-
-    return { torno, modelado };
+    return plazasPorMetodo(snapshot, fechaStr, turnoStr);
   } catch (error) {
     console.error("❌ Error al contar plazas por método:", error);
     return { torno: 0, modelado: 0 };
