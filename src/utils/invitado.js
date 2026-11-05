@@ -25,18 +25,30 @@ export function validarDatosContacto({ nombre, email, telefono }) {
 const CLAVE_COMPRA = "compraInvitado";
 let cierrePendiente = null;
 
+// Respaldo en memoria: sessionStorage puede no estar disponible (Firefox con las
+// cookies o los datos de sitios bloqueados, algunos modos privados) y entonces
+// acceder a él lanza un error. Sin el respaldo, la compra nunca figuraría como
+// abierta y cada pantalla de pago volvería a pedir los datos en bucle. En memoria
+// sobrevive a navegar por la app; solo una recarga de la página lo pierde.
+let compraEnMemoria = "";
+
 const guardarCompra = (uid) => {
+  compraEnMemoria = uid || "";
+
   try {
     if (uid) sessionStorage.setItem(CLAVE_COMPRA, uid);
     else sessionStorage.removeItem(CLAVE_COMPRA);
   } catch {
-    // Sin almacenamiento: la compra se pedirá de nuevo, que es lo seguro
+    // Sin almacenamiento solo queda el respaldo en memoria
   }
 };
 
 export function compraInvitadoAbierta(uid) {
+  if (!uid) return false;
+  if (compraEnMemoria === uid) return true;
+
   try {
-    return !!uid && sessionStorage.getItem(CLAVE_COMPRA) === uid;
+    return sessionStorage.getItem(CLAVE_COMPRA) === uid;
   } catch {
     return false;
   }
@@ -136,5 +148,11 @@ export function mensajeErrorInvitado(error) {
     return "No hay conexión. Revisa tu internet e inténtalo de nuevo.";
   }
 
-  return "No se ha podido continuar. Inténtalo de nuevo.";
+  if (codigo === "auth/too-many-requests") {
+    return "Hay demasiados intentos seguidos. Espera unos minutos e inténtalo de nuevo.";
+  }
+
+  // Con el código del error es mucho más fácil saber qué falla (permisos, red…)
+  const detalle = codigo || String(error?.message || "").split(":")[0].trim();
+  return `No se ha podido continuar${detalle ? ` (${detalle})` : ""}. Inténtalo de nuevo.`;
 }

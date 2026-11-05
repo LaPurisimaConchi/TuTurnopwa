@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonReserva from "./BotonReserva";
+import { resumenHorarios } from "./utils/turnosTaller";
 import PantallaConVolver from "./PantallaConVolver";
 import {
   cargarGaleria,
@@ -88,6 +89,8 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const navigate = useNavigate();
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] || "");
   const [modalAbierto, setModalAbierto] = useState(false);
+  // Método (o variante, si el taller las tiene) elegido aquí: llega marcado a la reserva
+  const [opcionElegida, setOpcionElegida] = useState("");
 
   const esBono = clase.tipoProducto === "bono";
   const variantes = variantesDelTaller(clase);
@@ -101,6 +104,15 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const incluye =
     !secciones.length && Array.isArray(clase.incluye) ? clase.incluye.filter(Boolean) : [];
   const mostrarAvisos = clase.mostrarAvisos !== false;
+  const horarios = resumenHorarios(clase);
+
+  const opciones = variantes.length ? variantes : metodos;
+  const mostrarOpciones = variantes.length > 0 || metodos.length > 1;
+  const parametroOpcion = variantes.length ? "variante" : "metodo";
+  const etiquetaOpciones = variantes.length ? clase.variante?.etiqueta || "Opción" : "Método";
+  const destinoReserva = `/reservar/${claseId}${
+    opcionElegida ? `?${parametroOpcion}=${encodeURIComponent(opcionElegida)}` : ""
+  }`;
 
   return (
     <PantallaConVolver>
@@ -162,15 +174,63 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 : ""}
             </p>
 
-            {!preciosIguales && (
-              <p className="text-sm text-gray-600 mb-3">
-                {metodos.map((m) => `${m.nombre}: ${formatearEuros(m.precio)}`).join(" · ")}
-              </p>
+            {mostrarOpciones && (
+              <div className="mt-3 mb-4" role="radiogroup" aria-label={etiquetaOpciones}>
+                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                  {etiquetaOpciones}
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {opciones.map((opcion) => {
+                    const elegida = opcionElegida === opcion.id;
+
+                    return (
+                      <button
+                        key={opcion.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={elegida}
+                        onClick={() => setOpcionElegida(opcion.id)}
+                        className={`px-4 py-2 rounded-xl border text-left transition ${
+                          elegida
+                            ? "bg-[#F4C542] border-[#E5B92F] text-[#5c3c00] ring-2 ring-[#E5B92F]"
+                            : "bg-[#fff6d6] border-[#F4C542] text-[#5c3c00] hover:bg-[#F6D66A]"
+                        }`}
+                      >
+                        <span className="block text-sm font-semibold">{opcion.nombre}</span>
+                        {opcion.precio > 0 && (
+                          <span className="block text-xs">{formatearEuros(opcion.precio)}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Si lo eliges aquí, llegará ya marcado a la reserva.
+                </p>
+              </div>
+            )}
+
+            {horarios.length > 0 && (
+              <div className="mb-4">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                  Horarios
+                </h2>
+                <ul className="text-sm text-gray-700 space-y-1">
+                  {horarios.map((fila) => (
+                    <li key={fila.dias}>
+                      <strong>{fila.dias}:</strong> {fila.turnos}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-gray-500 mt-2">
+                  Los días con plaza se ven en el calendario al reservar.
+                </p>
+              </div>
             )}
 
             <div className="mt-3">
               <BotonReserva
-                destino={`/reservar/${claseId}`}
+                destino={destinoReserva}
                 className="shrink-0"
                 texto={esBono ? "Comprar bono" : "Reservar ahora"}
               />
@@ -193,21 +253,6 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               >
                 🎁 Regalar este taller
               </button>
-            )}
-
-            {variantes.length > 0 && (
-              <div className="mb-5">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
-                  Opciones disponibles
-                </h2>
-                <ul className="text-sm text-gray-700 space-y-2 leading-relaxed break-words">
-                  {variantes.map((v) => (
-                    <li key={v.id}>
-                      • {v.nombre} — {formatearEuros(v.precio)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
             )}
 
             <div className="mb-5 min-w-0">

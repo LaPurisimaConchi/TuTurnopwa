@@ -82,6 +82,50 @@ export function turnosDisponiblesEnFecha({
   return turnos;
 }
 
+const DIAS_ORDEN = [
+  ["lunes", "Lunes"],
+  ["martes", "Martes"],
+  ["miercoles", "Miércoles"],
+  ["jueves", "Jueves"],
+  ["viernes", "Viernes"],
+  ["sabado", "Sábado"],
+  ["domingo", "Domingo"],
+];
+
+// Horario semanal para mostrarlo: los días seguidos con los mismos turnos se
+// juntan ("Lunes a viernes"). No incluye las fechas habilitadas a mano.
+export function resumenHorarios(clase = {}) {
+  const filas = [];
+
+  DIAS_ORDEN.forEach(([clave, nombre], indice) => {
+    const turnos = normalizarTurnos(clase?.horarios?.[clave]).map(limpiarTurno);
+    if (!turnos.length) return;
+
+    const texto = turnos.join(" · ");
+    const ultima = filas[filas.length - 1];
+
+    if (ultima && ultima.texto === texto && ultima.indiceFinal === indice - 1) {
+      ultima.hasta = nombre;
+      ultima.indiceFinal = indice;
+    } else {
+      filas.push({ desde: nombre, hasta: nombre, texto, indiceInicial: indice, indiceFinal: indice });
+    }
+  });
+
+  return filas.map((fila) => {
+    const dias = fila.indiceFinal - fila.indiceInicial + 1;
+    return {
+      dias:
+        dias === 1
+          ? fila.desde
+          : dias === 2
+          ? `${fila.desde} y ${fila.hasta}`
+          : `${fila.desde} a ${fila.hasta}`,
+      turnos: fila.texto,
+    };
+  });
+}
+
 // Cómo se marca un día en el calendario: bloqueado desde el panel, sin taller ese
 // día (ni horario, ni fecha habilitada, ni grupo) o disponible
 export function estadoDiaTaller({

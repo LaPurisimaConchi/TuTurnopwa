@@ -175,6 +175,25 @@ export function FormularioReserva({ claseId, clase }) {
     if (varianteTarjeta) setVarianteId(varianteTarjeta);
   }, [varianteTarjeta]);
 
+  // Método u opción elegidos en la página del taller (?metodo= / ?variante=)
+  const variantePrevia = useMemo(() => {
+    const id = new URLSearchParams(location.search).get("variante");
+    return variantes.find((v) => v.id === id)?.id || "";
+  }, [location.search, variantes]);
+
+  const metodoPrevio = useMemo(() => {
+    const id = new URLSearchParams(location.search).get("metodo");
+    return metodos.find((m) => m.id === id)?.id || "";
+  }, [location.search, metodos]);
+
+  useEffect(() => {
+    if (variantePrevia) setVarianteId(variantePrevia);
+  }, [variantePrevia]);
+
+  useEffect(() => {
+    if (metodoPrevio) setMetodo(metodoPrevio);
+  }, [metodoPrevio]);
+
   useEffect(() => {
     if (metodoTarjeta) setMetodo(metodoTarjeta);
   }, [metodoTarjeta]);
@@ -298,7 +317,7 @@ export function FormularioReserva({ claseId, clase }) {
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
-    if (!metodoTarjeta && metodos.length !== 1) setMetodo("");
+    if (!metodoTarjeta && !metodoPrevio && metodos.length !== 1) setMetodo("");
     setTurno("");
     setPlazas(1);
   };
@@ -503,7 +522,8 @@ export function FormularioReserva({ claseId, clase }) {
       });
     } catch (err) {
       console.error("Error al guardar la reserva:", err);
-      alert("No se pudo guardar la reserva.");
+      const detalle = err?.code || String(err?.message || "").split(":")[0].trim();
+      alert(`No se pudo guardar la reserva${detalle ? ` (${detalle})` : ""}.`);
     } finally {
       setGuardando(false);
     }
