@@ -9,9 +9,13 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { crearBonoActivo } from "./utils/bonos";
-import { turnosDisponiblesEnFecha, useContextoReserva } from "./utils/turnosTaller";
+import {
+  estadoDiaTaller,
+  turnosDisponiblesEnFecha,
+  useContextoReserva,
+} from "./utils/turnosTaller";
 import BotonVolver from "./BotonVolver";
-import DateInputReserva from "./components/DateInputReserva";
+import CalendarioReserva from "./components/CalendarioReserva";
 
 const sumarUnMes = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
@@ -22,7 +26,12 @@ const sumarUnMes = (fechaISO) => {
 export default function ReservaBonoDinamico({ claseId, clase }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { fechasBloqueadas, fechasHabilitadas, reservasGrupos } = useContextoReserva();
+  const {
+    fechasBloqueadas,
+    fechasHabilitadas,
+    reservasGrupos,
+    cargado: contextoCargado,
+  } = useContextoReserva();
 
   const [fechaInicio, setFechaInicio] = useState("");
   const [turno, setTurno] = useState("");
@@ -316,16 +325,19 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           )}
 
           <div>
-            <label htmlFor="fechaInicio" className="block font-bold text-sm mb-1">
+            <p className="block font-bold text-sm mb-2">
               Selecciona la fecha de inicio de tu bono:
-            </label>
-            <DateInputReserva
-              id="fechaInicio"
+            </p>
+            <CalendarioReserva
               value={fechaInicio}
-              onChange={(e) => {
-                setFechaInicio(e.target.value);
+              onChange={(iso) => {
+                setFechaInicio(iso);
                 setTurno("");
               }}
+              estadoDia={(iso) =>
+                estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
+              }
+              cargando={!contextoCargado}
             />
             {fechaBloqueada && (
               <p className="mt-2 text-sm text-red-600 font-medium">
