@@ -54,6 +54,10 @@
       ".read": true,
       ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
+    "categoriasTalleres": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
     "tarjetas_regalo": {
       ".read": "auth != null",
       ".write": "auth != null"

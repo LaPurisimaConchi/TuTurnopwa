@@ -191,7 +191,7 @@ export function formularioDesdeClase(id, clase = {}) {
 }
 
 
-export function construirFicha(form, original = {}) {
+export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) {
   const esBono = form.tipoProducto === "bono";
   const horarios = {};
   DIAS.forEach(([dia]) => {
@@ -221,7 +221,7 @@ export function construirFicha(form, original = {}) {
 
   const precio = numeroPositivo(form.precioUnico);
   const precioDesde = precios ? Math.min(...Object.values(precios)) : precio;
-  const grupo = GRUPOS_TALLER.find((g) => g.id === (esBono ? GRUPO_BONOS : form.grupo));
+  const grupo = categorias.find((g) => g.id === (esBono ? GRUPO_BONOS : form.grupo));
   const extraTorno = numeroPositivo(form.bono.extraCambioTorno);
 
   return {

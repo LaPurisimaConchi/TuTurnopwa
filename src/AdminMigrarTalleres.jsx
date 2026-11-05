@@ -4,16 +4,16 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
-import { GRUPOS_TALLER } from "./catalogoTalleres";
+import useCategorias from "./components/useCategorias";
 import {
   deshacerMigracion,
   estadoMigracion,
   migrarTaller,
 } from "./migracion/migrarTalleres";
 
-const tituloGrupo = (id) => GRUPOS_TALLER.find((g) => g.id === id)?.titulo || id;
-
 export default function AdminMigrarTalleres() {
+  const categorias = useCategorias({ incluirOcultas: true });
+  const tituloGrupo = (id) => categorias.find((g) => g.id === id)?.titulo || id;
   const [talleres, setTalleres] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");

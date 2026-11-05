@@ -9,6 +9,7 @@ import { ref, get, set, update } from "firebase/database";
 import { dbRealtime } from "../firebase";
 import { GRUPOS_TALLER, TALLERES_FIJOS, estadoTaller } from "../catalogoTalleres";
 import { reducirImagen } from "../utils/imagenes";
+import { cargarCategorias } from "../categoriasTalleres";
 
 const AMBOS = ["torno", "modelado a mano"];
 
@@ -106,8 +107,8 @@ const vacio = (valor) =>
 
 const primero = (...valores) => valores.find((v) => !vacio(v));
 
-const tituloGrupo = (grupoId) =>
-  GRUPOS_TALLER.find((g) => g.id === grupoId)?.titulo || "";
+const tituloGrupo = (grupoId, categorias = GRUPOS_TALLER) =>
+  categorias.find((g) => g.id === grupoId)?.titulo || "";
 
 async function cargarContenido() {
   const modulo = await import("./contenidoTalleres.json");
@@ -171,7 +172,7 @@ export async function estadoMigracion() {
 
 // Cambios (rutas de Firebase → valor) que migran un taller. Es una función
 // pura: recibe la ficha actual y el contenido de la página antigua.
-export function construirParche(id, actual, contenido) {
+export function construirParche(id, actual, contenido, categorias = GRUPOS_TALLER) {
   const fijo = TALLERES_FIJOS[id];
   const config = CONFIG[id];
   const bono = config.bono;
@@ -190,7 +191,7 @@ export function construirParche(id, actual, contenido) {
   poner("reservasPath", fijo.pathKey);
   poner("tipoProducto", bono ? "bono" : "taller");
   ponerSiFalta("slug", id);
-  ponerSiFalta("categoria", tituloGrupo(fijo.grupo));
+  ponerSiFalta("categoria", tituloGrupo(fijo.grupo, categorias));
 
   // Algunas fichas antiguas tienen claves con un espacio al final
   poner("nombre", primero(actual.nombre, actual["nombre "], contenido.nombre));
@@ -304,7 +305,8 @@ export async function migrarTaller(id, { fotos = true, alProgreso } = {}) {
 
   alProgreso?.("Guardando la ficha");
 
-  const patch = construirParche(id, actual, contenido);
+  const categorias = await cargarCategorias({ incluirOcultas: true });
+  const patch = construirParche(id, actual, contenido, categorias);
   patch[`clases/${id}/actualizadoEn`] = new Date().toISOString();
 
   await update(ref(dbRealtime), patch);

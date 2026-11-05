@@ -12,8 +12,12 @@ import { ref, get, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import {
-  GRUPOS_TALLER,
-  GRUPOS_TALLER_NUEVO,
+  cargarCategorias,
+  categoriasDeSiempre,
+  crearCategoria,
+  mensajeErrorCategoria,
+} from "./categoriasTalleres";
+import {
   METODOS_TALLER,
   TALLERES_FIJOS,
   cargarGaleria,
@@ -127,11 +131,40 @@ export default function AdminTallerForm() {
   const [mensaje, setMensaje] = useState("");
   const [borrando, setBorrando] = useState(false);
   const [errorBorrado, setErrorBorrado] = useState("");
+  // Las de siempre y las del panel (ocultas incluidas); al principio, solo las de siempre
+  const [categorias, setCategorias] = useState(categoriasDeSiempre);
+  const [categoriasCargadas, setCategoriasCargadas] = useState(false);
+  const [nuevaCategoria, setNuevaCategoria] = useState(null); // null = cerrado; texto = creando
+  const [creandoCategoria, setCreandoCategoria] = useState(false);
+  const [errorCategoria, setErrorCategoria] = useState("");
 
   // Talleres de siempre sin migrar: tienen página propia, solo fotos y portada
   const esFijo = !!idEditar && !!claseOriginal && !claseOriginal.dinamica;
   const esNuevo = !idEditar;
   const esBono = form.tipoProducto === "bono";
+
+  const todasLasCategorias = categorias;
+  // Los bonos van siempre en su categoría; el resto eligen entre las demás
+  const gruposDisponibles = esBono
+    ? categorias.filter((g) => g.id === GRUPO_BONOS)
+    : categorias.filter((g) => g.id !== GRUPO_BONOS);
+  // Un taller puede estar en una categoría que ya no existe: se conserva visible
+  const categoriaDesconocida =
+    categoriasCargadas && !esBono && form.grupo && !gruposDisponibles.some((g) => g.id === form.grupo);
+
+  // Taller nuevo con la categoría por defecto borrada: se propone la primera que quede
+  useEffect(() => {
+    if (!esNuevo || esBono || !categoriasCargadas || !gruposDisponibles.length) return;
+    if (!gruposDisponibles.some((g) => g.id === form.grupo)) {
+      setForm((prev) => ({ ...prev, grupo: gruposDisponibles[0].id }));
+    }
+  }, [esNuevo, esBono, categoriasCargadas, gruposDisponibles, form.grupo]);
+
+  useEffect(() => {
+    cargarCategorias({ incluirOcultas: true })
+      .then(setCategorias)
+      .finally(() => setCategoriasCargadas(true));
+  }, []);
 
   useEffect(() => {
     if (!idEditar) return;
@@ -383,7 +416,7 @@ export default function AdminTallerForm() {
         });
       } else {
         await update(ref(dbRealtime, `clases/${id}`), {
-          ...construirFicha(form, claseOriginal || {}),
+          ...construirFicha(form, claseOriginal || {}, todasLasCategorias),
           ...(esNuevo ? { creadoEn: ahora } : {}),
           actualizadoEn: ahora,
         });
@@ -475,9 +508,22 @@ export default function AdminTallerForm() {
   const botonMini =
     "px-2.5 py-1 rounded-lg border border-[#eadfbe] bg-[#fffaf0] text-sm disabled:opacity-30";
 
-  const gruposDisponibles = esBono
-    ? GRUPOS_TALLER.filter((g) => g.id === GRUPO_BONOS)
-    : GRUPOS_TALLER_NUEVO;
+  const handleCrearCategoria = async () => {
+    setErrorCategoria("");
+    setCreandoCategoria(true);
+
+    try {
+      const creada = await crearCategoria({ titulo: nuevaCategoria || "" });
+      setCategorias((prev) => [...prev, creada]);
+      cambiar("grupo", creada.id);
+      setNuevaCategoria(null);
+    } catch (err) {
+      console.error("Error al crear la categoría:", err);
+      setErrorCategoria(mensajeErrorCategoria(err));
+    } finally {
+      setCreandoCategoria(false);
+    }
+  };
   const conMetodoOVariante = !esBono && (form.modalidad === "metodos" || form.modalidad === "variante");
 
   return (
@@ -571,9 +617,77 @@ export default function AdminTallerForm() {
                   disabled={esBono}
                 >
                   {gruposDisponibles.map((g) => (
-                    <option key={g.id} value={g.id}>{g.titulo}</option>
+                    <option key={g.id} value={g.id}>
+                      {g.titulo}
+                      {g.estado === "oculta" ? " (oculta)" : ""}
+                    </option>
                   ))}
+                  {categoriaDesconocida && (
+                    <option value={form.grupo}>{form.grupo} (categoría eliminada)</option>
+                  )}
                 </select>
+
+                {!esBono && (
+                  <div className="mt-2">
+                    {nuevaCategoria === null ? (
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                        <button
+                          type="button"
+                          className="text-blue-700 underline"
+                          onClick={() => {
+                            setErrorCategoria("");
+                            setNuevaCategoria("");
+                          }}
+                        >
+                          + Crear categoría nueva
+                        </button>
+                        <Link to="/admin-categorias" className="text-blue-700 underline">
+                          Gestionar categorías
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-3 space-y-2">
+                        <label htmlFor="taller-nueva-categoria" className={label}>
+                          Nombre de la categoría nueva
+                        </label>
+                        <input
+                          id="taller-nueva-categoria"
+                          className={input}
+                          value={nuevaCategoria}
+                          onChange={(e) => setNuevaCategoria(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleCrearCategoria();
+                            }
+                          }}
+                          placeholder="Ej.: Talleres de temporada"
+                          autoFocus
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={handleCrearCategoria}
+                            disabled={creandoCategoria || !nuevaCategoria.trim()}
+                            className="px-4 py-2 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold text-sm hover:bg-[#e8b932] disabled:opacity-50"
+                          >
+                            {creandoCategoria ? "Creando..." : "Crear y elegir"}
+                          </button>
+                          <button
+                            type="button"
+                            className={botonMini}
+                            onClick={() => setNuevaCategoria(null)}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                        {errorCategoria && (
+                          <p className="text-sm text-red-700" role="alert">{errorCategoria}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

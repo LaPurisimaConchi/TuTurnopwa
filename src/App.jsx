@@ -5,6 +5,7 @@ import ScrollToTop from "./ScrollToTop";
 import AppLayout from "./AppLayout";
 import AccesoCompra from "./AccesoCompra";
 import RutaTaller from "./RutaTaller";
+import RutaCategoria from "./RutaCategoria";
 
 // Páginas principales
 import Portada from "./Portada.jsx";
@@ -41,6 +42,7 @@ import TalleresCursosBonos from "./TalleresCursosBonos";
 import TalleresPintaDecora from "./TalleresPintaDecora";
 import TarjetaRegalo from "./TarjetaRegalo";
 import TalleresOtros from "./TalleresOtros";
+import TalleresCategoria from "./TalleresCategoria";
 
 // Talleres creados desde el panel admin
 import TallerDinamico from "./TallerDinamico";
@@ -132,6 +134,7 @@ import AdminDetalleBonoNuevo from "./AdminDetalleBonoNuevo";
 import AdminHabilitarFechas from "./AdminHabilitarFechas";
 import AdminTallerForm from "./AdminTallerForm";
 import AdminMigrarTalleres from "./AdminMigrarTalleres";
+import AdminCategorias from "./AdminCategorias";
 
 import DondeReservarV2 from "./DondeReservarV2.jsx";
 import ChatAyuda from "./ChatAyuda.jsx";
@@ -162,10 +165,11 @@ function App() {
 
           <Route path="/clases" element={<Clases />} />
           <Route path="/clases-solo" element={<ClasesSoloVista />} />
-          <Route path="/talleres/cursos-bonos" element={<TalleresCursosBonos />} />
-          <Route path="/talleres/crear-piezas" element={<TalleresCrearPiezas />} />
-          <Route path="/talleres/pinta-decora" element={<TalleresPintaDecora />} />
-          <Route path="/talleres/otros" element={<TalleresOtros />} />
+          <Route path="/talleres/cursos-bonos" element={<RutaCategoria categoriaId="cursos_bonos"><TalleresCursosBonos /></RutaCategoria>} />
+          <Route path="/talleres/crear-piezas" element={<RutaCategoria categoriaId="crear_piezas"><TalleresCrearPiezas /></RutaCategoria>} />
+          <Route path="/talleres/pinta-decora" element={<RutaCategoria categoriaId="pinta_decora"><TalleresPintaDecora /></RutaCategoria>} />
+          <Route path="/talleres/otros" element={<RutaCategoria categoriaId="otros"><TalleresOtros /></RutaCategoria>} />
+          <Route path="/categoria/:categoriaId" element={<TalleresCategoria />} />
           <Route path="/tarjeta-regalo" element={<TarjetaRegalo />} />
           <Route path="/taller/:claseId" element={<TallerDinamico />} />
           <Route
@@ -467,6 +471,14 @@ function App() {
             element={
               <RutaAdmin>
                 <AdminMigrarTalleres />
+              </RutaAdmin>
+            }
+          />
+          <Route
+            path="/admin-categorias"
+            element={
+              <RutaAdmin>
+                <AdminCategorias />
               </RutaAdmin>
             }
           />

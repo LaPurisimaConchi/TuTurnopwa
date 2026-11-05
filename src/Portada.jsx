@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GRUPOS_TALLER, cargarTalleres } from "./catalogoTalleres";
+import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
 import useMiniaturasTalleres from "./components/useMiniaturasTalleres";
+import useCategorias from "./components/useCategorias";
 
 export default function Portada() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function Portada() {
   const [cargando, setCargando] = useState(true);
   const [grupoActivo, setGrupoActivo] = useState("todos");
   const miniaturas = useMiniaturasTalleres(talleres);
+  const categorias = useCategorias();
 
   useEffect(() => {
     cargarTalleres()
@@ -19,8 +21,8 @@ export default function Portada() {
   }, []);
 
   const grupos = useMemo(
-    () => GRUPOS_TALLER.filter((g) => talleres.some((t) => t.grupo === g.id)),
-    [talleres]
+    () => categorias.filter((g) => talleres.some((t) => t.grupo === g.id)),
+    [categorias, talleres]
   );
 
   const talleresVisibles =

@@ -1,16 +1,17 @@
 // src/components/TalleresNuevos.jsx
-// Talleres creados desde el panel admin para un grupo del catálogo
+// Talleres creados desde el panel admin para un grupo del catálogo. Con
+// «todos» salen también los de siempre sin migrar (página genérica de categoría).
 import { useEffect, useState } from "react";
-import { cargarTalleresDinamicos } from "../catalogoTalleres";
+import { cargarTalleresDeGrupo, cargarTalleresDinamicos } from "../catalogoTalleres";
 import TarjetaTaller from "./TarjetaTaller";
 import useMiniaturasTalleres from "./useMiniaturasTalleres";
 
-export default function TalleresNuevos({ grupo, titulo, textoBoton, onElegir, alCargar }) {
+export default function TalleresNuevos({ grupo, titulo, textoBoton, onElegir, alCargar, todos = false }) {
   const [talleres, setTalleres] = useState([]);
   const miniaturas = useMiniaturasTalleres(talleres);
 
   useEffect(() => {
-    cargarTalleresDinamicos(grupo)
+    (todos ? cargarTalleresDeGrupo(grupo) : cargarTalleresDinamicos(grupo))
       .then((lista) => {
         setTalleres(lista);
         alCargar?.(lista);
@@ -18,7 +19,7 @@ export default function TalleresNuevos({ grupo, titulo, textoBoton, onElegir, al
       .catch((error) => console.error("Error al cargar talleres nuevos:", error));
     // alCargar es un aviso opcional; no debe volver a lanzar la carga
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grupo]);
+  }, [grupo, todos]);
 
   if (!talleres.length) return null;
 

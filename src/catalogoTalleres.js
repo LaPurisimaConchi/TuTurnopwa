@@ -5,28 +5,10 @@
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 
-export const GRUPOS_TALLER = [
-  {
-    id: "crear_piezas",
-    titulo: "Crear piezas desde cero",
-    ruta: "/talleres/crear-piezas",
-  },
-  {
-    id: "pinta_decora",
-    titulo: "Pinta y decora",
-    ruta: "/talleres/pinta-decora",
-  },
-  {
-    id: "cursos_bonos",
-    titulo: "Cursos y bonos mensuales",
-    ruta: "/talleres/cursos-bonos",
-  },
-  {
-    id: "otros",
-    titulo: "Otros talleres",
-    ruta: "/talleres/otros",
-  },
-];
+// Categorías que vienen con la web (definidas aparte para poder usarlas desde scripts)
+import { GRUPOS_TALLER } from "./categoriasDeSiempre";
+
+export { GRUPOS_TALLER };
 
 // Grupos que el admin puede elegir para un taller nuevo (los bonos tienen su
 // propia lógica de sesiones y siguen necesitando página hecha a medida)
@@ -310,6 +292,12 @@ export async function cargarTalleres({ incluirOcultos = false } = {}) {
     .filter(Boolean)
     .filter((t) => incluirOcultos || t.estado === "activa")
     .sort(ordenarTalleres);
+}
+
+// Talleres activos de una categoría: los de siempre sin migrar y los del panel
+export async function cargarTalleresDeGrupo(grupo) {
+  const talleres = await cargarTalleres();
+  return talleres.filter((t) => t.grupo === grupo);
 }
 
 export async function cargarTalleresDinamicos(grupo) {
