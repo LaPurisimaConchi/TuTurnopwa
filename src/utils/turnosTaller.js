@@ -3,8 +3,7 @@
 // el admin + reservas de grupo confirmadas (misma lógica que las pantallas de
 // reserva de siempre).
 import { useEffect, useState } from "react";
-import { ref, get } from "firebase/database";
-import { dbRealtime } from "../firebase";
+import { cargarContextoReserva } from "./disponibilidad";
 
 const DIAS_SEMANA = [
   "domingo",
@@ -83,36 +82,35 @@ export function turnosDisponiblesEnFecha({
   return turnos;
 }
 
-// Fechas bloqueadas, fechas habilitadas y reservas de grupo (solo lectura)
+// Fechas bloqueadas, fechas habilitadas y reservas de grupo (solo lectura).
+// `error` avisa de que no se ha podido leer: sin estos datos no se sabe qué días
+// están bloqueados, así que la pantalla no debe dejar reservar.
 export function useContextoReserva() {
   const [contexto, setContexto] = useState({
     fechasBloqueadas: {},
     fechasHabilitadas: {},
     reservasGrupos: {},
+    error: false,
   });
 
   useEffect(() => {
     let cancelado = false;
 
-    const leer = async (ruta) => {
-      try {
-        const snap = await get(ref(dbRealtime, ruta));
-        return snap.exists() ? snap.val() || {} : {};
-      } catch (error) {
-        console.error(`Error al cargar ${ruta}:`, error);
-        return {};
-      }
-    };
-
-    Promise.all([
-      leer("bloqueosFechas"),
-      leer("fechasHabilitadas"),
-      leer("reservasGrupos"),
-    ]).then(([fechasBloqueadas, fechasHabilitadas, reservasGrupos]) => {
-      if (!cancelado) {
-        setContexto({ fechasBloqueadas, fechasHabilitadas, reservasGrupos });
-      }
-    });
+    cargarContextoReserva()
+      .then((datos) => {
+        if (!cancelado) setContexto({ ...datos, error: false });
+      })
+      .catch((error) => {
+        console.error("Error al cargar la disponibilidad:", error);
+        if (!cancelado) {
+          setContexto({
+            fechasBloqueadas: {},
+            fechasHabilitadas: {},
+            reservasGrupos: {},
+            error: true,
+          });
+        }
+      });
 
     return () => {
       cancelado = true;

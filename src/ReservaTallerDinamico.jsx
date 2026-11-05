@@ -4,12 +4,12 @@
 // Sigue el mismo flujo que las reservas de siempre: reservas/{ruta}/...
 // con estado Pendiente → /resumen-pago → Redsys, o confirmada con tarjeta regalo.
 // Los bonos tienen su propia pantalla (ReservaBonoDinamico).
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
+import { plazasOcupadasDeTaller, plazasOcupadasPorMetodo } from "./utils/disponibilidad";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import {
   esTurnoConsulta,
@@ -24,6 +24,7 @@ import {
 import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
 
 const MAX_TORNO_FALLBACK = 12;
@@ -34,23 +35,6 @@ const sumar28Dias = (fechaISO) => {
   d.setDate(d.getDate() + 28);
   return d.toISOString().slice(0, 10);
 };
-
-const esReservaValida = (data = {}) =>
-  String(data.estado || "").toLowerCase() === "confirmada" &&
-  String(data.estadoPago || "").toLowerCase() === "pagado";
-
-// Plazas ocupadas en un turno de un taller sin métodos
-async function contarPlazasTaller(rutaReservas, fecha, turno) {
-  const snap = await get(ref(dbRealtime, `reservas/${rutaReservas}/${fecha}/${turno}`));
-  let ocupadas = 0;
-
-  snap.forEach((reservaSnap) => {
-    const reserva = reservaSnap.val();
-    if (esReservaValida(reserva)) ocupadas += Number(reserva.plazas || 1);
-  });
-
-  return ocupadas;
-}
 
 function Pantalla({ children }) {
   return (
@@ -122,7 +106,12 @@ export default function ReservaTallerDinamico() {
 export function FormularioReserva({ claseId, clase }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { fechasBloqueadas, fechasHabilitadas, reservasGrupos } = useContextoReserva();
+  const {
+    fechasBloqueadas,
+    fechasHabilitadas,
+    reservasGrupos,
+    error: errorContexto,
+  } = useContextoReserva();
 
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
@@ -135,6 +124,12 @@ export function FormularioReserva({ claseId, clase }) {
   const [ocupadasTaller, setOcupadasTaller] = useState(0);
   const [user, setUser] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  // Sin plazas contadas no se sabe si queda sitio: no se deja reservar
+  const [errorPlazas, setErrorPlazas] = useState(false);
+
+  // Datos de contacto de quien reserva sin cuenta: se piden al guardar
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
 
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
@@ -192,28 +187,40 @@ export function FormularioReserva({ claseId, clase }) {
       setOcupadasTorno(0);
       setOcupadasModelado(0);
       setOcupadasTaller(0);
+      setErrorPlazas(false);
       return;
     }
 
-    if (conMetodo) {
-      contarPlazasPorMetodo(fecha, turno).then(({ torno, modelado }) => {
-        setOcupadasTorno(torno);
-        setOcupadasModelado(modelado);
-      });
-      return;
-    }
-
-    if (!turno) {
+    if (!conMetodo && !turno) {
       setOcupadasTaller(0);
+      setErrorPlazas(false);
       return;
     }
 
-    contarPlazasTaller(rutaReservas, fecha, turno)
-      .then(setOcupadasTaller)
+    let cancelado = false;
+
+    const lectura = conMetodo
+      ? plazasOcupadasPorMetodo(fecha, turno).then(({ torno, modelado }) => {
+          if (cancelado) return;
+          setOcupadasTorno(torno);
+          setOcupadasModelado(modelado);
+        })
+      : plazasOcupadasDeTaller(rutaReservas, fecha, turno).then((ocupadas) => {
+          if (!cancelado) setOcupadasTaller(ocupadas);
+        });
+
+    lectura
+      .then(() => {
+        if (!cancelado) setErrorPlazas(false);
+      })
       .catch((error) => {
         console.error("Error al contar plazas:", error);
-        setOcupadasTaller(0);
+        if (!cancelado) setErrorPlazas(true);
       });
+
+    return () => {
+      cancelado = true;
+    };
   }, [fecha, turno, conMetodo, rutaReservas]);
 
   const turnosDisponibles = useMemo(
@@ -297,11 +304,23 @@ export function FormularioReserva({ claseId, clase }) {
     setPlazas(1);
   };
 
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!user) {
-      alert("Debes identificarte para reservar.");
+    if (errorContexto || errorPlazas) {
+      alert("No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.");
       return;
     }
 
@@ -341,6 +360,14 @@ export function FormularioReserva({ claseId, clase }) {
     if (desdeTarjeta && !tarjetaRegaloId) {
       alert("No se ha encontrado la tarjeta regalo asociada.");
       return;
+    }
+
+    // Sin sesión se piden los datos de contacto ahora; la cuenta de invitado se
+    // abre al enviarlos, no al entrar en la pantalla
+    let usuario = user || getAuth().currentUser;
+    if (!usuario) {
+      usuario = await pedirDatosInvitado();
+      if (!usuario) return;
     }
 
     setGuardando(true);
@@ -389,12 +416,12 @@ export function FormularioReserva({ claseId, clase }) {
         : `reservas/${rutaReservas}/${fecha}/${turno}`;
 
       const nuevaReservaRef = push(ref(dbRealtime, carpeta));
-      await update(nuevaReservaRef, { uid: user.uid, ...reserva });
+      await update(nuevaReservaRef, { uid: usuario.uid, ...reserva });
 
       if (desdeTarjeta) {
-        await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
+        await push(ref(dbRealtime, `usuarios/${usuario.uid}/listaReservas`), {
           ...reserva,
-          uid: user.uid,
+          uid: usuario.uid,
           tarjetaRegaloId,
           codigoTarjeta,
           creadaDesde: "tarjeta_regalo",
@@ -410,8 +437,8 @@ export function FormularioReserva({ claseId, clase }) {
           canjeado: true,
           usado: true,
           estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
+          canjeadoPorUID: usuario.uid,
+          usadoPorUID: usuario.uid,
           fechaCanje: timestamp,
           fechaUso: timestamp,
           actualizadoEn: timestamp,
@@ -509,7 +536,14 @@ export function FormularioReserva({ claseId, clase }) {
         </p>
       )}
 
-      <BloqueoReserva>
+      <BloqueoReserva permitirVisitante>
+        {(errorContexto || errorPlazas) && (
+          <p className="text-sm text-red-600 text-center mb-4">
+            No se ha podido comprobar la disponibilidad. Recarga la página e
+            inténtalo de nuevo.
+          </p>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {sesiones > 1 && (
             <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
@@ -712,6 +746,8 @@ export function FormularioReserva({ claseId, clase }) {
             transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={
               guardando ||
+              errorContexto ||
+              errorPlazas ||
               !!fechaBloqueada ||
               diaNoDisponible ||
               (conVariante && !varianteId) ||
@@ -730,6 +766,13 @@ export function FormularioReserva({ claseId, clase }) {
           </button>
         </form>
       </BloqueoReserva>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </Pantalla>
   );
 }

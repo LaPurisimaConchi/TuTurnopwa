@@ -103,6 +103,25 @@ export async function continuarComoInvitado({ nombre, email, telefono }) {
   return user;
 }
 
+// Mientras se abre la sesión de invitado, quien escucha los cambios de sesión
+// (AccesoCompra) no debe tomarla por la de una compra anterior y cerrarla
+let abriendoSesion = false;
+
+export const abriendoSesionInvitado = () => abriendoSesion;
+
+// Abre la sesión de invitado con sus datos y deja la compra abierta
+export async function iniciarCompraInvitado(datos) {
+  abriendoSesion = true;
+
+  try {
+    const user = await continuarComoInvitado(datos);
+    abrirCompraInvitado(user.uid);
+    return user;
+  } finally {
+    abriendoSesion = false;
+  }
+}
+
 export function mensajeErrorInvitado(error) {
   const codigo = error?.code || "";
 
