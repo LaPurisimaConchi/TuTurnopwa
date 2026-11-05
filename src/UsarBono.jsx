@@ -261,7 +261,8 @@ const turnosDisponibles = useMemo(() => {
       const claseId = bono.claseId || "";
       const turnoElegido = String(turno).replaceAll(" a ", "-").trim();
       const modalidad = bono.modalidad || claseConfig?.modalidad || "";
-      const reservasPathKey = obtenerReservasPathKey(claseId);
+      const reservasPathKey =
+        claseConfig?.reservasPath || obtenerReservasPathKey(claseId);
 
       const reserva = {
         clase: nombreClase,

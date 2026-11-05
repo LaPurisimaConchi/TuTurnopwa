@@ -218,6 +218,10 @@ Añadir una clase nueva implica crear ambos archivos, registrar rutas en `App.js
 ```
 /
 ├── clases/{claseId}                    # Config: precios, plazas, horarios, activa
+│                                       #   (dinamica: true = creado desde el admin)
+├── imagenesClases/{claseId}/           # Fotos subidas desde el admin (data URL WebP)
+│   ├── miniatura                       # ~480px, portada y listados
+│   └── galeria/{imgId}                 # { src ~1200px, miniatura, orden }
 ├── reservas/
 │   └── {ClasePathKey}/
 │       └── {fecha}/{turno}/{metodo}/{reservaId}
@@ -335,7 +339,39 @@ Canje: /canjear-tarjeta → valida código → redirige a ruta de reserva
 
 Catálogo de opciones: `src/opcionesTarjetaRegalo.js`.
 
-### 5. Pagos Redsys (flujo técnico)
+### 5. Compra sin registro (invitados)
+
+Las pantallas de reserva y pago (`/reserva-*`, `/reservar/:id`, `/resumen-pago*`, `/canjear-tarjeta*`, `/usar-bono/*`) van envueltas en `AccesoCompra.jsx`. Sin sesión, pide nombre, email y teléfono y abre una **sesión anónima de Firebase** (`src/utils/invitado.js`); los datos se guardan en `usuarios/{uid}` con `invitado: true`, así que reglas, webhook y panel admin funcionan igual. Si el invitado se registra después, `Registro.jsx` enlaza la cuenta (`linkWithCredential`) y conserva el mismo `uid` con sus reservas, bonos y tarjetas.
+
+**Requisito:** activar el proveedor **Anónimo** en Firebase Console → Authentication → Sign-in method (en staging y en producción).
+
+### 6. Talleres creados desde el admin
+
+`/admin-taller` (botón «Añadir taller nuevo» en el dashboard y en Clases) crea `clases/{id}` con `dinamica: true`: nombre, categoría, descripciones, precios (torno/modelado o precio único), plazas, horario semanal, visibilidad y fotos. No hace falta tocar código:
+
+- Página pública: `/taller/:id` (`TallerDinamico.jsx`)
+- Reserva: `/reservar/:id` (`ReservaTallerDinamico.jsx`), guarda en `reservas/{id}/{fecha}/{turno}[/{metodo}]/{reservaId}` y sigue el flujo normal de pago
+- Aparece en la portada, en su categoría (`TalleresNuevos.jsx`) y como opción de tarjeta regalo
+
+Un taller creado aquí se puede **borrar** desde su ficha si no tiene reservas confirmadas de hoy en adelante ni tarjetas regalo sin canjear (si no, hay que ocultarlo). Se eliminan `clases/{id}`, `imagenesClases/{id}` y `clasesNotas/{id}`; las reservas pasadas se conservan.
+
+**Talleres de siempre.** Los 19 talleres originales (con páginas hechas a mano: `CreaTu*.jsx`, `Reserva*.jsx`, `Torno*.jsx`…) se pueden migrar desde `/admin-migrar-talleres` (botón «Migrar talleres existentes al panel» en Ver clases). La migración, que es reversible («Deshacer»):
+
+- Marca `clases/{id}` con `dinamica: true` y completa su ficha (textos y secciones, tipo de producto, métodos, tipos/tamaños con precio, ruta de reservas `reservasPath`…) **sin pisar** lo que ya hay en Firebase (precios, plazas, horarios, textos editados).
+- Copia sus fotos a `imagenesClases/{id}` (reducidas, en la base de datos).
+- Desde ese momento se editan, ocultan y borran como los creados desde el panel, y sus direcciones de siempre (`/crea-tu-brunch-bowl`, `/reserva-…`) redirigen a `/taller/:id` y `/reservar/:id` (`RutaTaller.jsx`).
+- Las reservas nuevas se siguen guardando en la misma carpeta que las antiguas (`reservas/{reservasPath}`), así que el calendario, el conteo de plazas y el historial no cambian.
+- Los bonos migrados usan `ReservaBonoDinamico.jsx` y `UsarBono.jsx` sigue funcionando con su carpeta de reservas.
+
+El contenido de las páginas antiguas está en `src/migracion/contenidoTalleres.json` y la configuración que no estaba en Firebase en `src/migracion/migrarTalleres.js`. Las tarjetas regalo ya vendidas de un taller migrado siguen canjeándose (su ruta antigua redirige).
+
+Para los talleres de siempre sin migrar, `/admin-taller?id=…` solo cambia fotos, orden y si salen en la portada. El catálogo común está en `src/catalogoTalleres.js`. Las fotos se reducen en el navegador (`src/utils/imagenes.js`) y se guardan en `imagenesClases/`; las imágenes por defecto de la portada son `public/img/miniaturas/`.
+
+### 7. Tarjetas regalo para varias personas
+
+`ComprarTarjetaRegalo.jsx` permite elegir de 1 a 10 plazas (los bonos mensuales, siempre 1). El total es precio × plazas y la tarjeta guarda `plazas`. Al canjearla, `CanjearTarjetaRegalo.jsx` pasa `plazasTarjeta` y la pantalla de reserva fija ese número de plazas (todas el mismo día y turno).
+
+### 8. Pagos Redsys (flujo técnico)
 
 **Creación de sesión:** `GET /api/crear-sesion`
 

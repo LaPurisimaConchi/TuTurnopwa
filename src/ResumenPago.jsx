@@ -115,6 +115,7 @@ export default function ResumenPago() {
     requiereMetodo,
     requiereTipoPieza,
     precio,
+    precioUnitario: precioUnitarioState,
     fecha,
     fechaInicio,
     fechaFinMes,
@@ -134,7 +135,10 @@ export default function ResumenPago() {
 
   const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
 
-  const unitFromTable = useMemo(() => getUnitPrice(clase, metodo), [clase, metodo]);
+  const unitFromTable = useMemo(() => {
+    const desdeState = parseEuro(precioUnitarioState);
+    return desdeState > 0 ? desdeState : getUnitPrice(clase, metodo);
+  }, [precioUnitarioState, clase, metodo]);
 
   const totalEuros = useMemo(() => {
     const desdeState = parseEuro(precio);
@@ -209,6 +213,7 @@ export default function ResumenPago() {
   metodo: metodo || "",
   modalidad: modalidad || "",
   plazas: plazasNum,
+  precioUnitario: unitFromTable || 0,
   numeroClases: numeroClases || 0,
   duracionClase: duracionClase || "",
   incluyeDecoracion: !!incluyeDecoracion,
@@ -466,6 +471,7 @@ export default function ResumenPago() {
 
         <p className="mb-2">
           <strong>Plazas:</strong> {plazasNum}
+          {desdeCompraTarjeta && plazasNum > 1 ? " (tarjeta regalo para varias personas)" : ""}
         </p>
 
         {showUnit && (

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -9,6 +9,9 @@ import PantallaConVolver from "./PantallaConVolver";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Si se viene de una reserva o compra, se vuelve allí con sus datos
+  const destino = location.state?.from;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +32,10 @@ export default function Login() {
         email.trim().toLowerCase(),
         password
       );
-      navigate("/dondereservar");
+      navigate(destino || "/dondereservar", {
+        replace: !!destino,
+        state: destino?.state,
+      });
     } catch (error) {
       setError(
         "No se ha podido iniciar sesión. Revisa el correo y la contraseña."
@@ -174,7 +180,7 @@ export default function Login() {
               <button
                 type="button"
                 className="text-blue-700 font-bold"
-                onClick={() => navigate("/registro")}
+                onClick={() => navigate("/registro", { state: location.state })}
               >
                 Regístrate aquí
               </button>

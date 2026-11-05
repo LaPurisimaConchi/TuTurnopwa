@@ -48,7 +48,11 @@
     },
     "clases": {
       ".read": true,
-      ".write": "auth != null"
+      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "imagenesClases": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "tarjetas_regalo": {
       ".read": "auth != null",

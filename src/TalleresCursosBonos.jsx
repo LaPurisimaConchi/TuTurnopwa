@@ -1,12 +1,22 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth } from "firebase/auth";
 import BotonVolver from "./BotonVolver";
+import TalleresNuevos from "./components/TalleresNuevos";
+import useTalleres from "./components/useTalleres";
+
+const ID_POR_RUTA = {
+  "/modela-a-mano-y-decora-tus-piezas-favoritas": "modelamano4clases",
+  "/torno-alfarero-y-decoracion": "tornodecoracion4clases",
+  "/torno-alfarero-empezar-desde-cero": "tornodesdecero4clases",
+  "/torno-alfarero-perfecciona-lo-que-ya-sabes": "tornoperfeccionamiento6clases",
+};
 
 export default function TalleresCursosBonos() {
   const navigate = useNavigate();
 
-  const cursosBonos = [
+  const { visibleEstatico } = useTalleres();
+
+  const cursosBonosTodos = [
     {
       id: 1,
       titulo: "Modela a mano y decora tus piezas favoritas",
@@ -41,14 +51,10 @@ export default function TalleresCursosBonos() {
     },
   ];
 
+  // Mientras no estén migrados, ocultos ni borrados
+  const cursosBonos = cursosBonosTodos.filter((c) => visibleEstatico(ID_POR_RUTA[c.slug]));
+
   const handleReservar = (item) => {
-    const currentUser = getAuth().currentUser;
-
-    if (!currentUser) {
-      navigate("/registro");
-      return;
-    }
-
     navigate(item.slug, { state: { desdeTarjeta: false } });
   };
 
@@ -120,6 +126,12 @@ export default function TalleresCursosBonos() {
           </div>
         ))}
       </div>
+
+      <TalleresNuevos
+        grupo="cursos_bonos"
+        titulo={cursosBonos.length ? "Más cursos y bonos" : undefined}
+        textoBoton="Ver / Reservar"
+      />
     </div>
   );
 }

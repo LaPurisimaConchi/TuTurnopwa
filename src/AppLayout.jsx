@@ -15,7 +15,7 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#fffef4] font-sans">
-      {/* <Header /> */}
+      <Header />
 
       <main className="flex-grow">
         {usaContenedor ? (

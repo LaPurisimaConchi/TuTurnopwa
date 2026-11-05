@@ -1,11 +1,17 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth } from "firebase/auth";
 import BotonVolver from "./BotonVolver";
+import TalleresNuevos from "./components/TalleresNuevos";
+import useTalleres from "./components/useTalleres";
 
 export default function TalleresPintaDecora() {
   const navigate = useNavigate();
-const talleres = [
+  const { visibleEstatico } = useTalleres();
+  const ID_POR_RUTA = {
+    "/pinta-tu-pieza": "pintatupieza",
+    "/especial-pinta-tu-pieza": "especialpintatupieza",
+  };
+const talleresTodos = [
   {
     id: 1,
     titulo: "Pinta tu pieza de cerámica",
@@ -26,14 +32,10 @@ const talleres = [
   },
 ];
 
+  // Mientras no estén migrados, ocultos ni borrados
+  const talleres = talleresTodos.filter((t) => visibleEstatico(ID_POR_RUTA[t.slug]));
+
   const handleReservar = (item) => {
-    const currentUser = getAuth().currentUser;
-
-    if (!currentUser) {
-      navigate("/registro");
-      return;
-    }
-
     navigate(item.slug, { state: { desdeTarjeta: false } });
   };
 
@@ -109,6 +111,11 @@ const talleres = [
           </div>
         ))}
       </div>
+
+      <TalleresNuevos
+        grupo="pinta_decora"
+        titulo={talleres.length ? "Más talleres" : undefined}
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 
 export default function ClasesSoloVista() {
@@ -106,8 +107,8 @@ export default function ClasesSoloVista() {
               Talleres disponibles
             </h1>
             <p className="text-gray-600 mt-2 text-sm md:text-base max-w-2xl">
-              Descubre todas las opciones del taller antes de registrarte. 
-              Podrás ver las experiencias disponibles, precios y modalidades.
+              Descubre todas las opciones del taller: experiencias
+              disponibles, precios y modalidades.
             </p>
           </div>
         </div>
@@ -173,9 +174,14 @@ export default function ClasesSoloVista() {
             ¿Te interesa algún taller?
           </h3>
           <p className="text-gray-700 max-w-2xl mx-auto">
-            Regístrate o inicia sesión para poder reservar tu plaza, elegir fecha
-            y acceder a la experiencia completa dentro de la app.
+            Puedes reservar tu plaza y elegir fecha sin necesidad de registrarte.
           </p>
+          <Link
+            to="/clases"
+            className="inline-block mt-4 bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold px-6 py-2.5 rounded-lg"
+          >
+            Reservar un taller
+          </Link>
         </div>
       </div>
     </div>

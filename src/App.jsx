@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Utilidades y layout
 import ScrollToTop from "./ScrollToTop";
 import AppLayout from "./AppLayout";
+import AccesoCompra from "./AccesoCompra";
+import RutaTaller from "./RutaTaller";
 
 // Páginas principales
 import Portada from "./Portada.jsx";
@@ -38,6 +40,11 @@ import TalleresCrearPiezas from "./TalleresCrearPiezas";
 import TalleresCursosBonos from "./TalleresCursosBonos";
 import TalleresPintaDecora from "./TalleresPintaDecora";
 import TarjetaRegalo from "./TarjetaRegalo";
+import TalleresOtros from "./TalleresOtros";
+
+// Talleres creados desde el panel admin
+import TallerDinamico from "./TallerDinamico";
+import ReservaTallerDinamico from "./ReservaTallerDinamico";
 
 // Clases
 import CreaTuBrunchBowl from "./CreaTuBrunchBowl.jsx";
@@ -123,6 +130,8 @@ import AdminBloqueosFechas from "./AdminBloqueosFechas";
 import AdminBonosNuevo from "./AdminBonosNuevo";
 import AdminDetalleBonoNuevo from "./AdminDetalleBonoNuevo";
 import AdminHabilitarFechas from "./AdminHabilitarFechas";
+import AdminTallerForm from "./AdminTallerForm";
+import AdminMigrarTalleres from "./AdminMigrarTalleres";
 
 import DondeReservarV2 from "./DondeReservarV2.jsx";
 import ChatAyuda from "./ChatAyuda.jsx";
@@ -156,125 +165,131 @@ function App() {
           <Route path="/talleres/cursos-bonos" element={<TalleresCursosBonos />} />
           <Route path="/talleres/crear-piezas" element={<TalleresCrearPiezas />} />
           <Route path="/talleres/pinta-decora" element={<TalleresPintaDecora />} />
+          <Route path="/talleres/otros" element={<TalleresOtros />} />
           <Route path="/tarjeta-regalo" element={<TarjetaRegalo />} />
+          <Route path="/taller/:claseId" element={<TallerDinamico />} />
+          <Route
+            path="/reservar/:claseId"
+            element={<AccesoCompra><ReservaTallerDinamico /></AccesoCompra>}
+          />
 
           {/* Clases */}
           
-          <Route path="/crea-tu-brunch-bowl" element={<CreaTuBrunchBowl />} />
-          <Route path="/crea-tu-pieza-favorita-desde-cero" element={<CreaTuPiezaFavorita />} />
+          <Route path="/crea-tu-brunch-bowl" element={<RutaTaller claseId="creatubrunchbowl"><CreaTuBrunchBowl /></RutaTaller>} />
+          <Route path="/crea-tu-pieza-favorita-desde-cero" element={<RutaTaller claseId="creatupiezafavorita"><CreaTuPiezaFavorita /></RutaTaller>} />
           <Route path="/pintar-ceramica" element={<PintarCeramica />} />
-          <Route path="/crea-tu-cuenco-ramen" element={<CreaTuCuencoRamen />} />
-          <Route path="/crea-tu-bandeja-hogar" element={<CreaTuBandejaHogar />} />
-          <Route path="/crea-tu-taza-favorita" element={<CreaTuTazaFavorita />} />
-          <Route path="/crea-tu-maceta" element={<CreaTuMaceta />} />
-          <Route path="/crea-tu-gran-centro-mesa" element={<CreaTuGranCentroMesa />} />
-          <Route path="/crea-tu-jarra-jarron-grande" element={<CreaTuJarraJarronGrande />} />
-          <Route path="/crea-tu-set-matcha" element={<CreaTuSetMatcha />} />
-          <Route path="/crea-tu-set-sake" element={<CreaTuSetSake />} />
-          <Route path="/crea-tu-taza-escultorica" element={<CreaTuTazaEscultorica />} />
-          <Route path="/crea-tu-maceta-organica" element={<CreaTuMacetaOrganica />} />
+          <Route path="/crea-tu-cuenco-ramen" element={<RutaTaller claseId="creatucuencoramen"><CreaTuCuencoRamen /></RutaTaller>} />
+          <Route path="/crea-tu-bandeja-hogar" element={<RutaTaller claseId="creatubandejahogar"><CreaTuBandejaHogar /></RutaTaller>} />
+          <Route path="/crea-tu-taza-favorita" element={<RutaTaller claseId="creatutazafavorita"><CreaTuTazaFavorita /></RutaTaller>} />
+          <Route path="/crea-tu-maceta" element={<RutaTaller claseId="creatumaceta"><CreaTuMaceta /></RutaTaller>} />
+          <Route path="/crea-tu-gran-centro-mesa" element={<RutaTaller claseId="creatugrancentrodemesa"><CreaTuGranCentroMesa /></RutaTaller>} />
+          <Route path="/crea-tu-jarra-jarron-grande" element={<RutaTaller claseId="creatujarrajarrongrande"><CreaTuJarraJarronGrande /></RutaTaller>} />
+          <Route path="/crea-tu-set-matcha" element={<RutaTaller claseId="setmatcha"><CreaTuSetMatcha /></RutaTaller>} />
+          <Route path="/crea-tu-set-sake" element={<RutaTaller claseId="setsake"><CreaTuSetSake /></RutaTaller>} />
+          <Route path="/crea-tu-taza-escultorica" element={<RutaTaller claseId="tazaescultorica"><CreaTuTazaEscultorica /></RutaTaller>} />
+          <Route path="/crea-tu-maceta-organica" element={<RutaTaller claseId="macetaorganica"><CreaTuMacetaOrganica /></RutaTaller>} />
           <Route
             path="/modela-a-mano-y-decora-tus-piezas-favoritas"
-            element={<ModelaAManoYDecoraTusPiezasFavoritas />}
+            element={<RutaTaller claseId="modelamano4clases"><ModelaAManoYDecoraTusPiezasFavoritas /></RutaTaller>}
           />
-          <Route path="/torno-alfarero-y-decoracion" element={<TornoAlfareroYDecoracion />} />
+          <Route path="/torno-alfarero-y-decoracion" element={<RutaTaller claseId="tornodecoracion4clases"><TornoAlfareroYDecoracion /></RutaTaller>} />
           <Route
             path="/torno-alfarero-empezar-desde-cero"
-            element={<TornoAlfareroEmpezarDesdeCero />}
+            element={<RutaTaller claseId="tornodesdecero4clases"><TornoAlfareroEmpezarDesdeCero /></RutaTaller>}
           />
           <Route
             path="/torno-alfarero-perfecciona-lo-que-ya-sabes"
-            element={<TornoAlfareroPerfeccionaLoQueYaSabes />}
+            element={<RutaTaller claseId="tornoperfeccionamiento6clases"><TornoAlfareroPerfeccionaLoQueYaSabes /></RutaTaller>}
           />
-          <Route path="/especial-pinta-tu-pieza" element={<EspecialPintaTuPieza />} />
-          <Route path="/pinta-tu-pieza" element={<PintaTuPieza />} />
+          <Route path="/especial-pinta-tu-pieza" element={<RutaTaller claseId="especialpintatupieza"><EspecialPintaTuPieza /></RutaTaller>} />
+          <Route path="/pinta-tu-pieza" element={<RutaTaller claseId="pintatupieza"><PintaTuPieza /></RutaTaller>} />
           <Route path="/comprar-tarjeta-regalo" element={<ComprarTarjetaRegalo />} />
           <Route
             path="/generar-codigo-tarjeta-regalo"
             element={<GenerarCodigoTarjetaRegalo />}
           />
-          <Route path="/reserva-con-tarjeta-regalo" element={<ReservaConTarjetaRegalo />} />
+          <Route path="/reserva-con-tarjeta-regalo" element={<AccesoCompra><ReservaConTarjetaRegalo /></AccesoCompra>} />
           <Route
             path="/talleres/clase-suelta-continuidad"
-            element={<ClaseSueltaContinuidad />}
+            element={<RutaTaller claseId="clasesueltacontinuidad"><ClaseSueltaContinuidad /></RutaTaller>}
           />
 
-          <Route path="/usar-bono/:bonoId" element={<UsarBono />} />
+          <Route path="/usar-bono/:bonoId" element={<AccesoCompra><UsarBono /></AccesoCompra>} />
           <Route
             path="/usar-bono-torno-alfarero-empezar-desde-cero"
-            element={<UsarBonoTornoAlfareroEmpezarDesdeCero />}
+            element={<AccesoCompra><UsarBonoTornoAlfareroEmpezarDesdeCero /></AccesoCompra>}
           />
           <Route
             path="/reserva-crea-tu-pieza-favorita"
-            element={<ReservaCreaTuPiezaFavorita />}
+            element={<RutaTaller claseId="creatupiezafavorita" tipo="reserva"><AccesoCompra><ReservaCreaTuPiezaFavorita /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-brunch-bowl"
-            element={<ReservaCreaTuBrunchBowl />}
+            element={<RutaTaller claseId="creatubrunchbowl" tipo="reserva"><AccesoCompra><ReservaCreaTuBrunchBowl /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-cuenco-ramen"
-            element={<ReservaCreaTuCuencoRamen />}
+            element={<RutaTaller claseId="creatucuencoramen" tipo="reserva"><AccesoCompra><ReservaCreaTuCuencoRamen /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-bandeja-hogar"
-            element={<ReservaCreaTuBandejaHogar />}
+            element={<RutaTaller claseId="creatubandejahogar" tipo="reserva"><AccesoCompra><ReservaCreaTuBandejaHogar /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-taza-favorita"
-            element={<ReservaCreaTuTazaFavorita />}
+            element={<RutaTaller claseId="creatutazafavorita" tipo="reserva"><AccesoCompra><ReservaCreaTuTazaFavorita /></AccesoCompra></RutaTaller>}
           />
-          <Route path="/reserva-crea-tu-maceta" element={<ReservaCreaTuMaceta />} />
+          <Route path="/reserva-crea-tu-maceta" element={<RutaTaller claseId="creatumaceta" tipo="reserva"><AccesoCompra><ReservaCreaTuMaceta /></AccesoCompra></RutaTaller>} />
           <Route
             path="/reserva-crea-tu-gran-centro-mesa"
-            element={<ReservaCreaTuGranCentroMesa />}
+            element={<RutaTaller claseId="creatugrancentrodemesa" tipo="reserva"><AccesoCompra><ReservaCreaTuGranCentroMesa /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-jarra-jarron-grande"
-            element={<ReservaCreaTuJarraJarronGrande />}
+            element={<RutaTaller claseId="creatujarrajarrongrande" tipo="reserva"><AccesoCompra><ReservaCreaTuJarraJarronGrande /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-set-matcha"
-            element={<ReservaCreaTuSetMatcha />}
+            element={<RutaTaller claseId="setmatcha" tipo="reserva"><AccesoCompra><ReservaCreaTuSetMatcha /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-set-sake"
-            element={<ReservaCreaTuSetSake />}
+            element={<RutaTaller claseId="setsake" tipo="reserva"><AccesoCompra><ReservaCreaTuSetSake /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-taza-escultorica"
-            element={<ReservaCreaTuTazaEscultorica />}
+            element={<RutaTaller claseId="tazaescultorica" tipo="reserva"><AccesoCompra><ReservaCreaTuTazaEscultorica /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-crea-tu-maceta-organica"
-            element={<ReservaCreaTuMacetaOrganica />}
+            element={<RutaTaller claseId="macetaorganica" tipo="reserva"><AccesoCompra><ReservaCreaTuMacetaOrganica /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-modela-a-mano-y-decora-tus-piezas-favoritas"
-            element={<ReservaModelaAManoYDecoraTusPiezasFavoritas />}
+            element={<RutaTaller claseId="modelamano4clases" tipo="reserva"><AccesoCompra><ReservaModelaAManoYDecoraTusPiezasFavoritas /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-torno-alfarero-y-decoracion"
-            element={<ReservaTornoAlfareroYDecoracion />}
+            element={<RutaTaller claseId="tornodecoracion4clases" tipo="reserva"><AccesoCompra><ReservaTornoAlfareroYDecoracion /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-torno-alfarero-empezar-desde-cero"
-            element={<ReservaTornoAlfareroEmpezarDesdeCero />}
+            element={<RutaTaller claseId="tornodesdecero4clases" tipo="reserva"><AccesoCompra><ReservaTornoAlfareroEmpezarDesdeCero /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-torno-alfarero-perfecciona-lo-que-ya-sabes"
-            element={<ReservaTornoAlfareroPerfeccionaLoQueYaSabes />}
+            element={<RutaTaller claseId="tornoperfeccionamiento6clases" tipo="reserva"><AccesoCompra><ReservaTornoAlfareroPerfeccionaLoQueYaSabes /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-especial-pinta-tu-pieza"
-            element={<ReservaEspecialPintaTuPieza />}
+            element={<RutaTaller claseId="especialpintatupieza" tipo="reserva"><AccesoCompra><ReservaEspecialPintaTuPieza /></AccesoCompra></RutaTaller>}
           />
-          <Route path="/reserva-pinta-tu-pieza" element={<ReservaPintaTuPieza />} />
+          <Route path="/reserva-pinta-tu-pieza" element={<RutaTaller claseId="pintatupieza" tipo="reserva"><AccesoCompra><ReservaPintaTuPieza /></AccesoCompra></RutaTaller>} />
           <Route
             path="/reserva-clase-suelta-continuidad"
-            element={<ReservaClaseSueltaContinuidad />}
+            element={<RutaTaller claseId="clasesueltacontinuidad" tipo="reserva"><AccesoCompra><ReservaClaseSueltaContinuidad /></AccesoCompra></RutaTaller>}
           />
-          <Route path="/reserva-grupos" element={<ReservaGrupos />} />
+          <Route path="/reserva-grupos" element={<AccesoCompra><ReservaGrupos /></AccesoCompra>} />
 
           <Route
             path="/tarjeta-regalo-solo/creapiezafavorita"
@@ -284,16 +299,16 @@ function App() {
             path="/creapiezafavorita-solo"
             element={<CreaTuPiezaFavoritaRegalo />}
           />
-          <Route path="/canjear-tarjeta" element={<CanjearTarjetaRegalo />} />
+          <Route path="/canjear-tarjeta" element={<AccesoCompra><CanjearTarjetaRegalo /></AccesoCompra>} />
           <Route
             path="/canjear-tarjeta-regalo"
-            element={<CanjearTarjetaRegalo />}
+            element={<AccesoCompra><CanjearTarjetaRegalo /></AccesoCompra>}
           />
           
 
-          <Route path="/resumen-pago" element={<ResumenPago />} />
-          <Route path="/resumenpagotheclub" element={<ResumenPagoTheClub />} />
-          <Route path="/resumenpagotearium" element={<ResumenPagoTearium />} />
+          <Route path="/resumen-pago" element={<AccesoCompra><ResumenPago /></AccesoCompra>} />
+          <Route path="/resumenpagotheclub" element={<AccesoCompra><ResumenPagoTheClub /></AccesoCompra>} />
+          <Route path="/resumenpagotearium" element={<AccesoCompra><ResumenPagoTearium /></AccesoCompra>} />
           <Route path="/pago-fallido" element={<PagoFallido />} />
           <Route path="/pago/exito" element={<ConfirmacionPago />} />
           <Route path="/pago/error" element={<PagoFallido />} />
@@ -313,11 +328,11 @@ function App() {
 
           <Route path="/theclub" element={<TheClub />} />
           <Route path="/teariumInfo" element={<TeariumInfo />} />
-          <Route path="/reservatheclub" element={<ReservaTheClub />} />
-          <Route path="/reservatearium" element={<ReservaTearium />} />
+          <Route path="/reservatheclub" element={<AccesoCompra><ReservaTheClub /></AccesoCompra>} />
+          <Route path="/reservatearium" element={<AccesoCompra><ReservaTearium /></AccesoCompra>} />
 
           <Route path="/clases-online" element={<ClasesOnlineInfo />} />
-          <Route path="/reserva-online" element={<ReservaClasesOnline />} />
+          <Route path="/reserva-online" element={<AccesoCompra><ReservaClasesOnline /></AccesoCompra>} />
 
           <Route
             path="/admin-detalle-bono"
@@ -444,6 +459,22 @@ function App() {
             element={
               <RutaAdmin>
                 <AdminBonosNuevo />
+              </RutaAdmin>
+            }
+          />
+          <Route
+            path="/admin-migrar-talleres"
+            element={
+              <RutaAdmin>
+                <AdminMigrarTalleres />
+              </RutaAdmin>
+            }
+          />
+          <Route
+            path="/admin-taller"
+            element={
+              <RutaAdmin>
+                <AdminTallerForm />
               </RutaAdmin>
             }
           />

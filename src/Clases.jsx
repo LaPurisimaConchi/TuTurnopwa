@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { GRUPOS_TALLER } from "./catalogoTalleres";
 
 export default function Clases() {
   const navigate = useNavigate();
@@ -16,6 +16,7 @@ export default function Clases() {
       titulo: "Crear piezas desde cero",
       descripcion: ["Entra aquí para ver todas las clases disponibles y reservar tu plaza"],
       ruta: "/talleres/crear-piezas",
+      grupo: "crear_piezas",
       color: "border-[#F4C542]",
       imagen: "/img/vasijaedicionpremium.png",
       claseIds: [
@@ -59,8 +60,17 @@ export default function Clases() {
       imagen: "/img/vasijabono2.png",
       claseIds: ["clasesueltacontinuidad"],
     },
-   
-   
+    {
+      id: 4,
+      titulo: "Otros talleres",
+      descripcion: ["Nuevas experiencias y talleres especiales del estudio"],
+      ruta: GRUPOS_TALLER.find((g) => g.id === "otros").ruta,
+      grupo: "otros",
+      color: "border-[#F4C542]",
+      imagen: "/img/vasijacreativoplus.png",
+      claseIds: [],
+      soloConTalleres: true,
+    },
   ];
 
   useEffect(() => {
@@ -84,11 +94,19 @@ export default function Clases() {
   }, []);
 
   const categoriasVisibles = useMemo(() => {
+    // Talleres creados desde el admin: cuentan para su categoría
+    const idsDinamicos = (grupo) =>
+      Object.entries(clasesConfig)
+        .filter(([, clase]) => clase?.dinamica && (clase.grupo || "otros") === grupo)
+        .map(([id]) => id);
+
     return categorias.filter((cat) => {
       if (cat.siempreVisible) return true;
-      if (!cat.claseIds || cat.claseIds.length === 0) return true;
 
-      return cat.claseIds.some((idClase) => {
+      const claseIds = [...(cat.claseIds || []), ...idsDinamicos(cat.grupo)];
+      if (claseIds.length === 0) return !cat.soloConTalleres;
+
+      return claseIds.some((idClase) => {
         const clase = clasesConfig[idClase];
         if (!clase) return false;
 
@@ -99,18 +117,6 @@ export default function Clases() {
     }, [clasesConfig]);
 
   const handleClick = (categoria) => {
-    const currentUser = getAuth().currentUser;
-
-    if (categoria.ruta === "/tarjeta-regalo") {
-      navigate("/tarjeta-regalo");
-      return;
-    }
-
-    if (!currentUser) {
-      navigate("/registro");
-      return;
-    }
-
     navigate(categoria.ruta);
   };
 
