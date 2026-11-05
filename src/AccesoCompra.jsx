@@ -3,10 +3,14 @@
 // sin registrarse (sesión de invitado con nombre, email y teléfono) o entrar
 // con cuenta. La pantalla de dentro se monta ya con sesión, para que pueda
 // leer fechas bloqueadas, plazas, etc. (las reglas piden auth != null).
+// Con requiereCuenta (bonos y talleres que se gestionan desde el perfil) no se
+// ofrece la compra de invitado: hace falta iniciar sesión o crear cuenta.
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "./firebase";
+import { ref, get } from "firebase/database";
+import { auth, dbRealtime } from "./firebase";
+import { exigeCuenta } from "./catalogoTalleres";
 import BotonVolver from "./BotonVolver";
 import {
   abrirCompraInvitado,
@@ -18,9 +22,41 @@ import {
   validarDatosContacto,
 } from "./utils/invitado";
 
-export default function AccesoCompra({ children }) {
+// Para /reservar/:claseId: mira en la ficha del taller si exige cuenta
+// (clases es de lectura pública, se puede leer antes de tener sesión)
+export function AccesoCompraTaller({ children }) {
+  const { claseId } = useParams();
+  const [requiereCuenta, setRequiereCuenta] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    setRequiereCuenta(null);
+
+    get(ref(dbRealtime, `clases/${claseId}`))
+      .then((snap) => {
+        if (!cancelado) setRequiereCuenta(exigeCuenta(snap.exists() ? snap.val() || {} : {}));
+      })
+      .catch((error) => {
+        // Sin poder leerla, la propia pantalla de reserva avisará del error
+        console.error("Error al leer la ficha del taller:", error);
+        if (!cancelado) setRequiereCuenta(false);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [claseId]);
+
+  if (requiereCuenta === null) {
+    return <div className="text-center text-gray-500 py-16">Cargando...</div>;
+  }
+
+  return <AccesoCompra requiereCuenta={requiereCuenta}>{children}</AccesoCompra>;
+}
+
+export default function AccesoCompra({ children, requiereCuenta = false }) {
   const location = useLocation();
-  const [estado, setEstado] = useState("cargando"); // cargando | datos | listo
+  const [estado, setEstado] = useState("cargando"); // cargando | datos | cuenta | listo
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -37,12 +73,19 @@ export default function AccesoCompra({ children }) {
       if (enviandoRef.current) return;
 
       if (!user) {
-        setEstado("datos");
+        setEstado(requiereCuenta ? "cuenta" : "datos");
         return;
       }
 
       if (!user.isAnonymous) {
         setEstado("listo");
+        return;
+      }
+
+      // Un invitado no puede seguir en un producto que pide cuenta; si inicia
+      // sesión o se registra, la sesión de invitado se sustituye o se conserva
+      if (requiereCuenta) {
+        setEstado("cuenta");
         return;
       }
 
@@ -66,7 +109,7 @@ export default function AccesoCompra({ children }) {
       unsubscribe();
       cerrarCompraInvitadoTrasSalir();
     };
-  }, []);
+  }, [requiereCuenta]);
 
   const handleContinuar = async (e) => {
     e.preventDefault();
@@ -111,6 +154,48 @@ export default function AccesoCompra({ children }) {
       state: location.state,
     },
   };
+
+  if (estado === "cuenta") {
+    return (
+      <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+        <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
+          <BotonVolver />
+
+          <div className="text-center mb-5">
+            <img
+              src="/img/logoPCsin.png"
+              alt="La Purísima Conchi"
+              className="w-20 mx-auto mb-3"
+            />
+            <h1 className="text-2xl text-[#5c3c00] font-serif">
+              Necesitas una cuenta
+            </h1>
+            <p className="text-sm text-gray-600 mt-2">
+              Las reservas de este producto se gestionan desde tu perfil, así
+              que necesitas iniciar sesión o crear una cuenta para continuar.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link
+              to="/login"
+              state={volverAqui}
+              className="whitespace-nowrap px-5 py-2 rounded-lg border border-[#b36a4a] text-[#b36a4a] font-semibold text-sm hover:bg-[#f9ece6]"
+            >
+              Iniciar sesión
+            </Link>
+            <Link
+              to="/registro"
+              state={volverAqui}
+              className="whitespace-nowrap px-5 py-2 rounded-lg bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold text-sm"
+            >
+              Crear cuenta
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">

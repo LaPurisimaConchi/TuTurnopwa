@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // Utilidades y layout
 import ScrollToTop from "./ScrollToTop";
 import AppLayout from "./AppLayout";
-import AccesoCompra from "./AccesoCompra";
+import AccesoCompra, { AccesoCompraTaller } from "./AccesoCompra";
 import RutaTaller from "./RutaTaller";
 import RutaCategoria from "./RutaCategoria";
 
@@ -174,7 +174,7 @@ function App() {
           <Route path="/taller/:claseId" element={<TallerDinamico />} />
           <Route
             path="/reservar/:claseId"
-            element={<AccesoCompra><ReservaTallerDinamico /></AccesoCompra>}
+            element={<AccesoCompraTaller><ReservaTallerDinamico /></AccesoCompraTaller>}
           />
 
           {/* Clases */}
@@ -218,10 +218,10 @@ function App() {
             element={<RutaTaller claseId="clasesueltacontinuidad"><ClaseSueltaContinuidad /></RutaTaller>}
           />
 
-          <Route path="/usar-bono/:bonoId" element={<AccesoCompra><UsarBono /></AccesoCompra>} />
+          <Route path="/usar-bono/:bonoId" element={<AccesoCompra requiereCuenta><UsarBono /></AccesoCompra>} />
           <Route
             path="/usar-bono-torno-alfarero-empezar-desde-cero"
-            element={<AccesoCompra><UsarBonoTornoAlfareroEmpezarDesdeCero /></AccesoCompra>}
+            element={<AccesoCompra requiereCuenta><UsarBonoTornoAlfareroEmpezarDesdeCero /></AccesoCompra>}
           />
           <Route
             path="/reserva-crea-tu-pieza-favorita"
@@ -270,19 +270,19 @@ function App() {
           />
           <Route
             path="/reserva-modela-a-mano-y-decora-tus-piezas-favoritas"
-            element={<RutaTaller claseId="modelamano4clases" tipo="reserva"><AccesoCompra><ReservaModelaAManoYDecoraTusPiezasFavoritas /></AccesoCompra></RutaTaller>}
+            element={<RutaTaller claseId="modelamano4clases" tipo="reserva"><AccesoCompra requiereCuenta><ReservaModelaAManoYDecoraTusPiezasFavoritas /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-torno-alfarero-y-decoracion"
-            element={<RutaTaller claseId="tornodecoracion4clases" tipo="reserva"><AccesoCompra><ReservaTornoAlfareroYDecoracion /></AccesoCompra></RutaTaller>}
+            element={<RutaTaller claseId="tornodecoracion4clases" tipo="reserva"><AccesoCompra requiereCuenta><ReservaTornoAlfareroYDecoracion /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-torno-alfarero-empezar-desde-cero"
-            element={<RutaTaller claseId="tornodesdecero4clases" tipo="reserva"><AccesoCompra><ReservaTornoAlfareroEmpezarDesdeCero /></AccesoCompra></RutaTaller>}
+            element={<RutaTaller claseId="tornodesdecero4clases" tipo="reserva"><AccesoCompra requiereCuenta><ReservaTornoAlfareroEmpezarDesdeCero /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-torno-alfarero-perfecciona-lo-que-ya-sabes"
-            element={<RutaTaller claseId="tornoperfeccionamiento6clases" tipo="reserva"><AccesoCompra><ReservaTornoAlfareroPerfeccionaLoQueYaSabes /></AccesoCompra></RutaTaller>}
+            element={<RutaTaller claseId="tornoperfeccionamiento6clases" tipo="reserva"><AccesoCompra requiereCuenta><ReservaTornoAlfareroPerfeccionaLoQueYaSabes /></AccesoCompra></RutaTaller>}
           />
           <Route
             path="/reserva-especial-pinta-tu-pieza"
