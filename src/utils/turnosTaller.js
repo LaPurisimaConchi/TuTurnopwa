@@ -82,15 +82,33 @@ export function turnosDisponiblesEnFecha({
   return turnos;
 }
 
+// Cómo se marca un día en el calendario: bloqueado desde el panel, sin taller ese
+// día (ni horario, ni fecha habilitada, ni grupo) o disponible
+export function estadoDiaTaller({
+  clase,
+  fecha,
+  fechasBloqueadas = {},
+  fechasHabilitadas = {},
+  reservasGrupos = {},
+}) {
+  const bloqueo = fechasBloqueadas?.[fecha];
+  if (bloqueo?.bloqueado) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
+
+  const turnos = turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos });
+  return { estado: turnos.length ? "disponible" : "sin-taller" };
+}
+
 // Fechas bloqueadas, fechas habilitadas y reservas de grupo (solo lectura).
-// `error` avisa de que no se ha podido leer: sin estos datos no se sabe qué días
-// están bloqueados, así que la pantalla no debe dejar reservar.
+// `cargado` indica que ya llegaron los datos (hasta entonces el calendario no
+// debe dejar elegir día). `error` avisa de que no se ha podido leer: sin ellos no
+// se sabe qué días están bloqueados, así que la pantalla no debe dejar reservar.
 export function useContextoReserva() {
   const [contexto, setContexto] = useState({
     fechasBloqueadas: {},
     fechasHabilitadas: {},
     reservasGrupos: {},
     error: false,
+    cargado: false,
   });
 
   useEffect(() => {
@@ -98,7 +116,7 @@ export function useContextoReserva() {
 
     cargarContextoReserva()
       .then((datos) => {
-        if (!cancelado) setContexto({ ...datos, error: false });
+        if (!cancelado) setContexto({ ...datos, error: false, cargado: true });
       })
       .catch((error) => {
         console.error("Error al cargar la disponibilidad:", error);
@@ -108,6 +126,7 @@ export function useContextoReserva() {
             fechasHabilitadas: {},
             reservasGrupos: {},
             error: true,
+            cargado: true,
           });
         }
       });

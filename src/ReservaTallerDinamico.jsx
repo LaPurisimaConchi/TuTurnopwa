@@ -13,6 +13,7 @@ import { plazasOcupadasDeTaller, plazasOcupadasPorMetodo } from "./utils/disponi
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import {
   esTurnoConsulta,
+  estadoDiaTaller,
   turnosDisponiblesEnFecha,
   useContextoReserva,
 } from "./utils/turnosTaller";
@@ -23,7 +24,7 @@ import {
 } from "./catalogoTalleres";
 import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
-import DateInputReserva from "./components/DateInputReserva";
+import CalendarioReserva from "./components/CalendarioReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
 
@@ -111,6 +112,7 @@ export function FormularioReserva({ claseId, clase }) {
     fechasHabilitadas,
     reservasGrupos,
     error: errorContexto,
+    cargado: contextoCargado,
   } = useContextoReserva();
 
   const [fecha, setFecha] = useState("");
@@ -291,8 +293,11 @@ export function FormularioReserva({ claseId, clase }) {
     setPlazas(1);
   };
 
-  const handleFechaChange = (e) => {
-    setFecha(e.target.value);
+  const estadoDia = (iso) =>
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos });
+
+  const handleFechaChange = (iso) => {
+    setFecha(iso);
     if (!metodoTarjeta && metodos.length !== 1) setMetodo("");
     setTurno("");
     setPlazas(1);
@@ -582,10 +587,15 @@ export function FormularioReserva({ claseId, clase }) {
           )}
 
           <div>
-            <label htmlFor="fecha" className="block font-bold text-sm mb-1">
+            <p id="etiqueta-fecha" className="block font-bold text-sm mb-2">
               {sesiones > 1 ? "Selecciona el día de la primera sesión:" : "Selecciona el día:"}
-            </label>
-            <DateInputReserva id="fecha" value={fecha} onChange={handleFechaChange} />
+            </p>
+            <CalendarioReserva
+              value={fecha}
+              onChange={handleFechaChange}
+              estadoDia={estadoDia}
+              cargando={!contextoCargado}
+            />
             {fechaBloqueada && (
               <p className="mt-2 text-sm text-red-600 font-medium">
                 Este día no está disponible para reservar.
