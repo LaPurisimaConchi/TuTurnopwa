@@ -3,6 +3,7 @@ import { ref, get, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
+import { TALLERES_FIJOS } from "./catalogoTalleres";
 
 const AdminClasesNuevo = () => {
   const navigate = useNavigate();
@@ -79,6 +80,7 @@ listaClases.push({
   horarios: claseData.horarios || claseData.horario || {},
   estado: estadoClase,
   activa: estadoClase === "activa",
+  dinamica: !!claseData.dinamica,
 });
 
             mapaResumen[claseId] = {
@@ -473,6 +475,20 @@ listaClases.push({
           <p style={styles.subtitulo}>
             Resumen general de actividad por clase.
           </p>
+          <button
+            style={{ ...styles.boton, marginTop: 12 }}
+            onClick={() => navigate("/admin-taller")}
+          >
+            ➕ Añadir taller nuevo
+          </button>
+          {clases.some((c) => !c.dinamica && c.id in TALLERES_FIJOS) && (
+            <button
+              style={{ ...styles.boton, marginTop: 12, marginLeft: 8 }}
+              onClick={() => navigate("/admin-migrar-talleres")}
+            >
+              🔁 Migrar talleres existentes al panel
+            </button>
+          )}
         </div>
 
         {cargando ? (
@@ -567,6 +583,16 @@ listaClases.push({
                     }}
                   >
                     Ver reservas
+                  </button>
+
+                  <button
+                    style={styles.boton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin-taller?id=${clase.id}`);
+                    }}
+                  >
+                    {clase.dinamica ? "Editar ficha y fotos" : "Fotos y portada"}
                   </button>
 
                                    {!editandoPrecios[clase.id] ? (

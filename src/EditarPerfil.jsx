@@ -41,6 +41,8 @@ export default function EditarPerfil() {
           const datos = snapshot.val();
           setNombre(datos.nombre || user.displayName || "");
           setTelefono(datos.telefono || "");
+          // Invitados: su email solo está en usuarios/{uid}
+          if (!user.email) setEmail(datos.email || "");
         } else {
           setNombre(user.displayName || "");
           setTelefono("");

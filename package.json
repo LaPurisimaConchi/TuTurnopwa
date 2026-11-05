@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrar-categorias": "node scripts/migrar-categorias.mjs"
   },
   "dependencies": {
     "crypto-js": "^4.2.0",

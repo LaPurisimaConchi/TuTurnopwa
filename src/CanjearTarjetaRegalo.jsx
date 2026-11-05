@@ -88,6 +88,27 @@ const CanjearTarjetaRegalo = () => {
     );
   };
 
+  // Talleres creados desde el admin: se reservan en /reservar/:claseId
+  const obtenerTallerNuevo = async (tarjeta) => {
+    if (!tarjeta?.claseId) return null;
+
+    const snap = await get(ref(dbRealtime, `clases/${tarjeta.claseId}`));
+    const clase = snap.exists() ? snap.val() : null;
+    if (!clase?.dinamica) return null;
+
+    return {
+      clase: clase.nombre || tarjeta.clase || "",
+      claseId: tarjeta.claseId,
+      subtipo: tarjeta.subtipo || "",
+      tipoPieza: tarjeta.tipoPieza || "",
+      tipoTaller: clase.grupo || "",
+      precio: Number(tarjeta.precioTotal || 0),
+      rutaReserva: `/reservar/${tarjeta.claseId}`,
+      requiereMetodo: !!tarjeta.subtipo,
+      requiereTipoPieza: false,
+    };
+  };
+
   const handleValidar = async () => {
     setMensaje("");
     setValidando(true);
@@ -103,7 +124,7 @@ const CanjearTarjetaRegalo = () => {
     }
 
     if (!user) {
-      setMensaje("Debes iniciar sesión para canjear tu tarjeta.");
+      setMensaje("Debes identificarte para canjear tu tarjeta.");
       setValidando(false);
       return;
     }
@@ -135,7 +156,8 @@ const CanjearTarjetaRegalo = () => {
         return;
       }
 
-      const opcionRegalo = obtenerOpcionRegalo(tarjeta);
+      const opcionRegalo =
+        obtenerOpcionRegalo(tarjeta) || (await obtenerTallerNuevo(tarjeta));
 
       if (!opcionRegalo || !opcionRegalo.rutaReserva) {
         setMensaje(
@@ -163,6 +185,7 @@ const CanjearTarjetaRegalo = () => {
           rutaReserva: opcionRegalo.rutaReserva,
           requiereMetodo: !!opcionRegalo.requiereMetodo,
           requiereTipoPieza: !!opcionRegalo.requiereTipoPieza,
+          plazasTarjeta: Number(tarjeta.plazas || 1),
         },
       });
    } catch (error) {

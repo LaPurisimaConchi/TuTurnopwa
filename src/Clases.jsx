@@ -1,67 +1,76 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { cargarRegistrosCategorias, unirCategorias } from "./categoriasTalleres";
+
+const COLOR = "border-[#F4C542]";
+
+// Imagen y talleres de siempre de cada categoría (el nombre, el texto y el orden
+// salen de la categoría). Las categorías nuevas usan FICHA_NUEVA.
+const FICHAS = {
+  crear_piezas: {
+    imagen: "/img/vasijaedicionpremium.png",
+    claseIds: [
+      "crearpiezadesdecero",
+      "creatubandejahogar",
+      "creatubrunchbowl",
+      "creatucuencoramen",
+      "creatugrancentrodemesa",
+      "creatujarrajarrongrande",
+      "creatumaceta",
+      "creatupiezafavorita",
+      "creatutazafavorita",
+      "macetaorganica",
+      "setmatcha",
+      "setsake",
+      "tazaescultorica",
+    ],
+  },
+  pinta_decora: {
+    imagen: "/img/vasijapintarceramica.png",
+    claseIds: [],
+    soloConTalleres: true,
+  },
+  cursos_bonos: {
+    imagen: "/img/vasijabono4.png",
+    claseIds: [
+      "modelamano4clases",
+      "tornodecoracion4clases",
+      "tornodesdecero4clases",
+      "tornoperfeccionamiento6clases",
+    ],
+  },
+  otros: {
+    imagen: "/img/vasijacreativoplus.png",
+    claseIds: [],
+    soloConTalleres: true,
+  },
+};
+
+const FICHA_NUEVA = {
+  imagen: "/img/vasijacreativoplus.png",
+  claseIds: [],
+  soloConTalleres: true,
+};
+
+// No es una categoría: es un taller con su propia página, que se ve entre ellas
+const CLASE_SUELTA = {
+  id: "clasesueltacontinuidad",
+  titulo: "Clase suelta con continuidad",
+  descripcion: ["Reserva clases sueltas para continuar tu proyecto o empezar uno nuevo"],
+  ruta: "/talleres/clase-suelta-continuidad",
+  color: COLOR,
+  imagen: "/img/vasijabono2.png",
+  claseIds: ["clasesueltacontinuidad"],
+};
 
 export default function Clases() {
   const navigate = useNavigate();
   const [clasesConfig, setClasesConfig] = useState({});
   const [cargandoConfig, setCargandoConfig] = useState(true);
-
-  const categorias = [
-    {
-      id: 1,
-      titulo: "Crear piezas desde cero",
-      descripcion: ["Entra aquí para ver todas las clases disponibles y reservar tu plaza"],
-      ruta: "/talleres/crear-piezas",
-      color: "border-[#F4C542]",
-      imagen: "/img/vasijaedicionpremium.png",
-      claseIds: [
-        "crearpiezadesdecero",
-        "creatubandejahogar",
-        "creatubrunchbowl",
-        "creatucuencoramen",
-        "creatugrancentrodemesa",
-        "creatujarrajarrongrande",
-        "creatumaceta",
-        "creatupiezafavorita",
-        "creatutazafavorita",
-        "macetaorganica",
-        "setmatcha",
-        "setsake",
-        "tazaescultorica",
-      ],
-    },
-    {
-      id: 2,
-      titulo: "Cursos y bonos mensuales",
-      descripcion: ["Compra tu bono mensual y reserva tus clases"],
-      ruta: "/talleres/cursos-bonos",
-      color: "border-[#F4C542]",
-      imagen: "/img/vasijabono4.png",
-      claseIds: [
-        "modelamano4clases",
-        "tornodecoracion4clases",
-        "tornodesdecero4clases",
-        "tornoperfeccionamiento6clases",
-      ],
-    },
-    {
-      id: 3,
-      titulo: "Clase suelta con continuidad",
-      descripcion: [
-        "Reserva clases sueltas para continuar tu proyecto o empezar uno nuevo"
-      ],
-      ruta: "/talleres/clase-suelta-continuidad",
-      color: "border-[#F4C542]",
-      imagen: "/img/vasijabono2.png",
-      claseIds: ["clasesueltacontinuidad"],
-    },
-   
-   
-  ];
+  const [registrosCategorias, setRegistrosCategorias] = useState([]);
 
   useEffect(() => {
     const cargarClasesConfig = async () => {
@@ -81,14 +90,39 @@ export default function Clases() {
     };
 
     cargarClasesConfig();
+    cargarRegistrosCategorias().then(setRegistrosCategorias);
   }, []);
 
   const categoriasVisibles = useMemo(() => {
-    return categorias.filter((cat) => {
-      if (cat.siempreVisible) return true;
-      if (!cat.claseIds || cat.claseIds.length === 0) return true;
+    // Las de siempre sin migrar y las del panel, activas y en su orden. «Pinta y decora»
+    // solo sale aquí cuando se migra (hasta entonces se llega desde «Dónde reservar»).
+    const fichas = unirCategorias(registrosCategorias)
+      .filter((c) => c.estado === "activa" && !(c.id === "pinta_decora" && !c.propia))
+      .map((c) => ({
+        ...(FICHAS[c.id] || FICHA_NUEVA),
+        id: c.id,
+        titulo: c.titulo,
+        descripcion: [c.descripcion || "Talleres y experiencias del estudio"],
+        ruta: c.ruta,
+        grupo: c.id,
+        color: COLOR,
+      }));
 
-      return cat.claseIds.some((idClase) => {
+    // La clase suelta va justo antes de «Otros talleres» (o al final si no está)
+    const posicionOtros = fichas.findIndex((f) => f.id === "otros");
+    fichas.splice(posicionOtros === -1 ? fichas.length : posicionOtros, 0, CLASE_SUELTA);
+
+    // Talleres creados desde el admin: cuentan para su categoría
+    const idsDinamicos = (grupo) =>
+      Object.entries(clasesConfig)
+        .filter(([, clase]) => clase?.dinamica && (clase.grupo || "otros") === grupo)
+        .map(([id]) => id);
+
+    return fichas.filter((cat) => {
+      const claseIds = [...(cat.claseIds || []), ...(cat.grupo ? idsDinamicos(cat.grupo) : [])];
+      if (claseIds.length === 0) return !cat.soloConTalleres;
+
+      return claseIds.some((idClase) => {
         const clase = clasesConfig[idClase];
         if (!clase) return false;
 
@@ -96,21 +130,9 @@ export default function Clases() {
         return estado === "activa";
       });
     });
-    }, [clasesConfig]);
+  }, [clasesConfig, registrosCategorias]);
 
   const handleClick = (categoria) => {
-    const currentUser = getAuth().currentUser;
-
-    if (categoria.ruta === "/tarjeta-regalo") {
-      navigate("/tarjeta-regalo");
-      return;
-    }
-
-    if (!currentUser) {
-      navigate("/registro");
-      return;
-    }
-
     navigate(categoria.ruta);
   };
 
@@ -144,7 +166,7 @@ export default function Clases() {
         </p>
       ) : (
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-          {categoriasVisibles.map((cat) => (
+          {categoriasVisibles.map((cat, indice) => (
             <div
               key={cat.id}
               className={`rounded-2xl bg-white p-5 border border-[#f1e7c6] border-l-8 ${cat.color}
@@ -156,7 +178,7 @@ flex flex-col justify-between`}
             >
               <div className="flex items-start gap-4">
                 <div className="text-sm font-bold bg-white rounded-full w-9 h-9 flex items-center justify-center border border-gray-200 mt-0.5">
-                  {cat.id}
+                  {indice + 1}
                 </div>
 
                 <div className="flex-1">

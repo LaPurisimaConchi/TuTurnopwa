@@ -183,11 +183,13 @@ export default function PerfilUsuario() {
   const [tarjetasRegalo, setTarjetasRegalo] = useState([]);
   const [bonos, setBonos] = useState([]);
   const [reservasGrupo, setReservasGrupo] = useState([]);
+  const [esInvitado, setEsInvitado] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setEmail(user.email);
+        setEsInvitado(user.isAnonymous);
 
         const userRef = ref(dbRealtime, "usuarios/" + user.uid);
         const snapshot = await get(userRef);
@@ -196,6 +198,8 @@ export default function PerfilUsuario() {
           const datosUsuario = snapshot.val();
           setNombre(datosUsuario.nombre || "");
           setTelefono(datosUsuario.telefono || "");
+          // Los invitados no tienen email en Auth, solo el que dejaron al reservar
+          if (!user.email) setEmail(datosUsuario.email || "");
         }
 
         const refListaReservas = ref(
@@ -333,6 +337,14 @@ if (snapReservasGrupos.exists()) {
   }, [navigate]);
 
   const handleLogout = () => {
+    if (
+      esInvitado &&
+      !window.confirm(
+        "Estás como invitado. Si cierras la sesión no podrás volver a ver estas reservas desde la app (el taller las conserva). ¿Cerrar sesión igualmente?"
+      )
+    ) {
+      return;
+    }
     signOut(auth).then(() => navigate("/"));
   };
 
@@ -347,6 +359,22 @@ if (snapReservasGrupos.exists()) {
            Consulta y gestiona tus reservas y datos de tu cuenta
           </p>
         </div>
+
+        {esInvitado && (
+          <div className="bg-[#fff8df] border border-[#f1e7c6] rounded-2xl px-4 py-4 mb-5 text-sm text-[#6b4f3f]">
+            <p className="font-semibold mb-1">Estás usando la app como invitado</p>
+            <p className="leading-relaxed mb-3">
+              Crea una contraseña para guardar tus reservas y compras y poder
+              verlas desde cualquier dispositivo.
+            </p>
+            <button
+              onClick={() => navigate("/registro")}
+              className="w-full bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold py-2.5 rounded-xl transition"
+            >
+              Crear mi cuenta
+            </button>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-[#efe7db] px-4 py-4 shadow-sm mb-5">
   <p className="text-sm mb-2">

@@ -69,6 +69,7 @@ useEffect(() => {
               telefono: data.telefono || data.phoneNumber || "",
               reservas: reservasUsuario,
               notasInternas: mapaNotas[uid] || 0,
+              invitado: data.invitado === true,
             });
           });
         }
@@ -171,6 +172,9 @@ useEffect(() => {
                   <div>
                     <h2 style={styles.nombre}>{usuario.nombre}</h2>
                     <p style={styles.email}>{usuario.email}</p>
+                    {usuario.invitado && (
+                      <p style={styles.email}>Compra sin registro (invitado)</p>
+                    )}
                   </div>
 
                   <div style={styles.badgesCol}>

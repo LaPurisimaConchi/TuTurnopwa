@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getAuth } from "firebase/auth";
 import BotonVolver from "./BotonVolver";
+import { TALLERES_FIJOS, formatearEuros } from "./catalogoTalleres";
+import useTalleres from "./components/useTalleres";
+import useMiniaturasTalleres from "./components/useMiniaturasTalleres";
+
+// página de siempre → id del taller en Firebase
+const ID_POR_RUTA = Object.fromEntries(
+  Object.entries(TALLERES_FIJOS).map(([id, taller]) => [taller.ruta, id])
+);
 
 export default function TalleresCrearPiezas() {
   const navigate = useNavigate();
@@ -11,6 +18,9 @@ export default function TalleresCrearPiezas() {
   const volverA = location.state?.volverA || "/reserva-grupos";
 
   const [openSection, setOpenSection] = useState(null); // null | "1" | "2"
+  const { visibleEstatico, dinamicosDelGrupo } = useTalleres();
+  const dinamicos = dinamicosDelGrupo("crear_piezas");
+  const miniaturas = useMiniaturasTalleres(dinamicos);
 
   const talleres1Sesion = [
     {
@@ -118,6 +128,29 @@ export default function TalleresCrearPiezas() {
     },
   ];
 
+  // Talleres gestionados desde el panel (nuevos y migrados), con su foto
+  const tarjetaDinamica = (t) => ({
+    id: t.id,
+    titulo: t.nombre,
+    precio: `${t.variosPrecios ? "desde " : ""}${formatearEuros(t.precioDesde)}`,
+    descripcion: t.descripcionCorta,
+    slug: t.ruta,
+    imagen: miniaturas[t.id] || t.imagen,
+    foto: true,
+  });
+
+  // Las tarjetas de siempre solo salen mientras el taller no esté migrado,
+  // oculto ni borrado; después, la misma ficha sale desde el panel
+  const numerar = (lista) => lista.map((t, i) => ({ ...t, numero: i + 1 }));
+  const lista1Sesion = numerar([
+    ...talleres1Sesion.filter((t) => visibleEstatico(ID_POR_RUTA[t.slug])),
+    ...dinamicos.filter((t) => t.sesiones <= 1).map(tarjetaDinamica),
+  ]);
+  const lista2Sesiones = numerar([
+    ...talleres2Sesiones.filter((t) => visibleEstatico(ID_POR_RUTA[t.slug])),
+    ...dinamicos.filter((t) => t.sesiones > 1).map(tarjetaDinamica),
+  ]);
+
   const handleAccionTaller = (taller) => {
     if (desdeGrupos) {
       navigate(volverA, {
@@ -125,13 +158,6 @@ export default function TalleresCrearPiezas() {
           clasePreseleccionada: taller.titulo,
         },
       });
-      return;
-    }
-
-    const currentUser = getAuth().currentUser;
-
-    if (!currentUser) {
-      navigate("/registro");
       return;
     }
 
@@ -149,7 +175,7 @@ export default function TalleresCrearPiezas() {
     >
       <div className="flex items-start gap-4">
         <div className="text-sm font-bold bg-white rounded-full w-9 h-9 flex items-center justify-center border border-gray-200 mt-0.5">
-          {taller.id}
+          {taller.numero ?? taller.id}
         </div>
 
         <div className="flex-1">
@@ -201,8 +227,13 @@ export default function TalleresCrearPiezas() {
 
       <img
         src={taller.imagen}
-        alt={`Icono de ${taller.titulo}`}
-        className="w-28 h-28 object-contain mt-4 ml-auto opacity-95 hover:scale-110 transition-transform duration-300 drop-shadow-md"
+        alt={taller.foto ? taller.titulo : `Icono de ${taller.titulo}`}
+        loading="lazy"
+        className={
+          taller.foto
+            ? "w-28 h-28 object-cover rounded-xl mt-4 ml-auto shadow-md"
+            : "w-28 h-28 object-contain mt-4 ml-auto opacity-95 hover:scale-110 transition-transform duration-300 drop-shadow-md"
+        }
       />
     </div>
   );
@@ -283,7 +314,7 @@ export default function TalleresCrearPiezas() {
 
       {openSection === "1" && (
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 mb-10">
-          {talleres1Sesion.map((t) => (
+          {lista1Sesion.map((t) => (
             <CardTaller key={t.id} taller={t} />
           ))}
         </div>
@@ -291,11 +322,12 @@ export default function TalleresCrearPiezas() {
 
       {openSection === "2" && (
         <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2">
-          {talleres2Sesiones.map((t) => (
+          {lista2Sesiones.map((t) => (
             <CardTaller key={t.id} taller={t} />
           ))}
         </div>
       )}
+
 
       {desdeGrupos && (
         <div className="mt-8 flex justify-center">

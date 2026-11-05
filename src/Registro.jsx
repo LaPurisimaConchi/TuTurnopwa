@@ -1,9 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { ref, set } from "firebase/database";
+import {
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  linkWithCredential,
+  updateProfile,
+} from "firebase/auth";
+import { ref, set, update } from "firebase/database";
 import { auth, dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { leerDatosContacto } from "./utils/invitado";
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -14,6 +20,21 @@ export default function Registro() {
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
+  const esInvitado = !!auth.currentUser?.isAnonymous;
+
+  // Un invitado que crea su cuenta ya dejó sus datos al reservar
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user?.isAnonymous) return;
+
+    leerDatosContacto(user.uid)
+      .then((datos) => {
+        setNombre((actual) => actual || datos.nombre || "");
+        setTelefono((actual) => actual || datos.telefono || "");
+        setEmail((actual) => actual || datos.email || "");
+      })
+      .catch((err) => console.error("Error al leer los datos del invitado:", err));
+  }, []);
 
   const normalizarTelefono = (valor) => {
   return valor.replace(/\s+/g, "").replace(/[^\d+]/g, "").trim();
@@ -49,11 +70,16 @@ export default function Registro() {
   }
 
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      emailLimpio,
-      password
-    );
+    // Si compró como invitado, la sesión anónima se convierte en su cuenta:
+    // mismo uid, así conserva reservas, bonos y tarjetas regalo
+    const invitado = auth.currentUser?.isAnonymous ? auth.currentUser : null;
+
+    const userCredential = invitado
+      ? await linkWithCredential(
+          invitado,
+          EmailAuthProvider.credential(emailLimpio, password)
+        )
+      : await createUserWithEmailAndPassword(auth, emailLimpio, password);
 
     const uid = userCredential.user.uid;
 
@@ -61,18 +87,37 @@ export default function Registro() {
       displayName: nombreLimpio,
     });
 
-    await set(ref(dbRealtime, `usuarios/${uid}`), {
-      uid,
-      nombre: nombreLimpio,
-      telefono: telefonoLimpio,
-      email: emailLimpio,
-      fechaRegistro: new Date().toISOString(),
-      reservas: 0,
-      bonos: {},
-    });
+    if (invitado) {
+      await update(ref(dbRealtime, `usuarios/${uid}`), {
+        uid,
+        nombre: nombreLimpio,
+        telefono: telefonoLimpio,
+        email: emailLimpio,
+        invitado: false,
+        fechaRegistro: new Date().toISOString(),
+      });
+    } else {
+      await set(ref(dbRealtime, `usuarios/${uid}`), {
+        uid,
+        nombre: nombreLimpio,
+        telefono: telefonoLimpio,
+        email: emailLimpio,
+        fechaRegistro: new Date().toISOString(),
+        reservas: 0,
+        bonos: {},
+      });
+    }
 
-    navigate(location.state?.from || "/perfil", { replace: true });
+    const destino = location.state?.from;
+    navigate(destino || "/perfil", { replace: true, state: destino?.state });
   } catch (error) {
+    if (
+      error?.code === "auth/email-already-in-use" ||
+      error?.code === "auth/credential-already-in-use"
+    ) {
+      setError("Ya existe una cuenta con ese email. Inicia sesión.");
+      return;
+    }
     setError("Error al registrar: " + error.message);
   }
 };
@@ -88,6 +133,13 @@ export default function Registro() {
       />
 
       <h1 className="text-2xl font-serif text-[#5c2e00] mb-4">Crear cuenta</h1>
+
+      {esInvitado && (
+        <p className="text-sm text-[#6b4f3f] bg-[#fff8df] border border-[#f1e7c6] rounded-xl px-4 py-3 mb-4 max-w-md text-center">
+          Crea una contraseña y guardaremos en tu cuenta las reservas y compras
+          que has hecho como invitado.
+        </p>
+      )}
 
       <form
         onSubmit={handleRegistro}
@@ -183,7 +235,7 @@ export default function Registro() {
           ¿Ya tienes cuenta?{" "}
           <span
             className="text-blue-700 font-bold cursor-pointer"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login", { state: location.state })}
           >
             Inicia sesión
           </span>

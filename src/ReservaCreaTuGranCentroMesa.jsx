@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update, push } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
@@ -113,6 +114,8 @@ export default function ReservaCreaTuGranCentroMesa() {
 
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
+  // Con tarjeta regalo se reservan juntas todas las plazas de la tarjeta
+  const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
 
   useEffect(() => {
     const auth = getAuth();
@@ -304,7 +307,7 @@ export default function ReservaCreaTuGranCentroMesa() {
     plazasTotalesOcupadas,
   ]);
 
-  const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+  const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
 
   const precioUnitario = useMemo(() => {
     return mapearPrecioDesdeFirebase(metodo, precios);
@@ -532,6 +535,7 @@ export default function ReservaCreaTuGranCentroMesa() {
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
             Estás usando una tarjeta regalo 🎁
+            {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
           </p>
         )}
 
@@ -665,7 +669,7 @@ export default function ReservaCreaTuGranCentroMesa() {
                   <button
                     type="button"
                     onClick={() => setPlazas(Math.max(1, plazasNum - 1).toString())}
-                    disabled={!puedeElegirPlazas}
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
                     className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     −
@@ -682,7 +686,7 @@ export default function ReservaCreaTuGranCentroMesa() {
                         Math.min(plazasDisponibles || 1, plazasNum + 1).toString()
                       )
                     }
-                    disabled={!puedeElegirPlazas}
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
                     className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     +

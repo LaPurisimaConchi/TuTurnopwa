@@ -1,9 +1,15 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
+import { cerrarCompraInvitado } from "./utils/invitado";
 
 const PagoFallido = () => {
   const navigate = useNavigate();
+
+  // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
+  useEffect(() => {
+    cerrarCompraInvitado();
+  }, []);
 
   return (
     <div style={styles.body}>

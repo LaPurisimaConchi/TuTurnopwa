@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
@@ -112,6 +113,8 @@ export default function ReservaCreaTuSetSake() {
 
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
+  // Con tarjeta regalo se reservan juntas todas las plazas de la tarjeta
+  const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
 
   useEffect(() => {
     const auth = getAuth();
@@ -312,9 +315,9 @@ export default function ReservaCreaTuSetSake() {
   }, [metodo, precios]);
 
   const precioTotal = useMemo(() => {
-    const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+    const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
     return precioUnitario * plazasNum;
-  }, [precioUnitario, plazas]);
+  }, [precioUnitario, plazas, plazasTarjeta]);
 
   const nombreMetodo = useMemo(() => {
     return getNombreMetodo(metodo);
@@ -396,7 +399,7 @@ export default function ReservaCreaTuSetSake() {
       return;
     }
 
-    const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+    const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
 
     if (plazasDisponibles <= 0 || plazasNum > plazasDisponibles) {
       alert("No hay suficientes plazas disponibles para este método.");
@@ -545,7 +548,7 @@ export default function ReservaCreaTuSetSake() {
     }
   };
 
-  const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+  const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
   const puedeElegirMetodo = !!fecha && !fechaBloqueada && !diaNoDisponible;
   const puedeElegirTurno =
     !!fecha && !!metodo && !fechaBloqueada && !diaNoDisponible;
@@ -569,6 +572,7 @@ export default function ReservaCreaTuSetSake() {
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
             Estás usando una tarjeta regalo 🎁
+            {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
           </p>
         )}
 
@@ -722,7 +726,7 @@ export default function ReservaCreaTuSetSake() {
                   <button
                     type="button"
                     onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
-                    disabled={!puedeElegirPlazas}
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
                     className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     −
@@ -737,7 +741,7 @@ export default function ReservaCreaTuSetSake() {
                     onClick={() =>
                       setPlazas(Math.min(plazasDisponibles || 1, plazasNum + 1))
                     }
-                    disabled={!puedeElegirPlazas}
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
                     className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     +

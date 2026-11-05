@@ -1,0 +1,735 @@
+// src/ReservaTallerDinamico.jsx
+// Reserva de un taller gestionado desde el panel admin (clases/{id} con
+// dinamica: true), sean talleres nuevos o de los de siempre ya migrados.
+// Sigue el mismo flujo que las reservas de siempre: reservas/{ruta}/...
+// con estado Pendiente → /resumen-pago → Redsys, o confirmada con tarjeta regalo.
+// Los bonos tienen su propia pantalla (ReservaBonoDinamico).
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { ref, get, push, update } from "firebase/database";
+import { dbRealtime } from "./firebase";
+import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
+import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
+import {
+  esTurnoConsulta,
+  turnosDisponiblesEnFecha,
+  useContextoReserva,
+} from "./utils/turnosTaller";
+import {
+  estadoTaller,
+  metodosDelTaller,
+  variantesDelTaller,
+} from "./catalogoTalleres";
+import BloqueoReserva from "./BloqueoReserva";
+import BotonVolver from "./BotonVolver";
+import DateInputReserva from "./components/DateInputReserva";
+import ReservaBonoDinamico from "./ReservaBonoDinamico";
+
+const MAX_TORNO_FALLBACK = 12;
+const MAX_TOTALES_FALLBACK = 45;
+
+const sumar28Dias = (fechaISO) => {
+  const d = new Date(`${fechaISO}T12:00:00`);
+  d.setDate(d.getDate() + 28);
+  return d.toISOString().slice(0, 10);
+};
+
+const esReservaValida = (data = {}) =>
+  String(data.estado || "").toLowerCase() === "confirmada" &&
+  String(data.estadoPago || "").toLowerCase() === "pagado";
+
+// Plazas ocupadas en un turno de un taller sin métodos
+async function contarPlazasTaller(rutaReservas, fecha, turno) {
+  const snap = await get(ref(dbRealtime, `reservas/${rutaReservas}/${fecha}/${turno}`));
+  let ocupadas = 0;
+
+  snap.forEach((reservaSnap) => {
+    const reserva = reservaSnap.val();
+    if (esReservaValida(reserva)) ocupadas += Number(reserva.plazas || 1);
+  });
+
+  return ocupadas;
+}
+
+function Pantalla({ children }) {
+  return (
+    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
+        <BotonVolver />
+        {children}
+        <div className="mt-8 text-center">
+          <img src="/img/logoPCsin.png" alt="La Purísima Conchi" className="w-20 mx-auto" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ReservaTallerDinamico() {
+  const { claseId } = useParams();
+  const [estado, setEstado] = useState({ cargando: true, clase: null });
+
+  useEffect(() => {
+    let cancelado = false;
+
+    get(ref(dbRealtime, `clases/${claseId}`))
+      .then((snap) => {
+        const datos = snap.exists() ? snap.val() : null;
+        if (!cancelado) {
+          setEstado({ cargando: false, clase: datos?.dinamica ? datos : null });
+        }
+      })
+      .catch((error) => {
+        console.error("Error al cargar configuración de la clase:", error);
+        if (!cancelado) setEstado({ cargando: false, clase: null });
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [claseId]);
+
+  const { cargando, clase } = estado;
+
+  if (cargando) {
+    return (
+      <Pantalla>
+        <p className="text-center text-gray-500 py-8">
+          Cargando configuración del taller...
+        </p>
+      </Pantalla>
+    );
+  }
+
+  if (!clase || estadoTaller(clase) !== "activa") {
+    return (
+      <Pantalla>
+        <p className="text-center text-red-600 py-8">
+          Este taller no está disponible para reservar ahora mismo.
+        </p>
+      </Pantalla>
+    );
+  }
+
+  return clase.tipoProducto === "bono" ? (
+    <ReservaBonoDinamico claseId={claseId} clase={clase} />
+  ) : (
+    <FormularioReserva claseId={claseId} clase={clase} />
+  );
+}
+
+export function FormularioReserva({ claseId, clase }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { fechasBloqueadas, fechasHabilitadas, reservasGrupos } = useContextoReserva();
+
+  const [fecha, setFecha] = useState("");
+  const [turno, setTurno] = useState("");
+  const [metodo, setMetodo] = useState("");
+  const [varianteId, setVarianteId] = useState("");
+  const [plazas, setPlazas] = useState(1);
+
+  const [ocupadasTorno, setOcupadasTorno] = useState(0);
+  const [ocupadasModelado, setOcupadasModelado] = useState(0);
+  const [ocupadasTaller, setOcupadasTaller] = useState(0);
+  const [user, setUser] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+
+  const desdeTarjeta =
+    location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
+  const codigoTarjeta = location.state?.codigoTarjeta || "";
+  const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
+  // Con tarjeta regalo se reservan juntas todas las plazas de la tarjeta
+  const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
+
+  const metodos = useMemo(() => metodosDelTaller(clase), [clase]);
+  const variantes = useMemo(() => variantesDelTaller(clase), [clase]);
+  const conMetodo = metodos.length > 0;
+  const conVariante = variantes.length > 0;
+  const rutaReservas = clase.reservasPath || claseId;
+  const sesiones = Number(clase.sesiones || 1);
+  const nombreClase = clase.nombre || "Taller";
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(getAuth(), setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // Tarjeta regalo de una variante concreta (tipo de pieza, tamaño…) o de un
+  // método concreto (torno y modelado con distinto precio)
+  const varianteTarjeta = useMemo(() => {
+    if (!desdeTarjeta || !conVariante) return "";
+    const subtipo = String(location.state?.subtipo || "").trim().toLowerCase();
+    return (
+      variantes.find((v) => v.id === location.state?.tipoPieza)?.id ||
+      variantes.find((v) => v.nombre.toLowerCase() === subtipo)?.id ||
+      ""
+    );
+  }, [desdeTarjeta, conVariante, variantes, location.state]);
+
+  const metodoTarjeta = useMemo(() => {
+    if (!desdeTarjeta || conVariante) return "";
+    const subtipo = String(location.state?.subtipo || "").trim().toLowerCase();
+    return metodos.find((m) => m.nombre.toLowerCase() === subtipo)?.id || "";
+  }, [desdeTarjeta, conVariante, location.state, metodos]);
+
+  useEffect(() => {
+    if (varianteTarjeta) setVarianteId(varianteTarjeta);
+  }, [varianteTarjeta]);
+
+  useEffect(() => {
+    if (metodoTarjeta) setMetodo(metodoTarjeta);
+  }, [metodoTarjeta]);
+
+  // Si solo hay un método no hace falta elegirlo
+  useEffect(() => {
+    if (metodos.length === 1) setMetodo(metodos[0].id);
+  }, [metodos]);
+
+  useEffect(() => {
+    if (!fecha) {
+      setOcupadasTorno(0);
+      setOcupadasModelado(0);
+      setOcupadasTaller(0);
+      return;
+    }
+
+    if (conMetodo) {
+      contarPlazasPorMetodo(fecha, turno).then(({ torno, modelado }) => {
+        setOcupadasTorno(torno);
+        setOcupadasModelado(modelado);
+      });
+      return;
+    }
+
+    if (!turno) {
+      setOcupadasTaller(0);
+      return;
+    }
+
+    contarPlazasTaller(rutaReservas, fecha, turno)
+      .then(setOcupadasTaller)
+      .catch((error) => {
+        console.error("Error al contar plazas:", error);
+        setOcupadasTaller(0);
+      });
+  }, [fecha, turno, conMetodo, rutaReservas]);
+
+  const turnosDisponibles = useMemo(
+    () => turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos }),
+    [clase, fecha, fechasHabilitadas, reservasGrupos]
+  );
+
+  const turnoConsulta = esTurnoConsulta(turnosDisponibles);
+
+  // «Horario a consultar»: único turno, se elige solo
+  useEffect(() => {
+    if (turnoConsulta) {
+      setTurno(turnosDisponibles[0]);
+    } else if (turno && !turnosDisponibles.includes(turno)) {
+      setTurno("");
+    }
+  }, [turnoConsulta, turnosDisponibles, turno]);
+
+  const fechaHabilitadaManual = useMemo(() => {
+    if (!fecha) return null;
+    const habilitacion = fechasHabilitadas?.[fecha];
+    return habilitacion?.habilitada ? habilitacion : null;
+  }, [fecha, fechasHabilitadas]);
+
+  const maxTorno = Number(clase.plazas?.maxTorno || MAX_TORNO_FALLBACK);
+  const maxTotales = Number(clase.plazas?.maxTotales || MAX_TOTALES_FALLBACK);
+
+  const plazasDisponibles = useMemo(() => {
+    if (!conMetodo) return Math.max(maxTotales - ocupadasTaller, 0);
+    if (!metodo) return 0;
+
+    const totalesOcupadas = ocupadasTorno + ocupadasModelado;
+
+    if (metodo === "torno") {
+      return Math.max(
+        Math.min(maxTorno - ocupadasTorno, maxTotales - totalesOcupadas),
+        0
+      );
+    }
+
+    return Math.max(maxTotales - totalesOcupadas, 0);
+  }, [conMetodo, metodo, maxTorno, maxTotales, ocupadasTorno, ocupadasModelado, ocupadasTaller]);
+
+  const variante = variantes.find((v) => v.id === varianteId) || null;
+  const metodoElegido = metodos.find((m) => m.id === metodo) || null;
+
+  const precioUnitario = conVariante
+    ? variante?.precio || 0
+    : conMetodo
+    ? metodoElegido?.precio || 0
+    : Number(clase.precio || 0);
+
+  const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
+  const precioTotal = precioUnitario * plazasNum;
+  const nombreMetodo = metodoElegido?.nombre || "";
+
+  const fechaBloqueada = useMemo(() => {
+    if (!fecha) return null;
+    const bloqueo = fechasBloqueadas?.[fecha];
+    return bloqueo?.bloqueado ? bloqueo : null;
+  }, [fecha, fechasBloqueadas]);
+
+  const diaNoDisponible = !!fecha && turnosDisponibles.length === 0;
+
+  const handleVarianteChange = (valor) => {
+    setVarianteId(valor);
+    setTurno("");
+    setPlazas(1);
+  };
+
+  const handleFechaChange = (e) => {
+    setFecha(e.target.value);
+    if (!metodoTarjeta && metodos.length !== 1) setMetodo("");
+    setTurno("");
+    setPlazas(1);
+  };
+
+  const handleMetodoChange = (valor) => {
+    setMetodo(valor);
+    if (!turnoConsulta) setTurno("");
+    setPlazas(1);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!user) {
+      alert("Debes identificarte para reservar.");
+      return;
+    }
+
+    if (!fecha || !turno || (conMetodo && !metodo) || (conVariante && !varianteId)) {
+      alert("Selecciona todas las opciones, la fecha y el turno.");
+      return;
+    }
+
+    if (fechaBloqueada) {
+      alert(
+        `No se puede reservar el día ${fecha}. Motivo: ${
+          fechaBloqueada.motivo || "día bloqueado"
+        }.`
+      );
+      return;
+    }
+
+    if (diaNoDisponible) {
+      alert("Este taller no se imparte el día seleccionado.");
+      return;
+    }
+
+    if (plazasDisponibles <= 0 || plazasNum > plazasDisponibles) {
+      alert(
+        plazasTarjeta > 1
+          ? `Tu tarjeta regalo es para ${plazasTarjeta} personas y en este turno no quedan plazas suficientes. Prueba otro día o turno.`
+          : "No hay suficientes plazas disponibles."
+      );
+      return;
+    }
+
+    if (!(precioUnitario > 0) && !desdeTarjeta) {
+      alert("No se ha podido calcular el precio del taller.");
+      return;
+    }
+
+    if (desdeTarjeta && !tarjetaRegaloId) {
+      alert("No se ha encontrado la tarjeta regalo asociada.");
+      return;
+    }
+
+    setGuardando(true);
+
+    try {
+      const orderId = Date.now().toString().slice(-12);
+      const timestamp = new Date().toISOString();
+      const campoVariante = clase.variante?.campo || "tipoPieza";
+      const campoNombreVariante = clase.variante?.campoNombre || "nombreTipoPieza";
+
+      const reserva = {
+        clase: nombreClase,
+        claseId,
+        tipoTaller: sesiones > 1 ? "dos_sesiones" : clase.grupo || "",
+        fecha,
+        turno,
+        metodo: conMetodo ? metodo : "",
+        ...(conMetodo && !conVariante ? { nombreTipoClase: nombreMetodo } : {}),
+        ...(conVariante
+          ? { [campoVariante]: varianteId, [campoNombreVariante]: variante.nombre }
+          : {}),
+        plazas: plazasNum,
+        desdeTarjeta,
+        precio: precioTotal,
+        precioUnitario,
+        precioTotal,
+        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
+        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        orderId,
+        timestamp,
+        ...(sesiones > 1
+          ? {
+              fechaPrimeraSesion: fecha,
+              segundaSesion: {
+                habilitada: false,
+                fechaDisponible: sumar28Dias(fecha),
+                reservada: false,
+                fechaReserva: null,
+              },
+            }
+          : {}),
+      };
+
+      const carpeta = conMetodo
+        ? `reservas/${rutaReservas}/${fecha}/${turno}/${metodo}`
+        : `reservas/${rutaReservas}/${fecha}/${turno}`;
+
+      const nuevaReservaRef = push(ref(dbRealtime, carpeta));
+      await update(nuevaReservaRef, { uid: user.uid, ...reserva });
+
+      if (desdeTarjeta) {
+        await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
+          ...reserva,
+          uid: user.uid,
+          tarjetaRegaloId,
+          codigoTarjeta,
+          creadaDesde: "tarjeta_regalo",
+        });
+
+        const tarjetaGlobalRef = ref(dbRealtime, `tarjetasRegalo/${tarjetaRegaloId}`);
+        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
+        const uidComprador = tarjetaGlobalSnap.exists()
+          ? tarjetaGlobalSnap.val()?.uidComprador || ""
+          : "";
+
+        const datosActualizacionTarjeta = {
+          canjeado: true,
+          usado: true,
+          estadoCanje: "canjeado",
+          canjeadoPorUID: user.uid,
+          usadoPorUID: user.uid,
+          fechaCanje: timestamp,
+          fechaUso: timestamp,
+          actualizadoEn: timestamp,
+          reservaId: nuevaReservaRef.key || "",
+          fechaReserva: fecha,
+          turnoReserva: turno,
+          metodoReserva: reserva.metodo,
+          nombreTipoClaseReserva: conVariante ? variante.nombre : nombreMetodo,
+        };
+
+        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
+
+        if (uidComprador) {
+          await update(
+            ref(dbRealtime, `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`),
+            datosActualizacionTarjeta
+          );
+        }
+
+        navigate("/pago/exito", {
+          state: {
+            desdeTarjeta: true,
+            clase: nombreClase,
+            claseId,
+            ...(conVariante ? { subtipo: variante.nombre, tipoPieza: varianteId } : {}),
+            fecha,
+            turno,
+            metodo: reserva.metodo,
+            plazas: plazasNum,
+            precio: 0,
+            precioUnitario: 0,
+            precioTotal: 0,
+            codigoTarjeta,
+            orderId,
+          },
+        });
+        return;
+      }
+
+      navigate("/resumen-pago", {
+        state: {
+          desdeTarjeta,
+          tipo: "clase",
+          clase: nombreClase,
+          claseId,
+          ...(conVariante ? { subtipo: variante.nombre, tipoPieza: varianteId } : {}),
+          precio: precioTotal,
+          precioUnitario,
+          precioTotal,
+          fecha,
+          turno,
+          metodo: reserva.metodo,
+          modalidad: nombreMetodo,
+          plazas: plazasNum,
+          orderId,
+        },
+      });
+    } catch (err) {
+      console.error("Error al guardar la reserva:", err);
+      alert("No se pudo guardar la reserva.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const eleccionesPrevias = (!conVariante || !!varianteId) && (!conMetodo || !!metodo);
+  const puedeElegirMetodo =
+    !!fecha && !fechaBloqueada && !diaNoDisponible && !metodoTarjeta && (!conVariante || !!varianteId);
+  const puedeElegirTurno =
+    !!fecha && eleccionesPrevias && !fechaBloqueada && !diaNoDisponible;
+  const puedeElegirPlazas = puedeElegirTurno && !!turno && plazasDisponibles > 0;
+
+  const mensajePrevio = !fecha
+    ? "Primero selecciona el día."
+    : conVariante && !varianteId
+    ? "Primero elige una opción."
+    : conMetodo && !metodo
+    ? "Primero selecciona el método."
+    : !turno
+    ? "Primero selecciona el turno."
+    : diaNoDisponible
+    ? "No hay plazas porque este taller no se imparte ese día."
+    : `Máximo ${plazasDisponibles} plazas disponibles.`;
+
+  return (
+    <Pantalla>
+      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        Reserva – {nombreClase}
+      </h1>
+
+      {desdeTarjeta && (
+        <p className="text-sm text-green-700 text-center font-medium mb-4">
+          Estás usando una tarjeta regalo 🎁
+          {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
+        </p>
+      )}
+
+      <BloqueoReserva>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {sesiones > 1 && (
+            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+              <p>
+                <strong>Incluye {sesiones} sesiones.</strong>
+              </p>
+              <p>
+                La primera sesión se reserva ahora. La segunda se habilitará a
+                partir de 4 semanas después de la primera, y antes deberás
+                contactar con el taller para confirmar que tu pieza ya está lista.
+              </p>
+            </div>
+          )}
+
+          {conVariante && (
+            <div>
+              <label htmlFor="variante" className="block font-bold text-sm mb-1">
+                {clase.variante?.etiqueta || "Opción"}:
+              </label>
+              <select
+                id="variante"
+                value={varianteId}
+                onChange={(e) => handleVarianteChange(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                required
+                disabled={!!varianteTarjeta}
+              >
+                <option value="">-- Elige una opción --</option>
+                {variantes.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.nombre} — {v.precio}€
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="fecha" className="block font-bold text-sm mb-1">
+              {sesiones > 1 ? "Selecciona el día de la primera sesión:" : "Selecciona el día:"}
+            </label>
+            <DateInputReserva id="fecha" value={fecha} onChange={handleFechaChange} />
+            {fechaBloqueada && (
+              <p className="mt-2 text-sm text-red-600 font-medium">
+                Este día no está disponible para reservar.
+                {fechaBloqueada.motivo ? ` Motivo: ${fechaBloqueada.motivo}.` : ""}
+              </p>
+            )}
+            {fecha && !fechaBloqueada && fechaHabilitadaManual && (
+              <p className="mt-2 text-sm text-green-700 font-medium">
+                Esta fecha ha sido habilitada manualmente desde administración.
+              </p>
+            )}
+            {fecha && !fechaBloqueada && !fechaHabilitadaManual && diaNoDisponible && (
+              <p className="mt-2 text-sm text-red-600 font-medium">
+                Este taller no se imparte el día seleccionado. Días disponibles:{" "}
+                {Object.keys(clase.horarios || {}).join(", ") || "—"}.
+              </p>
+            )}
+          </div>
+
+          {conMetodo && (
+            <div>
+              <label htmlFor="metodo" className="block font-bold text-sm mb-1">
+                Método:
+              </label>
+              <select
+                id="metodo"
+                value={metodo}
+                onChange={(e) => handleMetodoChange(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                required
+                disabled={!puedeElegirMetodo}
+              >
+                <option value="">
+                  {!fecha
+                    ? "-- Primero selecciona el día --"
+                    : conVariante && !varianteId
+                    ? "-- Primero elige una opción --"
+                    : diaNoDisponible
+                    ? "-- Este taller no está disponible ese día --"
+                    : "-- Selecciona método --"}
+                </option>
+                {metodos.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nombre}
+                    {!conVariante && m.precio > 0 ? ` — ${m.precio}€` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="turno" className="block font-bold text-sm mb-1">
+              Selecciona el turno:
+            </label>
+            <select
+              id="turno"
+              value={turno}
+              onChange={(e) => {
+                setTurno(e.target.value);
+                setPlazas(1);
+              }}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+              required
+              disabled={!puedeElegirTurno}
+            >
+              <option value="">
+                {!fecha
+                  ? "-- Primero selecciona el día --"
+                  : conVariante && !varianteId
+                  ? "-- Primero elige una opción --"
+                  : conMetodo && !metodo
+                  ? "-- Primero selecciona el método --"
+                  : diaNoDisponible
+                  ? "-- No hay turnos para este día --"
+                  : "-- Elige turno --"}
+              </option>
+              {turnosDisponibles.map((turnoItem) => (
+                <option key={turnoItem} value={turnoItem}>
+                  {turnoItem}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {puedeElegirTurno && (conMetodo || turno) && (
+            <p className="text-sm text-green-700">
+              Quedan {plazasDisponibles} plazas disponibles
+              {conMetodo ? " para este método" : " en este turno"}.
+            </p>
+          )}
+
+          <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
+            <strong>¿Sois 5 o más personas?</strong>
+            <br />
+            Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
+          </div>
+
+          <div>
+            <label className="block font-bold text-sm mb-2">
+              {plazasTarjeta ? "Plazas de tu tarjeta regalo" : "¿Cuántas plazas deseas reservar?"}
+            </label>
+
+            <div className="flex items-center justify-between border border-gray-300 rounded-xl px-3 py-2">
+              <button
+                type="button"
+                onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
+                disabled={!puedeElegirPlazas || !!plazasTarjeta}
+                className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                −
+              </button>
+
+              <span className="text-lg font-semibold">
+                {puedeElegirPlazas || plazasTarjeta ? plazasNum : "—"}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setPlazas(Math.min(plazasDisponibles || 1, plazasNum + 1))}
+                disabled={!puedeElegirPlazas || !!plazasTarjeta}
+                className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mt-1">{mensajePrevio}</p>
+          </div>
+
+          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            {conVariante && (
+              <p>
+                <strong>{clase.variante?.etiqueta || "Opción"}:</strong>{" "}
+                {variante?.nombre || "—"}
+              </p>
+            )}
+            {conMetodo && (
+              <p>
+                <strong>Método elegido:</strong> {nombreMetodo || "—"}
+              </p>
+            )}
+            <p>
+              <strong>Precio unitario:</strong>{" "}
+              {desdeTarjeta ? "Tarjeta regalo" : `${precioUnitario}€`}
+            </p>
+            <p>
+              <strong>Precio total:</strong> {desdeTarjeta ? "0€" : `${precioTotal}€`}
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
+            bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+            shadow-md hover:shadow-lg
+            hover:from-[#F4C542] hover:to-[#E5B92F]
+            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={
+              guardando ||
+              !!fechaBloqueada ||
+              diaNoDisponible ||
+              (conVariante && !varianteId) ||
+              (conMetodo && !metodo) ||
+              !turno ||
+              plazasNum > plazasDisponibles ||
+              plazasDisponibles <= 0 ||
+              (!desdeTarjeta && !(precioUnitario > 0))
+            }
+          >
+            {guardando
+              ? "Guardando..."
+              : desdeTarjeta
+              ? "Confirmar reserva"
+              : "Confirmar y pagar"}
+          </button>
+        </form>
+      </BloqueoReserva>
+    </Pantalla>
+  );
+}

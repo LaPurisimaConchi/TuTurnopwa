@@ -553,6 +553,13 @@ if (pedido?.tipo === "pago_grupo_individual") {
         console.log("Tarjeta regalo guardada en /tarjetasRegalo:", {
           order,
           codigo: tarjetaGuardada.codigo,
+          plazas: tarjetaGuardada.plazas,
+        });
+
+        // Evita generar otro código si Redsys repite la notificación
+        await ref.update({
+          procesado: true,
+          actualizadoEn: timestamp,
         });
 
         return res.status(200).send("OK");

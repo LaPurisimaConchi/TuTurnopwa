@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { cerrarCompraInvitado } from "./utils/invitado";
 
 const ConfirmacionPago = () => {
   const navigate = useNavigate();
@@ -12,6 +13,12 @@ const ConfirmacionPago = () => {
   const [esTarjetaRegalo, setEsTarjetaRegalo] = useState(false);
   const [tarjeta, setTarjeta] = useState(null);
   const [errorCarga, setErrorCarga] = useState("");
+  const [esInvitado, setEsInvitado] = useState(false);
+
+  // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
+  useEffect(() => {
+    cerrarCompraInvitado();
+  }, []);
 
   useEffect(() => {
     const auth = getAuth();
@@ -21,6 +28,8 @@ const ConfirmacionPago = () => {
         setCargando(false);
         return;
       }
+
+      setEsInvitado(user.isAnonymous);
 
       try {
         const [tarjetasSnap, reservasSnap] = await Promise.all([
@@ -103,6 +112,12 @@ const ConfirmacionPago = () => {
               {tarjeta.subtipo ? (
                 <p style={styles.label}>
                   <strong>Opción:</strong> {tarjeta.subtipo}
+                </p>
+              ) : null}
+
+              {Number(tarjeta.plazas || 1) > 1 ? (
+                <p style={styles.label}>
+                  <strong>Plazas:</strong> {Number(tarjeta.plazas)} personas
                 </p>
               ) : null}
 
@@ -198,6 +213,22 @@ const ConfirmacionPago = () => {
             </div>
           </>
         )}
+
+        {!cargando && esInvitado ? (
+          <div style={styles.avisoInvitado}>
+            <p style={styles.avisoInvitadoTexto}>
+              {esTarjetaRegalo
+                ? "Has comprado sin cuenta. Guarda bien el código y, si quieres, crea una contraseña para consultar tus compras desde cualquier dispositivo."
+                : "Has reservado sin cuenta. El taller ya tiene tus datos de contacto; si creas una contraseña podrás consultar tus reservas desde cualquier dispositivo."}
+            </p>
+            <button
+              onClick={() => navigate("/registro")}
+              style={styles.botonSecundario}
+            >
+              Crear mi cuenta
+            </button>
+          </div>
+        ) : null}
 
         <img
           src="/img/logoPC.png"
@@ -366,6 +397,19 @@ botonDescarga: {
     fontSize: "1rem",
     fontWeight: "500",
     cursor: "pointer",
+  },
+  avisoInvitado: {
+    backgroundColor: "#fff8df",
+    border: "1px solid #f1e7c6",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  avisoInvitadoTexto: {
+    fontSize: "0.92rem",
+    color: "#6b4f3f",
+    lineHeight: 1.5,
+    marginBottom: 12,
   },
   logo: {
     display: "block",

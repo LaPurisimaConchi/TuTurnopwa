@@ -232,6 +232,20 @@ useEffect(() => {
 
             <button
               style={styles.boton}
+              onClick={() => navigate("/admin-taller")}
+            >
+              Añadir taller nuevo
+            </button>
+
+            <button
+              style={styles.boton}
+              onClick={() => navigate("/admin-categorias")}
+            >
+              Categorías de talleres
+            </button>
+
+            <button
+              style={styles.boton}
               onClick={() => navigate("/admin-usuarios-nuevo")}
             >
               Ver usuarios
