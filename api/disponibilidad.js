@@ -3,26 +3,12 @@
 // bloqueadas o habilitadas, turnos abiertos por grupos y plazas ocupadas.
 // /reservas y /reservasGrupos llevan datos personales y no son públicos, así que
 // aquí se lee con firebase-admin y solo se devuelven números y fechas.
-//   GET /api/disponibilidad?tipo=contexto
-//   GET /api/disponibilidad?tipo=plazas&fecha=AAAA-MM-DD[&turno=…]            → torno / modelado
-//   GET /api/disponibilidad?tipo=plazas&fecha=…&turno=…&ruta=<carpeta>        → ocupadas del taller
+// Las reglas y las respuestas están en src/utils/disponibilidadServidor.js.
 import { adminDb } from "./_firebaseAdmin.js";
 import { applyCors } from "./_cors.js";
-import {
-  bloqueosPublicos,
-  gruposPublicos,
-  habilitacionesPublicas,
-  plazasDeTurno,
-  plazasPorMetodo,
-} from "../src/utils/plazasOcupadas.js";
+import { resolverDisponibilidad } from "../src/utils/disponibilidadServidor.js";
 
 export const config = { runtime: "nodejs" };
-
-const FECHA = /^\d{4}-\d{2}-\d{2}$/;
-const RUTA = /^[A-Za-z0-9_-]{1,60}$/;
-// Los turnos son claves de Firebase: "17:30-20:30", "Horario a consultar"…
-const TURNO = /^[^./$#[\]]{1,60}$/;
-const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
 
 const valorDe = (param) => (Array.isArray(param) ? param[0] : param) || "";
 
@@ -37,51 +23,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "Método no permitido" });
   }
 
-  const tipo = valorDe(req.query?.tipo);
-  const fecha = valorDe(req.query?.fecha);
-  const turno = valorDe(req.query?.turno);
-  const ruta = valorDe(req.query?.ruta);
-
   try {
-    if (tipo === "contexto") {
-      const [bloqueos, habilitadas, grupos] = await Promise.all([
-        adminDb.ref("bloqueosFechas").get(),
-        adminDb.ref("fechasHabilitadas").get(),
-        adminDb.ref("reservasGrupos").get(),
-      ]);
+    const { codigo, cuerpo } = await resolverDisponibilidad(
+      {
+        tipo: valorDe(req.query?.tipo),
+        fecha: valorDe(req.query?.fecha),
+        turno: valorDe(req.query?.turno),
+        ruta: valorDe(req.query?.ruta),
+      },
+      (ruta) => adminDb.ref(ruta).get()
+    );
 
-      return res.status(200).json({
-        ok: true,
-        fechasBloqueadas: bloqueosPublicos(bloqueos.val() || {}),
-        fechasHabilitadas: habilitacionesPublicas(habilitadas.val() || {}),
-        reservasGrupos: gruposPublicos(grupos.val() || {}),
-      });
-    }
-
-    if (tipo === "plazas") {
-      if (!FECHA.test(fecha)) {
-        return res.status(400).json({ ok: false, error: "Fecha no válida" });
-      }
-      if (turno && !(TURNO.test(turno) && sinControl(turno))) {
-        return res.status(400).json({ ok: false, error: "Turno no válido" });
-      }
-
-      // Taller sin métodos: plazas ocupadas en su carpeta de reservas
-      if (ruta) {
-        if (!RUTA.test(ruta) || !turno) {
-          return res.status(400).json({ ok: false, error: "Faltan datos" });
-        }
-
-        const snap = await adminDb.ref(`reservas/${ruta}/${fecha}/${turno}`).get();
-        return res.status(200).json({ ok: true, ocupadas: plazasDeTurno(snap) });
-      }
-
-      const reservas = await adminDb.ref("reservas").get();
-      const { torno, modelado } = plazasPorMetodo(reservas, fecha, turno);
-      return res.status(200).json({ ok: true, torno, modelado });
-    }
-
-    return res.status(400).json({ ok: false, error: "Tipo no válido" });
+    return res.status(codigo).json(cuerpo);
   } catch (error) {
     console.error("Error en /api/disponibilidad:", error);
     return res.status(500).json({ ok: false, error: "No se pudo leer la disponibilidad" });
