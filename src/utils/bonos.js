@@ -37,6 +37,39 @@ export const obtenerEstadoVisibleBono = (bono) => {
   return "Activo";
 };
 
+// Campos del bono cuando su primera sesión se reserva con la compra: cuenta como
+// una clase usada (igual que usarSesionDeBono al reservar las demás)
+export const datosPrimeraSesionBono = ({
+  numeroClases,
+  fecha,
+  turno,
+  taller,
+  clase = "",
+  reservaId = "",
+  timestamp = new Date().toISOString(),
+  clave = "primeraSesion",
+}) => {
+  const restantes = Math.max(Number(numeroClases || 0) - 1, 0);
+
+  return {
+    clasesConsumidas: 1,
+    clasesRestantes: restantes,
+    estadoBono: restantes === 0 ? "agotado" : "activo",
+    ultimaSesionReservada: fecha,
+    sesionesConsumidas: {
+      [clave]: {
+        fecha,
+        turno,
+        taller,
+        clase: clase || taller,
+        reservaId,
+        timestamp,
+        primeraSesion: true,
+      },
+    },
+  };
+};
+
 export const obtenerBonosUsuario = async (uid) => {
   if (!uid) return [];
 

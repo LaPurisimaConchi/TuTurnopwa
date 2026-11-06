@@ -1,5 +1,6 @@
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { ADMIN_EMAILS } from "../src/utils/administradores.js";
+import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -229,6 +230,9 @@ async function confirmOrder(orderId, pedido) {
         actualizadoEn: paidAt,
       });
     }
+
+    // La primera sesión del bono se reservó con la compra
+    await confirmarPrimeraSesionBono({ orderId, uid: pedido.uid, paidAt });
   } else {
     const reservationSnapshot = await adminDb.ref("reservas").get();
     const match = findReservationUpdates(reservationSnapshot.val(), orderId);

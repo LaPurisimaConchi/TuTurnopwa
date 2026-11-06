@@ -3,19 +3,23 @@
 // (clases/{id} con dinamica: true y tipoProducto: "bono"). Misma lógica que las
 // pantallas de bono de siempre: el bono se guarda en usuarios/{uid}/bonos al
 // confirmarse el pago (webhook), o al momento si se paga con tarjeta regalo.
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, update } from "firebase/database";
+import { ref, get, update, push } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { crearBonoActivo } from "./utils/bonos";
+import { crearBonoActivo, datosPrimeraSesionBono, usarSesionDeBono } from "./utils/bonos";
+import { plazasOcupadasPorMetodo } from "./utils/disponibilidad";
+import { plazasLibres } from "./utils/plazasOcupadas";
 import {
   estadoDiaTaller,
-  turnosDisponiblesEnFecha,
   useContextoReserva,
+  useDiaDeReserva,
 } from "./utils/turnosTaller";
-import BotonVolver from "./BotonVolver";
-import CalendarioReserva from "./components/CalendarioReserva";
+import PantallaReserva from "./components/PantallaReserva";
+import SelectorDiaReserva from "./components/SelectorDiaReserva";
+import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
+import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 
 const sumarUnMes = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
@@ -38,6 +42,10 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
   const [convertirTorno, setConvertirTorno] = useState(false);
   const [user, setUser] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  // La primera sesión se reserva con la compra: se cuentan las plazas del turno
+  const [ocupadas, setOcupadas] = useState({ torno: 0, modelado: 0 });
+  const [plazasListas, setPlazasListas] = useState(false);
+  const [errorPlazas, setErrorPlazas] = useState(false);
 
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
@@ -61,30 +69,50 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
   const distribucionClases = clase.distribucionClases || "";
   const incluyeDecoracion = Boolean(clase.incluyeDecoracion ?? false);
 
-  const turnosDisponibles = useMemo(
-    () =>
-      turnosDisponiblesEnFecha({
-        clase,
-        fecha: fechaInicio,
-        fechasHabilitadas,
-        reservasGrupos,
-      }),
-    [clase, fechaInicio, fechasHabilitadas, reservasGrupos]
-  );
+  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
+    useDiaDeReserva({
+      clase,
+      fecha: fechaInicio,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      reservasGrupos,
+    });
 
-  const fechaHabilitadaManual = useMemo(() => {
-    if (!fechaInicio) return null;
-    const habilitacion = fechasHabilitadas?.[fechaInicio];
-    return habilitacion?.habilitada ? habilitacion : null;
-  }, [fechaInicio, fechasHabilitadas]);
+  const esTorno = /torno/i.test(modalidad);
+  const plazasQuedan = plazasLibres({
+    ...ocupadas,
+    esTorno,
+    maxTorno: Number(clase.plazas?.maxTorno || 12),
+    maxTotales: Number(clase.plazas?.maxTotales || clase.plazas?.plazasTotales || 45),
+  });
 
-  const fechaBloqueada = useMemo(() => {
-    if (!fechaInicio) return null;
-    const bloqueo = fechasBloqueadas?.[fechaInicio];
-    return bloqueo?.bloqueado ? bloqueo : null;
-  }, [fechaInicio, fechasBloqueadas]);
+  useEffect(() => {
+    if (!fechaInicio || !turno) {
+      setOcupadas({ torno: 0, modelado: 0 });
+      setPlazasListas(false);
+      setErrorPlazas(false);
+      return;
+    }
 
-  const diaNoDisponible = !!fechaInicio && turnosDisponibles.length === 0;
+    let cancelado = false;
+    setPlazasListas(false);
+
+    plazasOcupadasPorMetodo(fechaInicio, turno)
+      .then((cuentas) => {
+        if (cancelado) return;
+        setOcupadas(cuentas);
+        setErrorPlazas(false);
+        setPlazasListas(true);
+      })
+      .catch((error) => {
+        console.error("Error al contar plazas:", error);
+        if (!cancelado) setErrorPlazas(true);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [fechaInicio, turno]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,6 +141,16 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       return;
     }
 
+    if (errorPlazas || !plazasListas) {
+      alert("No se ha podido comprobar las plazas del turno. Inténtalo de nuevo.");
+      return;
+    }
+
+    if (plazasQuedan <= 0) {
+      alert("No quedan plazas en este turno. Elige otro turno u otro día.");
+      return;
+    }
+
     if (!(precioBase > 0) && !desdeTarjeta) {
       alert("No se ha podido calcular el precio del bono.");
       return;
@@ -132,14 +170,43 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       const fechaFinMes = sumarUnMes(fechaInicio);
       const codigoTarjeta = location.state?.codigoTarjeta || "";
 
+      // Primera sesión del bono: se reserva con la compra, con la misma forma que
+      // las que se reservan después desde el perfil (UsarBono). Pendiente hasta
+      // que se paga (no cuenta para las plazas); con tarjeta regalo, ya confirmada
+      const turnoElegido = String(turno).replaceAll(" a ", "-").trim();
+      const reservaRef = push(
+        ref(
+          dbRealtime,
+          `reservas/${clase.reservasPath || claseId}/${fechaInicio}/${turnoElegido}`
+        )
+      );
+      const reservaId = reservaRef.key || "";
+      const reservaPrimeraSesion = {
+        clase: nombreClase,
+        claseId,
+        fecha: fechaInicio,
+        turno: turnoElegido,
+        modalidad,
+        metodo: modalidad,
+        precio: 0,
+        precioBase: 0,
+        precioTotal: 0,
+        plazas: 1,
+        desdeBono: true,
+        bonoId: orderId,
+        primeraSesionBono: true,
+        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
+        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        orderId,
+        timestamp,
+      };
+
       const datosBono = {
         claseId,
         clase: nombreClase,
         tipo: "bono",
         subtipo,
         numeroClases,
-        clasesConsumidas: 0,
-        clasesRestantes: numeroClases,
         fechaInicio,
         fechaFinMes,
         fechaCaducidadBono: fechaFinMes,
@@ -153,12 +220,19 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           : {}),
         precioBase,
         precioTotal,
-        estadoBono: "activo",
         estadoPago: desdeTarjeta ? "pagado" : "pendiente",
         orderId,
         creadoEn: timestamp,
         actualizadoEn: timestamp,
-        sesionesConsumidas: {},
+        // La primera sesión cuenta como usada
+        ...datosPrimeraSesionBono({
+          numeroClases,
+          fecha: fechaInicio,
+          turno: turnoElegido,
+          taller: nombreClase,
+          reservaId,
+          timestamp,
+        }),
       };
 
       if (desdeTarjeta) {
@@ -168,6 +242,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         );
 
         if (!bonoYaExiste) {
+          await update(reservaRef, { uid: user.uid, ...reservaPrimeraSesion });
+
           await crearBonoActivo({
             uid: user.uid,
             clase: nombreClase,
@@ -194,6 +270,22 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
               codigoTarjeta,
               creadaDesde: "tarjeta_regalo",
             },
+          });
+
+          await usarSesionDeBono({
+            uid: user.uid,
+            bonoId: orderId,
+            fechaSesion: fechaInicio,
+            turno: turnoElegido,
+            taller: nombreClase,
+            reservaId,
+            clase: nombreClase,
+          });
+
+          await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
+            ...reservaPrimeraSesion,
+            uid: user.uid,
+            reservaId,
           });
         }
 
@@ -250,6 +342,9 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         return;
       }
 
+      // Pendiente hasta que se pague; el aviso de pago la confirma junto con el bono
+      await update(reservaRef, { uid: user.uid, ...reservaPrimeraSesion });
+
       navigate("/resumen-pago", {
         state: {
           desdeTarjeta,
@@ -278,21 +373,20 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
-        <BotonVolver />
+    <PantallaReserva ancho="max-w-4xl">
+      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        Reserva – {nombreClase}
+      </h1>
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
-          Reserva – {nombreClase}
-        </h1>
+      {desdeTarjeta && (
+        <p className="text-sm text-green-700 text-center font-medium mb-4">
+          Estás usando una tarjeta regalo 🎁
+        </p>
+      )}
 
-        {desdeTarjeta && (
-          <p className="text-sm text-green-700 text-center font-medium mb-4">
-            Estás usando una tarjeta regalo 🎁
-          </p>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
+        {/* Izquierda: qué es el bono y desde cuándo */}
+        <div className="space-y-4">
           <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
             <p>
               <strong>Bono mensual de {numeroClases} clases.</strong>
@@ -305,7 +399,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
                 </>
               )}
               El mes comienza con tu primera sesión y finaliza el mismo día del
-              mes siguiente.
+              mes siguiente. Al comprar el bono reservamos tu primera clase.
             </p>
           </div>
 
@@ -324,64 +418,58 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </label>
           )}
 
-          <div>
-            <p className="block font-bold text-sm mb-2">
-              Selecciona la fecha de inicio de tu bono:
-            </p>
-            <CalendarioReserva
-              value={fechaInicio}
-              onChange={(iso) => {
-                setFechaInicio(iso);
-                setTurno("");
-              }}
-              estadoDia={(iso) =>
-                estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
-              }
-              cargando={!contextoCargado}
-            />
-            {fechaBloqueada && (
-              <p className="mt-2 text-sm text-red-600 font-medium">
-                Este día no está disponible para reservar.
-                {fechaBloqueada.motivo ? ` Motivo: ${fechaBloqueada.motivo}.` : ""}
-              </p>
-            )}
-            {fechaInicio && !fechaBloqueada && fechaHabilitadaManual && (
-              <p className="mt-2 text-sm text-green-700 font-medium">
-                Esta fecha ha sido habilitada manualmente desde administración.
-              </p>
-            )}
-            {fechaInicio && !fechaBloqueada && !fechaHabilitadaManual && diaNoDisponible && (
-              <p className="mt-2 text-sm text-red-600 font-medium">
-                Esta clase no se imparte el día seleccionado. Días disponibles:{" "}
-                {Object.keys(clase.horarios || {}).join(", ") || "—"}.
-              </p>
-            )}
+          <SelectorDiaReserva
+            etiqueta="Selecciona la fecha de inicio de tu bono:"
+            value={fechaInicio}
+            onChange={(iso) => {
+              setFechaInicio(iso);
+              setTurno("");
+            }}
+            estadoDia={(iso) =>
+              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
+            }
+            cargando={!contextoCargado}
+            fechaBloqueada={fechaBloqueada}
+            fechaHabilitadaManual={fechaHabilitadaManual}
+            diaNoDisponible={diaNoDisponible}
+            clase={clase}
+            producto="Esta clase"
+          >
             <div className="mt-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
-              La fecha de inicio del bono no constituye una reserva de clase.
-              Deberás gestionar cada reserva desde tu perfil, en “Mis bonos”.
+              Tu primera clase queda reservada en la fecha y el turno que elijas.
+              Las demás las reservas desde tu perfil, en “Mis bonos”.
             </div>
-          </div>
+          </SelectorDiaReserva>
+        </div>
 
-          <div>
-            <label htmlFor="turno" className="block font-bold text-sm mb-1">
-              Selecciona el turno habitual:
-            </label>
-            <select
-              id="turno"
-              value={turno}
-              onChange={(e) => setTurno(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base"
-              required
-              disabled={!fechaInicio || diaNoDisponible}
-            >
-              <option value="">-- Elige turno --</option>
-              {turnosDisponibles.map((turnoItem) => (
-                <option key={turnoItem} value={turnoItem}>
-                  {turnoItem}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Derecha: turno, plazas, resumen y pago */}
+        <div className="space-y-4">
+          <SelectorTurnoReserva
+            etiqueta="Selecciona el turno (el de tu primera clase y tu turno habitual):"
+            value={turno}
+            onChange={setTurno}
+            turnos={turnosDisponibles}
+            deshabilitado={!fechaInicio || diaNoDisponible}
+            placeholder={!fechaInicio ? "-- Primero selecciona el día --" : "-- Elige turno --"}
+          />
+
+          {!!turno && errorPlazas && (
+            <p className="text-sm text-red-600" role="alert">
+              No se ha podido comprobar las plazas. Recarga la página e inténtalo de nuevo.
+            </p>
+          )}
+
+          {!!turno && plazasListas && plazasQuedan > 0 && (
+            <p className="text-sm text-green-700">
+              Quedan {plazasQuedan} plazas disponibles en este turno.
+            </p>
+          )}
+
+          {!!turno && plazasListas && plazasQuedan <= 0 && (
+            <p className="text-sm text-red-600 font-medium" role="alert">
+              No quedan plazas en este turno. Elige otro turno u otro día.
+            </p>
+          )}
 
           <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
             {modalidad && (
@@ -413,34 +501,22 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </div>
           )}
 
-          <button
-            type="submit"
-            className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-            bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
-            shadow-md hover:shadow-lg
-            hover:from-[#F4C542] hover:to-[#E5B92F]
-            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              guardando ||
+          <BotonConfirmarReserva
+            guardando={guardando}
+            desdeTarjeta={desdeTarjeta}
+            deshabilitado={
               !!fechaBloqueada ||
               diaNoDisponible ||
               !fechaInicio ||
               !turno ||
+              !plazasListas ||
+              errorPlazas ||
+              plazasQuedan <= 0 ||
               (!desdeTarjeta && !(precioBase > 0))
             }
-          >
-            {guardando
-              ? "Guardando..."
-              : desdeTarjeta
-              ? "Confirmar reserva"
-              : "Confirmar y pagar"}
-          </button>
-        </form>
-
-        <div className="mt-8 text-center">
-          <img src="/img/logoPCsin.png" alt="La Purísima Conchi" className="w-20 mx-auto" />
+          />
         </div>
-      </div>
-    </div>
+      </form>
+    </PantallaReserva>
   );
 }
