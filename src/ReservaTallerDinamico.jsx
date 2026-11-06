@@ -37,10 +37,10 @@ const sumar28Dias = (fechaISO) => {
   return d.toISOString().slice(0, 10);
 };
 
-function Pantalla({ children }) {
+function Pantalla({ children, ancho = "max-w-md" }) {
   return (
     <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
+      <div className={`bg-white ${ancho} w-full rounded-2xl shadow-md p-6`}>
         <BotonVolver />
         {children}
         <div className="mt-8 text-center">
@@ -128,6 +128,8 @@ export function FormularioReserva({ claseId, clase }) {
   const [guardando, setGuardando] = useState(false);
   // Sin plazas contadas no se sabe si queda sitio: no se deja reservar
   const [errorPlazas, setErrorPlazas] = useState(false);
+  // Las plazas se cuentan por turno: hasta tener las del turno elegido no se muestran
+  const [plazasListas, setPlazasListas] = useState(false);
 
   // Datos de contacto de quien reserva sin cuenta: se piden al guardar
   const [pidiendoDatos, setPidiendoDatos] = useState(false);
@@ -204,21 +206,17 @@ export function FormularioReserva({ claseId, clase }) {
   }, [metodos]);
 
   useEffect(() => {
-    if (!fecha) {
+    if (!fecha || !turno) {
       setOcupadasTorno(0);
       setOcupadasModelado(0);
       setOcupadasTaller(0);
       setErrorPlazas(false);
-      return;
-    }
-
-    if (!conMetodo && !turno) {
-      setOcupadasTaller(0);
-      setErrorPlazas(false);
+      setPlazasListas(false);
       return;
     }
 
     let cancelado = false;
+    setPlazasListas(false);
 
     const lectura = conMetodo
       ? plazasOcupadasPorMetodo(fecha, turno).then(({ torno, modelado }) => {
@@ -232,7 +230,9 @@ export function FormularioReserva({ claseId, clase }) {
 
     lectura
       .then(() => {
-        if (!cancelado) setErrorPlazas(false);
+        if (cancelado) return;
+        setErrorPlazas(false);
+        setPlazasListas(true);
       })
       .catch((error) => {
         console.error("Error al contar plazas:", error);
@@ -269,21 +269,23 @@ export function FormularioReserva({ claseId, clase }) {
   const maxTorno = Number(clase.plazas?.maxTorno || MAX_TORNO_FALLBACK);
   const maxTotales = Number(clase.plazas?.maxTotales || MAX_TOTALES_FALLBACK);
 
-  const plazasDisponibles = useMemo(() => {
-    if (!conMetodo) return Math.max(maxTotales - ocupadasTaller, 0);
-    if (!metodo) return 0;
-
+  // Plazas que quedan en el turno para un método: el torno tiene su propio tope
+  // y todos comparten el total
+  const disponiblesDe = (idMetodo) => {
     const totalesOcupadas = ocupadasTorno + ocupadasModelado;
 
-    if (metodo === "torno") {
-      return Math.max(
-        Math.min(maxTorno - ocupadasTorno, maxTotales - totalesOcupadas),
-        0
-      );
+    if (idMetodo === "torno") {
+      return Math.max(Math.min(maxTorno - ocupadasTorno, maxTotales - totalesOcupadas), 0);
     }
 
     return Math.max(maxTotales - totalesOcupadas, 0);
-  }, [conMetodo, metodo, maxTorno, maxTotales, ocupadasTorno, ocupadasModelado, ocupadasTaller]);
+  };
+
+  const plazasDisponibles = !conMetodo
+    ? Math.max(maxTotales - ocupadasTaller, 0)
+    : metodo
+    ? disponiblesDe(metodo)
+    : 0;
 
   const variante = variantes.find((v) => v.id === varianteId) || null;
   const metodoElegido = metodos.find((m) => m.id === metodo) || null;
@@ -322,9 +324,10 @@ export function FormularioReserva({ claseId, clase }) {
     setPlazas(1);
   };
 
+  // El turno se conserva: los turnos no dependen del método, y así quien ve que su
+  // método está completo puede cambiarlo sin volver a elegir el turno
   const handleMetodoChange = (valor) => {
     setMetodo(valor);
-    if (!turnoConsulta) setTurno("");
     setPlazas(1);
   };
 
@@ -534,7 +537,24 @@ export function FormularioReserva({ claseId, clase }) {
     !!fecha && !fechaBloqueada && !diaNoDisponible && !metodoTarjeta && (!conVariante || !!varianteId);
   const puedeElegirTurno =
     !!fecha && eleccionesPrevias && !fechaBloqueada && !diaNoDisponible;
-  const puedeElegirPlazas = puedeElegirTurno && !!turno && plazasDisponibles > 0;
+  const puedeElegirPlazas = puedeElegirTurno && !!turno && plazasListas && plazasDisponibles > 0;
+
+  // Sin plazas en el método elegido: si otro método tiene sitio en este turno se
+  // dice, pero no se cambia solo (el precio puede ser distinto)
+  const alternativas =
+    conMetodo && metodo
+      ? metodos
+          .filter((m) => m.id !== metodo)
+          .map((m) => ({ nombre: m.nombre, quedan: disponiblesDe(m.id) }))
+          .filter((m) => m.quedan > 0)
+      : [];
+
+  const avisoSinPlazas = alternativas.length
+    ? `No quedan plazas de ${(metodoElegido?.nombre || "este método").toLowerCase()} en este turno. ` +
+      `Quedan ${alternativas
+        .map((m) => `${m.quedan} de ${m.nombre.toLowerCase()}`)
+        .join(" y ")}: cámbialo en «Método» o elige otro turno.`
+    : "No quedan plazas en este turno. Prueba con otro turno o con otro día.";
 
   const mensajePrevio = !fecha
     ? "Primero selecciona el día."
@@ -546,10 +566,14 @@ export function FormularioReserva({ claseId, clase }) {
     ? "Primero selecciona el turno."
     : diaNoDisponible
     ? "No hay plazas porque este taller no se imparte ese día."
+    : !plazasListas
+    ? "Comprobando plazas…"
+    : plazasDisponibles <= 0
+    ? "No quedan plazas disponibles."
     : `Máximo ${plazasDisponibles} plazas disponibles.`;
 
   return (
-    <Pantalla>
+    <Pantalla ancho="max-w-4xl">
       <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
         Reserva – {nombreClase}
       </h1>
@@ -569,9 +593,9 @@ export function FormularioReserva({ claseId, clase }) {
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
           {sesiones > 1 && (
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="md:col-span-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
               <p>
                 <strong>Incluye {sesiones} sesiones.</strong>
               </p>
@@ -583,6 +607,8 @@ export function FormularioReserva({ claseId, clase }) {
             </div>
           )}
 
+          {/* Izquierda: qué y cuándo (opción y día) */}
+          <div className="space-y-4">
           {conVariante && (
             <div>
               <label htmlFor="variante" className="block font-bold text-sm mb-1">
@@ -635,6 +661,10 @@ export function FormularioReserva({ claseId, clase }) {
             )}
           </div>
 
+          </div>
+
+          {/* Derecha: método, turno, plazas, resumen y pago */}
+          <div className="space-y-4">
           {conMetodo && (
             <div>
               <label htmlFor="metodo" className="block font-bold text-sm mb-1">
@@ -701,10 +731,16 @@ export function FormularioReserva({ claseId, clase }) {
             </select>
           </div>
 
-          {puedeElegirTurno && (conMetodo || turno) && (
+          {puedeElegirTurno && !!turno && plazasListas && plazasDisponibles > 0 && (
             <p className="text-sm text-green-700">
               Quedan {plazasDisponibles} plazas disponibles
               {conMetodo ? " para este método" : " en este turno"}.
+            </p>
+          )}
+
+          {puedeElegirTurno && !!turno && plazasListas && plazasDisponibles <= 0 && (
+            <p className="text-sm text-red-600 font-medium" role="alert">
+              {avisoSinPlazas}
             </p>
           )}
 
@@ -778,6 +814,7 @@ export function FormularioReserva({ claseId, clase }) {
               guardando ||
               errorContexto ||
               errorPlazas ||
+              (!!turno && !plazasListas) ||
               !!fechaBloqueada ||
               diaNoDisponible ||
               (conVariante && !varianteId) ||
@@ -794,6 +831,7 @@ export function FormularioReserva({ claseId, clase }) {
               ? "Confirmar reserva"
               : "Confirmar y pagar"}
           </button>
+          </div>
         </form>
       </BloqueoReserva>
 
