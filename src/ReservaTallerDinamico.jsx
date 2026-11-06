@@ -14,8 +14,8 @@ import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import {
   esTurnoConsulta,
   estadoDiaTaller,
-  turnosDisponiblesEnFecha,
   useContextoReserva,
+  useDiaDeReserva,
 } from "./utils/turnosTaller";
 import {
   estadoTaller,
@@ -23,8 +23,10 @@ import {
   variantesDelTaller,
 } from "./catalogoTalleres";
 import BloqueoReserva from "./BloqueoReserva";
-import BotonVolver from "./BotonVolver";
-import CalendarioReserva from "./components/CalendarioReserva";
+import PantallaReserva from "./components/PantallaReserva";
+import SelectorDiaReserva from "./components/SelectorDiaReserva";
+import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
+import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
 
@@ -36,20 +38,6 @@ const sumar28Dias = (fechaISO) => {
   d.setDate(d.getDate() + 28);
   return d.toISOString().slice(0, 10);
 };
-
-function Pantalla({ children, ancho = "max-w-md" }) {
-  return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
-      <div className={`bg-white ${ancho} w-full rounded-2xl shadow-md p-6`}>
-        <BotonVolver />
-        {children}
-        <div className="mt-8 text-center">
-          <img src="/img/logoPCsin.png" alt="La Purísima Conchi" className="w-20 mx-auto" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ReservaTallerDinamico() {
   const { claseId } = useParams();
@@ -79,21 +67,21 @@ export default function ReservaTallerDinamico() {
 
   if (cargando) {
     return (
-      <Pantalla>
+      <PantallaReserva>
         <p className="text-center text-gray-500 py-8">
           Cargando configuración del taller...
         </p>
-      </Pantalla>
+      </PantallaReserva>
     );
   }
 
   if (!clase || estadoTaller(clase) !== "activa") {
     return (
-      <Pantalla>
+      <PantallaReserva>
         <p className="text-center text-red-600 py-8">
           Este taller no está disponible para reservar ahora mismo.
         </p>
-      </Pantalla>
+      </PantallaReserva>
     );
   }
 
@@ -244,10 +232,8 @@ export function FormularioReserva({ claseId, clase }) {
     };
   }, [fecha, turno, conMetodo, rutaReservas]);
 
-  const turnosDisponibles = useMemo(
-    () => turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos }),
-    [clase, fecha, fechasHabilitadas, reservasGrupos]
-  );
+  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
+    useDiaDeReserva({ clase, fecha, fechasBloqueadas, fechasHabilitadas, reservasGrupos });
 
   const turnoConsulta = esTurnoConsulta(turnosDisponibles);
 
@@ -259,12 +245,6 @@ export function FormularioReserva({ claseId, clase }) {
       setTurno("");
     }
   }, [turnoConsulta, turnosDisponibles, turno]);
-
-  const fechaHabilitadaManual = useMemo(() => {
-    if (!fecha) return null;
-    const habilitacion = fechasHabilitadas?.[fecha];
-    return habilitacion?.habilitada ? habilitacion : null;
-  }, [fecha, fechasHabilitadas]);
 
   const maxTorno = Number(clase.plazas?.maxTorno || MAX_TORNO_FALLBACK);
   const maxTotales = Number(clase.plazas?.maxTotales || MAX_TOTALES_FALLBACK);
@@ -299,14 +279,6 @@ export function FormularioReserva({ claseId, clase }) {
   const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
   const precioTotal = precioUnitario * plazasNum;
   const nombreMetodo = metodoElegido?.nombre || "";
-
-  const fechaBloqueada = useMemo(() => {
-    if (!fecha) return null;
-    const bloqueo = fechasBloqueadas?.[fecha];
-    return bloqueo?.bloqueado ? bloqueo : null;
-  }, [fecha, fechasBloqueadas]);
-
-  const diaNoDisponible = !!fecha && turnosDisponibles.length === 0;
 
   const handleVarianteChange = (valor) => {
     setVarianteId(valor);
@@ -573,7 +545,7 @@ export function FormularioReserva({ claseId, clase }) {
     : `Máximo ${plazasDisponibles} plazas disponibles.`;
 
   return (
-    <Pantalla ancho="max-w-4xl">
+    <PantallaReserva ancho="max-w-4xl">
       <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
         Reserva – {nombreClase}
       </h1>
@@ -632,34 +604,18 @@ export function FormularioReserva({ claseId, clase }) {
             </div>
           )}
 
-          <div>
-            <p id="etiqueta-fecha" className="block font-bold text-sm mb-2">
-              {sesiones > 1 ? "Selecciona el día de la primera sesión:" : "Selecciona el día:"}
-            </p>
-            <CalendarioReserva
-              value={fecha}
-              onChange={handleFechaChange}
-              estadoDia={estadoDia}
-              cargando={!contextoCargado}
-            />
-            {fechaBloqueada && (
-              <p className="mt-2 text-sm text-red-600 font-medium">
-                Este día no está disponible para reservar.
-                {fechaBloqueada.motivo ? ` Motivo: ${fechaBloqueada.motivo}.` : ""}
-              </p>
-            )}
-            {fecha && !fechaBloqueada && fechaHabilitadaManual && (
-              <p className="mt-2 text-sm text-green-700 font-medium">
-                Esta fecha ha sido habilitada manualmente desde administración.
-              </p>
-            )}
-            {fecha && !fechaBloqueada && !fechaHabilitadaManual && diaNoDisponible && (
-              <p className="mt-2 text-sm text-red-600 font-medium">
-                Este taller no se imparte el día seleccionado. Días disponibles:{" "}
-                {Object.keys(clase.horarios || {}).join(", ") || "—"}.
-              </p>
-            )}
-          </div>
+          <SelectorDiaReserva
+            etiqueta={sesiones > 1 ? "Selecciona el día de la primera sesión:" : "Selecciona el día:"}
+            value={fecha}
+            onChange={handleFechaChange}
+            estadoDia={estadoDia}
+            cargando={!contextoCargado}
+            fechaBloqueada={fechaBloqueada}
+            fechaHabilitadaManual={fechaHabilitadaManual}
+            diaNoDisponible={diaNoDisponible}
+            clase={clase}
+            producto="Este taller"
+          />
 
           </div>
 
@@ -697,39 +653,26 @@ export function FormularioReserva({ claseId, clase }) {
             </div>
           )}
 
-          <div>
-            <label htmlFor="turno" className="block font-bold text-sm mb-1">
-              Selecciona el turno:
-            </label>
-            <select
-              id="turno"
-              value={turno}
-              onChange={(e) => {
-                setTurno(e.target.value);
-                setPlazas(1);
-              }}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
-              required
-              disabled={!puedeElegirTurno}
-            >
-              <option value="">
-                {!fecha
-                  ? "-- Primero selecciona el día --"
-                  : conVariante && !varianteId
-                  ? "-- Primero elige una opción --"
-                  : conMetodo && !metodo
-                  ? "-- Primero selecciona el método --"
-                  : diaNoDisponible
-                  ? "-- No hay turnos para este día --"
-                  : "-- Elige turno --"}
-              </option>
-              {turnosDisponibles.map((turnoItem) => (
-                <option key={turnoItem} value={turnoItem}>
-                  {turnoItem}
-                </option>
-              ))}
-            </select>
-          </div>
+          <SelectorTurnoReserva
+            value={turno}
+            onChange={(valor) => {
+              setTurno(valor);
+              setPlazas(1);
+            }}
+            turnos={turnosDisponibles}
+            deshabilitado={!puedeElegirTurno}
+            placeholder={
+              !fecha
+                ? "-- Primero selecciona el día --"
+                : conVariante && !varianteId
+                ? "-- Primero elige una opción --"
+                : conMetodo && !metodo
+                ? "-- Primero selecciona el método --"
+                : diaNoDisponible
+                ? "-- No hay turnos para este día --"
+                : "-- Elige turno --"
+            }
+          />
 
           {puedeElegirTurno && !!turno && plazasListas && plazasDisponibles > 0 && (
             <p className="text-sm text-green-700">
@@ -803,15 +746,10 @@ export function FormularioReserva({ claseId, clase }) {
             </p>
           </div>
 
-          <button
-            type="submit"
-            className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-            bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
-            shadow-md hover:shadow-lg
-            hover:from-[#F4C542] hover:to-[#E5B92F]
-            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={
-              guardando ||
+          <BotonConfirmarReserva
+            guardando={guardando}
+            desdeTarjeta={desdeTarjeta}
+            deshabilitado={
               errorContexto ||
               errorPlazas ||
               (!!turno && !plazasListas) ||
@@ -824,13 +762,7 @@ export function FormularioReserva({ claseId, clase }) {
               plazasDisponibles <= 0 ||
               (!desdeTarjeta && !(precioUnitario > 0))
             }
-          >
-            {guardando
-              ? "Guardando..."
-              : desdeTarjeta
-              ? "Confirmar reserva"
-              : "Confirmar y pagar"}
-          </button>
+          />
           </div>
         </form>
       </BloqueoReserva>
@@ -841,6 +773,6 @@ export function FormularioReserva({ claseId, clase }) {
           onCancelar={() => cerrarDatosInvitado(null)}
         />
       )}
-    </Pantalla>
+    </PantallaReserva>
   );
 }

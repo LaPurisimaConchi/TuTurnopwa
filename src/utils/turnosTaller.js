@@ -2,7 +2,7 @@
 // Turnos de un taller en una fecha: horario semanal + fechas habilitadas desde
 // el admin + reservas de grupo confirmadas (misma lógica que las pantallas de
 // reserva de siempre).
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cargarContextoReserva } from "./disponibilidad";
 
 const DIAS_SEMANA = [
@@ -181,4 +181,35 @@ export function useContextoReserva() {
   }, []);
 
   return contexto;
+}
+
+// Lo que se sabe del día elegido en una reserva (talleres y bonos): turnos que se
+// ofrecen, si está bloqueado desde el panel, si se habilitó a mano y si no hay taller
+export function useDiaDeReserva({
+  clase,
+  fecha,
+  fechasBloqueadas = {},
+  fechasHabilitadas = {},
+  reservasGrupos = {},
+}) {
+  const turnosDisponibles = useMemo(
+    () => turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos }),
+    [clase, fecha, fechasHabilitadas, reservasGrupos]
+  );
+
+  const fechaHabilitadaManual = useMemo(() => {
+    if (!fecha) return null;
+    const habilitacion = fechasHabilitadas?.[fecha];
+    return habilitacion?.habilitada ? habilitacion : null;
+  }, [fecha, fechasHabilitadas]);
+
+  const fechaBloqueada = useMemo(() => {
+    if (!fecha) return null;
+    const bloqueo = fechasBloqueadas?.[fecha];
+    return bloqueo?.bloqueado ? bloqueo : null;
+  }, [fecha, fechasBloqueadas]);
+
+  const diaNoDisponible = !!fecha && turnosDisponibles.length === 0;
+
+  return { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible };
 }
