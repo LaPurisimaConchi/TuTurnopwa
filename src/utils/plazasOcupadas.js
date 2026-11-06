@@ -95,6 +95,15 @@ export function plazasPorMetodo(reservas, fecha, turno = "") {
   return { torno, modelado };
 }
 
+// Plazas libres en un turno: el torno tiene su propio tope y todos los métodos
+// comparten el total
+export function plazasLibres({ torno = 0, modelado = 0, esTorno = false, maxTorno = 12, maxTotales = 45 }) {
+  const totales = torno + modelado;
+  const libres = esTorno ? Math.min(maxTorno - torno, maxTotales - totales) : maxTotales - totales;
+
+  return Math.max(libres, 0);
+}
+
 // Plazas ocupadas en un turno de un taller sin métodos: `turnoSnap` es el
 // snapshot de reservas/{ruta}/{fecha}/{turno}
 export function plazasDeTurno(turnoSnap) {

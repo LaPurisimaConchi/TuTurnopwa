@@ -1,6 +1,7 @@
 // api/notificacionTPV.js
 import crypto from "crypto";
 import { adminDb } from "./_firebaseAdmin.js";
+import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -575,6 +576,19 @@ if (pedido?.tipo === "pago_grupo_individual") {
         });
 
         if (bonoGuardado) {
+          // La primera sesión del bono se reservó con la compra: se confirma
+          // ahora que está pagado (si algo falla, Redsys reintenta el aviso)
+          const primeraSesion = await confirmarPrimeraSesionBono({
+            orderId: order,
+            uid: pedido.uid,
+            paidAt: timestamp,
+          });
+
+          console.log("Primera sesión del bono:", {
+            order,
+            confirmada: !!primeraSesion,
+          });
+
           await ref.update({
             procesado: true,
             actualizadoEn: timestamp,
