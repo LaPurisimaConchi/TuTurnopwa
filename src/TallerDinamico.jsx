@@ -89,12 +89,10 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const navigate = useNavigate();
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] || "");
   const [modalAbierto, setModalAbierto] = useState(false);
-  // Método (o variante, si el taller las tiene) elegido aquí: llega marcado a la reserva
-  const [opcionElegida, setOpcionElegida] = useState("");
-
   const esBono = clase.tipoProducto === "bono";
   const variantes = variantesDelTaller(clase);
-  const metodos = variantes.length ? [] : metodosDelTaller(clase);
+  const metodosDelProducto = metodosDelTaller(clase);
+  const metodos = variantes.length ? [] : metodosDelProducto;
   const desde = precioDesde(clase);
   const preciosIguales =
     new Set((variantes.length ? variantes : metodos).map((m) => m.precio)).size <= 1;
@@ -106,12 +104,37 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const mostrarAvisos = clase.mostrarAvisos !== false;
   const horarios = resumenHorarios(clase);
 
-  const opciones = variantes.length ? variantes : metodos;
-  const mostrarOpciones = variantes.length > 0 || metodos.length > 1;
-  const parametroOpcion = variantes.length ? "variante" : "metodo";
-  const etiquetaOpciones = variantes.length ? clase.variante?.etiqueta || "Opción" : "Método";
+  // Lo que se elige aquí y llega marcado a la reserva: el tipo o tamaño (variante)
+  // y/o el método. Con variantes, el método no cambia el precio pero sí se elige.
+  // La primera opción de cada grupo viene elegida de entrada
+  const grupos = [
+    variantes.length > 0 && {
+      clave: "variante",
+      etiqueta: clase.variante?.etiqueta || "Opción",
+      opciones: variantes,
+    },
+    !esBono &&
+      metodosDelProducto.length > 1 && {
+        clave: "metodo",
+        etiqueta: "Método",
+        opciones: metodosDelProducto,
+      },
+  ].filter(Boolean);
+
+  const [elegidas, setElegidas] = useState(() =>
+    Object.fromEntries(grupos.map((g) => [g.clave, g.opciones[0]?.id || ""]))
+  );
+
+  // Con opciones que elegir, reservar necesita que haya una elegida en cada grupo
+  const grupoSinElegir = grupos.find((g) => !elegidas[g.clave]);
+  const faltaOpcion = !!grupoSinElegir;
+
+  const parametros = new URLSearchParams();
+  grupos.forEach((g) => {
+    if (elegidas[g.clave]) parametros.set(g.clave, elegidas[g.clave]);
+  });
   const destinoReserva = `/reservar/${claseId}${
-    opcionElegida ? `?${parametroOpcion}=${encodeURIComponent(opcionElegida)}` : ""
+    parametros.toString() ? `?${parametros.toString()}` : ""
   }`;
 
   return (
@@ -174,38 +197,44 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 : ""}
             </p>
 
-            {mostrarOpciones && (
-              <div className="mt-3 mb-4" role="radiogroup" aria-label={etiquetaOpciones}>
-                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
-                  {etiquetaOpciones}
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {opciones.map((opcion) => {
-                    const elegida = opcionElegida === opcion.id;
+            {grupos.length > 0 && (
+              <div className="mt-3 mb-4 space-y-4">
+                {grupos.map((grupo) => (
+                  <div key={grupo.clave} role="radiogroup" aria-label={grupo.etiqueta}>
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                      {grupo.etiqueta}
+                    </h2>
+                    <div className="flex flex-wrap gap-2">
+                      {grupo.opciones.map((opcion) => {
+                        const elegida = elegidas[grupo.clave] === opcion.id;
 
-                    return (
-                      <button
-                        key={opcion.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={elegida}
-                        onClick={() => setOpcionElegida(opcion.id)}
-                        className={`px-4 py-2 rounded-xl border text-left transition ${
-                          elegida
-                            ? "bg-[#F4C542] border-[#E5B92F] text-[#5c3c00] ring-2 ring-[#E5B92F]"
-                            : "bg-[#fff6d6] border-[#F4C542] text-[#5c3c00] hover:bg-[#F6D66A]"
-                        }`}
-                      >
-                        <span className="block text-sm font-semibold">{opcion.nombre}</span>
-                        {opcion.precio > 0 && (
-                          <span className="block text-xs">{formatearEuros(opcion.precio)}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Si lo eliges aquí, llegará ya marcado a la reserva.
+                        return (
+                          <button
+                            key={opcion.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={elegida}
+                            onClick={() =>
+                              setElegidas((previas) => ({ ...previas, [grupo.clave]: opcion.id }))
+                            }
+                            className={`px-4 py-2 rounded-xl border text-left transition ${
+                              elegida
+                                ? "bg-[#F4C542] border-[#E5B92F] text-[#5c3c00] ring-2 ring-[#E5B92F]"
+                                : "bg-[#fff6d6] border-[#F4C542] text-[#5c3c00] hover:bg-[#F6D66A]"
+                            }`}
+                          >
+                            <span className="block text-sm font-semibold">{opcion.nombre}</span>
+                            {opcion.precio > 0 && (
+                              <span className="block text-xs">{formatearEuros(opcion.precio)}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+                <p className="text-xs text-gray-500">
+                  Lo que elijas llegará marcado a la reserva; allí también puedes cambiarlo.
                 </p>
               </div>
             )}
@@ -233,7 +262,13 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 destino={destinoReserva}
                 className="shrink-0"
                 texto={esBono ? "Comprar bono" : "Reservar ahora"}
+                disabled={faltaOpcion}
               />
+              {faltaOpcion && (
+                <p className="text-xs text-gray-600 -mt-3 mb-3" role="status">
+                  Elige una opción de «{grupoSinElegir.etiqueta}» para poder reservar.
+                </p>
+              )}
               {exigeCuenta(clase) && (
                 <p className="text-xs text-gray-500 mt-2">
                   {esBono
