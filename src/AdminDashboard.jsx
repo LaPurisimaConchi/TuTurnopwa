@@ -1,150 +1,68 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
 import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { calcularEstadisticas, formatearEuros } from "./utils/estadisticasAdmin";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState({
-    reservasTotales: 0,
-    clasesActivas: 0,
-    usuariosTotales: 0,
-    ingresosEstimados: 0,
-  });
-
+  const [stats, setStats] = useState(null);
   const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
-useEffect(() => {
-  const onResize = () => {
-    setIsMobile(window.innerWidth <= 768);
-  };
-
-  window.addEventListener("resize", onResize);
-
-  return () => window.removeEventListener("resize", onResize);
-}, []);
-
   useEffect(() => {
-    const cargarDashboard = async () => {
-      try {
-        const [reservasSnap, reservasGruposSnap, clasesSnap, usuariosSnap] =
-          await Promise.all([
-            get(ref(dbRealtime, "reservas")),
-            get(ref(dbRealtime, "reservasGrupos")),
-            get(ref(dbRealtime, "clases")),
-            get(ref(dbRealtime, "usuarios")),
-          ]);
-
-        let reservasTotales = 0;
-        let ingresosEstimados = 0;
-        let clasesActivas = 0;
-        let usuariosTotales = 0;
-
-        if (clasesSnap.exists()) {
-          clasesSnap.forEach((claseSnap) => {
-            const clase = claseSnap.val();
-            if (clase?.activa !== false) {
-              clasesActivas += 1;
-            }
-          });
-        }
-
-        if (usuariosSnap.exists()) {
-          usuariosTotales = Object.keys(usuariosSnap.val()).length;
-        }
-
-        // ---------- RESERVAS NORMALES ----------
-        if (reservasSnap.exists()) {
-          reservasSnap.forEach((claseSnap) => {
-            claseSnap.forEach((fechaSnap) => {
-              fechaSnap.forEach((turnoSnap) => {
-                turnoSnap.forEach((nivelSnap) => {
-                  const nivelVal = nivelSnap.val();
-
-                  if (!nivelVal || typeof nivelVal !== "object") return;
-
-                  const pareceReservaDirecta =
-                    "fecha" in nivelVal ||
-                    "estado" in nivelVal ||
-                    "estadoPago" in nivelVal ||
-                    "uid" in nivelVal ||
-                    "orderId" in nivelVal;
-
-                  if (pareceReservaDirecta) {
-                    reservasTotales += 1;
-
-                    if (
-                      nivelVal.estado === "Confirmada" &&
-                      nivelVal.estadoPago === "pagado"
-                    ) {
-                      ingresosEstimados += Number(
-                        nivelVal.precioTotal || nivelVal.precio || 0
-                      );
-                    }
-
-                    return;
-                  }
-
-                  nivelSnap.forEach((reservaSnap) => {
-                    const reserva = reservaSnap.val();
-                    if (!reserva || typeof reserva !== "object") return;
-
-                    reservasTotales += 1;
-
-                    if (
-                      reserva.estado === "Confirmada" &&
-                      reserva.estadoPago === "pagado"
-                    ) {
-                      ingresosEstimados += Number(
-                        reserva.precioTotal || reserva.precio || 0
-                      );
-                    }
-                  });
-                });
-              });
-            });
-          });
-        }
-
-        // ---------- RESERVAS DE GRUPO ----------
-        if (reservasGruposSnap.exists()) {
-          reservasGruposSnap.forEach((grupoSnap) => {
-            if (grupoSnap.key === "placeholder") return;
-
-            const grupo = grupoSnap.val();
-            if (!grupo || typeof grupo !== "object") return;
-
-            reservasTotales += 1;
-
-            if (
-              grupo.estado === "Confirmada" &&
-              grupo.estadoPago === "pagado"
-            ) {
-              ingresosEstimados += Number(
-                grupo.precioTotal || grupo.precio || 0
-              );
-            }
-          });
-        }
-
-        setStats({
-          reservasTotales,
-          clasesActivas,
-          usuariosTotales,
-          ingresosEstimados,
-        });
-      } catch (error) {
-        console.error("Error al cargar dashboard:", error);
-      } finally {
-        setCargando(false);
-      }
+    const onResize = () => {
+      setIsMobile(window.innerWidth <= 768);
     };
 
-    cargarDashboard();
+    window.addEventListener("resize", onResize);
+
+    return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  const cargarDashboard = useCallback(async () => {
+    setCargando(true);
+    setError(false);
+
+    try {
+      const [reservasSnap, reservasGruposSnap, clasesSnap, usuariosSnap] =
+        await Promise.all([
+          get(ref(dbRealtime, "reservas")),
+          get(ref(dbRealtime, "reservasGrupos")),
+          get(ref(dbRealtime, "clases")),
+          get(ref(dbRealtime, "usuarios")),
+        ]);
+
+      setStats(
+        calcularEstadisticas({
+          reservasSnap,
+          reservasGruposSnap,
+          clasesSnap,
+          usuariosSnap,
+        })
+      );
+    } catch (err) {
+      console.error("Error al cargar dashboard:", err);
+      setStats(null);
+      setError(true);
+    } finally {
+      setCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    cargarDashboard();
+  }, [cargarDashboard]);
+
+  // "..." mientras carga, "—" si falló, el valor si todo fue bien
+  const valor = (campo, formato = (v) => v) => {
+    if (cargando) return "...";
+    if (!stats) return "—";
+    return formato(stats[campo]);
+  };
 
   return (
    <div
@@ -168,32 +86,51 @@ useEffect(() => {
           </p>
         </div>
 
-        <div style={styles.grid}>
+        {error && (
+          <div role="alert" style={styles.error}>
+            <span>No se pudieron cargar los datos del resumen.</span>
+            <button
+              type="button"
+              style={styles.botonReintentar}
+              onClick={cargarDashboard}
+              disabled={cargando}
+            >
+              {cargando ? "Cargando..." : "Reintentar"}
+            </button>
+          </div>
+        )}
+
+        <div style={styles.grid} aria-busy={cargando}>
           <div style={styles.card}>
             <p style={styles.cardLabel}>Reservas totales</p>
             <p style={styles.cardValue}>
-              {cargando ? "..." : stats.reservasTotales}
+              {valor("reservasTotales")}
+            </p>
+            <p style={styles.cardNota}>
+              {stats && !cargando
+                ? `${stats.reservasConfirmadas} confirmadas y pagadas`
+                : "\u00A0"}
             </p>
           </div>
 
           <div style={styles.card}>
             <p style={styles.cardLabel}>Clases activas</p>
             <p style={styles.cardValue}>
-              {cargando ? "..." : stats.clasesActivas}
+              {valor("clasesActivas")}
             </p>
           </div>
 
           <div style={styles.card}>
             <p style={styles.cardLabel}>Usuarios</p>
             <p style={styles.cardValue}>
-              {cargando ? "..." : stats.usuariosTotales}
+              {valor("usuariosTotales")}
             </p>
           </div>
 
           <div style={styles.card}>
             <p style={styles.cardLabel}>Ingresos estimados</p>
             <p style={styles.cardValue}>
-              {cargando ? "..." : `${stats.ingresosEstimados}€`}
+              {valor("ingresosEstimados", formatearEuros)}
             </p>
           </div>
         </div>
@@ -365,6 +302,32 @@ const styles = {
     color: "#333",
     fontSize: "2rem",
     fontWeight: "bold",
+  },
+  cardNota: {
+    margin: "6px 0 0 0",
+    color: "#7a6331",
+    fontSize: "0.8rem",
+  },
+  error: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    backgroundColor: "#fdecea",
+    border: "1px solid #f3b8b0",
+    color: "#8a1f11",
+    borderRadius: 14,
+    padding: "12px 16px",
+    marginBottom: 16,
+  },
+  botonReintentar: {
+    padding: "8px 14px",
+    backgroundColor: "#8a1f11",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    cursor: "pointer",
   },
   accesosBox: {
     backgroundColor: "#fffdf7",
