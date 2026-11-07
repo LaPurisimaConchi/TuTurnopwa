@@ -135,6 +135,7 @@ import AdminHabilitarFechas from "./AdminHabilitarFechas";
 import AdminTallerForm from "./AdminTallerForm";
 import AdminMigrarTalleres from "./AdminMigrarTalleres";
 import AdminCategorias from "./AdminCategorias";
+import AdminOrdenarClases from "./AdminOrdenarClases";
 
 import DondeReservarV2 from "./DondeReservarV2.jsx";
 import ChatAyuda from "./ChatAyuda.jsx";
@@ -383,6 +384,14 @@ function App() {
             element={
               <RutaAdmin>
                 <AdminClasesNuevo />
+              </RutaAdmin>
+            }
+          />
+          <Route
+            path="/admin-ordenar-clases"
+            element={
+              <RutaAdmin>
+                <AdminOrdenarClases />
               </RutaAdmin>
             }
           />
