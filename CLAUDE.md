@@ -16,7 +16,7 @@ npm run migrar-categorias -- --project <proyecto> [--instance <bd>] [--dry-run] 
 - **Sin `.env.local` la app apunta a PRODUCCIÓN** (Firebase y `/api`). Para trabajar contra staging copia `.env.example` a `.env.local` (no se sube a git; contiene `VITE_FIREBASE_*`, `VITE_ENV=staging` y el proxy de `/api`).
 - Staging: proyecto `la-purisima-conchi-staging`. Producción: `la-purisima-conchi`. `.firebaserc` apunta a producción por defecto, así que pasa siempre `--project` a la CLI de Firebase.
 - Reglas de la base de datos: `database.rules.json`. Despliegue a staging: `npx firebase-tools deploy --only database --project la-purisima-conchi-staging`. No despliegues a producción ni ejecutes migraciones contra producción sin que lo pida el usuario.
-- Ramas: `main` y `staging`. Las PR de trabajo van contra `staging`. Commits y PR en español.
+- Ramas: `main` y `staging`. Toda rama nueva (también las de worktrees) sale de `origin/staging`, nunca de `main`: haz `git fetch origin` antes y, si la rama no parte de ahí, rebásala o recréala. Las PR de trabajo van contra `staging`. Commits y PR en español.
 - Administradores: `src/utils/administradores.js` y `database.rules.json` (mismos dos emails; si cambia uno, cambia el otro).
 
 ## Modelo de datos (Realtime Database)

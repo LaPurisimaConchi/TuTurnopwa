@@ -206,6 +206,7 @@ useEffect(() => {
   style={styles.boton}
   onClick={() => navigate("/admin-calendario-reservas-nuevo")}
 >
+  <span aria-hidden="true" style={styles.icono}>📅</span>
   Ver calendario
 </button>
 
@@ -213,6 +214,7 @@ useEffect(() => {
               style={styles.boton}
               onClick={() => navigate("/admin-reservas-nuevo")}
             >
+              <span aria-hidden="true" style={styles.icono}>📋</span>
               Ver reservas
             </button>
 
@@ -220,6 +222,7 @@ useEffect(() => {
               style={styles.boton}
               onClick={() => navigate("/admin-reservas-grupos")}
             >
+              <span aria-hidden="true" style={styles.icono}>👥</span>
               Ver reservas de grupo
             </button>
 
@@ -227,13 +230,23 @@ useEffect(() => {
               style={styles.boton}
               onClick={() => navigate("/admin-clases")}
             >
+              <span aria-hidden="true" style={styles.icono}>🏺</span>
               Ver clases
+            </button>
+
+            <button
+              style={styles.boton}
+              onClick={() => navigate("/admin-ordenar-clases")}
+            >
+              <span aria-hidden="true" style={styles.icono}>↕️</span>
+              Ordenar clases
             </button>
 
             <button
               style={styles.boton}
               onClick={() => navigate("/admin-taller")}
             >
+              <span aria-hidden="true" style={styles.icono}>➕</span>
               Añadir taller nuevo
             </button>
 
@@ -241,6 +254,7 @@ useEffect(() => {
               style={styles.boton}
               onClick={() => navigate("/admin-categorias")}
             >
+              <span aria-hidden="true" style={styles.icono}>🏷️</span>
               Categorías de talleres
             </button>
 
@@ -248,6 +262,7 @@ useEffect(() => {
               style={styles.boton}
               onClick={() => navigate("/admin-usuarios-nuevo")}
             >
+              <span aria-hidden="true" style={styles.icono}>👤</span>
               Ver usuarios
             </button>
 
@@ -256,24 +271,28 @@ useEffect(() => {
               style={styles.boton}
               onClick={() => navigate("/admin-tarjetas-regalo")}
             >
+              <span aria-hidden="true" style={styles.icono}>🎁</span>
               Ver tarjetas regalo
             </button>
             <button
   style={styles.boton}
   onClick={() => navigate("/admin-bloqueos-fechas")}
 >
+  <span aria-hidden="true" style={styles.icono}>🚫</span>
   Bloquear fechas
 </button>
 <button
   style={styles.boton}
   onClick={() => navigate("/admin-habilitar-fechas")}
 >
+  <span aria-hidden="true" style={styles.icono}>✅</span>
   Habilitar fechas y Turnos
 </button>
 <button
   style={styles.boton}
   onClick={() => navigate("/admin-bonos-nuevo")}
 >
+  <span aria-hidden="true" style={styles.icono}>🎫</span>
   Ver bonos
 </button>
           </div>
@@ -363,8 +382,17 @@ const styles = {
     gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: 14,
   },
+  icono: {
+    fontSize: "1.4rem",
+    lineHeight: 1,
+    width: 28,
+    textAlign: "center",
+    flexShrink: 0,
+  },
   boton: {
-    display: "block",
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
     width: "100%",
     padding: "14px 16px",
     backgroundColor: "#fffaf0",
