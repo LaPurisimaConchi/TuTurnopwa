@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { cerrarCompraInvitado } from "./utils/invitado";
+import CodigoReserva from "./components/CodigoReserva";
 
 const ConfirmacionPago = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const ConfirmacionPago = () => {
   const [tarjeta, setTarjeta] = useState(null);
   const [errorCarga, setErrorCarga] = useState("");
   const [esInvitado, setEsInvitado] = useState(false);
+  const [orderIdReserva, setOrderIdReserva] = useState("");
 
   // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
   useEffect(() => {
@@ -55,12 +57,33 @@ const ConfirmacionPago = () => {
         const tarjetaMasRecienteQueReserva =
           fechaTarjeta && (!fechaReserva || fechaTarjeta >= fechaReserva);
 
-        if (ultimaTarjeta && tarjetaReciente && tarjetaMasRecienteQueReserva) {
+        // Quien acaba de reservar con una tarjeta regalo (la usa, no la compra) viene
+        // con el pedido de su reserva en el state: no se le enseña la tarjeta
+        const reservaConTarjeta =
+          !!(location.state?.desdeTarjeta || location.state?.usandoTarjetaRegalo) &&
+          !!location.state?.orderId;
+
+        if (
+          !reservaConTarjeta &&
+          ultimaTarjeta &&
+          tarjetaReciente &&
+          tarjetaMasRecienteQueReserva
+        ) {
           setEsTarjetaRegalo(true);
           setTarjeta(ultimaTarjeta);
         } else {
           setEsTarjetaRegalo(false);
           setTarjeta(null);
+
+          // Reserva recién pagada: su código se enseña más abajo
+          const fechaUltima = obtenerFechaComparable(ultimaReserva);
+          setOrderIdReserva(
+            reservaConTarjeta
+              ? String(location.state.orderId)
+              : ultimaReserva?.orderId && fechaUltima && ahora - fechaUltima <= DOS_HORAS
+              ? String(ultimaReserva.orderId)
+              : ""
+          );
         }
       } catch (error) {
         console.error("Error al cargar la confirmación del pago:", error);
@@ -192,7 +215,10 @@ const ConfirmacionPago = () => {
             ) : null}
 
             {errorCarga ? <p style={styles.errorText}>{errorCarga}</p> : null}
-            
+
+            {orderIdReserva ? (
+              <CodigoReserva tipo="pedido" orderId={orderIdReserva} className="my-4 text-left" />
+            ) : null}
 
             <div style={styles.botones}>
 

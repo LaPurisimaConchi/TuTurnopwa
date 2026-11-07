@@ -1,6 +1,7 @@
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { ADMIN_EMAILS } from "../src/utils/administradores.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
+import { asegurarCodigo } from "./_codigosReserva.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -58,6 +59,7 @@ async function saveReservationToProfile(reservation, uid, orderId, paidAt) {
       timestamp: reservation.timestamp || paidAt,
       actualizadoEn: paidAt,
       desdeTarjeta: !!reservation.desdeTarjeta,
+      codigoReserva: reservation.codigoReserva || "",
       nombreTipoClase: reservation.nombreTipoClase || "",
       tipoClase: reservation.tipoClase || "",
     });
@@ -255,6 +257,18 @@ async function confirmOrder(orderId, pedido) {
       actualizadoEn: confirmed.actualizadoEn,
       pagadoEn: confirmed.pagadoEn,
     });
+    // Código de reserva para volver a ella sin sesión (si falla, se crea al pedirlo)
+    try {
+      const codigo = await asegurarCodigo(adminDb, {
+        clave: orderId,
+        datos: { tipo: "individual", orderId, ruta: match.path, uid: confirmed.uid || pedido.uid || "" },
+      });
+      await adminDb.ref(`${match.path}/codigoReserva`).set(codigo);
+      confirmed.codigoReserva = codigo;
+    } catch (error) {
+      console.error("No se pudo asignar el código de reserva:", error);
+    }
+
     await saveReservationToProfile(confirmed, pedido.uid || confirmed.uid, orderId, paidAt);
   }
 

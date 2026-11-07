@@ -44,7 +44,12 @@ export default function PoliticaCancelacion() {
           <ul className="list-disc list-inside ml-4 mt-2">
             <li>
               <strong>Reprogramar tu clase</strong> a otra fecha disponible,
-              avisando con al menos <strong>72 horas de antelación</strong>.
+              avisando con al menos <strong>72 horas de antelación</strong>. Puedes
+              hacerlo tú mismo, sin iniciar sesión, desde{" "}
+              <a href="/gestionar-reserva" className="underline">
+                Cambiar la fecha de mi reserva
+              </a>{" "}
+              con tu código de reserva y tu email.
             </li>
             <li>
               <strong>Ceder tu plaza a otra persona</strong> sin coste adicional.

@@ -1,6 +1,7 @@
 // api/notificacionTPV.js
 import crypto from "crypto";
 import { adminDb } from "./_firebaseAdmin.js";
+import { asegurarCodigo } from "./_codigosReserva.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 
 export const config = { runtime: "nodejs" };
@@ -81,6 +82,7 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
    reservaEncontrada = {
   ...reserva,
+  rutaReserva: rutaBase,
   orderId: reserva.orderId || "",
   uid: reserva.uid || "",
   clase: reserva.clase || "",
@@ -154,6 +156,34 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
   }
 
   return reservaEncontrada;
+}
+
+// Código de reserva (api/_codigosReserva.js) de una reserva que acaba de pagarse.
+// Si falla no debe afectar al pago: se vuelve a crear al pedirlo (api/codigo-reserva.js).
+async function asignarCodigoReserva(reserva) {
+  try {
+    const esGrupo = !!reserva.id && !reserva.rutaReserva;
+    const uid = reserva.uid || "";
+
+    const codigo = await asegurarCodigo(
+      adminDb,
+      esGrupo
+        ? { clave: `grupo_${reserva.id}`, datos: { tipo: "grupo", grupoId: reserva.id, uid } }
+        : {
+            clave: reserva.orderId,
+            datos: { tipo: "individual", orderId: reserva.orderId, ruta: reserva.rutaReserva, uid },
+          }
+    );
+
+    await adminDb
+      .ref(`${esGrupo ? `reservasGrupos/${reserva.id}` : reserva.rutaReserva}/codigoReserva`)
+      .set(codigo);
+
+    return codigo;
+  } catch (error) {
+    console.error("No se pudo asignar el código de reserva:", error);
+    return "";
+  }
 }
 
 function generarCodigoTarjetaRegalo() {
@@ -343,6 +373,7 @@ async function guardarReservaEnPerfilUsuario(reserva) {
       desdeTarjeta: !!reserva.desdeTarjeta,
       nombreTipoClase: reserva.nombreTipoClase || "",
       tipoClase: reserva.tipoClase || "",
+      codigoReserva: reserva.codigoReserva || "",
     });
 
     const userRef = adminDb.ref(`usuarios/${reserva.uid}`);
@@ -604,6 +635,8 @@ if (!reservaActualizada) {
 }
 
      if (reservaActualizada) {
+  reservaActualizada.codigoReserva = await asignarCodigoReserva(reservaActualizada);
+
   await guardarReservaEnPerfilUsuario({
     ...reservaActualizada,
     uid: reservaActualizada.uid || pedido.uid || "",
