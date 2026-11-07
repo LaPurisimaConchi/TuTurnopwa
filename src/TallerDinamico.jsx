@@ -133,6 +133,9 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   grupos.forEach((g) => {
     if (elegidas[g.clave]) parametros.set(g.clave, elegidas[g.clave]);
   });
+  const destinoGrupo = `/reserva-grupos?taller=${encodeURIComponent(claseId)}${
+    parametros.toString() ? `&${parametros.toString()}` : ""
+  }`;
   const destinoReserva = `/reservar/${claseId}${
     parametros.toString() ? `?${parametros.toString()}` : ""
   }`;
@@ -277,6 +280,17 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 </p>
               )}
             </div>
+
+            {!esBono && (
+              <button
+                type="button"
+                onClick={() => navigate(destinoGrupo)}
+                disabled={faltaOpcion}
+                className="w-full -mt-2 mb-3 px-6 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                👥 Reservar para grupo (5 o más)
+              </button>
+            )}
 
             {clase.regalable !== false && (
               <button

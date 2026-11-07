@@ -30,9 +30,6 @@ import ConfirmacionPago from "./ConfirmacionPago.jsx";
 import PagoFallido from "./PagoFallido.jsx";
 import ResumenPagoTheClub from "./ResumenPagoTheClub.jsx";
 import ResumenPagoTearium from "./ResumenPagoTearium.jsx";
-import PagoGrupoIndividual from "./PagoGrupoIndividual.jsx";
-import PagoGrupoExitoso from "./PagoGrupoExitoso.jsx";
-import PagoGrupoError from "./PagoGrupoError.jsx";
 
 // Clases y secciones principales
 import Clases from "./Clases.jsx";
@@ -317,20 +314,6 @@ function App() {
           <Route path="/pago-fallido" element={<PagoFallido />} />
           <Route path="/pago/exito" element={<ConfirmacionPago />} />
           <Route path="/pago/error" element={<PagoFallido />} />
-          <Route
-  path="/pago-grupo/:grupoId"
-  element={<PagoGrupoIndividual />}
-/>
-<Route
-  path="/pago-grupo-exitoso/:grupoId"
-  element={<PagoGrupoExitoso />}
-/>
-
-<Route
-  path="/pago-grupo-error/:grupoId"
-  element={<PagoGrupoError />}
-/>
-
           <Route path="/theclub" element={<TheClub />} />
           <Route path="/teariumInfo" element={<TeariumInfo />} />
           <Route path="/reservatheclub" element={<AccesoCompra><ReservaTheClub /></AccesoCompra>} />
