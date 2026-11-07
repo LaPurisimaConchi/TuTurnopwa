@@ -379,7 +379,7 @@ function App() {
             }
           />
           <Route
-            path="/admin-clases-nuevo"
+            path="/admin-clases"
             element={
               <RutaAdmin>
                 <AdminClasesNuevo />
