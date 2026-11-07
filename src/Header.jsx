@@ -1,6 +1,6 @@
 // src/Header.jsx
 // Cabecera global: lleva al inicio y a la cuenta (perfil / iniciar sesión)
-// desde cualquier página. A los administradores les añade el acceso al panel.
+// desde cualquier página (sin cuenta, también a gestionar la reserva). A los administradores les añade el acceso al panel.
 import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
@@ -51,6 +51,7 @@ export default function Header() {
 
   const enPanel = pathname.startsWith("/admin");
   const enPerfil = pathname === "/perfil" || pathname === "/editar-perfil";
+  const enGestion = pathname === "/gestionar-reserva";
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#eadfd2] bg-[#fffef4]/95 backdrop-blur">
@@ -90,6 +91,18 @@ export default function Header() {
                     <span className="sm:hidden">Admin</span>
                     <span className="hidden sm:inline">Panel admin</span>
                   </span>
+                </Link>
+              )}
+
+              {/* Sin cuenta (o con una sesión de invitado) se entra a la reserva con código + email */}
+              {(!hayUsuario || esInvitado) && (
+                <Link
+                  to="/gestionar-reserva"
+                  aria-current={enGestion ? "page" : undefined}
+                  className={`${suave} ${enGestion ? "bg-[#f3ebe1]" : ""}`}
+                >
+                  <span className="sm:hidden">Mi reserva</span>
+                  <span className="hidden sm:inline">Gestionar reserva</span>
                 </Link>
               )}
 
