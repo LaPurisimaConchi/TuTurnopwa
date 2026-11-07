@@ -225,7 +225,7 @@ useEffect(() => {
 
             <button
               style={styles.boton}
-              onClick={() => navigate("/admin-clases-nuevo")}
+              onClick={() => navigate("/admin-clases")}
             >
               Ver clases
             </button>

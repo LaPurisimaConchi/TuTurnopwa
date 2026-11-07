@@ -3,11 +3,38 @@ import { ref, get, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
-import { TALLERES_FIJOS } from "./catalogoTalleres";
+import { cargarMiniatura, TALLERES_FIJOS } from "./catalogoTalleres";
+import { cargarCategorias } from "./categoriasTalleres";
+
+const IMAGENES_CLASE = {
+  clasesueltacontinuidad: "/img/clasesuelta/clase-suelta1.JPG",
+  creatubandejahogar: "/img/bandeja/bandeja1.jpg",
+  creatubrunchbowl: "/img/brunchbowl/brunch1.jpg",
+  creatucuencoramen: "/img/ramen/ramen1.jpg",
+  creatugrancentrodemesa: "/img/centrodemesa/grancentromesa1.jpg",
+  creatujarrajarrongrande: "/img/jarron/jarrajarrongrande1.jpg",
+  creatumaceta: "/img/maceta/maceta1.jpg",
+  creatupiezafavorita: "/img/creatupiezafavorita/creatupieza1.jpg",
+  creatutazafavorita: "/img/tazafavorita/taza1.jpg",
+  especialpintatupieza: "/img/especialpinta/pintatupiezaespecial1.jpg",
+  macetaorganica: "/img/macetaorganica/macetaorganica1.jpg",
+  modelamano4clases: "/img/modelamano/modelamano1.jpg",
+  pintatupieza: "/img/pintaceramica/pintatupieza1.jpg",
+  setmatcha: "/img/matcha/setmatcha1.jpg",
+  setsake: "/img/sake/setsake1.jpg",
+  tazaescultorica: "/img/tazaescultorica/tazaescultorica1.jpg",
+  tornodecoracion4clases: "/img/tornoalfarero/torno-decoracion1.jpg",
+  tornodesdecero4clases: "/img/tornodesdecero/torno-desde-cero1.jpg",
+  tornoperfeccionamiento6clases: "/img/tornoperfecciona/torno-perfecciona1.jpg",
+};
+const IMAGEN_POR_DEFECTO = "/img/logoPCsin.png";
 
 const AdminClasesNuevo = () => {
   const navigate = useNavigate();
   const [notasPorClase, setNotasPorClase] = useState({});
+  const [miniaturas, setMiniaturas] = useState({});
+  const [categorias, setCategorias] = useState([]);
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
 
     const [clases, setClases] = useState([]);
   const [resumen, setResumen] = useState({});
@@ -30,6 +57,12 @@ useEffect(() => {
 
   return () => window.removeEventListener("resize", onResize);
 }, []);
+
+  useEffect(() => {
+    cargarCategorias({ incluirOcultas: true })
+      .then(setCategorias)
+      .catch((error) => console.error("Error al cargar categorías:", error));
+  }, []);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -71,6 +104,7 @@ useEffect(() => {
 listaClases.push({
   id: claseId,
   nombre,
+  grupo: claseData.grupo || TALLERES_FIJOS[claseId]?.grupo || "",
   categoria: claseData.categoria || "Sin categoría",
   precioDesde: claseData.precioDesde || "",
   precio: claseData.precio ?? "",
@@ -162,6 +196,17 @@ listaClases.push({
         setClases(listaClases);
         setResumen(mapaResumen);
         setNotasPorClase(mapaNotas);
+
+        // Fotos subidas desde el panel (talleres dinámicos o migrados)
+        Promise.all(
+          listaClases.map(async (c) => [c.id, await cargarMiniatura(c.id)])
+        ).then((pares) => {
+          const mapa = {};
+          pares.forEach(([id, src]) => {
+            if (src) mapa[id] = src;
+          });
+          setMiniaturas(mapa);
+        });
       } catch (error) {
         console.error("Error al cargar clases:", error);
         setClases([]);
@@ -187,6 +232,33 @@ listaClases.push({
       }),
     }));
   }, [clases, resumen]);
+
+  // Pestañas de filtro: las categorías con clases, más «Sin categoría» si hace falta
+  const opcionesFiltro = useMemo(() => {
+    const cuenta = {};
+    clasesConResumen.forEach((c) => {
+      cuenta[c.grupo] = (cuenta[c.grupo] || 0) + 1;
+    });
+
+    const conocidas = new Set(categorias.map((c) => c.id));
+    const opciones = categorias
+      .filter((c) => cuenta[c.id])
+      .map((c) => ({ id: c.id, titulo: c.titulo, total: cuenta[c.id] }));
+
+    const sueltas = clasesConResumen.filter((c) => !conocidas.has(c.grupo)).length;
+    if (sueltas > 0) opciones.push({ id: "sin", titulo: "Sin categoría", total: sueltas });
+
+    return opciones;
+  }, [clasesConResumen, categorias]);
+
+  const clasesFiltradas = useMemo(() => {
+    if (filtroCategoria === "todas") return clasesConResumen;
+    if (filtroCategoria === "sin") {
+      const conocidas = new Set(categorias.map((c) => c.id));
+      return clasesConResumen.filter((c) => !conocidas.has(c.grupo));
+    }
+    return clasesConResumen.filter((c) => c.grupo === filtroCategoria);
+  }, [clasesConResumen, categorias, filtroCategoria]);
 
   const formatearPrecios = (clase) => {
     if (clase.precios && Object.keys(clase.precios).length > 0) {
@@ -491,6 +563,26 @@ listaClases.push({
           )}
         </div>
 
+        {!cargando && clasesConResumen.length > 0 && (
+          <div style={styles.filtros}>
+            {[
+              { id: "todas", titulo: "Todas", total: clasesConResumen.length },
+              ...opcionesFiltro,
+            ].map((op) => (
+              <button
+                key={op.id}
+                onClick={() => setFiltroCategoria(op.id)}
+                style={{
+                  ...styles.filtro,
+                  ...(filtroCategoria === op.id ? styles.filtroActivo : {}),
+                }}
+              >
+                {op.titulo} ({op.total})
+              </button>
+            ))}
+          </div>
+        )}
+
         {cargando ? (
           <p style={styles.mensaje}>Cargando clases...</p>
         ) : clasesConResumen.length === 0 ? (
@@ -502,7 +594,7 @@ listaClases.push({
     ...(isMobile ? styles.gridMobile : {}),
   }}
 >
-  {clasesConResumen.map((clase) => (
+  {clasesFiltradas.map((clase) => (
              <div
   key={clase.id}
   style={{
@@ -513,6 +605,24 @@ listaClases.push({
     navigate(`/admin-detalle-clase?clase=${clase.id}`)
   }
 >
+                <img
+                  src={
+                    miniaturas[clase.id] ||
+                    IMAGENES_CLASE[clase.id] ||
+                    IMAGEN_POR_DEFECTO
+                  }
+                  alt={clase.nombre}
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = IMAGEN_POR_DEFECTO;
+                  }}
+                  style={{
+                    ...styles.imagen,
+                    ...(isMobile ? styles.imagenMobile : {}),
+                  }}
+                />
+                <div style={styles.contenido}>
                 <div style={styles.cardTop}>
                   <div>
                     <h2 style={styles.nombre}>{clase.nombre}</h2>
@@ -531,7 +641,12 @@ listaClases.push({
                   </span>
                 </div>
 
-                <div style={styles.infoBox}>
+                <div
+                  style={{
+                    ...styles.infoBox,
+                    ...(isMobile ? { gridTemplateColumns: "1fr" } : {}),
+                  }}
+                >
                   <p style={styles.linea}>
   <strong>Estado:</strong> {clase.estado || "activa"}
 </p>
@@ -758,6 +873,7 @@ listaClases.push({
                     </div>
                   )}
                 </div>
+                </div>
               </div>
             ))}
           </div>
@@ -792,12 +908,32 @@ const styles = {
   padding: 10,
   boxSizing: "border-box",
 },
+  filtros: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+    justifyContent: "center",
+  },
+  filtro: {
+    padding: "8px 14px",
+    backgroundColor: "#fffaf0",
+    color: "#3d3126",
+    border: "1px solid #eadfbe",
+    borderRadius: 999,
+    fontSize: "0.92rem",
+    cursor: "pointer",
+  },
+  filtroActivo: {
+    backgroundColor: "#f4c542",
+    borderColor: "#e0b230",
+    fontWeight: 600,
+  },
   header: {
     textAlign: "center",
     marginBottom: 26,
   },
   gridMobile: {
-  gridTemplateColumns: "1fr",
   gap: 14,
 },
   titulo: {
@@ -815,8 +951,8 @@ const styles = {
     padding: 20,
   },
   grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    display: "flex",
+    flexDirection: "column",
     gap: 18,
   },
   card: {
@@ -827,10 +963,31 @@ const styles = {
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
     cursor: "pointer",
     transition: "0.2s",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 20,
   },
   cardMobile: {
   padding: 14,
+  flexDirection: "column",
+  gap: 14,
 },
+  imagen: {
+    width: 220,
+    height: 220,
+    flexShrink: 0,
+    objectFit: "cover",
+    borderRadius: 16,
+    backgroundColor: "#f6efdd",
+  },
+  imagenMobile: {
+    width: "100%",
+    height: 200,
+  },
+  contenido: {
+    flex: 1,
+    minWidth: 0,
+  },
   cardTop: {
     display: "flex",
     justifyContent: "space-between",
@@ -872,7 +1029,8 @@ const styles = {
   },
   infoBox: {
     display: "grid",
-    gap: 8,
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "6px 24px",
     marginBottom: 16,
   },
   linea: {
