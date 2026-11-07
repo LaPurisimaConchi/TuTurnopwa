@@ -1,409 +1,242 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import "./AdminDashboard.css";
+import {
+  calcularEstadisticas,
+  describirPlazo,
+  formatearEuros,
+} from "./utils/estadisticasAdmin";
+
+const SECCIONES_ACCESOS = [
+  {
+    titulo: "Reservas",
+    accesos: [
+      { to: "/admin-calendario-reservas-nuevo", icono: "📅", texto: "Ver calendario" },
+      { to: "/admin-reservas-nuevo", icono: "📋", texto: "Ver reservas" },
+      { to: "/admin-reservas-grupos", icono: "👥", texto: "Ver reservas de grupo" },
+    ],
+  },
+  {
+    titulo: "Talleres",
+    accesos: [
+      { to: "/admin-clases", icono: "🏺", texto: "Ver clases" },
+      { to: "/admin-ordenar-clases", icono: "↕️", texto: "Ordenar clases" },
+      { to: "/admin-taller", icono: "➕", texto: "Añadir taller nuevo" },
+      { to: "/admin-categorias", icono: "🏷️", texto: "Categorías de talleres" },
+    ],
+  },
+  {
+    titulo: "Clientes",
+    accesos: [
+      { to: "/admin-usuarios-nuevo", icono: "👤", texto: "Ver usuarios" },
+      { to: "/admin-bonos-nuevo", icono: "🎫", texto: "Ver bonos" },
+      { to: "/admin-tarjetas-regalo", icono: "🎁", texto: "Ver tarjetas regalo" },
+    ],
+  },
+  {
+    titulo: "Calendario y disponibilidad",
+    accesos: [
+      { to: "/admin-bloqueos-fechas", icono: "🚫", texto: "Bloquear fechas" },
+      { to: "/admin-habilitar-fechas", icono: "✅", texto: "Habilitar fechas y Turnos" },
+    ],
+  },
+];
+
+const TARJETAS = [
+  { campo: "reservasTotales", etiqueta: "Reservas totales", to: "/admin-reservas-nuevo" },
+  { campo: "clasesActivas", etiqueta: "Clases activas", to: "/admin-clases" },
+  { campo: "usuariosTotales", etiqueta: "Usuarios", to: "/admin-usuarios-nuevo" },
+  { campo: "ingresosEstimados", etiqueta: "Ingresos estimados", formato: formatearEuros },
+];
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
 
-  const [stats, setStats] = useState({
-    reservasTotales: 0,
-    clasesActivas: 0,
-    usuariosTotales: 0,
-    ingresosEstimados: 0,
-  });
-
+  const [stats, setStats] = useState(null);
   const [cargando, setCargando] = useState(true);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [error, setError] = useState(false);
 
-useEffect(() => {
-  const onResize = () => {
-    setIsMobile(window.innerWidth <= 768);
-  };
+  const cargarDashboard = useCallback(async () => {
+    setCargando(true);
+    setError(false);
 
-  window.addEventListener("resize", onResize);
+    try {
+      const [reservasSnap, reservasGruposSnap, clasesSnap, usuariosSnap] =
+        await Promise.all([
+          get(ref(dbRealtime, "reservas")),
+          get(ref(dbRealtime, "reservasGrupos")),
+          get(ref(dbRealtime, "clases")),
+          get(ref(dbRealtime, "usuarios")),
+        ]);
 
-  return () => window.removeEventListener("resize", onResize);
-}, []);
-
-  useEffect(() => {
-    const cargarDashboard = async () => {
-      try {
-        const [reservasSnap, reservasGruposSnap, clasesSnap, usuariosSnap] =
-          await Promise.all([
-            get(ref(dbRealtime, "reservas")),
-            get(ref(dbRealtime, "reservasGrupos")),
-            get(ref(dbRealtime, "clases")),
-            get(ref(dbRealtime, "usuarios")),
-          ]);
-
-        let reservasTotales = 0;
-        let ingresosEstimados = 0;
-        let clasesActivas = 0;
-        let usuariosTotales = 0;
-
-        if (clasesSnap.exists()) {
-          clasesSnap.forEach((claseSnap) => {
-            const clase = claseSnap.val();
-            if (clase?.activa !== false) {
-              clasesActivas += 1;
-            }
-          });
-        }
-
-        if (usuariosSnap.exists()) {
-          usuariosTotales = Object.keys(usuariosSnap.val()).length;
-        }
-
-        // ---------- RESERVAS NORMALES ----------
-        if (reservasSnap.exists()) {
-          reservasSnap.forEach((claseSnap) => {
-            claseSnap.forEach((fechaSnap) => {
-              fechaSnap.forEach((turnoSnap) => {
-                turnoSnap.forEach((nivelSnap) => {
-                  const nivelVal = nivelSnap.val();
-
-                  if (!nivelVal || typeof nivelVal !== "object") return;
-
-                  const pareceReservaDirecta =
-                    "fecha" in nivelVal ||
-                    "estado" in nivelVal ||
-                    "estadoPago" in nivelVal ||
-                    "uid" in nivelVal ||
-                    "orderId" in nivelVal;
-
-                  if (pareceReservaDirecta) {
-                    reservasTotales += 1;
-
-                    if (
-                      nivelVal.estado === "Confirmada" &&
-                      nivelVal.estadoPago === "pagado"
-                    ) {
-                      ingresosEstimados += Number(
-                        nivelVal.precioTotal || nivelVal.precio || 0
-                      );
-                    }
-
-                    return;
-                  }
-
-                  nivelSnap.forEach((reservaSnap) => {
-                    const reserva = reservaSnap.val();
-                    if (!reserva || typeof reserva !== "object") return;
-
-                    reservasTotales += 1;
-
-                    if (
-                      reserva.estado === "Confirmada" &&
-                      reserva.estadoPago === "pagado"
-                    ) {
-                      ingresosEstimados += Number(
-                        reserva.precioTotal || reserva.precio || 0
-                      );
-                    }
-                  });
-                });
-              });
-            });
-          });
-        }
-
-        // ---------- RESERVAS DE GRUPO ----------
-        if (reservasGruposSnap.exists()) {
-          reservasGruposSnap.forEach((grupoSnap) => {
-            if (grupoSnap.key === "placeholder") return;
-
-            const grupo = grupoSnap.val();
-            if (!grupo || typeof grupo !== "object") return;
-
-            reservasTotales += 1;
-
-            if (
-              grupo.estado === "Confirmada" &&
-              grupo.estadoPago === "pagado"
-            ) {
-              ingresosEstimados += Number(
-                grupo.precioTotal || grupo.precio || 0
-              );
-            }
-          });
-        }
-
-        setStats({
-          reservasTotales,
-          clasesActivas,
-          usuariosTotales,
-          ingresosEstimados,
-        });
-      } catch (error) {
-        console.error("Error al cargar dashboard:", error);
-      } finally {
-        setCargando(false);
-      }
-    };
-
-    cargarDashboard();
+      setStats(
+        calcularEstadisticas({
+          reservasSnap,
+          reservasGruposSnap,
+          clasesSnap,
+          usuariosSnap,
+        })
+      );
+    } catch (err) {
+      console.error("Error al cargar dashboard:", err);
+      setStats(null);
+      setError(true);
+    } finally {
+      setCargando(false);
+    }
   }, []);
 
+  useEffect(() => {
+    cargarDashboard();
+  }, [cargarDashboard]);
+
+  // Esqueleto mientras carga, "—" si falló, el valor si todo fue bien
+  const valor = (campo, formato = (v) => v) => {
+    if (cargando) {
+      return <span className="ad-skeleton" role="status" aria-label="Cargando" />;
+    }
+    if (!stats) return "—";
+    return formato(stats[campo]);
+  };
+
   return (
-   <div
-  style={{
-    ...styles.body,
-    ...(isMobile ? styles.bodyMobile : {}),
-  }}
->
-  <div
-    style={{
-      ...styles.container,
-      ...(isMobile ? styles.containerMobile : {}),
-    }}
-  >
+    <main className="ad-body">
+      <div className="ad-container">
         <BotonVolver />
 
-        <div style={styles.header}>
-          <h1 style={styles.titulo}>Panel admin</h1>
-          <p style={styles.subtitulo}>
-            Resumen general del taller.
-          </p>
+        <header className="ad-header">
+          <h1 className="ad-titulo">Panel admin</h1>
+          <p className="ad-subtitulo">Resumen general del taller.</p>
+        </header>
+
+        {error && (
+          <div role="alert" className="ad-error">
+            <span>No se pudieron cargar los datos del resumen.</span>
+            <button
+              type="button"
+              className="ad-boton-reintentar"
+              onClick={cargarDashboard}
+              disabled={cargando}
+            >
+              {cargando ? "Cargando..." : "Reintentar"}
+            </button>
+          </div>
+        )}
+
+        <div className="ad-grid" aria-busy={cargando}>
+          {TARJETAS.map(({ campo, etiqueta, to, formato }) => {
+            const contenido = (
+              <>
+                <p className="ad-card-label">{etiqueta}</p>
+                <p className="ad-card-valor">{valor(campo, formato)}</p>
+                {campo === "reservasTotales" && (
+                  <p className="ad-card-nota">
+                    {stats && !cargando
+                      ? `${stats.reservasConfirmadas} confirmadas y pagadas`
+                      : null}
+                  </p>
+                )}
+              </>
+            );
+
+            return to ? (
+              <Link key={campo} to={to} className="ad-card">
+                {contenido}
+              </Link>
+            ) : (
+              <div key={campo} className="ad-card">
+                {contenido}
+              </div>
+            );
+          })}
         </div>
 
-        <div style={styles.grid}>
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Reservas totales</p>
-            <p style={styles.cardValue}>
-              {cargando ? "..." : stats.reservasTotales}
-            </p>
-          </div>
+        {stats && !cargando && (
+          <section className="ad-panel" aria-labelledby="ad-pendientes">
+            <h2 id="ad-pendientes" className="ad-panel-titulo">
+              Pendientes de atender
+            </h2>
 
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Clases activas</p>
-            <p style={styles.cardValue}>
-              {cargando ? "..." : stats.clasesActivas}
-            </p>
-          </div>
+            <div className="ad-proximas">
+              <button
+                type="button"
+                className="ad-proxima"
+                onClick={() => navigate("/admin-calendario-reservas-nuevo")}
+              >
+                <strong>{stats.reservasHoy}</strong> reservas hoy
+              </button>
+              <button
+                type="button"
+                className="ad-proxima"
+                onClick={() => navigate("/admin-calendario-reservas-nuevo")}
+              >
+                <strong>{stats.reservasManana}</strong> reservas mañana
+              </button>
+            </div>
 
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Usuarios</p>
-            <p style={styles.cardValue}>
-              {cargando ? "..." : stats.usuariosTotales}
-            </p>
-          </div>
+            {stats.gruposPagoPendiente.length === 0 ? (
+              <p className="ad-vacio">
+                Ninguna reserva de grupo con el plazo de pago a punto de vencer.
+              </p>
+            ) : (
+              <ul className="ad-lista">
+                {stats.gruposPagoPendiente.map((g) => (
+                  <li key={g.id}>
+                    <button
+                      type="button"
+                      className={`ad-pendiente${g.vencido ? " ad-pendiente--vencido" : ""}`}
+                      onClick={() =>
+                        navigate(
+                          g.fecha
+                            ? `/admin-reservas-grupos?fecha=${g.fecha}`
+                            : "/admin-reservas-grupos"
+                        )
+                      }
+                    >
+                      <span>
+                        {g.nombre}
+                        {g.fecha ? ` · ${g.fecha}` : ""}
+                      </span>
+                      <span>{describirPlazo(g.limite)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Ingresos estimados</p>
-            <p style={styles.cardValue}>
-              {cargando ? "..." : `${stats.ingresosEstimados}€`}
-            </p>
-          </div>
-        </div>
+        <nav
+          className="ad-panel ad-panel-sep"
+          aria-labelledby="ad-accesos"
+        >
+          <h2 id="ad-accesos" className="ad-panel-titulo">
+            Accesos rápidos
+          </h2>
 
-        <div style={styles.accesosBox}>
-          <h2 style={styles.accesosTitulo}>Accesos rápidos</h2>
+          {SECCIONES_ACCESOS.map((seccion) => (
+            <section key={seccion.titulo} className="ad-seccion">
+              <h3 className="ad-seccion-titulo">{seccion.titulo}</h3>
 
-          <div style={styles.botonesGrid}>
-           <button
-  style={styles.boton}
-  onClick={() => navigate("/admin-calendario-reservas-nuevo")}
->
-  <span aria-hidden="true" style={styles.icono}>📅</span>
-  Ver calendario
-</button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-reservas-nuevo")}
-            >
-              <span aria-hidden="true" style={styles.icono}>📋</span>
-              Ver reservas
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-reservas-grupos")}
-            >
-              <span aria-hidden="true" style={styles.icono}>👥</span>
-              Ver reservas de grupo
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-clases")}
-            >
-              <span aria-hidden="true" style={styles.icono}>🏺</span>
-              Ver clases
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-ordenar-clases")}
-            >
-              <span aria-hidden="true" style={styles.icono}>↕️</span>
-              Ordenar clases
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-taller")}
-            >
-              <span aria-hidden="true" style={styles.icono}>➕</span>
-              Añadir taller nuevo
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-categorias")}
-            >
-              <span aria-hidden="true" style={styles.icono}>🏷️</span>
-              Categorías de talleres
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-usuarios-nuevo")}
-            >
-              <span aria-hidden="true" style={styles.icono}>👤</span>
-              Ver usuarios
-            </button>
-
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-tarjetas-regalo")}
-            >
-              <span aria-hidden="true" style={styles.icono}>🎁</span>
-              Ver tarjetas regalo
-            </button>
-            <button
-  style={styles.boton}
-  onClick={() => navigate("/admin-bloqueos-fechas")}
->
-  <span aria-hidden="true" style={styles.icono}>🚫</span>
-  Bloquear fechas
-</button>
-<button
-  style={styles.boton}
-  onClick={() => navigate("/admin-habilitar-fechas")}
->
-  <span aria-hidden="true" style={styles.icono}>✅</span>
-  Habilitar fechas y Turnos
-</button>
-<button
-  style={styles.boton}
-  onClick={() => navigate("/admin-bonos-nuevo")}
->
-  <span aria-hidden="true" style={styles.icono}>🎫</span>
-  Ver bonos
-</button>
-          </div>
-        </div>
+              <div className="ad-botones">
+                {seccion.accesos.map((acceso) => (
+                  <Link key={acceso.to} to={acceso.to} className="ad-boton">
+                    <span aria-hidden="true" className="ad-icono">
+                      {acceso.icono}
+                    </span>
+                    {acceso.texto}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ))}
+        </nav>
       </div>
-    </div>
+    </main>
   );
-};
-
-const styles = {
-  body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
-    padding: 30,
-    fontFamily: "'Segoe UI', sans-serif",
-  },
-  bodyMobile: {
-  padding: 4,
-},
-  container: {
-    maxWidth: 1100,
-    margin: "0 auto",
-    backgroundColor: "#ffffff",
-    borderRadius: 28,
-    padding: 28,
-    boxShadow: "0 10px 28px rgba(0,0,0,0.10)",
-  },
-  containerMobile: {
-  width: "100%",
-  maxWidth: "100%",
-  borderRadius: 16,
-  padding: 10,
-  boxSizing: "border-box",
-},
-  header: {
-    textAlign: "center",
-    marginBottom: 28,
-  },
-  titulo: {
-    margin: 0,
-    color: "#2f2f2f",
-    fontSize: "2rem",
-  },
-  subtitulo: {
-    marginTop: 8,
-    color: "#7a7a7a",
-    fontSize: "1rem",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 16,
-    marginBottom: 28,
-  },
-  card: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #f1e7c6",
-    borderRadius: 20,
-    padding: 20,
-    boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-  },
-  cardLabel: {
-    margin: 0,
-    color: "#7a6331",
-    fontWeight: 600,
-    fontSize: "0.95rem",
-  },
-  cardValue: {
-    margin: "12px 0 0 0",
-    color: "#333",
-    fontSize: "2rem",
-    fontWeight: "bold",
-  },
-  accesosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
-    borderRadius: 22,
-    padding: 22,
-  },
-  accesosTitulo: {
-    margin: "0 0 18px 0",
-    color: "#4b3a2a",
-    fontSize: "1.25rem",
-  },
-  botonesGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 14,
-  },
-  icono: {
-    fontSize: "1.4rem",
-    lineHeight: 1,
-    width: 28,
-    textAlign: "center",
-    flexShrink: 0,
-  },
-  boton: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    width: "100%",
-    padding: "14px 16px",
-    backgroundColor: "#fffaf0",
-    color: "#3d3126",
-    border: "1px solid #eadfbe",
-    borderRadius: 14,
-    fontSize: "1rem",
-    textAlign: "left",
-    cursor: "pointer",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
-  },
 };
 
 export default AdminDashboard;
