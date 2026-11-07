@@ -3,7 +3,11 @@ import { ref, get } from "firebase/database";
 import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
-import { calcularEstadisticas, formatearEuros } from "./utils/estadisticasAdmin";
+import {
+  calcularEstadisticas,
+  describirPlazo,
+  formatearEuros,
+} from "./utils/estadisticasAdmin";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -134,6 +138,62 @@ const AdminDashboard = () => {
             </p>
           </div>
         </div>
+
+        {stats && !cargando && (
+          <div style={styles.pendientesBox}>
+            <h2 style={styles.accesosTitulo}>Pendientes de atender</h2>
+
+            <div style={styles.proximas}>
+              <button
+                type="button"
+                style={styles.proximaItem}
+                onClick={() => navigate("/admin-calendario-reservas-nuevo")}
+              >
+                <strong>{stats.reservasHoy}</strong> reservas hoy
+              </button>
+              <button
+                type="button"
+                style={styles.proximaItem}
+                onClick={() => navigate("/admin-calendario-reservas-nuevo")}
+              >
+                <strong>{stats.reservasManana}</strong> reservas mañana
+              </button>
+            </div>
+
+            {stats.gruposPagoPendiente.length === 0 ? (
+              <p style={styles.vacio}>
+                Ninguna reserva de grupo con el plazo de pago a punto de vencer.
+              </p>
+            ) : (
+              <ul style={styles.listaPendientes}>
+                {stats.gruposPagoPendiente.map((g) => (
+                  <li key={g.id}>
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.pendienteItem,
+                        ...(g.vencido ? styles.pendienteVencido : {}),
+                      }}
+                      onClick={() =>
+                        navigate(
+                          g.fecha
+                            ? `/admin-reservas-grupos?fecha=${g.fecha}`
+                            : "/admin-reservas-grupos"
+                        )
+                      }
+                    >
+                      <span>
+                        {g.nombre}
+                        {g.fecha ? ` · ${g.fecha}` : ""}
+                      </span>
+                      <span>{describirPlazo(g.limite)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <div style={styles.accesosBox}>
           <h2 style={styles.accesosTitulo}>Accesos rápidos</h2>
@@ -328,6 +388,60 @@ const styles = {
     border: "none",
     borderRadius: 10,
     cursor: "pointer",
+  },
+  pendientesBox: {
+    backgroundColor: "#fffdf7",
+    border: "1px solid #f0e5cf",
+    borderRadius: 22,
+    padding: 22,
+    marginBottom: 28,
+  },
+  proximas: {
+    display: "flex",
+    gap: 12,
+    flexWrap: "wrap",
+    marginBottom: 14,
+  },
+  proximaItem: {
+    padding: "10px 16px",
+    backgroundColor: "#fff8da",
+    color: "#3d3126",
+    border: "1px solid #f1e7c6",
+    borderRadius: 14,
+    fontSize: "1rem",
+    cursor: "pointer",
+  },
+  vacio: {
+    margin: 0,
+    color: "#7a7a7a",
+    fontSize: "0.95rem",
+  },
+  listaPendientes: {
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+    display: "grid",
+    gap: 8,
+  },
+  pendienteItem: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    padding: "12px 14px",
+    backgroundColor: "#fffaf0",
+    color: "#3d3126",
+    border: "1px solid #eadfbe",
+    borderRadius: 12,
+    fontSize: "0.95rem",
+    textAlign: "left",
+    cursor: "pointer",
+  },
+  pendienteVencido: {
+    backgroundColor: "#fdecea",
+    border: "1px solid #f3b8b0",
+    color: "#8a1f11",
   },
   accesosBox: {
     backgroundColor: "#fffdf7",
