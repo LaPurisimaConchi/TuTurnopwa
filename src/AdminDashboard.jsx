@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import {
@@ -8,6 +8,48 @@ import {
   describirPlazo,
   formatearEuros,
 } from "./utils/estadisticasAdmin";
+
+const SECCIONES_ACCESOS = [
+  {
+    titulo: "Reservas",
+    accesos: [
+      { to: "/admin-calendario-reservas-nuevo", icono: "📅", texto: "Ver calendario" },
+      { to: "/admin-reservas-nuevo", icono: "📋", texto: "Ver reservas" },
+      { to: "/admin-reservas-grupos", icono: "👥", texto: "Ver reservas de grupo" },
+    ],
+  },
+  {
+    titulo: "Talleres",
+    accesos: [
+      { to: "/admin-clases", icono: "🏺", texto: "Ver clases" },
+      { to: "/admin-ordenar-clases", icono: "↕️", texto: "Ordenar clases" },
+      { to: "/admin-taller", icono: "➕", texto: "Añadir taller nuevo" },
+      { to: "/admin-categorias", icono: "🏷️", texto: "Categorías de talleres" },
+    ],
+  },
+  {
+    titulo: "Clientes",
+    accesos: [
+      { to: "/admin-usuarios-nuevo", icono: "👤", texto: "Ver usuarios" },
+      { to: "/admin-bonos-nuevo", icono: "🎫", texto: "Ver bonos" },
+      { to: "/admin-tarjetas-regalo", icono: "🎁", texto: "Ver tarjetas regalo" },
+    ],
+  },
+  {
+    titulo: "Calendario y disponibilidad",
+    accesos: [
+      { to: "/admin-bloqueos-fechas", icono: "🚫", texto: "Bloquear fechas" },
+      { to: "/admin-habilitar-fechas", icono: "✅", texto: "Habilitar fechas y Turnos" },
+    ],
+  },
+];
+
+const TARJETAS = [
+  { campo: "reservasTotales", etiqueta: "Reservas totales", to: "/admin-reservas-nuevo" },
+  { campo: "clasesActivas", etiqueta: "Clases activas", to: "/admin-clases" },
+  { campo: "usuariosTotales", etiqueta: "Usuarios", to: "/admin-usuarios-nuevo" },
+  { campo: "ingresosEstimados", etiqueta: "Ingresos estimados", formato: formatearEuros },
+];
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -105,38 +147,31 @@ const AdminDashboard = () => {
         )}
 
         <div style={styles.grid} aria-busy={cargando}>
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Reservas totales</p>
-            <p style={styles.cardValue}>
-              {valor("reservasTotales")}
-            </p>
-            <p style={styles.cardNota}>
-              {stats && !cargando
-                ? `${stats.reservasConfirmadas} confirmadas y pagadas`
-                : "\u00A0"}
-            </p>
-          </div>
+          {TARJETAS.map(({ campo, etiqueta, to, formato }) => {
+            const contenido = (
+              <>
+                <p style={styles.cardLabel}>{etiqueta}</p>
+                <p style={styles.cardValue}>{valor(campo, formato)}</p>
+                {campo === "reservasTotales" && (
+                  <p style={styles.cardNota}>
+                    {stats && !cargando
+                      ? `${stats.reservasConfirmadas} confirmadas y pagadas`
+                      : "\u00A0"}
+                  </p>
+                )}
+              </>
+            );
 
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Clases activas</p>
-            <p style={styles.cardValue}>
-              {valor("clasesActivas")}
-            </p>
-          </div>
-
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Usuarios</p>
-            <p style={styles.cardValue}>
-              {valor("usuariosTotales")}
-            </p>
-          </div>
-
-          <div style={styles.card}>
-            <p style={styles.cardLabel}>Ingresos estimados</p>
-            <p style={styles.cardValue}>
-              {valor("ingresosEstimados", formatearEuros)}
-            </p>
-          </div>
+            return to ? (
+              <Link key={campo} to={to} style={{ ...styles.card, ...styles.cardLink }}>
+                {contenido}
+              </Link>
+            ) : (
+              <div key={campo} style={styles.card}>
+                {contenido}
+              </div>
+            );
+          })}
         </div>
 
         {stats && !cargando && (
@@ -198,101 +233,22 @@ const AdminDashboard = () => {
         <div style={styles.accesosBox}>
           <h2 style={styles.accesosTitulo}>Accesos rápidos</h2>
 
-          <div style={styles.botonesGrid}>
-           <button
-  style={styles.boton}
-  onClick={() => navigate("/admin-calendario-reservas-nuevo")}
->
-  <span aria-hidden="true" style={styles.icono}>📅</span>
-  Ver calendario
-</button>
+          {SECCIONES_ACCESOS.map((seccion) => (
+            <section key={seccion.titulo} style={styles.seccion}>
+              <h3 style={styles.seccionTitulo}>{seccion.titulo}</h3>
 
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-reservas-nuevo")}
-            >
-              <span aria-hidden="true" style={styles.icono}>📋</span>
-              Ver reservas
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-reservas-grupos")}
-            >
-              <span aria-hidden="true" style={styles.icono}>👥</span>
-              Ver reservas de grupo
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-clases")}
-            >
-              <span aria-hidden="true" style={styles.icono}>🏺</span>
-              Ver clases
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-ordenar-clases")}
-            >
-              <span aria-hidden="true" style={styles.icono}>↕️</span>
-              Ordenar clases
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-taller")}
-            >
-              <span aria-hidden="true" style={styles.icono}>➕</span>
-              Añadir taller nuevo
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-categorias")}
-            >
-              <span aria-hidden="true" style={styles.icono}>🏷️</span>
-              Categorías de talleres
-            </button>
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-usuarios-nuevo")}
-            >
-              <span aria-hidden="true" style={styles.icono}>👤</span>
-              Ver usuarios
-            </button>
-
-
-            <button
-              style={styles.boton}
-              onClick={() => navigate("/admin-tarjetas-regalo")}
-            >
-              <span aria-hidden="true" style={styles.icono}>🎁</span>
-              Ver tarjetas regalo
-            </button>
-            <button
-  style={styles.boton}
-  onClick={() => navigate("/admin-bloqueos-fechas")}
->
-  <span aria-hidden="true" style={styles.icono}>🚫</span>
-  Bloquear fechas
-</button>
-<button
-  style={styles.boton}
-  onClick={() => navigate("/admin-habilitar-fechas")}
->
-  <span aria-hidden="true" style={styles.icono}>✅</span>
-  Habilitar fechas y Turnos
-</button>
-<button
-  style={styles.boton}
-  onClick={() => navigate("/admin-bonos-nuevo")}
->
-  <span aria-hidden="true" style={styles.icono}>🎫</span>
-  Ver bonos
-</button>
-          </div>
+              <div style={styles.botonesGrid}>
+                {seccion.accesos.map((acceso) => (
+                  <Link key={acceso.to} to={acceso.to} style={styles.boton}>
+                    <span aria-hidden="true" style={styles.icono}>
+                      {acceso.icono}
+                    </span>
+                    {acceso.texto}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       </div>
     </div>
@@ -362,6 +318,22 @@ const styles = {
     color: "#333",
     fontSize: "2rem",
     fontWeight: "bold",
+  },
+  cardLink: {
+    display: "block",
+    textDecoration: "none",
+    color: "inherit",
+  },
+  seccion: {
+    marginTop: 18,
+  },
+  seccionTitulo: {
+    margin: "0 0 10px 0",
+    color: "#7a6331",
+    fontSize: "0.9rem",
+    fontWeight: 600,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
   },
   cardNota: {
     margin: "6px 0 0 0",
@@ -471,6 +443,8 @@ const styles = {
     alignItems: "center",
     gap: 12,
     width: "100%",
+    boxSizing: "border-box",
+    textDecoration: "none",
     padding: "14px 16px",
     backgroundColor: "#fffaf0",
     color: "#3d3126",
