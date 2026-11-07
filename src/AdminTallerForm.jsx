@@ -347,6 +347,14 @@ export default function AdminTallerForm() {
       return "Indica el precio del taller.";
     }
 
+    if (
+      !esBono &&
+      form.minPersonasGrupo !== "" &&
+      (numeroPositivo(form.minPersonasGrupo) < 2 || numeroPositivo(form.minPersonasGrupo) > 45)
+    ) {
+      return "El mínimo de personas para grupo debe estar entre 2 y 45.";
+    }
+
     if (!esBono && !numeroPositivo(form.maxTotales)) {
       return "Indica el máximo de plazas por turno.";
     }
@@ -1009,6 +1017,26 @@ export default function AdminTallerForm() {
                       />
                     </div>
                   )}
+                </div>
+              )}
+              {!esBono && (
+                <div className="sm:w-1/2">
+                  <label htmlFor="taller-min-grupo" className={label}>
+                    Mínimo de personas para reservar en grupo
+                  </label>
+                  <input
+                    id="taller-min-grupo"
+                    type="number"
+                    min="2"
+                    max="45"
+                    placeholder="5"
+                    className={input}
+                    value={form.minPersonasGrupo}
+                    onChange={(e) => cambiar("minPersonasGrupo", e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Por defecto 5. Es lo mínimo que se pide en la reserva para grupos.
+                  </p>
                 </div>
               )}
               {conMetodoOVariante && (

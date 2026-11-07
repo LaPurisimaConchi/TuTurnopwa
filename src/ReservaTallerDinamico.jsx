@@ -20,6 +20,7 @@ import {
 import {
   estadoTaller,
   metodosDelTaller,
+  minPersonasGrupo,
   variantesDelTaller,
 } from "./catalogoTalleres";
 import BloqueoReserva from "./BloqueoReserva";
@@ -504,6 +505,14 @@ export function FormularioReserva({ claseId, clase }) {
     }
   };
 
+  // Con tantas plazas como el mínimo de grupo, se sugiere reservar como grupo
+  const minGrupo = minPersonasGrupo(clase);
+  const mostrarSugerencia = !desdeTarjeta && plazasNum >= minGrupo;
+  const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
+  if (conVariante && varianteId) parametrosGrupo.set("variante", varianteId);
+  if (conMetodo && !conVariante && metodo) parametrosGrupo.set("metodo", metodo);
+  const destinoGrupo = `/reserva-grupos?${parametrosGrupo.toString()}`;
+
   const eleccionesPrevias = (!conVariante || !!varianteId) && (!conMetodo || !!metodo);
   const puedeElegirMetodo =
     !!fecha && !fechaBloqueada && !diaNoDisponible && !metodoTarjeta && (!conVariante || !!varianteId);
@@ -687,10 +696,53 @@ export function FormularioReserva({ claseId, clase }) {
             </p>
           )}
 
-          <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
-            <strong>¿Sois 5 o más personas?</strong>
-            <br />
-            Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
+          {/* Los dos avisos se despliegan y pliegan con animación */}
+          <div>
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${
+              mostrarSugerencia ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+            }`}
+            aria-hidden={mostrarSugerencia}
+          >
+            <div className="overflow-hidden">
+            <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
+              <strong>¿Sois {minGrupo} o más personas?</strong>
+              <br />
+              Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
+            </div>
+            </div>
+          </div>
+
+          <div
+            className={`grid transition-all duration-300 ease-in-out ${
+              mostrarSugerencia ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+            }`}
+            aria-hidden={!mostrarSugerencia}
+            role="status"
+          >
+            <div className="overflow-hidden">
+            <div
+              className="text-sm text-[#5c3c00] bg-[#fff6d6] border border-[#F4C542] rounded-xl p-3"
+            >
+              <strong>
+                ¿Venís {plazasNum} personas? Os conviene reservar como grupo
+              </strong>
+              <p className="mt-1">
+                Con {minGrupo} o más personas podéis hacer una reserva de grupo: elegís
+                día y turno juntos, hablamos con vosotros para concretar los detalles
+                y se paga todo en una sola reserva, en lugar de reservar plazas sueltas.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate(destinoGrupo)}
+                tabIndex={mostrarSugerencia ? 0 : -1}
+                className="mt-2 w-full px-4 py-2 rounded-full bg-[#F4C542] text-[#5c3c00] font-semibold hover:bg-[#E5B92F] transition"
+              >
+                👥 Reservar para grupo
+              </button>
+            </div>
+            </div>
+          </div>
           </div>
 
           <div>

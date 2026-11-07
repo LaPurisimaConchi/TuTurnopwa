@@ -69,6 +69,13 @@ export default function Portada() {
             >
               🎁 Regalar un taller
             </button>
+
+            <button
+              className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
+              onClick={() => navigate("/reserva-grupos")}
+            >
+              👥 Reservas para grupos
+            </button>
           </div>
         </div>
       </section>
@@ -135,46 +142,6 @@ export default function Portada() {
               ))}
             </div>
           )}
-
-          {/* OTRAS OPCIONES */}
-          <div className="grid gap-4 md:grid-cols-2 mt-10">
-            <button
-              type="button"
-              onClick={() => navigate("/tarjeta-regalo")}
-              className="flex items-center gap-4 rounded-2xl border border-[#eadfd2] bg-[#fffaf0] p-4 text-left shadow-sm hover:shadow-md transition"
-            >
-              <img
-                src="/img/miniaturas/tarjetaregalo.jpg"
-                alt=""
-                className="w-20 h-20 object-cover rounded-xl shrink-0"
-              />
-              <span>
-                <span className="block font-semibold text-[#3f3128]">Tarjeta regalo</span>
-                <span className="block text-sm text-gray-600 mt-1">
-                  Regala un taller para una o varias personas. Quien la recibe
-                  elige la fecha.
-                </span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => navigate("/reserva-grupos")}
-              className="flex items-center gap-4 rounded-2xl border border-[#eadfd2] bg-white p-4 text-left shadow-sm hover:shadow-md transition"
-            >
-              <img
-                src="/img/miniaturas/grupos.jpg"
-                alt=""
-                className="w-20 h-20 object-cover rounded-xl shrink-0"
-              />
-              <span>
-                <span className="block font-semibold text-[#3f3128]">Reservas para grupos</span>
-                <span className="block text-sm text-gray-600 mt-1">
-                  Si sois 5 personas o más, reservad vuestra experiencia juntos.
-                </span>
-              </span>
-            </button>
-          </div>
         </div>
       </section>
     </div>

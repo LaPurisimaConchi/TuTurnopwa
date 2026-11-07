@@ -182,7 +182,6 @@ export default function PerfilUsuario() {
   const [reservasPasadas, setReservasPasadas] = useState([]);
   const [tarjetasRegalo, setTarjetasRegalo] = useState([]);
   const [bonos, setBonos] = useState([]);
-  const [reservasGrupo, setReservasGrupo] = useState([]);
   const [esInvitado, setEsInvitado] = useState(false);
 
   useEffect(() => {
@@ -257,41 +256,6 @@ export default function PerfilUsuario() {
           setReservasActivas([]);
           setReservasPasadas([]);
         }
-        const refReservasGrupos = ref(dbRealtime, "reservasGrupos");
-const snapReservasGrupos = await get(refReservasGrupos);
-
-if (snapReservasGrupos.exists()) {
-  const gruposUsuario = [];
-
-  snapReservasGrupos.forEach((grupoSnap) => {
-    const grupo = grupoSnap.val();
-
-    if (
-      grupo &&
-      grupo.uid === user.uid &&
-      grupo.modoPago === "individual" &&
-      grupo.enlacePagoGrupo &&
-      grupo.estado !== "Cancelada" &&
-      grupo.cancelada !== true
-    ) {
-      gruposUsuario.push({
-        id: grupoSnap.key,
-        ...grupo,
-      });
-    }
-  });
-
-  gruposUsuario.sort((a, b) => {
-    const fechaA = new Date(a.fechaCreacion || a.timestamp || 0);
-    const fechaB = new Date(b.fechaCreacion || b.timestamp || 0);
-    return fechaB - fechaA;
-  });
-
-  setReservasGrupo(gruposUsuario);
-} else {
-  setReservasGrupo([]);
-}
-
         const refTarjetasRegalo = ref(
           dbRealtime,
           `usuarios/${user.uid}/tarjetasRegalo`
@@ -422,89 +386,6 @@ if (snapReservasGrupos.exists()) {
             </p>
           )}
         </div>
-
-        {reservasGrupo.length > 0 && (
-  <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
-    <summary className="cursor-pointer font-semibold">
-      👥 Reservas de grupo
-    </summary>
-
-    <div className="mt-3 space-y-3">
-      {reservasGrupo.map((grupo) => (
-        <div
-          key={grupo.id}
-          className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8] text-sm"
-        >
-          <p>
-            <strong>Grupo:</strong>{" "}
-            {grupo.nombreGrupo || "Reserva de grupo"}
-          </p>
-
-          <p>
-            <strong>Clase:</strong> {grupo.clase || "—"}
-          </p>
-
-          <p>
-            <strong>Fecha:</strong> {grupo.fecha || "—"}
-          </p>
-
-          <p>
-            <strong>Turno:</strong> {grupo.turno || "—"}
-          </p>
-
-          <p>
-            <strong>Pagadas:</strong>{" "}
-            {grupo.plazasPagadas ?? 0}/{grupo.plazas || 0}
-          </p>
-
-          <p>
-            <strong>Pendientes:</strong>{" "}
-            {grupo.plazasPendientes ?? 0}
-          </p>
-          <p>
-            <p>
-  <strong>Duración del enlace:</strong> 72 horas
-</p>
-  <strong>Enlace válido hasta:</strong>{" "}
-  {grupo.fechaLimitePago
-    ? new Date(grupo.fechaLimitePago).toLocaleString("es-ES")
-    : "—"}
-</p>
-{grupo.fechaLimitePago && new Date(grupo.fechaLimitePago) < new Date() && (
-  <p className="mt-2 text-xs font-semibold text-red-600">
-    El plazo para pagar online ha finalizado. Contacta con el taller si necesitas ayuda.
-  </p>
-)}
-
-
-          <div className="mt-3 flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                navigator.clipboard.writeText(grupo.enlacePagoGrupo);
-                alert("Enlace copiado");
-              }}
-              className="w-full bg-[#f2c500] hover:bg-[#e4b800] text-[#3b3025] font-semibold py-2 px-4 rounded-xl transition"
-            >
-              Copiar enlace de pago
-            </button>
-
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(
-                `Hola, te paso el enlace para pagar tu plaza dentro de la reserva de grupo:\n\n${grupo.enlacePagoGrupo}`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full text-center bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-xl transition"
-            >
-              Enviar por WhatsApp
-            </a>
-          </div>
-        </div>
-      ))}
-    </div>
-  </details>
-)}
 
         <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
