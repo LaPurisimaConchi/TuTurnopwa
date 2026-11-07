@@ -28,6 +28,7 @@ import CondicionesPago from "./CondicionesPago.jsx";
 import ResumenPago from "./ResumenPago.jsx";
 import ConfirmacionPago from "./ConfirmacionPago.jsx";
 import PagoFallido from "./PagoFallido.jsx";
+import GestionarReserva from "./GestionarReserva";
 import ResumenPagoTheClub from "./ResumenPagoTheClub.jsx";
 import ResumenPagoTearium from "./ResumenPagoTearium.jsx";
 
@@ -157,6 +158,7 @@ function App() {
           <Route path="/politica-piezas" element={<PoliticaPiezas />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politicacancelacion" element={<PoliticaCancelacion />} />
+          <Route path="/gestionar-reserva" element={<GestionarReserva />} />
           <Route path="/condicionesuso" element={<CondicionesUso />} />
           <Route path="/politica-privacidad" element={<PoliticaPrivacidad />} />
           <Route path="/condiciones-pago" element={<CondicionesPago />} />
