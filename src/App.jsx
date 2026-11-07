@@ -291,7 +291,7 @@ function App() {
             path="/reserva-clase-suelta-continuidad"
             element={<RutaTaller claseId="clasesueltacontinuidad" tipo="reserva"><AccesoCompra><ReservaClaseSueltaContinuidad /></AccesoCompra></RutaTaller>}
           />
-          <Route path="/reserva-grupos" element={<AccesoCompra><ReservaGrupos /></AccesoCompra>} />
+          <Route path="/reserva-grupos" element={<AccesoCompra permitirVisita><ReservaGrupos /></AccesoCompra>} />
 
           <Route
             path="/tarjeta-regalo-solo/creapiezafavorita"

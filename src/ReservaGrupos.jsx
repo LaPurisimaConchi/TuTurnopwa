@@ -1,9 +1,9 @@
 // src/ReservaGrupos.jsx
-// Reserva para grupos (5 o más personas). Mismo formato que las demás pantallas de
+// Reserva para grupos . Mismo formato que las demás pantallas de
 // reserva: tarjeta de dos columnas, calendario, turnos y botón de confirmar.
 // El taller sale del catálogo (clases/{id}); desde la página de un taller se llega
 // con ?taller=<id>&variante=<id>&metodo=<id> y llega ya elegido.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, set } from "firebase/database";
@@ -11,7 +11,10 @@ import { dbRealtime } from "./firebase";
 import {
   cargarTalleres,
   formatearEuros,
+  MAX_PERSONAS_GRUPO,
   metodosDelTaller,
+  MIN_PERSONAS_GRUPO,
+  minPersonasGrupo,
   variantesDelTaller,
 } from "./catalogoTalleres";
 import { useContextoReserva } from "./utils/turnosTaller";
@@ -20,11 +23,12 @@ import PantallaReserva from "./components/PantallaReserva";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
+import { leerDatosContacto } from "./utils/invitado";
 
 const WHATSAPP_BERTO = "34644671664";
 
-const MIN_PERSONAS = 5;
-const MAX_PERSONAS = 45;
+const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
 
 // Los grupos reservan en estos turnos, sea cual sea el horario habitual del taller
 const TURNOS_GRUPO = ["11:30-14:30", "17:30-20:30"];
@@ -75,7 +79,7 @@ export default function ReservaGrupos() {
   const [opcionId, setOpcionId] = useState("");
   const [fecha, setFecha] = useState("");
   const [horario, setHorario] = useState("");
-  const [personas, setPersonas] = useState(MIN_PERSONAS);
+  const [personas, setPersonas] = useState(MIN_PERSONAS_GRUPO);
 
   const [user, setUser] = useState(null);
   const [nombreReserva, setNombreReserva] = useState("");
@@ -85,6 +89,12 @@ export default function ReservaGrupos() {
   const [notas, setNotas] = useState("");
   const [contactoConfirmado, setContactoConfirmado] = useState(false);
   const [guardando, setGuardando] = useState(false);
+
+  // Sin cuenta, los datos de contacto se piden al confirmar (como en las demás
+  // reservas). Con cuenta se usan los del perfil y solo se piden si faltan.
+  const [pedirContacto, setPedirContacto] = useState(false);
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
 
   // Sesión y datos del perfil
   useEffect(() => {
@@ -99,6 +109,9 @@ export default function ReservaGrupos() {
           const datos = snap.val() || {};
           setNombreReserva(datos.nombre || "");
           setTelefono(datos.telefono || "");
+          setPedirContacto(!datos.nombre || !datos.telefono);
+        } else {
+          setPedirContacto(true);
         }
       } catch (error) {
         console.error("Error al cargar datos del usuario:", error);
@@ -133,9 +146,15 @@ export default function ReservaGrupos() {
     const { clave, lista } = opcionesDelTaller(previo);
     const elegida = clave && lista.find((o) => o.id === params.get(clave));
     setOpcionId(elegida ? elegida.id : lista.length === 1 ? lista[0].id : "");
+
+    // Personas que ya había elegido en la reserva del taller
+    const previas = Math.round(Number(params.get("personas")));
+    if (previas > 0) setPersonas(Math.min(MAX_PERSONAS, previas));
   }, [talleres, location.search, location.state]);
 
   const taller = talleres.find((t) => t.id === tallerId) || null;
+  // Mínimo que fija cada taller en su ficha (5 si no lo cambia)
+  const MIN_PERSONAS = taller ? minPersonasGrupo(taller) : MIN_PERSONAS_GRUPO;
   const opciones = useMemo(
     () => (taller ? opcionesDelTaller(taller) : { etiqueta: "", clave: "", lista: [] }),
     [taller]
@@ -181,6 +200,10 @@ export default function ReservaGrupos() {
     setOpcionId(lista.length === 1 ? lista[0].id : "");
   };
 
+  useEffect(() => {
+    setPersonas((actual) => Math.max(Number(actual) || 0, MIN_PERSONAS));
+  }, [MIN_PERSONAS]);
+
   const faltaOpcion = opciones.lista.length > 0 && !opcionId;
 
   const deshabilitado =
@@ -191,25 +214,32 @@ export default function ReservaGrupos() {
     !fecha ||
     !!fechaBloqueada ||
     !horario ||
-    !nombreReserva.trim() ||
-    !telefono.trim() ||
+    (pedirContacto && (!nombreReserva.trim() || !telefono.trim())) ||
     !nombreGrupo.trim() ||
     personasNum < MIN_PERSONAS ||
     !(precioUnitario > 0) ||
     !contactoConfirmado;
 
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!user) {
-      alert("Debes iniciar sesión para reservar.");
-      return;
-    }
     if (errorContexto) {
       alert("No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.");
       return;
     }
-    if (!taller || faltaOpcion || !fecha || !horario || !nombreReserva.trim() || !telefono.trim() || !nombreGrupo.trim()) {
+    if (!taller || faltaOpcion || !fecha || !horario || !nombreGrupo.trim()) {
       alert("Completa todos los campos obligatorios.");
       return;
     }
@@ -220,7 +250,7 @@ export default function ReservaGrupos() {
       return;
     }
     if (personasNum < MIN_PERSONAS) {
-      alert("El mínimo para reservar en grupo es de 5 personas.");
+      alert(`El mínimo para reservar este taller en grupo es de ${MIN_PERSONAS} personas.`);
       return;
     }
     if (personasNum > MAX_PERSONAS) {
@@ -236,6 +266,25 @@ export default function ReservaGrupos() {
       return;
     }
 
+    // Sin sesión se piden los datos de contacto ahora; la cuenta de invitado se
+    // abre al enviarlos, no al entrar en la pantalla
+    let usuario = user || getAuth().currentUser;
+    let nombreFinal = nombreReserva.trim();
+    let telefonoFinal = telefono.trim();
+    let emailFinal = email;
+
+    if (!usuario) {
+      usuario = await pedirDatosInvitado();
+      if (!usuario) return;
+      const datos = await leerDatosContacto(usuario.uid).catch(() => ({}));
+      nombreFinal = datos.nombre || usuario.displayName || "";
+      telefonoFinal = datos.telefono || "";
+      emailFinal = datos.email || usuario.email || "";
+    } else if (!nombreFinal || !telefonoFinal) {
+      alert("Indica tu nombre y tu teléfono para que el taller pueda contactar contigo.");
+      return;
+    }
+
     try {
       setGuardando(true);
       const orderId = Date.now().toString().slice(-12);
@@ -243,14 +292,14 @@ export default function ReservaGrupos() {
       const grupoRef = push(ref(dbRealtime, "reservasGrupos"));
 
       const reservaGrupo = {
-        uid: user.uid,
-        nombreReserva,
+        uid: usuario.uid,
+        nombreReserva: nombreFinal,
         nombreGrupo: nombreGrupo.trim(),
-        nombreOrganizador: nombreReserva,
-        telefonoOrganizador: telefono,
+        nombreOrganizador: nombreFinal,
+        telefonoOrganizador: telefonoFinal,
         modoPago: "completo",
-        telefono,
-        email: email || "",
+        telefono: telefonoFinal,
+        email: emailFinal || "",
         clase: nombreTaller,
         claseId: "reserva-grupo",
         tallerId: taller.id,
@@ -297,9 +346,9 @@ export default function ReservaGrupos() {
           plazas: personasNum,
           orderId,
           notas: notas || "",
-          telefono,
-          email: email || "",
-          nombreReserva,
+          telefono: telefonoFinal,
+          email: emailFinal || "",
+          nombreReserva: nombreFinal,
         },
       });
     } catch (error) {
@@ -318,11 +367,11 @@ export default function ReservaGrupos() {
         Reserva para grupos
       </h1>
       <p className="text-center text-sm text-gray-700 max-w-2xl mx-auto mb-5">
-        Para grupos de <strong>5 o más personas</strong>. Antes de pagar, habla con el taller por
+        Para grupos de <strong>{MIN_PERSONAS} o más personas</strong>. Antes de pagar, habla con el taller por
         WhatsApp para confirmar fecha y horario.
       </p>
 
-      <BloqueoReserva>
+      <BloqueoReserva permitirVisitante>
         {errorContexto && (
           <p className="text-sm text-red-600 text-center mb-4">
             No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.
@@ -451,6 +500,7 @@ export default function ReservaGrupos() {
               />
             </div>
 
+            {pedirContacto && (
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="nombreReserva" className="block font-bold text-sm mb-1">
@@ -479,6 +529,7 @@ export default function ReservaGrupos() {
                 />
               </div>
             </div>
+            )}
 
             <div>
               <label htmlFor="notas" className="block font-bold text-sm mb-1">
@@ -537,6 +588,13 @@ export default function ReservaGrupos() {
           </div>
         </form>
       </BloqueoReserva>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </PantallaReserva>
   );
 }

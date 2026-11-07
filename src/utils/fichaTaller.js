@@ -40,6 +40,7 @@ export const FORMULARIO_VACIO = {
   precioUnico: "",
   maxTotales: "10",
   maxTorno: "6",
+  minPersonasGrupo: "5",
   bono: {
     numeroClases: "4",
     duracionClase: "3 horas",
@@ -163,6 +164,7 @@ export function formularioDesdeClase(id, clase = {}) {
     precioUnico: clase.precio ? String(clase.precio) : "",
     maxTotales: String(clase.plazas?.maxTotales || ""),
     maxTorno: String(clase.plazas?.maxTorno || ""),
+    minPersonasGrupo: String(clase.minPersonasGrupo || 5),
     bono: {
       numeroClases: String(clase.numeroClases ?? clase.NumeroClases ?? "4"),
       duracionClase: clase.duracionClase || clase.duracion || "",
@@ -288,6 +290,9 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
         }
       : {
           sesiones: Math.max(1, Math.round(numeroPositivo(form.sesiones) || 1)),
+          minPersonasGrupo: numeroPositivo(form.minPersonasGrupo)
+            ? Math.round(numeroPositivo(form.minPersonasGrupo))
+            : null,
           plazas: {
             maxTotales: Math.round(numeroPositivo(form.maxTotales)),
             ...((conMetodos || conVariantes) &&

@@ -13,6 +13,7 @@ import {
   exigeCuenta,
   formatearEuros,
   metodosDelTaller,
+  minPersonasGrupo,
   precioDesde,
   variantesDelTaller,
 } from "./catalogoTalleres";
@@ -288,7 +289,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 disabled={faltaOpcion}
                 className="w-full -mt-2 mb-3 px-6 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                👥 Reservar para grupo (5 o más)
+                👥 Reservar para grupo ({minPersonasGrupo(clase)} o más)
               </button>
             )}
 

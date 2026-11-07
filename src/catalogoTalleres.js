@@ -240,6 +240,16 @@ export function metodosDelTaller(clase = {}) {
   }));
 }
 
+// Mínimo de personas para reservar un taller en grupo: el que fija el admin en la
+// ficha del taller (minPersonasGrupo) o 5 si no lo ha cambiado
+export const MIN_PERSONAS_GRUPO = 5;
+export const MAX_PERSONAS_GRUPO = 45;
+
+export function minPersonasGrupo(clase = {}) {
+  const n = Math.round(Number(clase.minPersonasGrupo));
+  return Number.isFinite(n) && n >= 2 ? Math.min(n, MAX_PERSONAS_GRUPO) : MIN_PERSONAS_GRUPO;
+}
+
 export function precioDesde(clase = {}) {
   const positivos = (valores) =>
     valores.map(Number).filter((n) => Number.isFinite(n) && n > 0);
