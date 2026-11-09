@@ -1,4 +1,7 @@
 {
+  "crons": [
+    { "path": "/api/limpiar-invitados", "schedule": "0 4 * * 0" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
