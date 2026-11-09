@@ -3,6 +3,7 @@ import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminNuevo = () => {
   const [reservas, setReservas] = useState([]);
   const [stats, setStats] = useState({
@@ -148,7 +149,7 @@ useEffect(() => {
         ) : (
           obtenerProximasReservas().map((r) => (
             <div key={r.id} style={styles.item}>
-              <strong>{r.fecha}</strong> — {r.clase} ({r.turno}) —{" "}
+              <strong>{fechaDMA(r.fecha)}</strong> — {r.clase} ({r.turno}) —{" "}
               {r.plazas} plaza(s)
             </div>
           ))

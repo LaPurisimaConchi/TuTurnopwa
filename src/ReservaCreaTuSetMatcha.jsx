@@ -9,6 +9,7 @@ import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const CLASE_ID = "setmatcha";
 const RESERVAS_PATH_KEY = "CreaTuSetMatcha";
 
@@ -386,7 +387,7 @@ export default function ReservaCreaTuSetMatcha() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );

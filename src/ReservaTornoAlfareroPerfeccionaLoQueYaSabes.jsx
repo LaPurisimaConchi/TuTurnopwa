@@ -7,6 +7,7 @@ import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 import { crearBonoActivo } from "./utils/bonos";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const CLASE_ID = "tornoperfeccionamiento6clases";
 const RESERVAS_PATH_KEY = "TornoAlfareroPerfeccionaLoQueYaSabes";
 
@@ -290,7 +291,7 @@ if (turnosConfig) {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fechaInicio}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fechaInicio)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );

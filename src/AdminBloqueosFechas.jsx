@@ -3,6 +3,7 @@ import { ref, get, update, remove } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminBloqueosFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -112,7 +113,7 @@ useEffect(() => {
 
   const eliminarBloqueo = async (fecha) => {
     const confirmar = window.confirm(
-      `¿Seguro que quieres desbloquear la fecha ${fecha}?`
+      `¿Seguro que quieres desbloquear la fecha ${fechaDMA(fecha)}?`
     );
 
     if (!confirmar) return;
@@ -212,7 +213,7 @@ useEffect(() => {
   }}
 >
                   <div>
-                    <p style={styles.fecha}>{b.fecha}</p>
+                    <p style={styles.fecha}>{fechaDMA(b.fecha)}</p>
                     <p style={styles.motivo}>{b.motivo || "Sin motivo"}</p>
                   </div>
 

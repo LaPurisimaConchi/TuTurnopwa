@@ -22,6 +22,7 @@ import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const sumarUnMes = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
   d.setMonth(d.getMonth() + 1);
@@ -130,7 +131,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fechaInicio}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fechaInicio)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );

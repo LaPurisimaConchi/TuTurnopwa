@@ -5,6 +5,7 @@ import { dbRealtime } from "./firebase";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -504,7 +505,7 @@ useEffect(() => {
     const turnoAnteriorNormalizado = normalizarTurnoParaRuta(reserva.turno);
 
     const confirmar = window.confirm(
-      `¿Seguro que quieres reprogramar esta reserva del ${reserva.fecha} (${turnoAnteriorNormalizado}) al ${nuevaFecha} (${turnoNormalizado})?`
+      `¿Seguro que quieres reprogramar esta reserva del ${fechaDMA(reserva.fecha)} (${turnoAnteriorNormalizado}) al ${fechaDMA(nuevaFecha)} (${turnoNormalizado})?`
     );
 
     if (!confirmar) return;
@@ -631,7 +632,7 @@ useEffect(() => {
       });
 
       const notaAutomatica = {
-        texto: `Reserva reprogramada por Berto. Antes: ${reserva.fecha} - ${turnoAnteriorNormalizado}. Ahora: ${nuevaFecha} - ${turnoNormalizado}.`,
+        texto: `Reserva reprogramada por Berto. Antes: ${fechaDMA(reserva.fecha)} - ${turnoAnteriorNormalizado}. Ahora: ${fechaDMA(nuevaFecha)} - ${turnoNormalizado}.`,
         fecha: fechaReprogramacionTexto,
       };
 
@@ -844,7 +845,7 @@ useEffect(() => {
                 <strong>Reserva reprogramada:</strong> Sí
               </p>
               <p>
-                <strong>Fecha original:</strong> {reserva.fechaOriginal || "—"}
+                <strong>Fecha original:</strong> {fechaDMA(reserva.fechaOriginal) || "—"}
               </p>
               <p>
                 <strong>Turno original:</strong> {reserva.turnoOriginal || "—"}

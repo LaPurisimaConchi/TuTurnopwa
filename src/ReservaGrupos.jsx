@@ -26,6 +26,7 @@ import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { leerDatosContacto } from "./utils/invitado";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const WHATSAPP_BERTO = "34644671664";
 
 const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
@@ -245,7 +246,7 @@ export default function ReservaGrupos() {
     }
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${fechaBloqueada.motivo || "día bloqueado"}.`
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${fechaBloqueada.motivo || "día bloqueado"}.`
       );
       return;
     }

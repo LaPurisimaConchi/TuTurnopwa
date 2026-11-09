@@ -10,6 +10,7 @@ import {
   formatearEuros,
 } from "./utils/estadisticasAdmin";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const SECCIONES_ACCESOS = [
   {
     titulo: "Reservas",
@@ -198,7 +199,7 @@ const AdminDashboard = () => {
                     >
                       <span>
                         {g.nombre}
-                        {g.fecha ? ` · ${g.fecha}` : ""}
+                        {g.fecha ? ` · ${fechaDMA(g.fecha)}` : ""}
                       </span>
                       <span>{describirPlazo(g.limite)}</span>
                     </button>

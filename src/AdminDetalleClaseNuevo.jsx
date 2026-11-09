@@ -6,6 +6,7 @@ import BotonVolver from "./BotonVolver";
 import { TALLERES_FIJOS } from "./catalogoTalleres";
 import useCategorias from "./components/useCategorias";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminDetalleClaseNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -657,7 +658,7 @@ Acompañamiento en el taller`}
                     }}
                   >
                     <p style={styles.linea}>
-                      <strong>Fecha:</strong> {r.fecha}
+                      <strong>Fecha:</strong> {fechaDMA(r.fecha)}
                     </p>
                     <p style={styles.linea}>
                       <strong>Turno:</strong> {r.turno}

@@ -36,6 +36,7 @@ import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const MAX_TORNO_FALLBACK = 12;
 const MAX_TOTALES_FALLBACK = 45;
 
@@ -365,7 +366,7 @@ export function FormularioReserva({ claseId, clase }) {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );

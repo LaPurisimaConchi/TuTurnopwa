@@ -7,6 +7,7 @@ import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 import { usarSesionDeBono } from "./utils/bonos";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const normalizarTurnos = (turnosRaw) => {
   if (!turnosRaw) return [];
 
@@ -239,7 +240,7 @@ const turnosDisponibles = useMemo(() => {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fechaSesion}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fechaSesion)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -358,7 +359,7 @@ const turnosDisponibles = useMemo(() => {
               </p>
               <p>
                 <strong>Caduca el:</strong>{" "}
-                {bono.fechaCaducidadBono || "—"}
+                {fechaDMA(bono.fechaCaducidadBono) || "—"}
               </p>
             </div>
 

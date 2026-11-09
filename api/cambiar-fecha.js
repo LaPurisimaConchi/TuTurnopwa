@@ -41,6 +41,7 @@ import {
 } from "./_codigosReserva.js";
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
 
+import { fechaDMA } from "../src/utils/formatoFecha.js";
 export const config = { runtime: "nodejs" };
 
 const NO_ENCONTRADA =
@@ -225,7 +226,7 @@ async function anotarCambio({ actualizaciones, orderId, uid, seguimiento, reserv
     realizadoPor: "Cliente",
   };
   actualizaciones[`reservasNotas/${orderId}/notasInternas/${notas.child("notasInternas").push().key}`] = {
-    texto: `${etiqueta} reprogramada por el cliente desde la web. Antes: ${reserva.fecha} - ${turnoAnterior}. Ahora: ${seguimiento.fecha} - ${seguimiento.turno}.`,
+    texto: `${etiqueta} reprogramada por el cliente desde la web. Antes: ${fechaDMA(reserva.fecha)} - ${turnoAnterior}. Ahora: ${fechaDMA(seguimiento.fecha)} - ${seguimiento.turno}.`,
     fecha: cambio,
   };
 }

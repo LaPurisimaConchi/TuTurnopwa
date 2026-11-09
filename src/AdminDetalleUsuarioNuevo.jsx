@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 function formatearFechaNota(fecha) {
   if (!fecha) return "Sin fecha";
 
@@ -314,7 +315,7 @@ useEffect(() => {
                       <strong>Clase:</strong> {r.clase || "—"}
                     </p>
                     <p style={styles.linea}>
-                      <strong>Fecha:</strong> {r.fecha || "—"}
+                      <strong>Fecha:</strong> {fechaDMA(r.fecha) || "—"}
                     </p>
                     <p style={styles.linea}>
                       <strong>Turno:</strong> {r.turno || "—"}
