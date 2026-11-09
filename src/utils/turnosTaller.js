@@ -3,12 +3,14 @@
 // el admin + reservas de grupo confirmadas (misma lógica que las pantallas de
 // reserva de siempre).
 import { useEffect, useMemo, useState } from "react";
+import { minPersonasGrupo } from "../catalogoTalleres";
 import { cargarContextoReserva } from "./disponibilidad";
 import {
   esTurnoConsulta,
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
+  TURNOS_GRUPO,
   turnosDisponiblesEnFecha,
 } from "./turnosFecha";
 
@@ -18,6 +20,7 @@ export {
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
+  TURNOS_GRUPO,
   turnosDisponiblesEnFecha,
 };
 
@@ -65,20 +68,30 @@ export function resumenHorarios(clase = {}) {
   });
 }
 
-// Cómo se marca un día en el calendario: bloqueado desde el panel, sin taller ese
-// día (ni horario, ni fecha habilitada, ni grupo) o disponible
+// Cómo se marca un día en el calendario: bloqueado desde el panel, disponible, o
+// "solo-grupo" (sin horario individual: solo se reserva con el mínimo de personas)
 export function estadoDiaTaller({
   clase,
   fecha,
   fechasBloqueadas = {},
   fechasHabilitadas = {},
   reservasGrupos = {},
+  conGrupo = false,
+  ocupacion = {},
 }) {
   const bloqueo = fechasBloqueadas?.[fecha];
   if (bloqueo?.bloqueado) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
 
   const turnos = turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos });
-  return { estado: turnos.length ? "disponible" : "sin-taller" };
+  if (turnos.length) return { estado: "disponible" };
+
+  // Un día de grupo que ya tiene alguna reserva está abierto a cualquiera
+  if (conGrupo && ocupacion?.[fecha]?.length) return { estado: "disponible" };
+
+  // Sin turno individual, pero un grupo sí puede reservar (cualquier día no cerrado)
+  return conGrupo
+    ? { estado: "solo-grupo", minimo: minPersonasGrupo(clase) }
+    : { estado: "sin-taller" };
 }
 
 // Fechas bloqueadas, fechas habilitadas y reservas de grupo (solo lectura).
@@ -130,6 +143,8 @@ export function useDiaDeReserva({
   fechasBloqueadas = {},
   fechasHabilitadas = {},
   reservasGrupos = {},
+  conGrupo = false,
+  ocupacion = {},
 }) {
   const turnosDisponibles = useMemo(
     () => turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos }),
@@ -148,7 +163,19 @@ export function useDiaDeReserva({
     return bloqueo?.bloqueado ? bloqueo : null;
   }, [fecha, fechasBloqueadas]);
 
-  const diaNoDisponible = !!fecha && turnosDisponibles.length === 0;
+  // Día sin horario individual y no cerrado: solo se puede reservar en grupo
+  const diaSoloGrupo = conGrupo && !!fecha && !fechaBloqueada && turnosDisponibles.length === 0;
+  const diaNoDisponible = !!fecha && turnosDisponibles.length === 0 && !diaSoloGrupo;
 
-  return { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible };
+  return {
+    turnosDisponibles: diaSoloGrupo
+      ? [...TURNOS_GRUPO, ...(ocupacion?.[fecha] || []).filter((t) => !TURNOS_GRUPO.includes(t))]
+      : turnosDisponibles,
+    // Turnos de un día de grupo que ya tienen reserva: ahí no hace falta mínimo
+    turnosAbiertos: diaSoloGrupo ? ocupacion?.[fecha] || [] : [],
+    fechaHabilitadaManual,
+    fechaBloqueada,
+    diaNoDisponible,
+    diaSoloGrupo,
+  };
 }

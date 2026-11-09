@@ -6,7 +6,7 @@
 import { ref, get, child } from "firebase/database";
 import { auth, dbRealtime } from "../firebase";
 import { contarPlazasPorMetodo } from "./contarPlazasDia";
-import { plazasDeTurno } from "./plazasOcupadas";
+import { plazasDeTurno, turnosConReservas } from "./plazasOcupadas";
 
 // El SDK restaura la sesión de forma asíncrona: hasta que termina, currentUser
 // es null aunque haya cuenta
@@ -74,4 +74,17 @@ export async function plazasOcupadasDeTaller(ruta, fecha, turno) {
 
   const snap = await get(child(ref(dbRealtime), `reservas/${ruta}/${fecha}/${turno}`));
   return plazasDeTurno(snap);
+}
+
+// Fechas y turnos que ya tienen alguna reserva: { "2026-11-14": ["11:30-14:30"] }.
+// Con `ruta` solo ese taller; sin ella, todos (talleres con método torno/modelado).
+export async function cargarOcupacion(ruta = "") {
+  if (!(await haySesion())) {
+    const { ocupacion } = await pedirApi(ruta ? { tipo: "ocupacion", ruta } : { tipo: "ocupacion" });
+    return ocupacion || {};
+  }
+
+  const snap = await get(ref(dbRealtime, ruta ? `reservas/${ruta}` : "reservas"));
+  const hoy = new Date().toISOString().slice(0, 10);
+  return turnosConReservas(snap, hoy);
 }

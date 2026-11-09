@@ -3,6 +3,7 @@
 // devuelve el snapshot de esa ruta. La usan la función de Vercel (firebase-admin)
 // y el servidor de desarrollo (SDK de cliente, ver vite.disponibilidadLocal.js).
 //   tipo=contexto
+//   tipo=ocupacion[&ruta=<carpeta>]                        → fechas y turnos con reservas
 //   tipo=plazas&fecha=AAAA-MM-DD[&turno=…]                → torno / modelado
 //   tipo=plazas&fecha=…&turno=…&ruta=<carpeta>             → ocupadas del taller
 import {
@@ -11,6 +12,7 @@ import {
   habilitacionesPublicas,
   plazasDeTurno,
   plazasPorMetodo,
+  turnosConReservas,
 } from "./plazasOcupadas.js";
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -38,6 +40,14 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
         reservasGrupos: gruposPublicos(grupos.val() || {}),
       },
     };
+  }
+
+  if (tipo === "ocupacion") {
+    if (ruta && !RUTA.test(ruta)) return mal("Taller no válido");
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const reservas = await leer(ruta ? `reservas/${ruta}` : "reservas");
+    return { codigo: 200, cuerpo: { ok: true, ocupacion: turnosConReservas(reservas, hoy) } };
   }
 
   if (tipo === "plazas") {

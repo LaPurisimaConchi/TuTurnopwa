@@ -12,6 +12,9 @@ const DIAS_SEMANA = [
   "sabado",
 ];
 
+// Turnos en los que reservan los grupos, sea cual sea el horario habitual del taller
+export const TURNOS_GRUPO = ["11:30-14:30", "17:30-20:30"];
+
 export const normalizarTurnos = (turnosRaw) => {
   if (!turnosRaw) return [];
   if (Array.isArray(turnosRaw)) {

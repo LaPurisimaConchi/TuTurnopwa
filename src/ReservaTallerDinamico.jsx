@@ -9,7 +9,11 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { plazasOcupadasDeTaller, plazasOcupadasPorMetodo } from "./utils/disponibilidad";
+import {
+  cargarOcupacion,
+  plazasOcupadasDeTaller,
+  plazasOcupadasPorMetodo,
+} from "./utils/disponibilidad";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
@@ -105,6 +109,7 @@ export function FormularioReserva({ claseId, clase }) {
     cargado: contextoCargado,
   } = useContextoReserva();
 
+  const [ocupacion, setOcupacion] = useState({});
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
   const [metodo, setMetodo] = useState("");
@@ -144,6 +149,19 @@ export function FormularioReserva({ claseId, clase }) {
     const unsubscribe = onAuthStateChanged(getAuth(), setUser);
     return () => unsubscribe();
   }, []);
+
+  // Fechas y turnos con reservas: un día de grupo con alguna reserva se abre a todos
+  useEffect(() => {
+    let cancelado = false;
+    cargarOcupacion(conMetodo ? "" : rutaReservas)
+      .then((datos) => {
+        if (!cancelado) setOcupacion(datos);
+      })
+      .catch((error) => console.error("Error al cargar las reservas existentes:", error));
+    return () => {
+      cancelado = true;
+    };
+  }, [conMetodo, rutaReservas]);
 
   // Tarjeta regalo de una variante concreta (tipo de pieza, tamaño…) o de un
   // método concreto (torno y modelado con distinto precio)
@@ -234,8 +252,23 @@ export function FormularioReserva({ claseId, clase }) {
     };
   }, [fecha, turno, conMetodo, rutaReservas]);
 
-  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
-    useDiaDeReserva({ clase, fecha, fechasBloqueadas, fechasHabilitadas, reservasGrupos });
+  const {
+    turnosDisponibles,
+    fechaHabilitadaManual,
+    fechaBloqueada,
+    diaNoDisponible,
+    diaSoloGrupo,
+    turnosAbiertos,
+  } =
+    useDiaDeReserva({
+      clase,
+      fecha,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      reservasGrupos,
+      conGrupo: true,
+      ocupacion,
+    });
 
   const turnoConsulta = esTurnoConsulta(turnosDisponibles);
 
@@ -289,7 +322,7 @@ export function FormularioReserva({ claseId, clase }) {
   };
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos, conGrupo: true, ocupacion });
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
@@ -510,6 +543,8 @@ export function FormularioReserva({ claseId, clase }) {
 
   // Con tantas plazas como el mínimo de grupo, se sugiere reservar como grupo
   const minGrupo = minPersonasGrupo(clase);
+  const faltanPersonasGrupo =
+    diaSoloGrupo && !turnosAbiertos.includes(turno) && plazasNum < minGrupo;
   const mostrarSugerencia = !desdeTarjeta && plazasNum >= minGrupo;
   const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
   if (conVariante && varianteId) parametrosGrupo.set("variante", varianteId);
@@ -801,12 +836,20 @@ export function FormularioReserva({ claseId, clase }) {
             </p>
           </div>
 
+          {faltanPersonasGrupo && (
+            <p className="text-sm text-red-600 font-medium">
+              Este día es solo para grupos: hace falta un mínimo de {minGrupo} personas
+              para reservar (ahora tienes {plazasNum}). Sube las plazas o elige otro día.
+            </p>
+          )}
+
           <BotonConfirmarReserva
             guardando={guardando}
             desdeTarjeta={desdeTarjeta}
             deshabilitado={
               errorContexto ||
               errorPlazas ||
+              faltanPersonasGrupo ||
               (!!turno && !plazasListas) ||
               !!fechaBloqueada ||
               diaNoDisponible ||
