@@ -123,13 +123,14 @@ export default function Header() {
                 </Link>
               )}
 
-              {hayUsuario && (
+              {/* El invitado no tiene perfil que gestionar: su reserva se abre con código + email */}
+              {hayUsuario && !esInvitado && (
                 <Link
                   to="/perfil"
                   aria-current={enPerfil ? "page" : undefined}
                   className={`${suave} ${enPerfil ? "bg-[#f3ebe1]" : ""}`}
                 >
-                  {inicial && !esInvitado ? (
+                  {inicial ? (
                     <span
                       aria-hidden="true"
                       className="flex h-7 w-7 items-center justify-center rounded-full bg-[#b36a4a] text-xs font-bold text-white"
@@ -142,7 +143,7 @@ export default function Header() {
                   <span>
                     <span className="sm:hidden">Perfil</span>
                     <span className="hidden max-w-[9rem] truncate sm:inline">
-                      {nombre && !esInvitado ? `Hola, ${nombre}` : "Mi perfil"}
+                      {nombre ? `Hola, ${nombre}` : "Mi perfil"}
                     </span>
                   </span>
                 </Link>
