@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import PanelFechasEspeciales, { fechasDelRango } from "./components/PanelFechasEspeciales";
 import { useNavigate } from "react-router-dom";
 
 
@@ -28,6 +29,62 @@ const AdminCalendarioReservasNuevo = () => {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(() => {
     return obtenerFechaLocalISO(new Date());
   });
+
+  // Días bloqueados y habilitados a mano, y selección de varios días seguidos
+  const [bloqueos, setBloqueos] = useState({});
+  const [habilitadas, setHabilitadas] = useState({});
+  const [modoRango, setModoRango] = useState(false);
+  const [rangoInicio, setRangoInicio] = useState("");
+  const [rangoFin, setRangoFin] = useState("");
+
+  const cargarFechasEspeciales = async () => {
+    try {
+      const [bloqueosSnap, habilitadasSnap] = await Promise.all([
+        get(ref(dbRealtime, "bloqueosFechas")),
+        get(ref(dbRealtime, "fechasHabilitadas")),
+      ]);
+      setBloqueos(bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {});
+      setHabilitadas(habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {});
+    } catch (error) {
+      console.error("Error al cargar bloqueos y fechas habilitadas:", error);
+    }
+  };
+
+  useEffect(() => {
+    cargarFechasEspeciales();
+  }, []);
+
+  // Con "varios días", el primer clic marca el inicio y el segundo el final
+  const elegirDia = (fechaISO) => {
+    setFechaSeleccionada(fechaISO);
+
+    if (!modoRango) return;
+
+    if (!rangoInicio || rangoFin) {
+      setRangoInicio(fechaISO);
+      setRangoFin("");
+    } else if (fechaISO < rangoInicio) {
+      setRangoFin(rangoInicio);
+      setRangoInicio(fechaISO);
+    } else {
+      setRangoFin(fechaISO);
+    }
+  };
+
+  const alternarModoRango = () => {
+    setModoRango((v) => !v);
+    setRangoInicio("");
+    setRangoFin("");
+  };
+
+  // Días sobre los que actúa el panel: el rango elegido o el día seleccionado
+  const hayRango = modoRango && !!rangoInicio;
+  const panelInicio = hayRango ? rangoInicio : fechaSeleccionada;
+  const panelFin = hayRango ? rangoFin || rangoInicio : fechaSeleccionada;
+  const diasEnRango = useMemo(
+    () => new Set(hayRango ? fechasDelRango(panelInicio, panelFin) : []),
+    [hayRango, panelInicio, panelFin]
+  );
 
   useEffect(() => {
     const onResize = () => {
@@ -444,6 +501,16 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
       };
     }
 
+    if (bloqueos[celda.fechaISO]?.bloqueado) {
+      estilo = { ...estilo, background: "#fdecea", borderColor: "#e8a29b" };
+    } else if (habilitadas[celda.fechaISO]?.habilitada) {
+      estilo = { ...estilo, background: "#e8f5e9", borderColor: "#8fc796" };
+    }
+
+    if (diasEnRango.has(celda.fechaISO)) {
+      estilo = { ...estilo, boxShadow: "inset 0 0 0 2px #5c3c00" };
+    }
+
     if (hoy) {
       estilo = {
         ...estilo,
@@ -527,6 +594,29 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
           </button>
         </div>
 
+        <div style={{ margin: "0 0 12px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={alternarModoRango}
+            style={{
+              ...styles.botonHoy,
+              ...(modoRango ? { backgroundColor: "#5c3c00", color: "#fff" } : {}),
+            }}
+          >
+            {modoRango ? "Varios días: activado" : "Seleccionar varios días"}
+          </button>
+          {modoRango && (
+            <span style={{ fontSize: 13, color: "#5c3c00" }}>
+              {!rangoInicio
+                ? "Pulsa el primer día."
+                : !rangoFin
+                ? "Pulsa el último día (o el mismo para uno solo)."
+                : "Pulsa otro día para empezar una nueva selección."}
+            </span>
+          )}
+          <span style={{ fontSize: 12, color: "#777" }}>🚫 bloqueado · ✅ habilitado</span>
+        </div>
+
         {cargando ? (
           <p style={styles.mensaje}>Cargando calendario...</p>
         ) : (
@@ -582,7 +672,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                       key={celda.fechaISO}
                       type="button"
                       style={obtenerEstiloDia(celda)}
-                      onClick={() => setFechaSeleccionada(celda.fechaISO)}
+                      onClick={() => elegirDia(celda.fechaISO)}
                     >
                       <div
                         style={{
@@ -591,6 +681,10 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                         }}
                       >
                         {celda.dia}
+                        {bloqueos[celda.fechaISO]?.bloqueado && " 🚫"}
+                        {!bloqueos[celda.fechaISO]?.bloqueado &&
+                          habilitadas[celda.fechaISO]?.habilitada &&
+                          " ✅"}
                       </div>
 
                       {resumen ? (
@@ -647,6 +741,16 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                 })}
               </div>
             </div>
+
+            {fechaSeleccionada && (
+              <PanelFechasEspeciales
+                inicio={panelInicio}
+                fin={panelFin}
+                bloqueos={bloqueos}
+                habilitadas={habilitadas}
+                onCambio={cargarFechasEspeciales}
+              />
+            )}
 
             <div
               style={{
