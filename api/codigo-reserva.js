@@ -4,8 +4,11 @@
 // segundos y los grupos con pago individual no pasan por él al reservar).
 //
 // POST Authorization: Bearer <idToken de Firebase>
-//      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }
+//      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }  |  { tipo: "correo", orderId }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
+// "correo" pide el correo de confirmación de una reserva o un bono ya confirmados con
+// tarjeta regalo (se confirman en el navegador, sin pasar por el aviso del TPV). Vive
+// aquí y no en una función propia porque Vercel limita a 12 funciones por proyecto.
 //
 // Solo responde al dueño de la reserva (uid del token = uid de la reserva).
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
@@ -17,6 +20,7 @@ import {
   formatearCodigo,
 } from "./_codigosReserva.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
+import { enviarCorreoReserva } from "./_correoReserva.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -100,6 +104,45 @@ export default async function handler(req, res) {
       }
 
       return res.status(404).json({ ok: false, error: "Reserva no encontrada" });
+    }
+
+    if (cuerpo.tipo === "correo") {
+      const orderId = String(cuerpo.orderId || "");
+      if (!/^\d{4,20}$/.test(orderId)) {
+        return res.status(400).json({ ok: false, error: "Reserva no válida" });
+      }
+
+      let reserva = null;
+      let tipoCorreo = "reserva";
+
+      // Un bono canjeado con tarjeta regalo lleva su primera sesión con el mismo
+      // pedido: se avisa del bono, no de una reserva suelta
+      const bonoSnap = await adminDb.ref(`usuarios/${uid}/bonos/${orderId}`).get();
+      const bono = bonoSnap.exists() ? bonoSnap.val() : null;
+      if (bono?.creadaDesde === "tarjeta_regalo" && bono.estadoPago === "pagado") {
+        reserva = { ...bono, desdeTarjeta: true };
+        tipoCorreo = "bono";
+      }
+
+      // Si no, una reserva de esta persona, ya confirmada y pagada con tarjeta regalo
+      if (!reserva) {
+        const lista = await adminDb.ref(`usuarios/${uid}/listaReservas`).get();
+        lista.forEach((item) => {
+          const valor = item.val();
+          if (
+            valor?.orderId === orderId &&
+            valor.desdeTarjeta === true &&
+            valor.estado === "Confirmada" &&
+            valor.estadoPago === "pagado"
+          ) {
+            reserva = valor;
+          }
+        });
+      }
+      if (!reserva) return res.status(404).json({ ok: false, error: "Reserva no encontrada" });
+
+      const enviado = await enviarCorreoReserva({ reserva, uid, orderId, tipo: tipoCorreo });
+      return res.status(200).json({ ok: true, enviado });
     }
 
     return res.status(400).json({ ok: false, error: "Tipo no válido" });

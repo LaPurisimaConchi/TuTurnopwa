@@ -8,13 +8,13 @@ export async function pedirCorreoReserva(orderId) {
     if (!user || !orderId) return;
 
     const token = await user.getIdToken();
-    await fetch("/api/correo-reserva", {
+    await fetch("/api/codigo-reserva", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify({ tipo: "correo", orderId }),
     });
   } catch (error) {
     console.warn("No se pudo pedir el correo de confirmación:", error);
