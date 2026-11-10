@@ -601,9 +601,6 @@ listaClases.push({
     ...styles.card,
     ...(isMobile ? styles.cardMobile : {}),
   }}
-  onClick={() =>
-    navigate(`/admin-detalle-clase?clase=${clase.id}`)
-  }
 >
                 <img
                   src={
@@ -648,7 +645,15 @@ listaClases.push({
                   }}
                 >
                   <p style={styles.linea}>
-  <strong>Estado:</strong> {clase.estado || "activa"}
+  <strong>Estado:</strong>{" "}
+  <span
+    style={{
+      ...styles.estadoEtiqueta,
+      ...(clase.activa ? styles.estadoActiva : styles.estadoOculta),
+    }}
+  >
+    {clase.activa ? "● Activa" : "● Oculta"}
+  </span>
 </p>
                   <p style={styles.linea}>
                     <strong>Reservas totales:</strong> {clase.reservasTotales}
@@ -710,6 +715,24 @@ listaClases.push({
                     {clase.dinamica ? "Editar ficha y fotos" : "Fotos y portada"}
                   </button>
 
+                  {(clase.dinamica || TALLERES_FIJOS[clase.id]?.ruta) && (
+                    <button
+                      style={styles.boton}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(
+                          clase.dinamica ? `/taller/${clase.id}` : TALLERES_FIJOS[clase.id].ruta
+                        );
+                      }}
+                    >
+                      Ver ficha pública
+                    </button>
+                  )}
+
+                  {/* Los talleres del panel se editan en admin-taller: precios, plazas y
+                      horarios solo se editan aquí en los que aún tienen su página a mano */}
+                  {!clase.dinamica && (
+                    <>
                                    {!editandoPrecios[clase.id] ? (
                     <button
                       style={{ ...styles.boton, }}
@@ -872,6 +895,8 @@ listaClases.push({
                       </div>
                     </div>
                   )}
+                    </>
+                  )}
                 </div>
                 </div>
               </div>
@@ -961,7 +986,6 @@ const styles = {
     borderRadius: 22,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-    cursor: "pointer",
     transition: "0.2s",
     display: "flex",
     alignItems: "flex-start",
@@ -1004,6 +1028,23 @@ const styles = {
     margin: "6px 0 0 0",
     color: "#7a7a7a",
     fontSize: "0.92rem",
+  },
+  estadoEtiqueta: {
+    display: "inline-block",
+    borderRadius: 999,
+    padding: "2px 10px",
+    fontSize: "0.85rem",
+    fontWeight: 700,
+  },
+  estadoActiva: {
+    backgroundColor: "#e3f4e6",
+    color: "#1f7a33",
+    border: "1px solid #9fd3aa",
+  },
+  estadoOculta: {
+    backgroundColor: "#fdecea",
+    color: "#b3261e",
+    border: "1px solid #e8a29b",
   },
   badge: {
     backgroundColor: "#fff8da",

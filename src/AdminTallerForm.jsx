@@ -116,6 +116,15 @@ async function comprobarDependencias(claseId, clase = {}) {
   return { reservasFuturas, tarjetasPendientes, bonosActivos };
 }
 
+const ICONOS_PESTANAS = {
+  datos: "📝",
+  pagina: "📄",
+  precios: "💶",
+  horario: "🗓️",
+  fotos: "📷",
+  visibilidad: "👁️",
+};
+
 export default function AdminTallerForm() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -675,7 +684,8 @@ export default function AdminTallerForm() {
         <form onSubmit={handleGuardar} className="space-y-5">
           <div
             role="tablist"
-            className="flex gap-1 overflow-x-auto border-b border-[#eadfbe] -mb-1"
+            aria-label="Secciones del taller"
+            className="sticky top-2 z-20 flex gap-1.5 overflow-x-auto rounded-2xl border border-[#eadfbe] bg-white/95 p-1.5 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {pestanas.map(([clave, texto]) => {
               const activa = pestana === clave;
@@ -688,17 +698,21 @@ export default function AdminTallerForm() {
                   role="tab"
                   aria-selected={activa}
                   onClick={() => setPestana(clave)}
-                  className={`relative whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-t-xl border border-b-0 ${
+                  className={`relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
                     activa
-                      ? "bg-white border-[#eadfbe] text-[#3d3126]"
-                      : "bg-[#f6efd9] border-transparent text-gray-600 hover:bg-[#fbf5e2]"
+                      ? "bg-[#F4C542] text-[#3d3126] shadow-sm"
+                      : "text-gray-500 hover:bg-[#fff6d6] hover:text-[#3d3126]"
                   }`}
                 >
+                  <span aria-hidden="true" className={activa ? "" : "grayscale opacity-70"}>
+                    {ICONOS_PESTANAS[clave]}
+                  </span>
                   {texto}
                   {conError && (
                     <span
+                      role="img"
                       aria-label="Hay un error en esta pestaña"
-                      className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-600"
+                      className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white"
                     />
                   )}
                 </button>
