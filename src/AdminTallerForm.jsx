@@ -653,6 +653,7 @@ export default function AdminTallerForm() {
         <BotonVolver volverA="/admin-clases-nuevo" />
 
         <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <h1 className="text-2xl md:text-3xl font-bold text-[#3d3126] font-serif">
             {esNuevo
               ? "Añadir taller nuevo"
@@ -660,16 +661,24 @@ export default function AdminTallerForm() {
               ? `Fotos y portada · ${claseOriginal?.nombre || TALLERES_FIJOS[idEditar]?.nombre || idEditar}`
               : `Editar ${esBono ? "bono" : "taller"} · ${form.nombre || idEditar}`}
           </h1>
+          {!esNuevo && rutaPublica && (
+            <a
+              href={rutaPublica}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-flex items-center justify-center gap-2 self-start rounded-full border-2 border-[#E5B92F] bg-transparent px-5 py-2.5 text-sm font-bold text-[#5c3c00] transition hover:bg-[#fff6d6]"
+            >
+              <span aria-hidden="true">🔗</span>
+              Ver página del taller
+              <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          </div>
           <p className="text-sm text-gray-600 mt-1">
             {esFijo
               ? "Este taller todavía tiene su página hecha a mano. Aquí puedes cambiar la foto de la portada y si aparece en ella."
               : "El taller tiene su propia página, se puede reservar y pagar online y sale en la portada y en su categoría."}
           </p>
-          {!esNuevo && rutaPublica && (
-            <Link to={rutaPublica} className="inline-block mt-2 text-sm text-blue-700 underline">
-              Ver la página del taller →
-            </Link>
-          )}
           {esFijo && (
             <p className="text-sm text-gray-700 mt-3 bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
               Para editar todo, ocultarlo o borrarlo como el resto, primero hay que{" "}
