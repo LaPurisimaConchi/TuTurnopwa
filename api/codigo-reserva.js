@@ -88,6 +88,17 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true, codigo: formatearCodigo(codigo) });
       }
 
+      // Tarjeta regalo comprada: el mismo código que lleva su correo de confirmación
+      const tarjeta = await adminDb.ref(`tarjetasRegalo/${orderId}`).get();
+      if (tarjeta.exists() && tarjeta.val()?.uidComprador === uid && tarjeta.val()?.estadoPago === "pagado") {
+        const codigo = await asegurarCodigo(adminDb, {
+          clave: orderId,
+          datos: { tipo: "tarjeta_regalo", orderId, uid },
+        });
+
+        return res.status(200).json({ ok: true, codigo: formatearCodigo(codigo) });
+      }
+
       return res.status(404).json({ ok: false, error: "Reserva no encontrada" });
     }
 

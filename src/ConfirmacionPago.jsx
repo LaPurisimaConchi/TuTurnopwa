@@ -173,6 +173,15 @@ const ConfirmacionPago = () => {
               ) : null}
             </div>
 
+            {tarjeta.orderId || tarjeta.id ? (
+              <CodigoReserva
+                tipo="pedido"
+                orderId={String(tarjeta.orderId || tarjeta.id)}
+                soloCodigo
+                className="my-4 text-left"
+              />
+            ) : null}
+
             <div style={styles.botones}>
               <button onClick={copiarCodigo} style={styles.botonPrincipal}>
                 Copiar código

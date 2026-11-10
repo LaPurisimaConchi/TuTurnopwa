@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { adminDb } from "./_firebaseAdmin.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
+import { enviarCorreoReserva } from "./_correoReserva.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -588,6 +589,13 @@ if (pedido?.tipo === "pago_grupo_individual") {
           plazas: tarjetaGuardada.plazas,
         });
 
+        await enviarCorreoReserva({
+          tipo: "tarjeta_regalo",
+          reserva: tarjetaGuardada,
+          uid: pedido.uid || "",
+          orderId: order,
+        });
+
         // Evita generar otro código si Redsys repite la notificación
         await ref.update({
           procesado: true,
@@ -618,6 +626,13 @@ if (pedido?.tipo === "pago_grupo_individual") {
           console.log("Primera sesión del bono:", {
             order,
             confirmada: !!primeraSesion,
+          });
+
+          await enviarCorreoReserva({
+            tipo: "bono",
+            reserva: bonoGuardado,
+            uid: pedido.uid || "",
+            orderId: order,
           });
 
           await ref.update({
@@ -669,6 +684,15 @@ if (!reservaActualizada) {
     tipoClase:
       reservaActualizada.tipoClase || pedido.tipoPieza || "",
     actualizadoEn: timestamp,
+  });
+}
+
+     if (reservaActualizada) {
+  // Correo de confirmación (una sola vez por pedido; si falla no afecta al pago)
+  await enviarCorreoReserva({
+    reserva: { ...reservaActualizada, clase: reservaActualizada.clase || pedido.clase || "" },
+    uid: reservaActualizada.uid || pedido.uid || "",
+    orderId: order,
   });
 }
 

@@ -9,7 +9,8 @@ import { pedirCodigoReserva } from "../utils/codigoReserva";
 const REINTENTOS = 5;
 const ESPERA_MS = 3000;
 
-export default function CodigoReserva({ tipo, grupoId, orderId, className = "" }) {
+// soloCodigo: sin la explicación de cambiar la fecha (tarjetas regalo, que no tienen fecha)
+export default function CodigoReserva({ tipo, grupoId, orderId, className = "", soloCodigo = false }) {
   const [codigo, setCodigo] = useState("");
   const [copiado, setCopiado] = useState(false);
 
@@ -64,6 +65,9 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "" }
           {copiado ? "¡Copiado!" : "Copiar"}
         </button>
       </div>
+      {soloCodigo ? (
+        <p className="mt-2">Es el mismo código que te hemos enviado por correo; guárdalo por si necesitas contactar con nosotros.</p>
+      ) : (
       <p className="mt-2">
         Guárdalo: con este código y tu email podrás{" "}
         <Link to="/gestionar-reserva" className="underline text-[#b36a4a]">
@@ -71,6 +75,7 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "" }
         </Link>{" "}
         sin iniciar sesión.
       </p>
+      )}
     </div>
   );
 }

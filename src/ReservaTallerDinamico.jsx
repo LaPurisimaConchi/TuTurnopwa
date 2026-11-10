@@ -11,6 +11,7 @@ import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { plazasOcupadasDeTaller, plazasOcupadasPorMetodo } from "./utils/disponibilidad";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
+import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
   esTurnoConsulta,
   estadoDiaTaller,
@@ -457,6 +458,8 @@ export function FormularioReserva({ claseId, clase }) {
             datosActualizacionTarjeta
           );
         }
+
+        pedirCorreoReserva(orderId);
 
         navigate("/pago/exito", {
           state: {
