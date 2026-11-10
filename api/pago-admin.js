@@ -2,6 +2,7 @@ import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { ADMIN_EMAILS } from "../src/utils/administradores.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
+import { enviarCorreoReserva } from "./_correoReserva.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -168,6 +169,12 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
   };
   if (pedido.uid) updates[`usuarios/${pedido.uid}/tarjetasRegalo/${orderId}`] = tarjeta;
   await adminDb.ref().update(updates);
+  await enviarCorreoReserva({
+    tipo: "tarjeta_regalo",
+    reserva: tarjeta,
+    uid: pedido.uid || "",
+    orderId,
+  });
 }
 
 async function confirmGroupReservation(orderId, pedido, paidAt) {
@@ -206,6 +213,11 @@ async function confirmGroupReservation(orderId, pedido, paidAt) {
     orderId,
     paidAt
   );
+  await enviarCorreoReserva({
+    reserva: confirmed,
+    uid: pedido.uid || confirmed.uid,
+    orderId,
+  });
 }
 
 async function confirmOrder(orderId, pedido) {
@@ -235,6 +247,12 @@ async function confirmOrder(orderId, pedido) {
 
     // La primera sesión del bono se reservó con la compra
     await confirmarPrimeraSesionBono({ orderId, uid: pedido.uid, paidAt });
+    await enviarCorreoReserva({
+      tipo: "bono",
+      reserva: { ...pedido.datosBono, precioTotal: pedido.precioTotal ?? pedido.datosBono.precioTotal },
+      uid: pedido.uid,
+      orderId,
+    });
   } else {
     const reservationSnapshot = await adminDb.ref("reservas").get();
     const match = findReservationUpdates(reservationSnapshot.val(), orderId);
@@ -270,6 +288,11 @@ async function confirmOrder(orderId, pedido) {
     }
 
     await saveReservationToProfile(confirmed, pedido.uid || confirmed.uid, orderId, paidAt);
+    await enviarCorreoReserva({
+      reserva: confirmed,
+      uid: pedido.uid || confirmed.uid,
+      orderId,
+    });
   }
 
   await adminDb.ref(`pedidosPendientes/${orderId}`).update({

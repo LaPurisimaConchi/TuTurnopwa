@@ -11,6 +11,7 @@ import { dbRealtime } from "./firebase";
 import { crearBonoActivo, datosPrimeraSesionBono, usarSesionDeBono } from "./utils/bonos";
 import { plazasOcupadasPorMetodo } from "./utils/disponibilidad";
 import { plazasLibres } from "./utils/plazasOcupadas";
+import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
   estadoDiaTaller,
   useContextoReserva,
@@ -319,6 +320,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             datosActualizacionTarjeta
           );
         }
+
+        pedirCorreoReserva(orderId);
 
         navigate("/pago/exito", {
           state: {
