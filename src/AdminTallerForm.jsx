@@ -6,7 +6,7 @@
 //   Se pueden ocultar, editar y borrar.
 // - Talleres de siempre sin migrar: solo fotos y visibilidad en portada.
 // Las fotos se guardan comprimidas en imagenesClases/{id}.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ref, get, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
@@ -117,7 +117,7 @@ async function comprobarDependencias(claseId, clase = {}) {
 
 export default function AdminTallerForm() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const idEditar = searchParams.get("id") || "";
 
   const [cargando, setCargando] = useState(!!idEditar);
@@ -127,6 +127,15 @@ export default function AdminTallerForm() {
   const [imagenesCambiadas, setImagenesCambiadas] = useState(false);
   const [procesandoImagenes, setProcesandoImagenes] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  // Pestaña donde está el último fallo de validación (se marca con un punto rojo)
+  const [pestanaError, setPestanaError] = useState("");
+  // Arrastre de fotos: clave de la foto que se arrastra y orden provisional
+  // (claves) que se va mostrando mientras se arrastra
+  const [fotoArrastrada, setFotoArrastrada] = useState(null);
+  const [ordenProvisional, setOrdenProvisional] = useState(null);
+  const elementosFotos = useRef({});
+  const rectsFotos = useRef({});
+  const ultimoCambioOrden = useRef(0);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [borrando, setBorrando] = useState(false);
@@ -142,6 +151,30 @@ export default function AdminTallerForm() {
   const esFijo = !!idEditar && !!claseOriginal && !claseOriginal.dinamica;
   const esNuevo = !idEditar;
   const esBono = form.tipoProducto === "bono";
+
+  // Pestañas de la página; la elegida se guarda en la dirección (?tab=horario)
+  const pestanas = [
+    ...(!esFijo
+      ? [
+          ["datos", "Datos"],
+          ["pagina", "Página"],
+          ["precios", esBono ? "Bono" : "Precio y plazas"],
+          ["horario", "Horario"],
+        ]
+      : []),
+    ["fotos", "Fotos"],
+    ["visibilidad", "Visibilidad"],
+  ];
+  const pestanaPedida = searchParams.get("tab");
+  const pestana = pestanas.some(([clave]) => clave === pestanaPedida)
+    ? pestanaPedida
+    : pestanas[0][0];
+  const setPestana = (clave) => {
+    const nuevos = new URLSearchParams(searchParams);
+    nuevos.set("tab", clave);
+    setSearchParams(nuevos, { replace: true });
+  };
+  const ocultaSi = (clave) => (pestana === clave ? "" : " hidden");
 
   const todasLasCategorias = categorias;
   // Los bonos van siempre en su categoría; el resto eligen entre las demás
@@ -322,29 +355,35 @@ export default function AdminTallerForm() {
   };
 
   const validar = () => {
+    const fallo = (pestana, texto) => {
+      setPestanaError(pestana);
+      setPestana(pestana);
+      return texto;
+    };
+    setPestanaError("");
     if (esFijo) return "";
-    if (!form.nombre.trim()) return "El nombre es obligatorio.";
-    if (!form.id) return "El identificador es obligatorio.";
+    if (!form.nombre.trim()) return fallo("datos", "El nombre es obligatorio.");
+    if (!form.id) return fallo("datos", "El identificador es obligatorio.");
 
     if (esBono) {
-      if (!numeroPositivo(form.precioUnico)) return "Indica el precio del bono.";
-      if (!numeroPositivo(form.bono.numeroClases)) return "Indica cuántas clases tiene el bono.";
+      if (!numeroPositivo(form.precioUnico)) return fallo("precios", "Indica el precio del bono.");
+      if (!numeroPositivo(form.bono.numeroClases)) return fallo("precios", "Indica cuántas clases tiene el bono.");
     } else if (form.modalidad === "metodos") {
       const marcados = METODOS_TALLER.filter((m) => form.metodos[m.id]);
-      if (!marcados.length) return "Elige al menos un método (torno, modelado…).";
+      if (!marcados.length) return fallo("precios", "Elige al menos un método (torno, modelado…).");
       const sinPrecio = marcados.find((m) => !numeroPositivo(form.precios[m.clavePrecio]));
-      if (sinPrecio) return `Indica el precio de «${sinPrecio.nombre}».`;
+      if (sinPrecio) return fallo("precios", `Indica el precio de «${sinPrecio.nombre}».`);
     } else if (form.modalidad === "variante") {
-      if (!form.variantes.length) return "Añade al menos una opción con precio.";
+      if (!form.variantes.length) return fallo("precios", "Añade al menos una opción con precio.");
       const incompleta = form.variantes.find(
         (v) => !v.nombre.trim() || !numeroPositivo(v.precio)
       );
-      if (incompleta) return "Cada opción necesita nombre y precio.";
+      if (incompleta) return fallo("precios", "Cada opción necesita nombre y precio.");
       if (!METODOS_TALLER.slice(0, 2).some((m) => form.metodos[m.id])) {
-        return "Elige si se hace con torno, a mano o ambos.";
+        return fallo("precios", "Elige si se hace con torno, a mano o ambos.");
       }
     } else if (!numeroPositivo(form.precioUnico)) {
-      return "Indica el precio del taller.";
+      return fallo("precios", "Indica el precio del taller.");
     }
 
     if (
@@ -352,17 +391,17 @@ export default function AdminTallerForm() {
       form.minPersonasGrupo !== "" &&
       (numeroPositivo(form.minPersonasGrupo) < 2 || numeroPositivo(form.minPersonasGrupo) > 45)
     ) {
-      return "El mínimo de personas para grupo debe estar entre 2 y 45.";
+      return fallo("precios", "El mínimo de personas para grupo debe estar entre 2 y 45.");
     }
 
     if (!esBono && !numeroPositivo(form.maxTotales)) {
-      return "Indica el máximo de plazas por turno.";
+      return fallo("precios", "Indica el máximo de plazas por turno.");
     }
     if (turnosInvalidos.length) {
-      return `Revisa los turnos (formato 17:30-20:30): ${turnosInvalidos.join(", ")}`;
+      return fallo("horario", `Revisa los turnos (formato 17:30-20:30): ${turnosInvalidos.join(", ")}`);
     }
     if (!DIAS.some(([dia]) => leerTurnos(form.horarios[dia]).length)) {
-      return "Añade al menos un día con turnos para que se pueda reservar.";
+      return fallo("horario", "Añade al menos un día con turnos para que se pueda reservar.");
     }
     return "";
   };
@@ -507,6 +546,69 @@ export default function AdminTallerForm() {
 
   const rutaPublica = esFijo ? TALLERES_FIJOS[idEditar]?.ruta : `/taller/${idEditar}`;
 
+  const imagenesMostradas = ordenProvisional
+    ? ordenProvisional.map((clave) => imagenes.find((img) => img.key === clave)).filter(Boolean)
+    : imagenes;
+  const firmaOrdenFotos = imagenesMostradas.map((img) => img.key).join("|");
+
+  // Las fotos se deslizan a su nuevo sitio (técnica FLIP: se mide dónde estaban y
+  // dónde quedan, y se anima la diferencia)
+  useLayoutEffect(() => {
+    const nuevos = {};
+    Object.entries(elementosFotos.current).forEach(([clave, el]) => {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      nuevos[clave] = rect;
+      const antes = rectsFotos.current[clave];
+      if (!antes) return;
+      const dx = antes.left - rect.left;
+      const dy = antes.top - rect.top;
+      if (!dx && !dy) return;
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.getBoundingClientRect(); // fuerza el cálculo antes de animar
+      el.style.transition = "transform 220ms ease";
+      el.style.transform = "";
+    });
+    rectsFotos.current = nuevos;
+  }, [firmaOrdenFotos]);
+
+  const terminarArrastreFotos = () => {
+    setFotoArrastrada(null);
+    setOrdenProvisional(null);
+  };
+
+  // Al soltar, el orden provisional pasa a ser el orden real de las fotos
+  const soltarFoto = () => {
+    if (ordenProvisional) {
+      const actual = imagenes.map((img) => img.key).join("|");
+      if (ordenProvisional.join("|") !== actual) {
+        setImagenes(
+          ordenProvisional.map((clave) => imagenes.find((img) => img.key === clave)).filter(Boolean)
+        );
+        setImagenesCambiadas(true);
+      }
+    }
+    terminarArrastreFotos();
+  };
+
+  // Mientras se arrastra, la foto se coloca donde está el cursor y las demás se apartan
+  const colocarFotoSobre = (claveDestino) => {
+    if (!fotoArrastrada || claveDestino === fotoArrastrada) return;
+    if (Date.now() - ultimoCambioOrden.current < 120) return;
+
+    const base = ordenProvisional || imagenes.map((img) => img.key);
+    const desde = base.indexOf(fotoArrastrada);
+    const hasta = base.indexOf(claveDestino);
+    if (desde < 0 || hasta < 0 || desde === hasta) return;
+
+    const copia = [...base];
+    copia.splice(desde, 1);
+    copia.splice(hasta, 0, fotoArrastrada);
+    ultimoCambioOrden.current = Date.now();
+    setOrdenProvisional(copia);
+  };
+
   if (cargando) {
     return <p className="text-center text-gray-500 py-16">Cargando taller...</p>;
   }
@@ -570,8 +672,41 @@ export default function AdminTallerForm() {
         </div>
 
         <form onSubmit={handleGuardar} className="space-y-5">
+          <div
+            role="tablist"
+            className="flex gap-1 overflow-x-auto border-b border-[#eadfbe] -mb-1"
+          >
+            {pestanas.map(([clave, texto]) => {
+              const activa = pestana === clave;
+              const conError =
+                pestanaError === clave || (clave === "horario" && turnosInvalidos.length > 0);
+              return (
+                <button
+                  key={clave}
+                  type="button"
+                  role="tab"
+                  aria-selected={activa}
+                  onClick={() => setPestana(clave)}
+                  className={`relative whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-t-xl border border-b-0 ${
+                    activa
+                      ? "bg-white border-[#eadfbe] text-[#3d3126]"
+                      : "bg-[#f6efd9] border-transparent text-gray-600 hover:bg-[#fbf5e2]"
+                  }`}
+                >
+                  {texto}
+                  {conError && (
+                    <span
+                      aria-label="Hay un error en esta pestaña"
+                      className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-600"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("datos")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">Datos del taller</h2>
 
               {esNuevo && (
@@ -597,7 +732,6 @@ export default function AdminTallerForm() {
                   value={form.nombre}
                   onChange={(e) => cambiarNombre(e.target.value)}
                   placeholder="Ej.: Crea tu set de café"
-                  required
                 />
               </div>
 
@@ -609,7 +743,6 @@ export default function AdminTallerForm() {
                   value={form.id}
                   onChange={(e) => cambiar("id", generarId(e.target.value))}
                   disabled={!esNuevo}
-                  required
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Se usa en la dirección (/taller/{form.id || "…"}) y en las reservas. No se puede cambiar después.
@@ -743,7 +876,7 @@ export default function AdminTallerForm() {
           )}
 
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("pagina")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">Secciones de la página</h2>
               <p className="text-sm text-gray-600">
                 Bloques de texto que salen bajo la descripción, en este orden:
@@ -860,7 +993,7 @@ export default function AdminTallerForm() {
           )}
 
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("precios")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">
                 {esBono ? "Precio y características del bono" : "Precio y plazas"}
               </h2>
@@ -1117,7 +1250,7 @@ export default function AdminTallerForm() {
           )}
 
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("horario")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">Horario semanal</h2>
               <p className="text-sm text-gray-600">
                 Escribe los turnos de cada día separados por comas, por ejemplo{" "}
@@ -1168,7 +1301,7 @@ export default function AdminTallerForm() {
             </section>
           )}
 
-          <section className={seccion}>
+          <section className={seccion + ocultaSi("fotos")}>
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-lg font-semibold text-[#3d3126]">Fotos</h2>
               <span className="text-xs text-gray-500">
@@ -1177,7 +1310,8 @@ export default function AdminTallerForm() {
             </div>
             <p className="text-sm text-gray-600">
               La primera foto es la principal: sale en la portada y en los
-              listados. Se reducen automáticamente para que carguen rápido.
+              listados. Arrastra las fotos para cambiar el orden (o usa las flechas).
+              Se reducen automáticamente para que carguen rápido.
             </p>
 
             {imagenes.length === 0 && (
@@ -1194,11 +1328,49 @@ export default function AdminTallerForm() {
             )}
 
             {imagenes.length > 0 && (
-              <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {imagenes.map((img, indice) => (
-                  <li key={img.key} className="rounded-xl border border-[#eadfbe] overflow-hidden bg-[#fffaf0]">
+              <ul
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                onDragOver={(e) => {
+                  if (fotoArrastrada) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  soltarFoto();
+                }}
+              >
+                {imagenesMostradas.map((img, indice) => (
+                  <li
+                    key={img.key}
+                    ref={(el) => {
+                      elementosFotos.current[img.key] = el;
+                    }}
+                    draggable
+                    onDragStart={(e) => {
+                      setFotoArrastrada(img.key);
+                      e.dataTransfer.effectAllowed = "move";
+                      // Firefox no arranca el arrastre sin datos
+                      e.dataTransfer.setData("text/plain", img.key);
+                    }}
+                    onDragOver={(e) => {
+                      if (!fotoArrastrada) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      colocarFotoSobre(img.key);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      soltarFoto();
+                    }}
+                    onDragEnd={terminarArrastreFotos}
+                    className={`rounded-xl border overflow-hidden cursor-grab active:cursor-grabbing ${
+                      fotoArrastrada === img.key
+                        ? "border-dashed border-[#b36a4a] bg-[#f3e3d9] opacity-50"
+                        : "border-[#eadfbe] bg-[#fffaf0]"
+                    }`}
+                  >
                     <div className="relative aspect-[4/3] bg-gray-100">
-                      <img src={img.src} alt={`Foto ${indice + 1}`} className="w-full h-full object-cover" />
+                      <img src={img.src} alt={`Foto ${indice + 1}`} draggable={false} className="w-full h-full object-cover select-none" />
                       {indice === 0 && (
                         <span className="absolute left-1 top-1 rounded-full bg-[#F4C542] px-2 py-0.5 text-[11px] font-bold text-[#5c3c00]">
                           Principal
@@ -1258,7 +1430,7 @@ export default function AdminTallerForm() {
             </label>
           </section>
 
-          <section className={seccion}>
+          <section className={seccion + ocultaSi("visibilidad")}>
             <h2 className="text-lg font-semibold text-[#3d3126]">Visibilidad</h2>
 
             {!esFijo && (
@@ -1352,14 +1524,14 @@ export default function AdminTallerForm() {
           <button
             type="submit"
             disabled={guardando || procesandoImagenes}
-            className="w-full px-6 py-3 rounded-full text-white font-semibold bg-[#b36a4a] hover:bg-[#9e5c3f] shadow-md disabled:opacity-50"
+            className="sticky bottom-3 z-10 w-full px-6 py-3 rounded-full text-white font-semibold bg-[#b36a4a] hover:bg-[#9e5c3f] shadow-lg disabled:opacity-50"
           >
             {guardando ? "Guardando..." : esNuevo ? "Crear taller" : "Guardar cambios"}
           </button>
         </form>
 
         {!esNuevo && !esFijo && (
-          <section className="mt-8 rounded-2xl border border-red-200 bg-white p-5 shadow-sm space-y-3">
+          <section className={"mt-8 rounded-2xl border border-red-200 bg-white p-5 shadow-sm space-y-3" + ocultaSi("visibilidad")}>
             <h2 className="text-lg font-semibold text-red-800">Borrar taller</h2>
             <p className="text-sm text-gray-700 leading-relaxed">
               Elimina la ficha, las fotos y las notas internas del taller. Solo se
