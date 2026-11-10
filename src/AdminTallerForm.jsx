@@ -11,6 +11,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ref, get, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import EditorTurnos from "./components/EditorTurnos";
 import {
   cargarCategorias,
   categoriasDeSiempre,
@@ -1253,25 +1254,43 @@ export default function AdminTallerForm() {
             <section className={seccion + ocultaSi("horario")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">Horario semanal</h2>
               <p className="text-sm text-gray-600">
-                Escribe los turnos de cada día separados por comas, por ejemplo{" "}
-                <code className="bg-gray-100 px-1 rounded">11:30-14:30, 17:30-20:30</code>.
-                Deja vacío el día que no haya taller. Las fechas bloqueadas y
-                habilitadas desde el panel también se aplican.
+                Elige los turnos de cada día con los atajos o con «Otra hora». Un día
+                sin turnos es un día sin taller. Las fechas bloqueadas y habilitadas
+                desde el panel también se aplican.
               </p>
 
               <div className="space-y-3">
                 {DIAS.map(([dia, nombreDia]) => (
-                  <div key={dia} className="grid grid-cols-[88px_1fr] items-center gap-3">
-                    <label htmlFor={`horario-${dia}`} className="text-sm font-semibold">
+                  <div
+                    key={dia}
+                    className="grid grid-cols-1 sm:grid-cols-[88px_1fr] items-start gap-1.5 sm:gap-3 py-2 border-b border-[#f3ead7] last:border-0"
+                  >
+                    <label htmlFor={`horario-${dia}`} className="text-sm font-semibold pt-1">
                       {nombreDia}
                     </label>
-                    <input
-                      id={`horario-${dia}`}
-                      className={input}
-                      value={form.horarios[dia]}
-                      onChange={(e) => cambiarHorario(dia, e.target.value)}
-                      placeholder="Sin taller"
-                    />
+                    <div className="space-y-1">
+                      <EditorTurnos
+                        id={`horario-${dia}`}
+                        value={form.horarios[dia]}
+                        onChange={(valor) => cambiarHorario(dia, valor)}
+                      />
+                      {leerTurnos(form.horarios[dia]).length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              horarios: Object.fromEntries(
+                                DIAS.map(([d]) => [d, prev.horarios[dia]])
+                              ),
+                            }))
+                          }
+                          className="text-xs text-[#b36a4a] underline"
+                        >
+                          Copiar este horario a todos los días
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1280,16 +1299,15 @@ export default function AdminTallerForm() {
                 <label htmlFor="taller-turnos" className={label}>
                   Turnos para fechas especiales (opcional)
                 </label>
-                <input
+                <EditorTurnos
                   id="taller-turnos"
-                  className={input}
+                  textoVacio="Los del horario semanal"
                   value={form.turnos}
-                  onChange={(e) => cambiar("turnos", e.target.value)}
-                  placeholder="Si se deja vacío: los turnos del horario semanal"
+                  onChange={(valor) => cambiar("turnos", valor)}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Son los turnos que se abren cuando habilitas una fecha fuera del
-                  horario habitual.
+                  horario habitual. Sin ninguno, se usan los del horario semanal.
                 </p>
               </div>
 
