@@ -8,6 +8,7 @@ import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const CLASE_ID = "especialpintatupieza";
 const RESERVAS_PATH_KEY = "EspecialPintaTuPieza";
 
@@ -283,7 +284,7 @@ export default function ReservaEspecialPintaTuPieza() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );

@@ -1,6 +1,7 @@
 // src/utils/fichaTaller.js
 // Conversión entre la ficha de un taller en Firebase (clases/{id}) y el
 // formulario del panel admin. Son funciones puras, sin acceso a la base de datos.
+import { edicionesDeClase } from "./monografico";
 import {
   GRUPOS_TALLER,
   METODOS_TALLER,
@@ -56,6 +57,10 @@ export const FORMULARIO_VACIO = {
   regalable: true,
   requiereCuenta: false,
   orden: "",
+  // Monográfico: solo en fechas concretas, agrupadas en ediciones
+  monografico: false,
+  sesionesCurso: "1",
+  ediciones: [],
 };
 
 // "Taller de Esmaltes" → "tallerdeesmaltes" (mismo estilo que los ids actuales)
@@ -192,6 +197,12 @@ export function formularioDesdeClase(id, clase = {}) {
     regalable: clase.regalable !== false,
     requiereCuenta: exigeCuenta(clase),
     orden: clase.orden != null ? String(clase.orden) : "",
+    monografico: clase.monografico === true,
+    sesionesCurso: String(clase.sesionesCurso || 1),
+    ediciones: edicionesDeClase(clase).map((edicion) => ({
+      id: edicion.id,
+      fechas: edicion.fechas.map((f) => ({ fecha: f.fecha, turno: f.turno, torno: !!f.torno })),
+    })),
   };
 }
 
@@ -272,6 +283,21 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
     regalable: !!form.regalable,
     requiereCuenta: esBono || !!form.requiereCuenta,
     orden: form.orden === "" ? 999 : Number(form.orden),
+    ...(!esBono && form.monografico
+      ? {
+          monografico: true,
+          sesionesCurso: Math.max(1, Math.round(numeroPositivo(form.sesionesCurso) || 1)),
+          ediciones: form.ediciones
+            .map((edicion, indice) => ({
+              id: edicion.id || `ed${indice + 1}`,
+              fechas: edicion.fechas
+                .filter((f) => f.fecha)
+                .map((f) => ({ fecha: f.fecha, turno: normalizarTurno(f.turno || ""), torno: !!f.torno }))
+                .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.turno.localeCompare(b.turno)),
+            }))
+            .filter((edicion) => edicion.fechas.length),
+        }
+      : { monografico: null, sesionesCurso: null, ediciones: null }),
     ...(esBono
       ? {
           numeroClases: Math.round(numeroPositivo(form.bono.numeroClases)),
@@ -293,14 +319,6 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
           minPersonasGrupo: numeroPositivo(form.minPersonasGrupo)
             ? Math.round(numeroPositivo(form.minPersonasGrupo))
             : null,
-          plazas: {
-            maxTotales: Math.round(numeroPositivo(form.maxTotales)),
-            ...((conMetodos || conVariantes) &&
-            form.metodos.torno &&
-            numeroPositivo(form.maxTorno)
-              ? { maxTorno: Math.round(numeroPositivo(form.maxTorno)) }
-              : {}),
-          },
         }),
   };
   }

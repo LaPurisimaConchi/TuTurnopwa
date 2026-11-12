@@ -3,6 +3,7 @@
 // se marca según `estadoDia(fecha)`:
 //   "disponible" → se puede elegir
 //   "bloqueado"  → cerrado desde el panel (con su motivo)
+//   "solo-grupo" → solo con un mínimo de personas (`minimo`); se puede elegir
 //   "sin-taller" → ese día no se imparte
 // Los días pasados y los que quedan fuera del rango no se pueden elegir.
 import { useMemo, useState } from "react";
@@ -29,6 +30,8 @@ const ESTILOS = {
   disponible:
     "bg-[#fff6d6] border border-[#F4C542] text-[#5c3c00] font-semibold hover:bg-[#F6D66A] cursor-pointer",
   bloqueado: "bg-red-50 border border-red-200 text-red-400 line-through cursor-not-allowed",
+  "solo-grupo":
+    "bg-sky-50 border border-sky-300 text-sky-800 font-semibold hover:bg-sky-100 cursor-pointer",
   "sin-taller": "bg-gray-50 text-gray-300 cursor-not-allowed",
   fuera: "text-gray-300 cursor-not-allowed",
 };
@@ -62,6 +65,8 @@ export default function CalendarioReserva({
   const huecosIniciales = (new Date(anio, mes, 1).getDay() + 6) % 7;
   const diasDelMes = new Date(anio, mes + 1, 0).getDate();
 
+  // Mínimo de personas de los días de grupo (para la leyenda); 0 si no hay ninguno
+  let hayGrupo = 0;
   const celdas = [];
   for (let i = 0; i < huecosIniciales; i += 1) celdas.push(null);
   for (let dia = 1; dia <= diasDelMes; dia += 1) celdas.push(dia);
@@ -104,9 +109,10 @@ export default function CalendarioReserva({
 
           const iso = aISO(anio, mes, dia);
           const fuera = iso < hoy || iso > limite;
-          const { estado = "disponible", motivo = "" } = fuera ? {} : estadoDia(iso);
+          const { estado = "disponible", motivo = "", minimo = 0 } = fuera ? {} : estadoDia(iso);
+          if (estado === "solo-grupo" && minimo) hayGrupo = minimo;
           const seleccionado = iso === value;
-          const elegible = !fuera && estado === "disponible";
+          const elegible = !fuera && (estado === "disponible" || estado === "solo-grupo");
 
           const clases = seleccionado
             ? "bg-[#F4C542] border border-[#E5B92F] text-[#5c3c00] font-bold ring-2 ring-[#E5B92F]"
@@ -116,6 +122,8 @@ export default function CalendarioReserva({
             ? ""
             : estado === "bloqueado"
             ? `No disponible${motivo ? `: ${motivo}` : ""}`
+            : estado === "solo-grupo"
+            ? `Reserva mínima ${minimo} personas`
             : estado === "sin-taller"
             ? "No se imparte este día"
             : "Disponible";
@@ -141,6 +149,12 @@ export default function CalendarioReserva({
         <li className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-[#fff6d6] border border-[#F4C542]" /> Disponible
         </li>
+        {hayGrupo > 0 && (
+          <li className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-sky-50 border border-sky-300" /> Reserva mínima{" "}
+            {hayGrupo} personas
+          </li>
+        )}
         <li className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-[#F4C542] border border-[#E5B92F]" /> Elegido
         </li>

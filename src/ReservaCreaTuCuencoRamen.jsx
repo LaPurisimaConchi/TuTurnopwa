@@ -9,6 +9,7 @@ import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const CLASE_ID = "creatucuencoramen";
 const RESERVAS_PATH_KEY = "CreaTuCuencoRamen";
 
@@ -362,7 +363,7 @@ export default function ReservaCreaTuCuencoRamen() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );

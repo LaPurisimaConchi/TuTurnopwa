@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminDetalleTarjetaRegaloNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -234,7 +235,7 @@ useEffect(() => {
             </span>
           </p>
           <p><strong>Código:</strong> {tarjeta.codigo || "—"}</p>
-          <p><strong>Fecha compra:</strong> {tarjeta.fecha}</p>
+          <p><strong>Fecha compra:</strong> {fechaDMA(tarjeta.fecha)}</p>
           <p><strong>Estado canje:</strong> {tarjeta.estado}</p>
           <p><strong>Estado pago:</strong> {tarjeta.estadoPago}</p>
 

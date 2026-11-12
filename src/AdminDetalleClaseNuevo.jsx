@@ -6,6 +6,7 @@ import BotonVolver from "./BotonVolver";
 import { TALLERES_FIJOS } from "./catalogoTalleres";
 import useCategorias from "./components/useCategorias";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminDetalleClaseNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -402,6 +403,25 @@ useEffect(() => {
 
         <h1 style={styles.titulo}>Detalle de clase</h1>
 
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/admin-taller?id=${clase.id}`)}
+            style={styles.botonGuardar}
+          >
+            {clase.dinamica ? "Editar taller" : "Fotos y portada"}
+          </button>
+          {!clase.dinamica && (
+            <button
+              type="button"
+              onClick={() => navigate("/admin-migrar-talleres")}
+              style={styles.botonGuardar}
+            >
+              Migrar al panel
+            </button>
+          )}
+        </div>
+
         <div style={styles.card}>
           <p><strong>Nombre:</strong> {clase.nombre}</p>
           <p><strong>ID:</strong> {clase.id}</p>
@@ -443,22 +463,7 @@ useEffect(() => {
           <p><strong>Nota importante:</strong> {clase.notaImportante || "—"}</p>
         </div>
 
-        {clase.dinamica ? (
-          <div style={styles.bloque}>
-            <h2 style={styles.subtitulo}>Editar este taller</h2>
-            <p style={{ margin: "0 0 14px 0", color: "#5f5247", lineHeight: 1.5 }}>
-              Se edita con el mismo formulario que al crearlo: categoría, fotos, textos,
-              secciones, precios, días y turnos, plazas y visibilidad.
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate(`/admin-taller?id=${clase.id}`)}
-              style={styles.botonGuardar}
-            >
-              Editar taller
-            </button>
-          </div>
-        ) : (
+        {!clase.dinamica && (
         <div style={styles.bloque}>
           <h2 style={styles.subtitulo}>Editar información de la clase</h2>
 
@@ -467,23 +472,6 @@ useEffect(() => {
             aquí y sus fotos se editan en «Fotos y portada». Migrándolo al panel se edita con
             el mismo formulario que un taller nuevo (categoría, fotos, textos, precios y más).
           </p>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-            <button
-              type="button"
-              onClick={() => navigate(`/admin-taller?id=${clase.id}`)}
-              style={styles.botonGuardar}
-            >
-              Fotos y portada
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate("/admin-migrar-talleres")}
-              style={styles.botonGuardar}
-            >
-              Migrar al panel
-            </button>
-          </div>
 
           <div style={styles.formGrid}>
             <div style={styles.campo}>
@@ -657,7 +645,7 @@ Acompañamiento en el taller`}
                     }}
                   >
                     <p style={styles.linea}>
-                      <strong>Fecha:</strong> {r.fecha}
+                      <strong>Fecha:</strong> {fechaDMA(r.fecha)}
                     </p>
                     <p style={styles.linea}>
                       <strong>Turno:</strong> {r.turno}

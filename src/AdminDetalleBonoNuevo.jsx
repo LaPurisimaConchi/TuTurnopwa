@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -576,7 +577,7 @@ useEffect(() => {
                     </div>
                   ) : (
                     <span style={styles.valorGrande}>
-                      {bono.fechaCaducidadBono || "—"}
+                      {fechaDMA(bono.fechaCaducidadBono) || "—"}
                     </span>
                   )}
                 </div>

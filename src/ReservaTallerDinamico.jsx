@@ -9,7 +9,9 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { plazasOcupadasDeTaller, plazasOcupadasPorMetodo } from "./utils/disponibilidad";
+import { cargarFranja, cargarOcupacion } from "./utils/disponibilidad";
+import { plazasLibresFranja } from "./utils/aforo";
+import { reservarEnServidor } from "./utils/reservaServidor";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
@@ -19,9 +21,9 @@ import {
   useDiaDeReserva,
 } from "./utils/turnosTaller";
 import {
-  estadoTaller,
+  estadoPublico,
   metodosDelTaller,
-  minPersonasGrupo,
+  minPersonasHabilitar,
   variantesDelTaller,
 } from "./catalogoTalleres";
 import BloqueoReserva from "./BloqueoReserva";
@@ -31,9 +33,11 @@ import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
+import ReservaMonografico from "./ReservaMonografico";
+import { esMonografico } from "./utils/monografico";
 
-const MAX_TORNO_FALLBACK = 12;
-const MAX_TOTALES_FALLBACK = 45;
+import { fechaDMA } from "./utils/formatoFecha";
+import { useConfigEspacio } from "./configuracionEspacio";
 
 const sumar28Dias = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
@@ -77,7 +81,7 @@ export default function ReservaTallerDinamico() {
     );
   }
 
-  if (!clase || estadoTaller(clase) !== "activa") {
+  if (!clase || estadoPublico(clase) !== "activa") {
     return (
       <PantallaReserva>
         <p className="text-center text-red-600 py-8">
@@ -86,6 +90,8 @@ export default function ReservaTallerDinamico() {
       </PantallaReserva>
     );
   }
+
+  if (esMonografico(clase)) return <ReservaMonografico claseId={claseId} clase={clase} />;
 
   return clase.tipoProducto === "bono" ? (
     <ReservaBonoDinamico claseId={claseId} clase={clase} />
@@ -96,6 +102,7 @@ export default function ReservaTallerDinamico() {
 
 export function FormularioReserva({ claseId, clase }) {
   const navigate = useNavigate();
+  const { config: configEspacio } = useConfigEspacio();
   const location = useLocation();
   const {
     fechasBloqueadas,
@@ -105,15 +112,15 @@ export function FormularioReserva({ claseId, clase }) {
     cargado: contextoCargado,
   } = useContextoReserva();
 
+  const [ocupacion, setOcupacion] = useState({});
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
   const [metodo, setMetodo] = useState("");
   const [varianteId, setVarianteId] = useState("");
   const [plazas, setPlazas] = useState(1);
 
-  const [ocupadasTorno, setOcupadasTorno] = useState(0);
-  const [ocupadasModelado, setOcupadasModelado] = useState(0);
-  const [ocupadasTaller, setOcupadasTaller] = useState(0);
+  // Plazas de la franja (fecha + turno) en todos los talleres y los grupos
+  const [franja, setFranja] = useState({ total: 0, torno: 0 });
   const [user, setUser] = useState(null);
   const [guardando, setGuardando] = useState(false);
   // Sin plazas contadas no se sabe si queda sitio: no se deja reservar
@@ -144,6 +151,19 @@ export function FormularioReserva({ claseId, clase }) {
     const unsubscribe = onAuthStateChanged(getAuth(), setUser);
     return () => unsubscribe();
   }, []);
+
+  // Fechas y turnos con reservas: un día de grupo con alguna reserva se abre a todos
+  useEffect(() => {
+    let cancelado = false;
+    cargarOcupacion(conMetodo ? "" : rutaReservas)
+      .then((datos) => {
+        if (!cancelado) setOcupacion(datos);
+      })
+      .catch((error) => console.error("Error al cargar las reservas existentes:", error));
+    return () => {
+      cancelado = true;
+    };
+  }, [conMetodo, rutaReservas]);
 
   // Tarjeta regalo de una variante concreta (tipo de pieza, tamaño…) o de un
   // método concreto (torno y modelado con distinto precio)
@@ -197,9 +217,7 @@ export function FormularioReserva({ claseId, clase }) {
 
   useEffect(() => {
     if (!fecha || !turno) {
-      setOcupadasTorno(0);
-      setOcupadasModelado(0);
-      setOcupadasTaller(0);
+      setFranja({ total: 0, torno: 0 });
       setErrorPlazas(false);
       setPlazasListas(false);
       return;
@@ -208,19 +226,10 @@ export function FormularioReserva({ claseId, clase }) {
     let cancelado = false;
     setPlazasListas(false);
 
-    const lectura = conMetodo
-      ? plazasOcupadasPorMetodo(fecha, turno).then(({ torno, modelado }) => {
-          if (cancelado) return;
-          setOcupadasTorno(torno);
-          setOcupadasModelado(modelado);
-        })
-      : plazasOcupadasDeTaller(rutaReservas, fecha, turno).then((ocupadas) => {
-          if (!cancelado) setOcupadasTaller(ocupadas);
-        });
-
-    lectura
-      .then(() => {
+    cargarFranja(fecha, turno)
+      .then((datos) => {
         if (cancelado) return;
+        setFranja(datos);
         setErrorPlazas(false);
         setPlazasListas(true);
       })
@@ -232,10 +241,25 @@ export function FormularioReserva({ claseId, clase }) {
     return () => {
       cancelado = true;
     };
-  }, [fecha, turno, conMetodo, rutaReservas]);
+  }, [fecha, turno]);
 
-  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
-    useDiaDeReserva({ clase, fecha, fechasBloqueadas, fechasHabilitadas, reservasGrupos });
+  const {
+    turnosDisponibles,
+    fechaHabilitadaManual,
+    fechaBloqueada,
+    diaNoDisponible,
+    diaSoloGrupo,
+    turnosAbiertos,
+  } =
+    useDiaDeReserva({
+      clase,
+      fecha,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      reservasGrupos,
+      conGrupo: true,
+      ocupacion,
+    });
 
   const turnoConsulta = esTurnoConsulta(turnosDisponibles);
 
@@ -248,26 +272,20 @@ export function FormularioReserva({ claseId, clase }) {
     }
   }, [turnoConsulta, turnosDisponibles, turno]);
 
-  const maxTorno = Number(clase.plazas?.maxTorno || MAX_TORNO_FALLBACK);
-  const maxTotales = Number(clase.plazas?.maxTotales || MAX_TOTALES_FALLBACK);
-
-  // Plazas que quedan en el turno para un método: el torno tiene su propio tope
-  // y todos comparten el total
-  const disponiblesDe = (idMetodo) => {
-    const totalesOcupadas = ocupadasTorno + ocupadasModelado;
-
-    if (idMetodo === "torno") {
-      return Math.max(Math.min(maxTorno - ocupadasTorno, maxTotales - totalesOcupadas), 0);
-    }
-
-    return Math.max(maxTotales - totalesOcupadas, 0);
+  // Plazas que quedan en la franja: el aforo total es común a todos los talleres
+  // y las plazas de torno tienen su propio tope
+  const limitesEspacio = {
+    aforoTotal: franja.aforoTotal ?? configEspacio.aforoTotal,
+    maxTorno: franja.maxTorno ?? configEspacio.maxTorno,
   };
+  const disponiblesDe = (conTorno) =>
+    plazasLibresFranja(franja, limitesEspacio, { conTorno }).reservables;
 
-  const plazasDisponibles = !conMetodo
-    ? Math.max(maxTotales - ocupadasTaller, 0)
-    : metodo
-    ? disponiblesDe(metodo)
-    : 0;
+  const plazasDisponibles = conMetodo
+    ? metodo
+      ? disponiblesDe(metodo === "torno")
+      : 0
+    : disponiblesDe(false);
 
   const variante = variantes.find((v) => v.id === varianteId) || null;
   const metodoElegido = metodos.find((m) => m.id === metodo) || null;
@@ -289,7 +307,7 @@ export function FormularioReserva({ claseId, clase }) {
   };
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos, conGrupo: true, ocupacion });
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
@@ -332,7 +350,7 @@ export function FormularioReserva({ claseId, clase }) {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -395,8 +413,8 @@ export function FormularioReserva({ claseId, clase }) {
         precio: precioTotal,
         precioUnitario,
         precioTotal,
-        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estado: "Pendiente",
+        estadoPago: "pendiente",
         orderId,
         timestamp,
         ...(sesiones > 1
@@ -416,12 +434,31 @@ export function FormularioReserva({ claseId, clase }) {
         ? `reservas/${rutaReservas}/${fecha}/${turno}/${metodo}`
         : `reservas/${rutaReservas}/${fecha}/${turno}`;
 
-      const nuevaReservaRef = push(ref(dbRealtime, carpeta));
-      await update(nuevaReservaRef, { uid: usuario.uid, ...reserva });
+      // El servidor comprueba el aforo y reserva la plaza mientras se paga. En
+      // desarrollo, si la función aún no está desplegada, se escribe directamente.
+      let nuevaReservaRef;
+      try {
+        const { reservas: creadas } = await reservarEnServidor(claseId, [
+          { fecha, turno, metodo: reserva.metodo, plazas: plazasNum, reserva },
+        ]);
+        nuevaReservaRef = ref(dbRealtime, creadas[0].ruta);
+      } catch (errorServidor) {
+        if (!errorServidor.sinServidor) throw errorServidor;
+        console.warn("Sin función de reserva en el servidor: se escribe directamente (solo desarrollo).");
+        nuevaReservaRef = push(ref(dbRealtime, carpeta));
+        await update(nuevaReservaRef, { uid: usuario.uid, ...reserva });
+      }
+
+      // Con tarjeta regalo la reserva se confirma al momento
+      if (desdeTarjeta) {
+        await update(nuevaReservaRef, { estado: "Confirmada", estadoPago: "pagado" });
+      }
 
       if (desdeTarjeta) {
         await push(ref(dbRealtime, `usuarios/${usuario.uid}/listaReservas`), {
           ...reserva,
+          estado: "Confirmada",
+          estadoPago: "pagado",
           uid: usuario.uid,
           tarjetaRegaloId,
           codigoTarjeta,
@@ -501,6 +538,18 @@ export function FormularioReserva({ claseId, clase }) {
       });
     } catch (err) {
       console.error("Error al guardar la reserva:", err);
+
+      // El servidor rechaza la reserva con un motivo claro (franja llena, día cerrado…)
+      if (err?.codigo) {
+        alert(
+          err.codigo === "franja_llena" || err.codigo === "torno_lleno"
+            ? "Esa franja se acaba de llenar. Elige otro turno u otro día."
+            : err.message
+        );
+        cargarFranja(fecha, turno).then(setFranja).catch(() => {});
+        return;
+      }
+
       const detalle = err?.code || String(err?.message || "").split(":")[0].trim();
       alert(`No se pudo guardar la reserva${detalle ? ` (${detalle})` : ""}.`);
     } finally {
@@ -508,8 +557,12 @@ export function FormularioReserva({ claseId, clase }) {
     }
   };
 
-  // Con tantas plazas como el mínimo de grupo, se sugiere reservar como grupo
-  const minGrupo = minPersonasGrupo(clase);
+  // Un día de solo grupo pide el mínimo de personas del taller (habilitar un día);
+  // con el mínimo global de grupo se sugiere reservar como grupo
+  const minHabilitar = minPersonasHabilitar(clase);
+  const minGrupo = configEspacio.minPersonasGrupo;
+  const faltanPersonasGrupo =
+    diaSoloGrupo && !turnosAbiertos.includes(turno) && plazasNum < minHabilitar;
   const mostrarSugerencia = !desdeTarjeta && plazasNum >= minGrupo;
   const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
   if (conVariante && varianteId) parametrosGrupo.set("variante", varianteId);
@@ -529,7 +582,7 @@ export function FormularioReserva({ claseId, clase }) {
     conMetodo && metodo
       ? metodos
           .filter((m) => m.id !== metodo)
-          .map((m) => ({ nombre: m.nombre, quedan: disponiblesDe(m.id) }))
+          .map((m) => ({ nombre: m.nombre, quedan: disponiblesDe(m.id === "torno") }))
           .filter((m) => m.quedan > 0)
       : [];
 
@@ -801,12 +854,20 @@ export function FormularioReserva({ claseId, clase }) {
             </p>
           </div>
 
+          {faltanPersonasGrupo && (
+            <p className="text-sm text-red-600 font-medium">
+              Este día es solo para grupos: hace falta un mínimo de {minHabilitar} personas
+              para reservar (ahora tienes {plazasNum}). Sube las plazas o elige otro día.
+            </p>
+          )}
+
           <BotonConfirmarReserva
             guardando={guardando}
             desdeTarjeta={desdeTarjeta}
             deshabilitado={
               errorContexto ||
               errorPlazas ||
+              faltanPersonasGrupo ||
               (!!turno && !plazasListas) ||
               !!fechaBloqueada ||
               diaNoDisponible ||

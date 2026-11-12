@@ -6,6 +6,7 @@ import { dbRealtime } from "./firebase";
 import { esAdministrador } from "./utils/administradores";
 import { simularPagoAdmin } from "./utils/pagoAdmin";
 
+import { fechaDMA } from "./utils/formatoFecha";
 export default function ResumenPagoTheClub() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ export default function ResumenPagoTheClub() {
 
         <div className="text-gray-800 text-base space-y-2 mb-6">
           <p><strong>Clase:</strong> {datos.clase || "-"}</p>
-          <p><strong>Fecha:</strong> {datos.fecha || "-"}</p>
+          <p><strong>Fecha:</strong> {fechaDMA(datos.fecha) || "-"}</p>
           <p><strong>Turno:</strong> {datos.turno || "-"}</p>
           <p><strong>Plazas:</strong> {plazas}</p>
 

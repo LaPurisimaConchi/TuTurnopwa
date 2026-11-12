@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import PanelFechasEspeciales, { fechasDelRango } from "./components/PanelFechasEspeciales";
+import { bloqueoEsParcial } from "./utils/rangosHora";
 import { useNavigate } from "react-router-dom";
 
 
@@ -28,6 +30,93 @@ const AdminCalendarioReservasNuevo = () => {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(() => {
     return obtenerFechaLocalISO(new Date());
   });
+
+  // Días bloqueados y habilitados a mano, y selección de varios días seguidos
+  const [bloqueos, setBloqueos] = useState({});
+  const [habilitadas, setHabilitadas] = useState({});
+  const [modoRango, setModoRango] = useState(false);
+  const [dialogoAbierto, setDialogoAbierto] = useState(false);
+  // El diálogo se mantiene montado mientras dura el fundido de salida
+  const [dialogoMontado, setDialogoMontado] = useState(false);
+  const [dialogoVisible, setDialogoVisible] = useState(false);
+  const [rangoInicio, setRangoInicio] = useState("");
+  const [rangoFin, setRangoFin] = useState("");
+
+  const cargarFechasEspeciales = async () => {
+    try {
+      const [bloqueosSnap, habilitadasSnap] = await Promise.all([
+        get(ref(dbRealtime, "bloqueosFechas")),
+        get(ref(dbRealtime, "fechasHabilitadas")),
+      ]);
+      setBloqueos(bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {});
+      setHabilitadas(habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {});
+    } catch (error) {
+      console.error("Error al cargar bloqueos y fechas habilitadas:", error);
+    }
+  };
+
+  useEffect(() => {
+    cargarFechasEspeciales();
+  }, []);
+
+  // Con "varios días", el primer clic marca el inicio y el segundo el final
+  const elegirDia = (fechaISO) => {
+    setFechaSeleccionada(fechaISO);
+
+    if (!modoRango) {
+      // Un día con reservas abre el diálogo con sus detalles
+      if (resumenPorFecha[fechaISO]?.totalReservas > 0) setDialogoAbierto(true);
+      return;
+    }
+
+    if (!rangoInicio || rangoFin) {
+      setRangoInicio(fechaISO);
+      setRangoFin("");
+    } else if (fechaISO < rangoInicio) {
+      setRangoFin(rangoInicio);
+      setRangoInicio(fechaISO);
+    } else {
+      setRangoFin(fechaISO);
+    }
+  };
+
+  useEffect(() => {
+    if (dialogoAbierto) {
+      setDialogoMontado(true);
+      const id = requestAnimationFrame(() =>
+        requestAnimationFrame(() => setDialogoVisible(true))
+      );
+      return () => cancelAnimationFrame(id);
+    }
+
+    setDialogoVisible(false);
+    const id = setTimeout(() => setDialogoMontado(false), 220);
+    return () => clearTimeout(id);
+  }, [dialogoAbierto]);
+
+  useEffect(() => {
+    if (!dialogoAbierto) return undefined;
+    const cerrarConEscape = (e) => {
+      if (e.key === "Escape") setDialogoAbierto(false);
+    };
+    window.addEventListener("keydown", cerrarConEscape);
+    return () => window.removeEventListener("keydown", cerrarConEscape);
+  }, [dialogoAbierto]);
+
+  const alternarModoRango = () => {
+    setModoRango((v) => !v);
+    setRangoInicio("");
+    setRangoFin("");
+  };
+
+  // Días sobre los que actúa el panel: el rango elegido o el día seleccionado
+  const hayRango = modoRango && !!rangoInicio;
+  const panelInicio = hayRango ? rangoInicio : fechaSeleccionada;
+  const panelFin = hayRango ? rangoFin || rangoInicio : fechaSeleccionada;
+  const diasEnRango = useMemo(
+    () => new Set(hayRango ? fechasDelRango(panelInicio, panelFin) : []),
+    [hayRango, panelInicio, panelFin]
+  );
 
   useEffect(() => {
     const onResize = () => {
@@ -92,6 +181,7 @@ if (!fechaFinal) return;
 const datosUsuario = usuariosMap[reserva.uid] || {};
 
 datos.push({
+  orderId: reserva.orderId || "",
   id:
     reserva.orderId ||
     reserva.id ||
@@ -444,6 +534,18 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
       };
     }
 
+    if (bloqueoEsParcial(bloqueos[celda.fechaISO])) {
+      estilo = { ...estilo, background: "#fff3e0", borderColor: "#e0b36a" };
+    } else if (bloqueos[celda.fechaISO]?.bloqueado) {
+      estilo = { ...estilo, background: "#fdecea", borderColor: "#e8a29b" };
+    } else if (habilitadas[celda.fechaISO]?.habilitada) {
+      estilo = { ...estilo, background: "#e8f5e9", borderColor: "#8fc796" };
+    }
+
+    if (diasEnRango.has(celda.fechaISO)) {
+      estilo = { ...estilo, boxShadow: "inset 0 0 0 2px #5c3c00" };
+    }
+
     if (hoy) {
       estilo = {
         ...estilo,
@@ -459,6 +561,17 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     }
 
     return estilo;
+  };
+
+  // Enlaces de cada reserva: su ficha (o la lista de grupos del día) y WhatsApp
+  const rutaDetalleReserva = (r) => {
+    if (r.esGrupo) return `/admin-reservas-grupos?fecha=${r.fecha}`;
+    return r.orderId ? `/admin-detalle-reserva?id=${r.orderId}` : `/admin-reservas-nuevo?fecha=${r.fecha}`;
+  };
+
+  const urlWhatsApp = (telefono) => {
+    const digitos = String(telefono || "").replace(/\D/g, "");
+    return digitos ? `https://wa.me/34${digitos}` : "";
   };
 
   const irAReservasDelDia = () => {
@@ -527,6 +640,29 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
           </button>
         </div>
 
+        <div style={{ margin: "0 0 12px", display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={alternarModoRango}
+            style={{
+              ...styles.botonHoy,
+              ...(modoRango ? { backgroundColor: "#5c3c00", color: "#fff" } : {}),
+            }}
+          >
+            {modoRango ? "Varios días: activado" : "Seleccionar varios días"}
+          </button>
+          {modoRango && (
+            <span style={{ fontSize: 13, color: "#5c3c00" }}>
+              {!rangoInicio
+                ? "Pulsa el primer día."
+                : !rangoFin
+                ? "Pulsa el último día (o el mismo para uno solo)."
+                : "Pulsa otro día para empezar una nueva selección."}
+            </span>
+          )}
+          <span style={{ fontSize: 12, color: "#777" }}>🚫 bloqueado · ✅ habilitado</span>
+        </div>
+
         {cargando ? (
           <p style={styles.mensaje}>Cargando calendario...</p>
         ) : (
@@ -582,7 +718,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                       key={celda.fechaISO}
                       type="button"
                       style={obtenerEstiloDia(celda)}
-                      onClick={() => setFechaSeleccionada(celda.fechaISO)}
+                      onClick={() => elegirDia(celda.fechaISO)}
                     >
                       <div
                         style={{
@@ -591,6 +727,13 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                         }}
                       >
                         {celda.dia}
+                        {bloqueoEsParcial(bloqueos[celda.fechaISO]) && " 🕒"}
+                        {bloqueos[celda.fechaISO]?.bloqueado &&
+                          !bloqueoEsParcial(bloqueos[celda.fechaISO]) &&
+                          " 🚫"}
+                        {!bloqueos[celda.fechaISO]?.bloqueado &&
+                          habilitadas[celda.fechaISO]?.habilitada &&
+                          " ✅"}
                       </div>
 
                       {resumen ? (
@@ -648,6 +791,16 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               </div>
             </div>
 
+            {fechaSeleccionada && (
+              <PanelFechasEspeciales
+                inicio={panelInicio}
+                fin={panelFin}
+                bloqueos={bloqueos}
+                habilitadas={habilitadas}
+                onCambio={cargarFechasEspeciales}
+              />
+            )}
+
             <div
               style={{
                 ...styles.detalleBox,
@@ -703,6 +856,18 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                       ...styles.botonIrReservas,
                       ...(isMobile ? styles.botonIrReservasMobile : {}),
                     }}
+                    onClick={() => setDialogoAbierto(true)}
+                  >
+                    Ver detalles
+                  </button>
+                )}
+
+                {detalleDiaSeleccionado?.reservas?.length > 0 && (
+                  <button
+                    style={{
+                      ...styles.botonIrReservas,
+                      ...(isMobile ? styles.botonIrReservasMobile : {}),
+                    }}
                     onClick={irAReservasDelDia}
                   >
                     Ir a reservas del día
@@ -710,7 +875,53 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                 )}
               </div>
 
-              {detalleDiaSeleccionado?.reservas?.length ? (
+            </div>
+          </>
+        )}
+      </div>
+
+      {dialogoMontado && detalleDiaSeleccionado?.reservas?.length > 0 && (
+        <div
+          style={{ ...styles.dialogoFondo, opacity: dialogoVisible ? 1 : 0 }}
+          onClick={() => setDialogoAbierto(false)}
+          role="presentation"
+        >
+          <div
+            style={{
+              ...styles.dialogo,
+              opacity: dialogoVisible ? 1 : 0,
+              transform: dialogoVisible ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)",
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Reservas del ${formatearFecha(fechaSeleccionada)}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={styles.dialogoCabecera}>
+              <div style={{ flex: 1 }}>
+                <h3 style={styles.detalleTitulo}>
+                  {formatearFecha(fechaSeleccionada)}
+                </h3>
+                <p style={styles.detalleSubtitulo}>
+                  {detalleDiaSeleccionado.totalReservas} reserva
+                  {detalleDiaSeleccionado.totalReservas !== 1 ? "s" : ""} ·{" "}
+                  {detalleDiaSeleccionado.totalPlazas} plaza
+                  {detalleDiaSeleccionado.totalPlazas !== 1 ? "s" : ""} ·{" "}
+                  {detalleDiaSeleccionado.totalIngresos}€
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Cerrar"
+                style={styles.dialogoCerrar}
+                onClick={() => setDialogoAbierto(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={styles.dialogoCuerpo}>
+              {(
                 <>
                  
 
@@ -755,6 +966,25 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     {r.telefono ? ` · ${r.telefono}` : ""}
   </p>
 )}
+                          <div style={styles.reservaEnlaces}>
+                            <button
+                              type="button"
+                              style={styles.enlaceDetalle}
+                              onClick={() => navigate(rutaDetalleReserva(r))}
+                            >
+                              Ver detalles →
+                            </button>
+                            {urlWhatsApp(r.telefono) && (
+                              <a
+                                href={urlWhatsApp(r.telefono)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={styles.enlaceWhatsApp}
+                              >
+                                WhatsApp
+                              </a>
+                            )}
+                          </div>
                         </div>
 
                         <div
@@ -770,13 +1000,17 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                     ))}
                   </div>
                 </>
-              ) : (
-                <p style={styles.mensajeDetalle}>No hay detalle para mostrar.</p>
               )}
             </div>
-          </>
-        )}
-      </div>
+
+            <div style={styles.dialogoPie}>
+              <button style={styles.botonIrReservas} onClick={irAReservasDelDia}>
+                Ir a reservas del día
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -1023,6 +1257,43 @@ const styles = {
     fontSize: "0.72rem",
     textAlign: "center",
   },
+  dialogoFondo: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16,
+    zIndex: 1000,
+    transition: "opacity 200ms ease",
+  },
+  dialogo: {
+    background: "#fffdf7",
+    borderRadius: 18,
+    width: "100%",
+    maxWidth: 640,
+    maxHeight: "90vh",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
+    transition: "opacity 200ms ease, transform 200ms ease",
+  },
+  dialogoCabecera: {
+    display: "flex",
+    gap: 12,
+    alignItems: "flex-start",
+    padding: "18px 20px 10px",
+  },
+  dialogoCerrar: {
+    border: "none",
+    background: "transparent",
+    fontSize: 20,
+    cursor: "pointer",
+    color: "#5c3c00",
+  },
+  dialogoCuerpo: { padding: "0 20px", overflowY: "auto", flex: 1 },
+  dialogoPie: { padding: "12px 20px 18px", display: "flex", justifyContent: "flex-end" },
   detalleBox: {
     backgroundColor: "#fffdf7",
     border: "1px solid #f0e5cf",
@@ -1156,6 +1427,26 @@ const styles = {
     color: "#333",
     fontWeight: 700,
     fontSize: "0.96rem",
+  },
+  reservaEnlaces: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 },
+  enlaceDetalle: {
+    padding: "6px 12px",
+    borderRadius: 10,
+    border: "1px solid #d8c89f",
+    backgroundColor: "#fff8da",
+    color: "#5b4a2d",
+    fontWeight: 700,
+    fontSize: "0.85rem",
+    cursor: "pointer",
+  },
+  enlaceWhatsApp: {
+    padding: "6px 12px",
+    borderRadius: 10,
+    backgroundColor: "#25D366",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: "0.85rem",
+    textDecoration: "none",
   },
   mensajeDetalle: {
     color: "#7a7a7a",

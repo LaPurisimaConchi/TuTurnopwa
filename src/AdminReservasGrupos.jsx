@@ -4,6 +4,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { useLocation } from "react-router-dom";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminReservasGrupos = () => {
   const location = useLocation();
 
@@ -453,7 +454,7 @@ const guardarFechaGrupo = async (r) => {
   }
 
   const confirmar = window.confirm(
-    `¿Seguro que quieres cambiar la fecha de este grupo del ${r.fecha || "—"} al ${nuevaFecha}?`
+    `¿Seguro que quieres cambiar la fecha de este grupo del ${fechaDMA(r.fecha) || "—"} al ${fechaDMA(nuevaFecha)}?`
   );
 
   if (!confirmar) return;
@@ -479,7 +480,7 @@ const guardarFechaGrupo = async (r) => {
 
     if (r.orderId) {
       notaInterna = {
-        texto: `Fecha de reserva de grupo cambiada por Berto. Antes: ${r.fecha || "—"}. Ahora: ${nuevaFecha}.`,
+        texto: `Fecha de reserva de grupo cambiada por Berto. Antes: ${fechaDMA(r.fecha) || "—"}. Ahora: ${fechaDMA(nuevaFecha)}.`,
         fecha: fechaCambio,
       };
       const nuevaNotaRef = push(
@@ -796,7 +797,7 @@ const guardarPlazoPago = async (r) => {
                         </h2>
                         <div style={styles.fechaGrupo}>
                           <p style={styles.cardSubtitulo}>
-                            {r.fecha || "—"} · {r.turno || "—"}
+                            {fechaDMA(r.fecha) || "—"} · {r.turno || "—"}
                           </p>
                           {!editandoFechaGrupo[r.id] &&
                             !r.cancelada &&

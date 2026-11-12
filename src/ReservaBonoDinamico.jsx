@@ -9,8 +9,10 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update, push } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { crearBonoActivo, datosPrimeraSesionBono, usarSesionDeBono } from "./utils/bonos";
-import { plazasOcupadasPorMetodo } from "./utils/disponibilidad";
-import { plazasLibres } from "./utils/plazasOcupadas";
+import { cargarFranja } from "./utils/disponibilidad";
+import { plazasLibresFranja } from "./utils/aforo";
+import { reservarEnServidor } from "./utils/reservaServidor";
+import { useConfigEspacio } from "./configuracionEspacio";
 import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
   estadoDiaTaller,
@@ -22,6 +24,7 @@ import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const sumarUnMes = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
   d.setMonth(d.getMonth() + 1);
@@ -44,7 +47,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
   const [user, setUser] = useState(null);
   const [guardando, setGuardando] = useState(false);
   // La primera sesión se reserva con la compra: se cuentan las plazas del turno
-  const [ocupadas, setOcupadas] = useState({ torno: 0, modelado: 0 });
+  const [ocupadas, setOcupadas] = useState({ total: 0, torno: 0 });
+  const { config: configEspacio } = useConfigEspacio();
   const [plazasListas, setPlazasListas] = useState(false);
   const [errorPlazas, setErrorPlazas] = useState(false);
 
@@ -80,16 +84,18 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
     });
 
   const esTorno = /torno/i.test(modalidad);
-  const plazasQuedan = plazasLibres({
-    ...ocupadas,
-    esTorno,
-    maxTorno: Number(clase.plazas?.maxTorno || 12),
-    maxTotales: Number(clase.plazas?.maxTotales || clase.plazas?.plazasTotales || 45),
-  });
+  const plazasQuedan = plazasLibresFranja(
+    ocupadas,
+    {
+      aforoTotal: ocupadas.aforoTotal ?? configEspacio.aforoTotal,
+      maxTorno: ocupadas.maxTorno ?? configEspacio.maxTorno,
+    },
+    { conTorno: esTorno }
+  ).reservables;
 
   useEffect(() => {
     if (!fechaInicio || !turno) {
-      setOcupadas({ torno: 0, modelado: 0 });
+      setOcupadas({ total: 0, torno: 0 });
       setPlazasListas(false);
       setErrorPlazas(false);
       return;
@@ -98,7 +104,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
     let cancelado = false;
     setPlazasListas(false);
 
-    plazasOcupadasPorMetodo(fechaInicio, turno)
+    cargarFranja(fechaInicio, turno)
       .then((cuentas) => {
         if (cancelado) return;
         setOcupadas(cuentas);
@@ -130,7 +136,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fechaInicio}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fechaInicio)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -175,13 +181,6 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       // las que se reservan después desde el perfil (UsarBono). Pendiente hasta
       // que se paga (no cuenta para las plazas); con tarjeta regalo, ya confirmada
       const turnoElegido = String(turno).replaceAll(" a ", "-").trim();
-      const reservaRef = push(
-        ref(
-          dbRealtime,
-          `reservas/${clase.reservasPath || claseId}/${fechaInicio}/${turnoElegido}`
-        )
-      );
-      const reservaId = reservaRef.key || "";
       const reservaPrimeraSesion = {
         clase: nombreClase,
         claseId,
@@ -201,6 +200,31 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         orderId,
         timestamp,
       };
+
+      // El servidor comprueba el aforo y guarda la plaza mientras se paga. En
+      // desarrollo, si la función aún no está desplegada, se escribe directamente.
+      let reservaRef;
+      try {
+        const { reservas: creadas } = await reservarEnServidor(claseId, [
+          {
+            fecha: fechaInicio,
+            turno: turnoElegido,
+            metodo: "",
+            plazas: 1,
+            torno: esTorno,
+            reserva: reservaPrimeraSesion,
+          },
+        ]);
+        reservaRef = ref(dbRealtime, creadas[0].ruta);
+      } catch (errorServidor) {
+        if (!errorServidor.sinServidor) throw errorServidor;
+        console.warn("Sin función de reserva en el servidor: se escribe directamente (solo desarrollo).");
+        reservaRef = push(
+          ref(dbRealtime, `reservas/${clase.reservasPath || claseId}/${fechaInicio}/${turnoElegido}`)
+        );
+        await update(reservaRef, { uid: user.uid, ...reservaPrimeraSesion });
+      }
+      const reservaId = reservaRef.key || "";
 
       const datosBono = {
         claseId,
@@ -346,8 +370,6 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       }
 
       // Pendiente hasta que se pague; el aviso de pago la confirma junto con el bono
-      await update(reservaRef, { uid: user.uid, ...reservaPrimeraSesion });
-
       navigate("/resumen-pago", {
         state: {
           desdeTarjeta,
@@ -369,7 +391,13 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       });
     } catch (err) {
       console.error("Error al guardar el bono:", err);
-      alert("No se pudo guardar la reserva.");
+      alert(
+        err?.codigo === "franja_llena" || err?.codigo === "torno_lleno"
+          ? "Esa franja se acaba de llenar. Elige otro turno u otro día."
+          : err?.codigo
+          ? err.message
+          : "No se pudo guardar la reserva."
+      );
     } finally {
       setGuardando(false);
     }

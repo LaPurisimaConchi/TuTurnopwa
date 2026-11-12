@@ -5,10 +5,12 @@
 //
 // POST Authorization: Bearer <idToken de Firebase>
 //      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }  |  { tipo: "correo", orderId }
+//      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
 // "correo" pide el correo de confirmación de una reserva o un bono ya confirmados con
 // tarjeta regalo (se confirman en el navegador, sin pasar por el aviso del TPV). Vive
 // aquí y no en una función propia porque Vercel limita a 12 funciones por proyecto.
+// "reservar" crea la reserva pendiente comprobando el aforo real (api/_reservarServidor.js).
 //
 // Solo responde al dueño de la reserva (uid del token = uid de la reserva).
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
@@ -21,6 +23,7 @@ import {
 } from "./_codigosReserva.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
+import { reservarConAforo } from "./_reservarServidor.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -40,6 +43,14 @@ export default async function handler(req, res) {
 
     const { uid } = await adminAuth.verifyIdToken(token);
     const cuerpo = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+
+    if (cuerpo.tipo === "reservar") {
+      const resultado = await reservarConAforo(adminDb, uid, cuerpo.claseId, cuerpo.items, {
+        edicionId: cuerpo.edicionId,
+      });
+      const { status, ...resto } = resultado;
+      return res.status(status).json(resto);
+    }
 
     if (cuerpo.tipo === "grupo") {
       const grupoId = String(cuerpo.grupoId || "");

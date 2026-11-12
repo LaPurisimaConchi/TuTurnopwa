@@ -6,11 +6,15 @@
 //   Se pueden ocultar, editar y borrar.
 // - Talleres de siempre sin migrar: solo fotos y visibilidad en portada.
 // Las fotos se guardan comprimidas en imagenesClases/{id}.
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { cargarConfigEspacio } from "./configuracionEspacio";
 import { ref, get, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import EditorTurnos from "./components/EditorTurnos";
+import EditorEdiciones, { ajustarSesiones } from "./components/EditorEdiciones";
+import { turnosSeSolapan } from "./utils/rangosHora";
 import {
   cargarCategorias,
   categoriasDeSiempre,
@@ -33,6 +37,7 @@ import {
   leerTurnos,
   numeroPositivo,
   turnoInvalido,
+  TURNO_VALIDO,
 } from "./utils/fichaTaller";
 import {
   LADO_MINIATURA,
@@ -115,9 +120,18 @@ async function comprobarDependencias(claseId, clase = {}) {
   return { reservasFuturas, tarjetasPendientes, bonosActivos };
 }
 
+const ICONOS_PESTANAS = {
+  datos: "📝",
+  pagina: "📄",
+  precios: "💶",
+  horario: "🗓️",
+  fotos: "📷",
+  visibilidad: "👁️",
+};
+
 export default function AdminTallerForm() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const idEditar = searchParams.get("id") || "";
 
   const [cargando, setCargando] = useState(!!idEditar);
@@ -127,6 +141,15 @@ export default function AdminTallerForm() {
   const [imagenesCambiadas, setImagenesCambiadas] = useState(false);
   const [procesandoImagenes, setProcesandoImagenes] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  // Pestaña donde está el último fallo de validación (se marca con un punto rojo)
+  const [pestanaError, setPestanaError] = useState("");
+  // Arrastre de fotos: clave de la foto que se arrastra y orden provisional
+  // (claves) que se va mostrando mientras se arrastra
+  const [fotoArrastrada, setFotoArrastrada] = useState(null);
+  const [ordenProvisional, setOrdenProvisional] = useState(null);
+  const elementosFotos = useRef({});
+  const rectsFotos = useRef({});
+  const ultimoCambioOrden = useRef(0);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [borrando, setBorrando] = useState(false);
@@ -142,6 +165,30 @@ export default function AdminTallerForm() {
   const esFijo = !!idEditar && !!claseOriginal && !claseOriginal.dinamica;
   const esNuevo = !idEditar;
   const esBono = form.tipoProducto === "bono";
+
+  // Pestañas de la página; la elegida se guarda en la dirección (?tab=horario)
+  const pestanas = [
+    ...(!esFijo
+      ? [
+          ["datos", "Datos"],
+          ["pagina", "Página"],
+          ["precios", esBono ? "Bono" : "Precio y plazas"],
+          ["horario", "Horario"],
+        ]
+      : []),
+    ["fotos", "Fotos"],
+    ["visibilidad", "Visibilidad"],
+  ];
+  const pestanaPedida = searchParams.get("tab");
+  const pestana = pestanas.some(([clave]) => clave === pestanaPedida)
+    ? pestanaPedida
+    : pestanas[0][0];
+  const setPestana = (clave) => {
+    const nuevos = new URLSearchParams(searchParams);
+    nuevos.set("tab", clave);
+    setSearchParams(nuevos, { replace: true });
+  };
+  const ocultaSi = (clave) => (pestana === clave ? "" : " hidden");
 
   const todasLasCategorias = categorias;
   // Los bonos van siempre en su categoría; el resto eligen entre las demás
@@ -165,6 +212,23 @@ export default function AdminTallerForm() {
       .then(setCategorias)
       .finally(() => setCategoriasCargadas(true));
   }, []);
+
+  // Taller nuevo: se parte de los horarios por defecto de «Espacio»
+  useEffect(() => {
+    if (idEditar) return;
+    let activo = true;
+    cargarConfigEspacio().then((config) => {
+      if (!activo) return;
+      setForm((prev) =>
+        DIAS.some(([dia]) => prev.horarios[dia])
+          ? prev
+          : { ...prev, horarios: { ...prev.horarios, ...config.horariosDefecto } }
+      );
+    });
+    return () => {
+      activo = false;
+    };
+  }, [idEditar]);
 
   useEffect(() => {
     if (!idEditar) return;
@@ -261,6 +325,20 @@ export default function AdminTallerForm() {
   const quitarVariante = (indice) =>
     setForm((prev) => ({ ...prev, variantes: prev.variantes.filter((_, i) => i !== indice) }));
 
+  // Al cambiar las sesiones del curso, cada edición se ajusta a ese número
+  const cambiarDiasCurso = (valor) =>
+    setForm((prev) => {
+      const sesiones = Math.round(Number(valor));
+      return {
+        ...prev,
+        sesionesCurso: valor,
+        ediciones:
+          sesiones >= 1 && sesiones <= 30
+            ? prev.ediciones.map((edicion) => ajustarSesiones(edicion, sesiones))
+            : prev.ediciones,
+      };
+    });
+
   const turnosInvalidos = useMemo(
     () =>
       [
@@ -322,29 +400,35 @@ export default function AdminTallerForm() {
   };
 
   const validar = () => {
+    const fallo = (pestana, texto) => {
+      setPestanaError(pestana);
+      setPestana(pestana);
+      return texto;
+    };
+    setPestanaError("");
     if (esFijo) return "";
-    if (!form.nombre.trim()) return "El nombre es obligatorio.";
-    if (!form.id) return "El identificador es obligatorio.";
+    if (!form.nombre.trim()) return fallo("datos", "El nombre es obligatorio.");
+    if (!form.id) return fallo("datos", "El identificador es obligatorio.");
 
     if (esBono) {
-      if (!numeroPositivo(form.precioUnico)) return "Indica el precio del bono.";
-      if (!numeroPositivo(form.bono.numeroClases)) return "Indica cuántas clases tiene el bono.";
+      if (!numeroPositivo(form.precioUnico)) return fallo("precios", "Indica el precio del bono.");
+      if (!numeroPositivo(form.bono.numeroClases)) return fallo("precios", "Indica cuántas clases tiene el bono.");
     } else if (form.modalidad === "metodos") {
       const marcados = METODOS_TALLER.filter((m) => form.metodos[m.id]);
-      if (!marcados.length) return "Elige al menos un método (torno, modelado…).";
+      if (!marcados.length) return fallo("precios", "Elige al menos un método (torno, modelado…).");
       const sinPrecio = marcados.find((m) => !numeroPositivo(form.precios[m.clavePrecio]));
-      if (sinPrecio) return `Indica el precio de «${sinPrecio.nombre}».`;
+      if (sinPrecio) return fallo("precios", `Indica el precio de «${sinPrecio.nombre}».`);
     } else if (form.modalidad === "variante") {
-      if (!form.variantes.length) return "Añade al menos una opción con precio.";
+      if (!form.variantes.length) return fallo("precios", "Añade al menos una opción con precio.");
       const incompleta = form.variantes.find(
         (v) => !v.nombre.trim() || !numeroPositivo(v.precio)
       );
-      if (incompleta) return "Cada opción necesita nombre y precio.";
+      if (incompleta) return fallo("precios", "Cada opción necesita nombre y precio.");
       if (!METODOS_TALLER.slice(0, 2).some((m) => form.metodos[m.id])) {
-        return "Elige si se hace con torno, a mano o ambos.";
+        return fallo("precios", "Elige si se hace con torno, a mano o ambos.");
       }
     } else if (!numeroPositivo(form.precioUnico)) {
-      return "Indica el precio del taller.";
+      return fallo("precios", "Indica el precio del taller.");
     }
 
     if (
@@ -352,17 +436,48 @@ export default function AdminTallerForm() {
       form.minPersonasGrupo !== "" &&
       (numeroPositivo(form.minPersonasGrupo) < 2 || numeroPositivo(form.minPersonasGrupo) > 45)
     ) {
-      return "El mínimo de personas para grupo debe estar entre 2 y 45.";
+      return fallo("precios", "El mínimo de personas para habilitar un día debe estar entre 2 y 45.");
     }
 
-    if (!esBono && !numeroPositivo(form.maxTotales)) {
-      return "Indica el máximo de plazas por turno.";
+    if (form.monografico && !esBono) {
+      const sesiones = Math.round(numeroPositivo(form.sesionesCurso));
+      if (!(sesiones >= 1 && sesiones <= 30)) {
+        return fallo("horario", "Indica cuántas sesiones tiene el curso (de 1 a 30).");
+      }
+      for (const [i, edicion] of form.ediciones.entries()) {
+        if (edicion.fechas.length !== sesiones || edicion.fechas.some((f) => !f.fecha)) {
+          return fallo(
+            "horario",
+            `La edición ${i + 1} debe tener ${sesiones} sesion${sesiones !== 1 ? "es" : ""} con fecha.`
+          );
+        }
+        for (const f of edicion.fechas) {
+          if (!TURNO_VALIDO.test(f.turno || "")) {
+            return fallo("horario", `Indica la hora de inicio y fin de cada sesión (edición ${i + 1}).`);
+          }
+        }
+        // Un día puede tener dos sesiones, pero no a la misma hora ni solapadas
+        for (const [a, sesionA] of edicion.fechas.entries()) {
+          for (const sesionB of edicion.fechas.slice(a + 1)) {
+            if (
+              sesionA.fecha === sesionB.fecha &&
+              (sesionA.turno === sesionB.turno || turnosSeSolapan(sesionA.turno, sesionB.turno))
+            ) {
+              return fallo(
+                "horario",
+                `En la edición ${i + 1} hay dos sesiones el ${sesionA.fecha} a la misma hora o solapadas.`
+              );
+            }
+          }
+        }
+      }
+      return "";
     }
     if (turnosInvalidos.length) {
-      return `Revisa los turnos (formato 17:30-20:30): ${turnosInvalidos.join(", ")}`;
+      return fallo("horario", `Revisa los turnos (formato 17:30-20:30): ${turnosInvalidos.join(", ")}`);
     }
     if (!DIAS.some(([dia]) => leerTurnos(form.horarios[dia]).length)) {
-      return "Añade al menos un día con turnos para que se pueda reservar.";
+      return fallo("horario", "Añade al menos un día con turnos para que se pueda reservar.");
     }
     return "";
   };
@@ -507,6 +622,69 @@ export default function AdminTallerForm() {
 
   const rutaPublica = esFijo ? TALLERES_FIJOS[idEditar]?.ruta : `/taller/${idEditar}`;
 
+  const imagenesMostradas = ordenProvisional
+    ? ordenProvisional.map((clave) => imagenes.find((img) => img.key === clave)).filter(Boolean)
+    : imagenes;
+  const firmaOrdenFotos = imagenesMostradas.map((img) => img.key).join("|");
+
+  // Las fotos se deslizan a su nuevo sitio (técnica FLIP: se mide dónde estaban y
+  // dónde quedan, y se anima la diferencia)
+  useLayoutEffect(() => {
+    const nuevos = {};
+    Object.entries(elementosFotos.current).forEach(([clave, el]) => {
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      nuevos[clave] = rect;
+      const antes = rectsFotos.current[clave];
+      if (!antes) return;
+      const dx = antes.left - rect.left;
+      const dy = antes.top - rect.top;
+      if (!dx && !dy) return;
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.getBoundingClientRect(); // fuerza el cálculo antes de animar
+      el.style.transition = "transform 220ms ease";
+      el.style.transform = "";
+    });
+    rectsFotos.current = nuevos;
+  }, [firmaOrdenFotos]);
+
+  const terminarArrastreFotos = () => {
+    setFotoArrastrada(null);
+    setOrdenProvisional(null);
+  };
+
+  // Al soltar, el orden provisional pasa a ser el orden real de las fotos
+  const soltarFoto = () => {
+    if (ordenProvisional) {
+      const actual = imagenes.map((img) => img.key).join("|");
+      if (ordenProvisional.join("|") !== actual) {
+        setImagenes(
+          ordenProvisional.map((clave) => imagenes.find((img) => img.key === clave)).filter(Boolean)
+        );
+        setImagenesCambiadas(true);
+      }
+    }
+    terminarArrastreFotos();
+  };
+
+  // Mientras se arrastra, la foto se coloca donde está el cursor y las demás se apartan
+  const colocarFotoSobre = (claveDestino) => {
+    if (!fotoArrastrada || claveDestino === fotoArrastrada) return;
+    if (Date.now() - ultimoCambioOrden.current < 120) return;
+
+    const base = ordenProvisional || imagenes.map((img) => img.key);
+    const desde = base.indexOf(fotoArrastrada);
+    const hasta = base.indexOf(claveDestino);
+    if (desde < 0 || hasta < 0 || desde === hasta) return;
+
+    const copia = [...base];
+    copia.splice(desde, 1);
+    copia.splice(hasta, 0, fotoArrastrada);
+    ultimoCambioOrden.current = Date.now();
+    setOrdenProvisional(copia);
+  };
+
   if (cargando) {
     return <p className="text-center text-gray-500 py-16">Cargando taller...</p>;
   }
@@ -541,6 +719,7 @@ export default function AdminTallerForm() {
         <BotonVolver volverA="/admin-clases-nuevo" />
 
         <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <h1 className="text-2xl md:text-3xl font-bold text-[#3d3126] font-serif">
             {esNuevo
               ? "Añadir taller nuevo"
@@ -548,16 +727,24 @@ export default function AdminTallerForm() {
               ? `Fotos y portada · ${claseOriginal?.nombre || TALLERES_FIJOS[idEditar]?.nombre || idEditar}`
               : `Editar ${esBono ? "bono" : "taller"} · ${form.nombre || idEditar}`}
           </h1>
+          {!esNuevo && rutaPublica && (
+            <a
+              href={rutaPublica}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 inline-flex items-center justify-center gap-2 self-start rounded-full border-2 border-[#E5B92F] bg-transparent px-5 py-2.5 text-sm font-bold text-[#5c3c00] transition hover:bg-[#fff6d6]"
+            >
+              <span aria-hidden="true">🔗</span>
+              Ver página del taller
+              <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          </div>
           <p className="text-sm text-gray-600 mt-1">
             {esFijo
               ? "Este taller todavía tiene su página hecha a mano. Aquí puedes cambiar la foto de la portada y si aparece en ella."
               : "El taller tiene su propia página, se puede reservar y pagar online y sale en la portada y en su categoría."}
           </p>
-          {!esNuevo && rutaPublica && (
-            <Link to={rutaPublica} className="inline-block mt-2 text-sm text-blue-700 underline">
-              Ver la página del taller →
-            </Link>
-          )}
           {esFijo && (
             <p className="text-sm text-gray-700 mt-3 bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
               Para editar todo, ocultarlo o borrarlo como el resto, primero hay que{" "}
@@ -570,8 +757,46 @@ export default function AdminTallerForm() {
         </div>
 
         <form onSubmit={handleGuardar} className="space-y-5">
+          <div
+            role="tablist"
+            aria-label="Secciones del taller"
+            className="sticky top-2 z-20 flex gap-1.5 overflow-x-auto rounded-2xl border border-[#eadfbe] bg-white/95 p-1.5 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
+            {pestanas.map(([clave, texto]) => {
+              const activa = pestana === clave;
+              const conError =
+                pestanaError === clave || (clave === "horario" && turnosInvalidos.length > 0);
+              return (
+                <button
+                  key={clave}
+                  type="button"
+                  role="tab"
+                  aria-selected={activa}
+                  onClick={() => setPestana(clave)}
+                  className={`relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
+                    activa
+                      ? "bg-[#F4C542] text-[#3d3126] shadow-sm"
+                      : "text-gray-500 hover:bg-[#fff6d6] hover:text-[#3d3126]"
+                  }`}
+                >
+                  <span aria-hidden="true" className={activa ? "" : "grayscale opacity-70"}>
+                    {ICONOS_PESTANAS[clave]}
+                  </span>
+                  {texto}
+                  {conError && (
+                    <span
+                      role="img"
+                      aria-label="Hay un error en esta pestaña"
+                      className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-red-600 ring-2 ring-white"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("datos")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">Datos del taller</h2>
 
               {esNuevo && (
@@ -597,7 +822,6 @@ export default function AdminTallerForm() {
                   value={form.nombre}
                   onChange={(e) => cambiarNombre(e.target.value)}
                   placeholder="Ej.: Crea tu set de café"
-                  required
                 />
               </div>
 
@@ -609,7 +833,6 @@ export default function AdminTallerForm() {
                   value={form.id}
                   onChange={(e) => cambiar("id", generarId(e.target.value))}
                   disabled={!esNuevo}
-                  required
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Se usa en la dirección (/taller/{form.id || "…"}) y en las reservas. No se puede cambiar después.
@@ -743,7 +966,7 @@ export default function AdminTallerForm() {
           )}
 
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("pagina")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">Secciones de la página</h2>
               <p className="text-sm text-gray-600">
                 Bloques de texto que salen bajo la descripción, en este orden:
@@ -860,7 +1083,7 @@ export default function AdminTallerForm() {
           )}
 
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("precios")}>
               <h2 className="text-lg font-semibold text-[#3d3126]">
                 {esBono ? "Precio y características del bono" : "Precio y plazas"}
               </h2>
@@ -992,37 +1215,16 @@ export default function AdminTallerForm() {
               )}
 
               {!esBono && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="taller-max" className={label}>Plazas máximas por turno</label>
-                    <input
-                      id="taller-max"
-                      type="number"
-                      min="1"
-                      className={input}
-                      value={form.maxTotales}
-                      onChange={(e) => cambiar("maxTotales", e.target.value)}
-                    />
-                  </div>
-                  {conMetodoOVariante && form.metodos.torno && (
-                    <div>
-                      <label htmlFor="taller-max-torno" className={label}>De ellas, con torno</label>
-                      <input
-                        id="taller-max-torno"
-                        type="number"
-                        min="1"
-                        className={input}
-                        value={form.maxTorno}
-                        onChange={(e) => cambiar("maxTorno", e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
+                <p className="text-xs text-gray-500">
+                  El aforo por turno y las plazas de torno son iguales para todos los
+                  talleres y se cambian en{" "}
+                  <Link to="/admin-espacio" className="underline">Espacio</Link>.
+                </p>
               )}
               {!esBono && (
                 <div className="sm:w-1/2">
                   <label htmlFor="taller-min-grupo" className={label}>
-                    Mínimo de personas para reservar en grupo
+                    Mínimo de personas para habilitar un día
                   </label>
                   <input
                     id="taller-min-grupo"
@@ -1035,7 +1237,10 @@ export default function AdminTallerForm() {
                     onChange={(e) => cambiar("minPersonasGrupo", e.target.value)}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Por defecto 5. Es lo mínimo que se pide en la reserva para grupos.
+                    Por defecto 5. Los días en que el taller no se da normalmente se
+                    pueden reservar si se juntan al menos estas personas. El mínimo
+                    para una reserva de grupo es el mismo para todos los talleres y
+                    se cambia en «Espacio».
                   </p>
                 </div>
               )}
@@ -1117,28 +1322,98 @@ export default function AdminTallerForm() {
           )}
 
           {!esFijo && (
-            <section className={seccion}>
+            <section className={seccion + ocultaSi("horario")}>
+              {!esBono && (
+                <label className="flex items-start gap-3 rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.monografico}
+                    onChange={(e) => cambiar("monografico", e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <strong>Taller monográfico</strong> (solo en fechas concretas)
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      No tiene horario semanal: se da en ediciones de varias sesiones (un día puede tener dos), que se
+                      reservan enteras. Cuando pasa la primera fecha de la última edición,
+                      el taller se oculta solo.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              {form.monografico && !esBono && (
+                <>
+                  <h2 className="text-lg font-semibold text-[#3d3126]">Ediciones</h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="taller-sesiones-curso" className={label}>Sesiones del curso</label>
+                      <input
+                        id="taller-sesiones-curso"
+                        type="number"
+                        min="1"
+                        max="30"
+                        className={input}
+                        value={form.sesionesCurso}
+                        onChange={(e) => cambiarDiasCurso(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 sm:pt-7">
+                      Marca «Torno» en las sesiones que lo usen: esas cuentan en el límite de
+                      plazas de torno.
+                    </p>
+                  </div>
+
+                  <EditorEdiciones
+                    ediciones={form.ediciones}
+                    sesionesCurso={form.sesionesCurso}
+                    onChange={(ediciones) => cambiar("ediciones", ediciones)}
+                  />
+                </>
+              )}
+
+              {!(form.monografico && !esBono) && (
+                <>
               <h2 className="text-lg font-semibold text-[#3d3126]">Horario semanal</h2>
               <p className="text-sm text-gray-600">
-                Escribe los turnos de cada día separados por comas, por ejemplo{" "}
-                <code className="bg-gray-100 px-1 rounded">11:30-14:30, 17:30-20:30</code>.
-                Deja vacío el día que no haya taller. Las fechas bloqueadas y
-                habilitadas desde el panel también se aplican.
+                Elige los turnos de cada día con los atajos o con «Otra hora». Un día
+                sin turnos es un día sin taller. Las fechas bloqueadas y habilitadas
+                desde el panel también se aplican.
               </p>
 
               <div className="space-y-3">
                 {DIAS.map(([dia, nombreDia]) => (
-                  <div key={dia} className="grid grid-cols-[88px_1fr] items-center gap-3">
-                    <label htmlFor={`horario-${dia}`} className="text-sm font-semibold">
+                  <div
+                    key={dia}
+                    className="grid grid-cols-1 sm:grid-cols-[88px_1fr] items-start gap-1.5 sm:gap-3 py-2 border-b border-[#f3ead7] last:border-0"
+                  >
+                    <label htmlFor={`horario-${dia}`} className="text-sm font-semibold pt-1">
                       {nombreDia}
                     </label>
-                    <input
-                      id={`horario-${dia}`}
-                      className={input}
-                      value={form.horarios[dia]}
-                      onChange={(e) => cambiarHorario(dia, e.target.value)}
-                      placeholder="Sin taller"
-                    />
+                    <div className="space-y-1">
+                      <EditorTurnos
+                        id={`horario-${dia}`}
+                        value={form.horarios[dia]}
+                        onChange={(valor) => cambiarHorario(dia, valor)}
+                      />
+                      {leerTurnos(form.horarios[dia]).length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((prev) => ({
+                              ...prev,
+                              horarios: Object.fromEntries(
+                                DIAS.map(([d]) => [d, prev.horarios[dia]])
+                              ),
+                            }))
+                          }
+                          className="text-xs text-[#b36a4a] underline"
+                        >
+                          Copiar este horario a todos los días
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1147,18 +1422,20 @@ export default function AdminTallerForm() {
                 <label htmlFor="taller-turnos" className={label}>
                   Turnos para fechas especiales (opcional)
                 </label>
-                <input
+                <EditorTurnos
                   id="taller-turnos"
-                  className={input}
+                  textoVacio="Los del horario semanal"
                   value={form.turnos}
-                  onChange={(e) => cambiar("turnos", e.target.value)}
-                  placeholder="Si se deja vacío: los turnos del horario semanal"
+                  onChange={(valor) => cambiar("turnos", valor)}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Son los turnos que se abren cuando habilitas una fecha fuera del
-                  horario habitual.
+                  horario habitual. Sin ninguno, se usan los del horario semanal.
                 </p>
               </div>
+
+                </>
+              )}
 
               {turnosInvalidos.length > 0 && (
                 <p className="text-sm text-red-600">
@@ -1168,7 +1445,7 @@ export default function AdminTallerForm() {
             </section>
           )}
 
-          <section className={seccion}>
+          <section className={seccion + ocultaSi("fotos")}>
             <div className="flex items-baseline justify-between gap-3">
               <h2 className="text-lg font-semibold text-[#3d3126]">Fotos</h2>
               <span className="text-xs text-gray-500">
@@ -1177,7 +1454,8 @@ export default function AdminTallerForm() {
             </div>
             <p className="text-sm text-gray-600">
               La primera foto es la principal: sale en la portada y en los
-              listados. Se reducen automáticamente para que carguen rápido.
+              listados. Arrastra las fotos para cambiar el orden (o usa las flechas).
+              Se reducen automáticamente para que carguen rápido.
             </p>
 
             {imagenes.length === 0 && (
@@ -1194,11 +1472,49 @@ export default function AdminTallerForm() {
             )}
 
             {imagenes.length > 0 && (
-              <ul className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {imagenes.map((img, indice) => (
-                  <li key={img.key} className="rounded-xl border border-[#eadfbe] overflow-hidden bg-[#fffaf0]">
+              <ul
+                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
+                onDragOver={(e) => {
+                  if (fotoArrastrada) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  soltarFoto();
+                }}
+              >
+                {imagenesMostradas.map((img, indice) => (
+                  <li
+                    key={img.key}
+                    ref={(el) => {
+                      elementosFotos.current[img.key] = el;
+                    }}
+                    draggable
+                    onDragStart={(e) => {
+                      setFotoArrastrada(img.key);
+                      e.dataTransfer.effectAllowed = "move";
+                      // Firefox no arranca el arrastre sin datos
+                      e.dataTransfer.setData("text/plain", img.key);
+                    }}
+                    onDragOver={(e) => {
+                      if (!fotoArrastrada) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      colocarFotoSobre(img.key);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      soltarFoto();
+                    }}
+                    onDragEnd={terminarArrastreFotos}
+                    className={`rounded-xl border overflow-hidden cursor-grab active:cursor-grabbing ${
+                      fotoArrastrada === img.key
+                        ? "border-dashed border-[#b36a4a] bg-[#f3e3d9] opacity-50"
+                        : "border-[#eadfbe] bg-[#fffaf0]"
+                    }`}
+                  >
                     <div className="relative aspect-[4/3] bg-gray-100">
-                      <img src={img.src} alt={`Foto ${indice + 1}`} className="w-full h-full object-cover" />
+                      <img src={img.src} alt={`Foto ${indice + 1}`} draggable={false} className="w-full h-full object-cover select-none" />
                       {indice === 0 && (
                         <span className="absolute left-1 top-1 rounded-full bg-[#F4C542] px-2 py-0.5 text-[11px] font-bold text-[#5c3c00]">
                           Principal
@@ -1258,7 +1574,7 @@ export default function AdminTallerForm() {
             </label>
           </section>
 
-          <section className={seccion}>
+          <section className={seccion + ocultaSi("visibilidad")}>
             <h2 className="text-lg font-semibold text-[#3d3126]">Visibilidad</h2>
 
             {!esFijo && (
@@ -1352,14 +1668,14 @@ export default function AdminTallerForm() {
           <button
             type="submit"
             disabled={guardando || procesandoImagenes}
-            className="w-full px-6 py-3 rounded-full text-white font-semibold bg-[#b36a4a] hover:bg-[#9e5c3f] shadow-md disabled:opacity-50"
+            className="sticky bottom-3 z-10 w-full px-6 py-3 rounded-full text-white font-semibold bg-[#b36a4a] hover:bg-[#9e5c3f] shadow-lg disabled:opacity-50"
           >
             {guardando ? "Guardando..." : esNuevo ? "Crear taller" : "Guardar cambios"}
           </button>
         </form>
 
         {!esNuevo && !esFijo && (
-          <section className="mt-8 rounded-2xl border border-red-200 bg-white p-5 shadow-sm space-y-3">
+          <section className={"mt-8 rounded-2xl border border-red-200 bg-white p-5 shadow-sm space-y-3" + ocultaSi("visibilidad")}>
             <h2 className="text-lg font-semibold text-red-800">Borrar taller</h2>
             <p className="text-sm text-gray-700 leading-relaxed">
               Elimina la ficha, las fotos y las notas internas del taller. Solo se

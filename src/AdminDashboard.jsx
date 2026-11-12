@@ -10,6 +10,7 @@ import {
   formatearEuros,
 } from "./utils/estadisticasAdmin";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const SECCIONES_ACCESOS = [
   {
     titulo: "Reservas",
@@ -34,6 +35,12 @@ const SECCIONES_ACCESOS = [
       { to: "/admin-usuarios-nuevo", icono: "👤", texto: "Ver usuarios" },
       { to: "/admin-bonos-nuevo", icono: "🎫", texto: "Ver bonos" },
       { to: "/admin-tarjetas-regalo", icono: "🎁", texto: "Ver tarjetas regalo" },
+    ],
+  },
+  {
+    titulo: "Espacio",
+    accesos: [
+      { to: "/admin-espacio", icono: "🏠", texto: "Aforo, grupos y horarios por defecto" },
     ],
   },
   {
@@ -198,7 +205,7 @@ const AdminDashboard = () => {
                     >
                       <span>
                         {g.nombre}
-                        {g.fecha ? ` · ${g.fecha}` : ""}
+                        {g.fecha ? ` · ${fechaDMA(g.fecha)}` : ""}
                       </span>
                       <span>{describirPlazo(g.limite)}</span>
                     </button>

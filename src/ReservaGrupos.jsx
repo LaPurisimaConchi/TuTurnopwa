@@ -13,11 +13,10 @@ import {
   formatearEuros,
   MAX_PERSONAS_GRUPO,
   metodosDelTaller,
-  MIN_PERSONAS_GRUPO,
-  minPersonasGrupo,
   variantesDelTaller,
 } from "./catalogoTalleres";
 import { useContextoReserva } from "./utils/turnosTaller";
+import { useConfigEspacio } from "./configuracionEspacio";
 import BloqueoReserva from "./BloqueoReserva";
 import PantallaReserva from "./components/PantallaReserva";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
@@ -26,6 +25,7 @@ import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { leerDatosContacto } from "./utils/invitado";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const WHATSAPP_BERTO = "34644671664";
 
 const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
@@ -68,6 +68,7 @@ ${notas || "-"}
 
 export default function ReservaGrupos() {
   const navigate = useNavigate();
+  const { config: configEspacio } = useConfigEspacio();
   const location = useLocation();
   const { fechasBloqueadas, error: errorContexto, cargado: contextoCargado } =
     useContextoReserva();
@@ -79,7 +80,7 @@ export default function ReservaGrupos() {
   const [opcionId, setOpcionId] = useState("");
   const [fecha, setFecha] = useState("");
   const [horario, setHorario] = useState("");
-  const [personas, setPersonas] = useState(MIN_PERSONAS_GRUPO);
+  const [personas, setPersonas] = useState(configEspacio.minPersonasGrupo);
 
   const [user, setUser] = useState(null);
   const [nombreReserva, setNombreReserva] = useState("");
@@ -154,7 +155,7 @@ export default function ReservaGrupos() {
 
   const taller = talleres.find((t) => t.id === tallerId) || null;
   // Mínimo que fija cada taller en su ficha (5 si no lo cambia)
-  const MIN_PERSONAS = taller ? minPersonasGrupo(taller) : MIN_PERSONAS_GRUPO;
+  const MIN_PERSONAS = configEspacio.minPersonasGrupo;
   const opciones = useMemo(
     () => (taller ? opcionesDelTaller(taller) : { etiqueta: "", clave: "", lista: [] }),
     [taller]
@@ -245,7 +246,7 @@ export default function ReservaGrupos() {
     }
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${fechaBloqueada.motivo || "día bloqueado"}.`
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${fechaBloqueada.motivo || "día bloqueado"}.`
       );
       return;
     }

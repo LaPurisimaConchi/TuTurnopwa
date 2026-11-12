@@ -26,6 +26,7 @@ import {
   motivoFechaNoValida,
   normalizarEmail,
   opcionesDeCambio,
+  opcionesDeCambioEdicion,
   opcionesDeCambioGrupo,
   plazasLibresParaReserva,
   turnosElegibles,
@@ -40,7 +41,10 @@ import {
   normalizarCodigo,
 } from "./_codigosReserva.js";
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
+import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
+import { escribirConAforo } from "./_reservarServidor.js";
 
+import { fechaDMA } from "../src/utils/formatoFecha.js";
 export const config = { runtime: "nodejs" };
 
 const NO_ENCONTRADA =
@@ -157,12 +161,13 @@ async function contextoDeLaClase(segmentos, reserva) {
   const carpeta = segmentos[1];
   const claseId = reserva.claseId || carpeta;
 
-  const [clase, bloqueos, habilitadas, grupos, reservas] = await Promise.all([
+  const [clase, bloqueos, habilitadas, grupos, reservas, espacio] = await Promise.all([
     adminDb.ref(`clases/${claseId}`).get(),
     adminDb.ref("bloqueosFechas").get(),
     adminDb.ref("fechasHabilitadas").get(),
     adminDb.ref("reservasGrupos").get(),
     adminDb.ref("reservas").get(),
+    adminDb.ref("configuracionEspacio").get(),
   ]);
 
   return {
@@ -171,6 +176,9 @@ async function contextoDeLaClase(segmentos, reserva) {
     bloqueos: bloqueos.val() || {},
     fechasHabilitadas: habilitadas.val() || {},
     reservasGrupos: grupos.val() || {},
+    // Snapshots y configuración para el aforo real (src/utils/aforo.js)
+    grupos,
+    config: normalizarConfigEspacio(espacio.exists() ? espacio.val() : null),
     reservas,
   };
 }
@@ -225,7 +233,7 @@ async function anotarCambio({ actualizaciones, orderId, uid, seguimiento, reserv
     realizadoPor: "Cliente",
   };
   actualizaciones[`reservasNotas/${orderId}/notasInternas/${notas.child("notasInternas").push().key}`] = {
-    texto: `${etiqueta} reprogramada por el cliente desde la web. Antes: ${reserva.fecha} - ${turnoAnterior}. Ahora: ${seguimiento.fecha} - ${seguimiento.turno}.`,
+    texto: `${etiqueta} reprogramada por el cliente desde la web. Antes: ${fechaDMA(reserva.fecha)} - ${turnoAnterior}. Ahora: ${fechaDMA(seguimiento.fecha)} - ${seguimiento.turno}.`,
     fecha: cambio,
   };
 }
@@ -303,8 +311,132 @@ async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res }) {
   });
 }
 
+// --- Rama de monográficos ---------------------------------------------------
+// Una reserva de monográfico son varias sesiones (una por reserva, mismo pedido). Solo
+// se puede pasar a otra edición entera. Cuenta el primer día para el plazo de 72 h.
+async function resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res }) {
+  const { segmentos, reserva, codigo } = encontrada;
+  const orderId = reserva.orderId;
+  const evaluacion = evaluarCambio(reserva, ahoraMs);
+  const resumen = (r, ev) => resumenDe(r, ev, { tipo: "individual", codigo });
+
+  const contexto = await contextoDeLaClase(segmentos, reserva);
+  if (!contexto.clase) {
+    return accion === "buscar"
+      ? res.status(200).json({ ok: true, reserva: resumen(reserva, { ok: false, motivo: sinOnline }), opciones: [] })
+      : res.status(409).json({ ok: false, error: sinOnline });
+  }
+
+  const ediciones = evaluacion.ok
+    ? opcionesDeCambioEdicion({
+        clase: contexto.clase,
+        reserva,
+        reservas: contexto.reservas,
+        grupos: contexto.grupos,
+        config: contexto.config,
+        bloqueos: contexto.bloqueos,
+        ahoraMs,
+      })
+    : [];
+
+  if (accion === "buscar") {
+    return res.status(200).json({ ok: true, reserva: resumen(reserva, evaluacion), opciones: [], ediciones });
+  }
+
+  if (!evaluacion.ok) return res.status(409).json({ ok: false, error: evaluacion.motivo });
+
+  const nueva = ediciones.find((e) => e.id === String(cuerpo.edicionId || ""));
+  if (!nueva) {
+    return res.status(409).json({ ok: false, error: "Esa edición ya no está disponible. Elige otra." });
+  }
+
+  // Todas las sesiones actuales de este pedido, en la carpeta del taller
+  const dias = [];
+  contexto.reservas.child(segmentos[1]).forEach((fechaSnap) => {
+    fechaSnap.forEach((turnoSnap) => {
+      turnoSnap.forEach((hijo) => {
+        if (hijo.val()?.orderId === orderId) {
+          dias.push(`reservas/${segmentos[1]}/${fechaSnap.key}/${turnoSnap.key}/${hijo.key}`);
+        }
+      });
+    });
+  });
+  if (!dias.length) return res.status(409).json({ ok: false, error: sinOnline });
+
+  const cambio = textoFechaHora();
+  const turnoAnterior = limpiarTurno(reserva.turno || "");
+  const [primera] = nueva.fechas;
+  const seguimiento = {
+    ...camposDeCambio({ reserva, nuevaFecha: primera.fecha, nuevoTurno: primera.turno, turnoAnterior, cambio }),
+    edicionId: nueva.id,
+    fechasEdicion: nueva.fechas,
+  };
+
+  const ahora = new Date().toISOString();
+  const preparadas = nueva.fechas.map((dia, indice) => {
+    const base = `reservas/${segmentos[1]}/${dia.fecha}/${dia.turno}`;
+    const clave = adminDb.ref(base).push().key;
+    const datos = {
+      ...reserva,
+      ...seguimiento,
+      fecha: dia.fecha,
+      turno: dia.turno,
+      sesionEdicion: indice + 1,
+      sesionesEdicion: nueva.fechas.length,
+      incluyeTorno: dia.torno === true,
+      creadaEnMs: ahora,
+    };
+    delete datos.reservadaHasta;
+
+    return {
+      fecha: dia.fecha,
+      turno: dia.turno,
+      torno: dia.torno === true,
+      ruta: `${base}/${clave}`,
+      clave,
+      datos,
+    };
+  });
+
+  // Si todo cabe: se borran las sesiones anteriores y el código apunta a la edición nueva
+  const alExito = { [`codigosReserva/${codigo}/ruta`]: preparadas[0].ruta };
+  dias.forEach((ruta) => {
+    alExito[ruta] = null;
+  });
+
+  await anotarCambio({
+    actualizaciones: alExito,
+    orderId,
+    uid: reserva.uid,
+    seguimiento,
+    reserva,
+    turnoAnterior,
+    cambio,
+    etiqueta: "Reserva de monográfico",
+  });
+
+  const resultado = await escribirConAforo(adminDb, preparadas, contexto.config, Date.now(), alExito);
+  if (!resultado.ok) {
+    return res
+      .status(resultado.status)
+      .json({ ok: false, error: "Esa edición se acaba de llenar. Elige otra." });
+  }
+
+  return res.status(200).json({
+    ok: true,
+    reserva: resumen(
+      { ...reserva, ...seguimiento },
+      { ok: false, motivo: "Ya has cambiado la fecha de esta reserva." }
+    ),
+  });
+}
+
 // --- Rama de reservas individuales ------------------------------------------
 async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) {
+  if (encontrada.reserva?.edicionId) {
+    return resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res });
+  }
+
   const { segmentos, reserva, codigo } = encontrada;
   const orderId = reserva.orderId;
   const evaluacion = evaluarCambio(reserva, ahoraMs);
@@ -366,8 +498,8 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) 
 
   const libres = plazasLibresParaReserva({
     reservas: contexto.reservas,
-    clase: contexto.clase,
-    carpeta: contexto.carpeta,
+    grupos: contexto.grupos,
+    config: contexto.config,
     reserva,
     fecha: nuevaFecha,
     turno: nuevoTurno,

@@ -9,14 +9,16 @@ import { resumenHorarios } from "./utils/turnosTaller";
 import PantallaConVolver from "./PantallaConVolver";
 import {
   cargarGaleria,
-  estadoTaller,
+  estadoPublico,
   exigeCuenta,
   formatearEuros,
   metodosDelTaller,
-  minPersonasGrupo,
   precioDesde,
   variantesDelTaller,
 } from "./catalogoTalleres";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { edicionesReservables, esMonografico } from "./utils/monografico";
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 
 const NOTA_TARIFAS =
   "Las tarifas están sujetas a cambios. Si no asistes a tu formación en la fecha original y deseas reprogramarla cuando las tarifas hayan cambiado, deberás abonar la diferencia o elegir una formación acorde a la cantidad ya pagada.";
@@ -60,7 +62,7 @@ export default function TallerDinamico() {
     );
   }
 
-  if (!clase || estadoTaller(clase) !== "activa") {
+  if (!clase || estadoPublico(clase) !== "activa") {
     return (
       <PantallaConVolver>
         <div className="bg-white text-[#333] font-sans max-w-3xl w-full mx-auto shadow-md rounded-2xl overflow-hidden p-8">
@@ -87,10 +89,12 @@ export default function TallerDinamico() {
 
 // La página del taller, ya con sus datos cargados
 export function VistaTaller({ claseId, clase, imagenes = [] }) {
+  const { config: configEspacio } = useConfigEspacio();
   const navigate = useNavigate();
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] || "");
   const [modalAbierto, setModalAbierto] = useState(false);
   const esBono = clase.tipoProducto === "bono";
+  const edicionesAbiertas = edicionesReservables(clase, hoyMadrid());
   const variantes = variantesDelTaller(clase);
   const metodosDelProducto = metodosDelTaller(clase);
   const metodos = variantes.length ? [] : metodosDelProducto;
@@ -243,7 +247,29 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               </div>
             )}
 
-            {horarios.length > 0 && (
+            {esMonografico(clase) && edicionesAbiertas.length > 0 && (
+              <div className="mb-4">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                  Sesiones ({clase.sesionesCurso || edicionesAbiertas[0].fechas.length}{" "}
+                  {Number(clase.sesionesCurso || edicionesAbiertas[0].fechas.length) === 1 ? "sesión" : "sesiones"})
+                </h2>
+                <ul className="text-sm text-gray-700 space-y-2">
+                  {edicionesAbiertas.map((edicion, i) => (
+                    <li key={edicion.id}>
+                      <strong>Edición {i + 1}:</strong>{" "}
+                      {edicion.fechas
+                        .map((f) => `${fechaDMA(f.fecha)} (${f.turno.replace("-", " – ")}${f.torno ? ", torno" : ""})`)
+                        .join(" · ")}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-gray-500 mt-2">
+                  Se reserva la edición completa, con todas sus sesiones.
+                </p>
+              </div>
+            )}
+
+            {!esMonografico(clase) && horarios.length > 0 && (
               <div className="mb-4">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
                   Horarios
@@ -282,14 +308,14 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               )}
             </div>
 
-            {!esBono && (
+            {!esBono && !esMonografico(clase) && (
               <button
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
                 className="w-full -mt-2 mb-3 px-6 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                👥 Reservar para grupo ({minPersonasGrupo(clase)} o más)
+                👥 Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>
             )}
 

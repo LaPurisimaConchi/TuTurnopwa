@@ -3,6 +3,7 @@ import { ref, get, update, remove } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminHabilitarFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -145,7 +146,7 @@ setFechaEditando(null);
 
   const eliminarHabilitacion = async (fecha) => {
     const confirmar = window.confirm(
-      `¿Seguro que quieres quitar la habilitación de la fecha ${fecha}?`
+      `¿Seguro que quieres quitar la habilitación de la fecha ${fechaDMA(fecha)}?`
     );
 
     if (!confirmar) return;
@@ -246,7 +247,7 @@ setFechaEditando(null);
 </p>
 {fechaEditando && (
   <p style={styles.avisoEdicion}>
-    Estás modificando la fecha {fechaEditando}. Revisa bien los turnos marcados
+    Estás modificando la fecha {fechaDMA(fechaEditando)}. Revisa bien los turnos marcados
     antes de guardar los cambios.
   </p>
 )}
@@ -281,7 +282,7 @@ setFechaEditando(null);
   }}
 >
                   <div>
-                    <p style={styles.fecha}>{f.fecha}</p>
+                    <p style={styles.fecha}>{fechaDMA(f.fecha)}</p>
                     <p style={styles.motivo}>{f.motivo || "Sin motivo"}</p>
                     <p style={styles.turnos}>
                       Turnos:{" "}

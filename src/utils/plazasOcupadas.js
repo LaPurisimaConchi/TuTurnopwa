@@ -95,6 +95,65 @@ export function plazasPorMetodo(reservas, fecha, turno = "") {
   return { torno, modelado };
 }
 
+// Turnos con alguna reserva válida por fecha, desde hoy: { "2026-11-14": ["11:30-14:30"] }.
+// `reservas` es el snapshot de /reservas (todos los talleres) o el de
+// reservas/{ruta}. Sin datos personales: solo fechas y turnos.
+export function turnosConReservas(reservas, desde = "") {
+  const resultado = {};
+
+  if (!reservas || !reservas.exists()) return resultado;
+
+  const marcar = (fecha, turno) => {
+    if (!resultado[fecha]) resultado[fecha] = [];
+    if (!resultado[fecha].includes(turno)) resultado[fecha].push(turno);
+  };
+
+  const hayReservaValida = (nodo) => {
+    let hay = false;
+    nodo.forEach((hijo) => {
+      const valor = hijo.val();
+      if (!valor || typeof valor !== "object") return;
+      if (pareceReservaDirecta(valor)) {
+        if (esReservaValida(valor)) hay = true;
+        return;
+      }
+      hijo.forEach((reservaSnap) => {
+        if (esReservaValida(reservaSnap.val())) hay = true;
+      });
+    });
+    return hay;
+  };
+
+  // Un taller: fecha → turno → (método →) reserva
+  const recorrerTaller = (tallerSnap) => {
+    tallerSnap.forEach((fechaSnap) => {
+      const fecha = fechaSnap.key;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha) || (desde && fecha < desde)) return;
+
+      fechaSnap.forEach((turnoSnap) => {
+        if (hayReservaValida(turnoSnap)) marcar(fecha, turnoSnap.key);
+      });
+    });
+  };
+
+  // /reservas tiene un nivel más (taller); reservas/{ruta} empieza ya en la fecha
+  const primera = [];
+  reservas.forEach((hijo) => {
+    primera.push(hijo.key);
+  });
+  const empiezaEnFechas = primera.length > 0 && primera.every((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
+
+  if (empiezaEnFechas) {
+    recorrerTaller(reservas);
+  } else {
+    reservas.forEach((tallerSnap) => {
+      recorrerTaller(tallerSnap);
+    });
+  }
+
+  return resultado;
+}
+
 // Plazas libres en un turno: el torno tiene su propio tope y todos los métodos
 // comparten el total
 export function plazasLibres({ torno = 0, modelado = 0, esTorno = false, maxTorno = 12, maxTotales = 45 }) {
@@ -128,6 +187,7 @@ export function bloqueosPublicos(bloqueos = {}) {
   Object.entries(bloqueos || {}).forEach(([fecha, bloqueo]) => {
     if (bloqueo?.bloqueado) {
       publico[fecha] = { bloqueado: true, motivo: String(bloqueo.motivo || "") };
+      if (bloqueo.turnosBloqueados) publico[fecha].turnosBloqueados = bloqueo.turnosBloqueados;
     }
   });
 

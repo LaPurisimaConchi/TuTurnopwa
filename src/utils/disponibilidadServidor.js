@@ -3,14 +3,21 @@
 // devuelve el snapshot de esa ruta. La usan la función de Vercel (firebase-admin)
 // y el servidor de desarrollo (SDK de cliente, ver vite.disponibilidadLocal.js).
 //   tipo=contexto
+//   tipo=ocupacion[&ruta=<carpeta>]                        → fechas y turnos con reservas
 //   tipo=plazas&fecha=AAAA-MM-DD[&turno=…]                → torno / modelado
 //   tipo=plazas&fecha=…&turno=…&ruta=<carpeta>             → ocupadas del taller
+//   tipo=franja&fecha=…&turno=…                            → aforo real: plazas de la franja
+//   tipo=franjas                                           → plazas de todas las franjas desde hoy
+import { contarFranja, ocupacionPorFranja } from "./aforo.js";
+import { hoyMadrid } from "./formatoFecha.js";
+import { normalizarConfigEspacio } from "./configEspacio.js";
 import {
   bloqueosPublicos,
   gruposPublicos,
   habilitacionesPublicas,
   plazasDeTurno,
   plazasPorMetodo,
+  turnosConReservas,
 } from "./plazasOcupadas.js";
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -37,6 +44,51 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
         fechasHabilitadas: habilitacionesPublicas(habilitadas.val() || {}),
         reservasGrupos: gruposPublicos(grupos.val() || {}),
       },
+    };
+  }
+
+  if (tipo === "ocupacion") {
+    if (ruta && !RUTA.test(ruta)) return mal("Taller no válido");
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const reservas = await leer(ruta ? `reservas/${ruta}` : "reservas");
+    return { codigo: 200, cuerpo: { ok: true, ocupacion: turnosConReservas(reservas, hoy) } };
+  }
+
+  if (tipo === "franjas") {
+    const [reservas, grupos, espacio] = await Promise.all([
+      leer("reservas"),
+      leer("reservasGrupos"),
+      leer("configuracionEspacio"),
+    ]);
+    const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
+
+    return {
+      codigo: 200,
+      cuerpo: {
+        ok: true,
+        franjas: ocupacionPorFranja(reservas, grupos, hoyMadrid()),
+        aforoTotal: config.aforoTotal,
+        maxTorno: config.maxTorno,
+      },
+    };
+  }
+
+  if (tipo === "franja") {
+    if (!FECHA.test(fecha)) return mal("Fecha no válida");
+    if (!turno || !(TURNO.test(turno) && sinControl(turno))) return mal("Turno no válido");
+
+    const [reservas, grupos, espacio] = await Promise.all([
+      leer("reservas"),
+      leer("reservasGrupos"),
+      leer("configuracionEspacio"),
+    ]);
+    const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
+    const { total, torno } = contarFranja(reservas, grupos, fecha, turno);
+
+    return {
+      codigo: 200,
+      cuerpo: { ok: true, total, torno, aforoTotal: config.aforoTotal, maxTorno: config.maxTorno },
     };
   }
 

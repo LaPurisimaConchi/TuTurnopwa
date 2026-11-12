@@ -6,6 +6,7 @@ import { signOut, onAuthStateChanged } from "firebase/auth";
 import Footer from "./Footer";
 import PantallaConVolver from "./PantallaConVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 function obtenerFechaReserva(reserva) {
   if (!reserva) return null;
 
@@ -104,12 +105,12 @@ function AvisoReprogramacion({ reserva }) {
       </div>
 
       <p className="text-sm text-[#6f5727] leading-relaxed">
-        <span className="font-semibold">Antes:</span> {fechaAnterior}
+        <span className="font-semibold">Antes:</span> {fechaDMA(fechaAnterior)}
         {turnoAnterior ? ` · ${turnoAnterior}` : ""}
       </p>
 
       <p className="text-sm text-[#6f5727] leading-relaxed mt-1">
-        <span className="font-semibold">Ahora:</span> {reserva.fecha || "—"}
+        <span className="font-semibold">Ahora:</span> {fechaDMA(reserva.fecha) || "—"}
         {reserva.turno ? ` · ${reserva.turno}` : ""}
       </p>
     </div>
@@ -155,7 +156,7 @@ function TarjetaReserva({ reserva }) {
         <strong>Clase:</strong> {reserva.clase}
       </p>
       <p>
-        <strong>Fecha:</strong> {reserva.fecha}
+        <strong>Fecha:</strong> {fechaDMA(reserva.fecha)}
       </p>
       <p>
         <strong>Turno:</strong> {reserva.turno}
@@ -401,7 +402,7 @@ export default function PerfilUsuario() {
                     className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8]"
                   >
                     <p>
-                      <strong>{r.fecha}</strong> — {r.clase} ({r.turno})
+                      <strong>{fechaDMA(r.fecha)}</strong> — {r.clase} ({r.turno})
                       {r.ubicacion ? ` en ${r.ubicacion}` : ""}
                     </p>
 
@@ -431,7 +432,7 @@ export default function PerfilUsuario() {
                     className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8]"
                   >
                     <p>
-                      <strong>{r.fecha}</strong> — {r.clase} ({r.turno})
+                      <strong>{fechaDMA(r.fecha)}</strong> — {r.clase} ({r.turno})
                       {r.ubicacion ? ` en ${r.ubicacion}` : ""}
                     </p>
 
@@ -483,11 +484,11 @@ export default function PerfilUsuario() {
                       </p>
                       <p>
                         <strong>Fecha de inicio:</strong>{" "}
-                        {bono.fechaInicio || "—"}
+                        {fechaDMA(bono.fechaInicio) || "—"}
                       </p>
                       <p>
                         <strong>Caduca el:</strong>{" "}
-                        {bono.fechaCaducidadBono || "—"}
+                        {fechaDMA(bono.fechaCaducidadBono) || "—"}
                       </p>
                       <p>
                         <strong>Estado:</strong> {estadoVisible}

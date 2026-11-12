@@ -6,12 +6,40 @@
 //
 // Lo lanza el cron de Vercel (vercel.json) con  Authorization: Bearer CRON_SECRET.
 // GET ?dry=1 solo cuenta lo que borraría, sin borrar nada.
+//
+// Antes de eso borra las reservas pendientes de pago cuya plaza guardada caducó hace
+// más de DIAS_PENDIENTES días (reservadaHasta, ver api/_reservarServidor.js): ya no
+// cuentan para el aforo y, si no se borraran, mantendrían vivos a sus invitados.
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 
 const DIAS_MINIMOS = 30;
 const TOPE_POR_EJECUCION = 1000;
+const DIAS_PENDIENTES = 2;
+
+// Rutas de las reservas pendientes de pago con la plaza caducada hace tiempo
+function pendientesCaducadas(valor, limiteMs, ruta = "reservas", destino = []) {
+  if (!valor || typeof valor !== "object") return destino;
+
+  for (const [clave, hijo] of Object.entries(valor)) {
+    if (!hijo || typeof hijo !== "object") continue;
+    const rutaHijo = `${ruta}/${clave}`;
+
+    if ("orderId" in hijo) {
+      const pendiente =
+        String(hijo.estado || "").toLowerCase() === "pendiente" &&
+        String(hijo.estadoPago || "").toLowerCase() !== "pagado";
+      const caducada = Date.parse(hijo.reservadaHasta || "");
+
+      if (pendiente && Number.isFinite(caducada) && caducada < limiteMs) destino.push(rutaHijo);
+    } else {
+      pendientesCaducadas(hijo, limiteMs, rutaHijo, destino);
+    }
+  }
+
+  return destino;
+}
 
 // Todos los uid que aparecen en cualquier nivel de un árbol de datos
 function recogerUids(valor, destino) {
@@ -55,6 +83,19 @@ export default async function handler(req, res) {
   const limite = Date.now() - DIAS_MINIMOS * 24 * 60 * 60 * 1000;
 
   try {
+    // 0) Reservas pendientes caducadas
+    const reservasSnap = await adminDb.ref("reservas").get();
+    const caducadas = reservasSnap.exists()
+      ? pendientesCaducadas(reservasSnap.val(), Date.now() - DIAS_PENDIENTES * 24 * 60 * 60 * 1000)
+      : [];
+    if (!soloContar && caducadas.length) {
+      const borradas = {};
+      caducadas.forEach((ruta) => {
+        borradas[ruta] = null;
+      });
+      await adminDb.ref().update(borradas);
+    }
+
     const [referenciados, notasSnap] = await Promise.all([
       uidsReferenciados(),
       adminDb.ref("usuariosNotas").get(),
@@ -105,6 +146,7 @@ export default async function handler(req, res) {
       ok: true,
       dry: soloContar,
       revisados,
+      pendientesCaducadasBorradas: caducadas.length,
       invitadosBorrados: aBorrar.length,
     });
   } catch (error) {

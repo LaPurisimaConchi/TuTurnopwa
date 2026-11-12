@@ -2,14 +2,11 @@
 // Reglas del cambio de fecha que hace el propio cliente sin iniciar sesión
 // (número de reserva + email). Sin React ni Firebase: lo usa api/cambiar-fecha.js
 // y la pantalla /gestionar-reserva para mostrar los mismos plazos.
-import {
-  esReservaValida,
-  normalizarMetodo,
-  plazasDeTurno,
-  plazasLibres,
-  plazasPorMetodo,
-} from "./plazasOcupadas.js";
+import { esReservaValida, normalizarMetodo } from "./plazasOcupadas.js";
 import { esTurnoConsulta, limpiarTurno, turnosDisponiblesEnFecha } from "./turnosFecha.js";
+import { contarFranja, plazasLibresFranja } from "./aforo.js";
+import { bloqueoAfectaTurno } from "./rangosHora.js";
+import { edicionesDeClase } from "./monografico.js";
 
 // Política de cancelación: se puede reprogramar avisando con 72 h de antelación
 export const ANTELACION_HORAS = 72;
@@ -154,19 +151,52 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
   return { ok: true, motivo: "" };
 }
 
-// Plazas libres de un turno para esta reserva, con las mismas reglas que el panel
-export function plazasLibresParaReserva({ reservas, clase, carpeta, reserva, fecha, turno }) {
-  const maxTorno = Number(clase?.plazas?.maxTorno || 12);
-  const maxTotales = Number(clase?.plazas?.maxTotales || clase?.plazas?.plazasTotales || 45);
-  const metodo = normalizarMetodo(reserva);
+// Plazas libres de una franja para esta reserva: el aforo y el torno son los del
+// espacio, comunes a todos los talleres (src/utils/aforo.js). `reservas` y `grupos`
+// son los snapshots de /reservas y /reservasGrupos.
+export function plazasLibresParaReserva({ reservas, grupos, config, reserva, fecha, turno }) {
+  const ocupadas = contarFranja(reservas, grupos, fecha, turno);
+  const conTorno = reserva?.incluyeTorno === true || normalizarMetodo(reserva) === "torno";
 
-  if (metodo) {
-    const { torno, modelado } = plazasPorMetodo(reservas, fecha, turno);
-    return plazasLibres({ torno, modelado, esTorno: metodo === "torno", maxTorno, maxTotales });
-  }
+  return plazasLibresFranja(ocupadas, config, { conTorno }).reservables;
+}
 
-  const ocupadas = plazasDeTurno(reservas.child(`${carpeta}/${fecha}/${turno}`));
-  return Math.max(maxTotales - ocupadas, 0);
+// Ediciones de un monográfico a las que puede pasar una reserva: con hueco para
+// todas sus plazas en cada sesión, sin sesiones cerradas y con el margen de la primera clase
+export function opcionesDeCambioEdicion({
+  clase,
+  reserva,
+  reservas,
+  grupos,
+  config,
+  bloqueos,
+  ahoraMs = ahoraMadridMs(),
+}) {
+  const plazas = Number(reserva?.plazas || 1);
+
+  return edicionesDeClase(clase)
+    .filter((edicion) => edicion.id !== reserva?.edicionId)
+    .map((edicion) => {
+      const [primera] = edicion.fechas;
+      if (motivoFechaNoValida({ fecha: primera.fecha, turno: primera.turno, ahoraMs, bloqueos })) return null;
+      if (edicion.fechas.some((f) => bloqueoAfectaTurno(bloqueos?.[f.fecha], f.turno))) return null;
+
+      const libres = Math.min(
+        ...edicion.fechas.map((f) =>
+          plazasLibresParaReserva({
+            reservas,
+            grupos,
+            config,
+            reserva: { ...reserva, incluyeTorno: f.torno === true },
+            fecha: f.fecha,
+            turno: f.turno,
+          })
+        )
+      );
+
+      return libres >= plazas ? { ...edicion, libres } : null;
+    })
+    .filter(Boolean);
 }
 
 // Por qué un día no se puede elegir (o "" si está bien)
@@ -182,7 +212,7 @@ export function motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos = {} }) {
     return `Solo se puede elegir una fecha de los próximos ${DIAS_VENTANA} días.`;
   }
 
-  if (bloqueos?.[fecha]?.bloqueado) return "Ese día no hay taller.";
+  if (bloqueoAfectaTurno(bloqueos?.[fecha], turno)) return "Ese día no hay taller.";
 
   return "";
 }
@@ -196,8 +226,9 @@ export function turnosElegibles({ clase, fecha, fechasHabilitadas, reservasGrupo
 // Días y turnos a los que puede pasar la reserva: con hueco para todas sus plazas
 export function opcionesDeCambio({
   reservas,
+  grupos,
+  config,
   reserva,
-  carpeta,
   clase,
   bloqueos,
   fechasHabilitadas,
@@ -217,7 +248,7 @@ export function opcionesDeCambio({
       if (motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos })) return;
       if (fecha === reserva.fecha && turno === limpiarTurno(reserva.turno)) return;
 
-      const libres = plazasLibresParaReserva({ reservas, clase, carpeta, reserva, fecha, turno });
+      const libres = plazasLibresParaReserva({ reservas, grupos, config, reserva, fecha, turno });
       if (libres >= plazas) turnos.push({ turno, libres });
     });
 

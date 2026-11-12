@@ -10,6 +10,7 @@ import {
   usarSesionDeBono,
 } from "./utils/bonos";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const CLASE_ID = "tornodesdecero4clases";
 const RESERVAS_PATH_KEY = "TornoAlfareroEmpezarDesdeCero";
 
@@ -203,7 +204,7 @@ export default function UsarBonoTornoAlfareroEmpezarDesdeCero() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fechaSesion}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fechaSesion)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -316,7 +317,7 @@ export default function UsarBonoTornoAlfareroEmpezarDesdeCero() {
               </p>
               <p>
                 <strong>Caduca el:</strong>{" "}
-                {bonoActivo.fechaCaducidadBono || "—"}
+                {fechaDMA(bonoActivo.fechaCaducidadBono) || "—"}
               </p>
             </div>
 

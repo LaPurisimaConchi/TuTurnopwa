@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 const AdminReservasNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -697,7 +698,7 @@ const limpiarFiltros = () => {
                     style={getRowStyle(r)}
                   >
                     <td style={styles.tdFechaTurno}>
-  <strong>{r.fecha}</strong>
+  <strong>{fechaDMA(r.fecha)}</strong>
   <br />
   <span style={styles.textoSuave}>
     {mostrandoTarjetas ? r.codigo || "—" : r.turno}

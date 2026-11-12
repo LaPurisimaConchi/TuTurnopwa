@@ -6,6 +6,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { simularPagoAdmin } from "./utils/pagoAdmin";
 
+import { fechaDMA } from "./utils/formatoFecha";
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
   return str
@@ -458,7 +459,7 @@ export default function ResumenPago() {
         )}
 
         <p className="mb-2">
-          <strong>Fecha:</strong> {fecha || fechaInicio || "-"}
+          <strong>Fecha:</strong> {fechaDMA(fecha || fechaInicio) || "-"}
         </p>
 
         <p className="mb-2">

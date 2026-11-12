@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -272,7 +273,7 @@ telefonoUsuario:
                   <div>
                     <p style={styles.cardFecha}>{bono.fechaInicio || "—"}</p>
                     <p style={styles.cardTurno}>
-                      Caduca: {bono.fechaCaducidadBono || "—"}
+                      Caduca: {fechaDMA(bono.fechaCaducidadBono) || "—"}
                     </p>
                   </div>
                   <div>{renderEstado(bono)}</div>
