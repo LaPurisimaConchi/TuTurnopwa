@@ -38,6 +38,12 @@ const SECCIONES_ACCESOS = [
     ],
   },
   {
+    titulo: "Espacio",
+    accesos: [
+      { to: "/admin-espacio", icono: "🏠", texto: "Aforo, grupos y horarios por defecto" },
+    ],
+  },
+  {
     titulo: "Calendario y disponibilidad",
     accesos: [
       { to: "/admin-bloqueos-fechas", icono: "🚫", texto: "Bloquear fechas" },

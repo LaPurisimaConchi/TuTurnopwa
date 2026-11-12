@@ -274,6 +274,8 @@ listaClases.push({
   };
 
   const formatearPlazas = (clase) => {
+    if (clase.dinamica) return "Aforo común (ver Espacio)";
+
     const maxTorno = clase.plazas?.maxTorno;
     const maxTotales =
       clase.plazas?.maxTotales ?? clase.plazas?.plazasTotales;

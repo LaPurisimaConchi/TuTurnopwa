@@ -7,6 +7,8 @@ import { dbRealtime } from "./firebase";
 
 // Categorías que vienen con la web (definidas aparte para poder usarlas desde scripts)
 import { GRUPOS_TALLER } from "./categoriasDeSiempre";
+import { monograficoVisible } from "./utils/monografico";
+import { hoyMadrid } from "./utils/formatoFecha";
 
 export { GRUPOS_TALLER };
 
@@ -205,6 +207,13 @@ export function estadoTaller(clase = {}) {
   return clase.activa === false ? "oculta" : "activa";
 }
 
+// Lo que ve el público: un monográfico sin ediciones por empezar está oculto aunque
+// su estado sea «activa», y reaparece si se le añade una edición futura
+export function estadoPublico(clase = {}, hoy = hoyMadrid()) {
+  const estado = estadoTaller(clase);
+  return estado === "activa" && !monograficoVisible(clase, hoy) ? "oculta" : estado;
+}
+
 // Opciones con precio propio (tipo de pieza, tamaño…): clase.variante
 // { etiqueta, campo, campoNombre, opciones: [{ id, nombre }] }; el precio de
 // cada opción está en clase.precios[id]. Vacío si el taller no tiene.
@@ -240,14 +249,16 @@ export function metodosDelTaller(clase = {}) {
   }));
 }
 
-// Mínimo de personas para reservar un taller en grupo: el que fija el admin en la
-// ficha del taller (minPersonasGrupo) o 5 si no lo ha cambiado
-export const MIN_PERSONAS_GRUPO = 5;
+// Mínimo de personas para HABILITAR un día de solo grupo en un taller: el que fija
+// el admin en la ficha (minPersonasGrupo) o 5 si no lo ha cambiado. No confundir
+// con el mínimo para una reserva de grupo, que es global (configuracionEspacio).
+export const MIN_PERSONAS_HABILITAR = 5;
+export const MIN_PERSONAS_GRUPO = 3; // valor por defecto del mínimo global de grupo
 export const MAX_PERSONAS_GRUPO = 45;
 
-export function minPersonasGrupo(clase = {}) {
+export function minPersonasHabilitar(clase = {}) {
   const n = Math.round(Number(clase.minPersonasGrupo));
-  return Number.isFinite(n) && n >= 2 ? Math.min(n, MAX_PERSONAS_GRUPO) : MIN_PERSONAS_GRUPO;
+  return Number.isFinite(n) && n >= 2 ? Math.min(n, MAX_PERSONAS_GRUPO) : MIN_PERSONAS_HABILITAR;
 }
 
 export function precioDesde(clase = {}) {
@@ -286,7 +297,7 @@ export function normalizarTaller(id, clase = {}) {
     rutaReserva: clase.dinamica ? `/reservar/${id}` : "",
     sesiones: Number(clase.sesiones || fijo?.sesiones || 1),
     imagen: imagenPorDefecto(id),
-    estado: estadoTaller(clase),
+    estado: estadoPublico(clase),
     tipoProducto: clase.tipoProducto === "bono" ? "bono" : "taller",
     precioDesde: precioDesde(clase),
     variosPrecios:

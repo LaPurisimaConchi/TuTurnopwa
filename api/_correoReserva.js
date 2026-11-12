@@ -134,8 +134,15 @@ function contenidoPorTipo(tipo, datos) {
     intro: "hemos recibido tu reserva en La Purísima Conchi. Estos son los datos:",
     filas: [
       ["Taller", taller + (detalle ? ` · ${detalle}` : "")],
-      ["Fecha", formatearFecha(datos.fecha)],
-      ["Horario", datos.turno],
+      ...(Array.isArray(datos.fechasEdicion) && datos.fechasEdicion.length > 1
+        ? datos.fechasEdicion.map((d, i) => [
+            `Sesión ${i + 1}`,
+            `${formatearFecha(d.fecha)} · ${d.turno}`,
+          ])
+        : [
+            ["Fecha", formatearFecha(datos.fecha)],
+            ["Horario", datos.turno],
+          ]),
       ["Plazas", String(Number(datos.plazas || 1))],
       ["Importe", importe],
       codigoReserva,

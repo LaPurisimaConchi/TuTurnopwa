@@ -3,27 +3,29 @@ import { ADMIN_EMAILS } from "../src/utils/administradores.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
+import { marcarSobreaforo } from "./_reservarServidor.js";
 
 export const config = { runtime: "nodejs" };
 
 const timestamp = () => new Date().toISOString();
 
-function findReservationUpdates(reservations, orderId, basePath = "reservas") {
-  if (!reservations || typeof reservations !== "object") return null;
+// Todas las reservas de un pedido (un monográfico reserva varios días con el mismo pedido)
+function findReservationUpdates(reservations, orderId, basePath = "reservas", encontradas = []) {
+  if (!reservations || typeof reservations !== "object") return encontradas;
 
   for (const [key, value] of Object.entries(reservations)) {
     if (!value || typeof value !== "object") continue;
 
     const path = `${basePath}/${key}`;
     if (value.orderId === orderId) {
-      return { path, reservation: value };
+      encontradas.push({ path, reservation: value });
+      continue;
     }
 
-    const match = findReservationUpdates(value, orderId, path);
-    if (match) return match;
+    findReservationUpdates(value, orderId, path, encontradas);
   }
 
-  return null;
+  return encontradas;
 }
 
 async function saveReservationToProfile(reservation, uid, orderId, paidAt) {
@@ -183,7 +185,7 @@ async function confirmGroupReservation(orderId, pedido, paidAt) {
     groupSnapshot.val(),
     orderId,
     "reservasGrupos"
-  );
+  )[0];
   if (!match) {
     throw new Error("No se encontró la reserva de grupo que corresponde al pedido.");
   }
@@ -255,7 +257,8 @@ async function confirmOrder(orderId, pedido) {
     });
   } else {
     const reservationSnapshot = await adminDb.ref("reservas").get();
-    const match = findReservationUpdates(reservationSnapshot.val(), orderId);
+    const coincidencias = findReservationUpdates(reservationSnapshot.val(), orderId);
+    const match = coincidencias[0];
     if (!match) throw new Error("No se encontró la reserva que corresponde al pedido.");
 
     const confirmed = {
@@ -267,14 +270,31 @@ async function confirmOrder(orderId, pedido) {
       actualizadoEn: paidAt,
       pagadoEn: paidAt,
     };
-    await adminDb.ref(match.path).update({
+    const datosPago = {
       estadoPago: confirmed.estadoPago,
       estado: confirmed.estado,
       procesado: confirmed.procesado,
       webhookRecibidoEn: confirmed.webhookRecibidoEn,
       actualizadoEn: confirmed.actualizadoEn,
       pagadoEn: confirmed.pagadoEn,
+    };
+    const confirmacion = {};
+    coincidencias.forEach((c) => {
+      Object.entries(datosPago).forEach(([campo, valor]) => {
+        confirmacion[`${c.path}/${campo}`] = valor;
+      });
     });
+    await adminDb.ref().update(confirmacion);
+    await marcarSobreaforo(
+      adminDb,
+      coincidencias.map((c) => ({
+        ruta: c.path,
+        fecha: c.reservation.fecha,
+        turno: c.reservation.turno,
+        reservadaHasta: c.reservation.reservadaHasta,
+        torno: c.reservation.incluyeTorno === true,
+      }))
+    );
     // Código de reserva para volver a ella sin sesión (si falla, se crea al pedirlo)
     try {
       const codigo = await asegurarCodigo(adminDb, {

@@ -4,12 +4,13 @@
 // bloqueosFechas/{fecha} y fechasHabilitadas/{fecha}, igual que las páginas
 // admin-bloqueos-fechas y admin-habilitar-fechas.
 import { useEffect, useMemo, useState } from "react";
-import { ref, update, remove } from "firebase/database";
+import { ref, update, remove, get } from "firebase/database";
 import { dbRealtime } from "../firebase";
+import EditorTurnos from "./EditorTurnos";
+import { ocupacionPorFranja } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
-
-const TURNO_MANANA = "11:30-14:30";
-const TURNO_TARDE = "17:30-20:30";
+import { leerTurnos } from "../utils/fichaTaller";
+import { bloqueoAfectaTurno, rangosBloqueados } from "../utils/rangosHora";
 
 // Todas las fechas AAAA-MM-DD entre inicio y fin, ambas incluidas
 export function fechasDelRango(inicio, fin) {
@@ -37,8 +38,9 @@ export default function PanelFechasEspeciales({
 }) {
   const [modo, setModo] = useState("bloquear");
   const [motivo, setMotivo] = useState("");
-  const [manana, setManana] = useState(false);
-  const [tarde, setTarde] = useState(false);
+  // Horas a bloquear (vacío = el día entero) y turnos que se abren al habilitar
+  const [horasBloqueo, setHorasBloqueo] = useState("");
+  const [turnosHabilitar, setTurnosHabilitar] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   const fechas = useMemo(() => fechasDelRango(inicio, fin), [inicio, fin]);
@@ -50,18 +52,14 @@ export default function PanelFechasEspeciales({
     if (fechas.length === 1) {
       const h = habilitadas[fechas[0]];
       const b = bloqueos[fechas[0]];
-      if (h?.habilitada) {
-        setMotivo(h.motivo || "");
-        setManana((h.turnosHabilitados || []).includes(TURNO_MANANA));
-        setTarde((h.turnosHabilitados || []).includes(TURNO_TARDE));
-        return;
-      }
-      setMotivo(b?.bloqueado ? b.motivo || "" : "");
-    } else {
-      setMotivo("");
+      setTurnosHabilitar(h?.habilitada ? (h.turnosHabilitados || []).join(", ") : "");
+      setHorasBloqueo(b?.bloqueado ? rangosBloqueados(b).join(", ") : "");
+      setMotivo(h?.habilitada ? h.motivo || "" : b?.bloqueado ? b.motivo || "" : "");
+      return;
     }
-    setManana(false);
-    setTarde(false);
+    setMotivo("");
+    setHorasBloqueo("");
+    setTurnosHabilitar("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inicio, fin]);
 
@@ -85,21 +83,62 @@ export default function PanelFechasEspeciales({
     }
   };
 
-  const bloquear = () =>
-    ejecutar(async () => {
+  // Plazas ya reservadas en los días y horas que se van a bloquear
+  const plazasAfectadas = async (rangos) => {
+    const [reservas, grupos] = await Promise.all([
+      get(ref(dbRealtime, "reservas")),
+      get(ref(dbRealtime, "reservasGrupos")),
+    ]);
+    const porFranja = ocupacionPorFranja(reservas, grupos, fechas[0]);
+    const bloqueo = { bloqueado: true, turnosBloqueados: rangos };
+    let plazas = 0;
+
+    fechas.forEach((f) => {
+      Object.entries(porFranja[f] || {}).forEach(([turno, { total }]) => {
+        if (bloqueoAfectaTurno(bloqueo, turno)) plazas += total;
+      });
+    });
+
+    return plazas;
+  };
+
+  const bloquear = async () => {
+    const rangos = leerTurnos(horasBloqueo);
+
+    // Avisa si ya hay gente reservada: bloquear no cancela las reservas existentes
+    try {
+      const plazas = await plazasAfectadas(rangos);
+      if (
+        plazas > 0 &&
+        !window.confirm(
+          `Ya hay ${plazas} plaza${plazas !== 1 ? "s" : ""} reservada${plazas !== 1 ? "s" : ""} en ${
+            rangos.length ? "esas horas" : "esos días"
+          }. Bloquear no cancela las reservas existentes, solo impide nuevas. ¿Continuar?`
+        )
+      ) {
+        return;
+      }
+    } catch (error) {
+      console.warn("No se pudieron comprobar las reservas existentes:", error);
+    }
+
+    return ejecutar(async () => {
       const updates = {};
       fechas.forEach((f) => {
         updates[`bloqueosFechas/${f}`] = {
           bloqueado: true,
           motivo: motivo.trim() || "No especificado",
+          ...(rangos.length ? { turnosBloqueados: rangos } : {}),
         };
       });
       await update(ref(dbRealtime), updates);
     }, "No se pudieron guardar las fechas bloqueadas.");
+  };
 
   const habilitar = () => {
-    if (!manana && !tarde) {
-      alert("Selecciona al menos un turno: mañana o tarde.");
+    const turnos = leerTurnos(turnosHabilitar);
+    if (!turnos.length) {
+      alert("Añade al menos un turno.");
       return;
     }
 
@@ -110,7 +149,7 @@ export default function PanelFechasEspeciales({
           habilitada: true,
           motivo: motivo.trim() || "Apertura especial",
           creadaEn: Date.now(),
-          turnosHabilitados: [...(manana ? [TURNO_MANANA] : []), ...(tarde ? [TURNO_TARDE] : [])],
+          turnosHabilitados: turnos,
         };
       });
       await update(ref(dbRealtime), updates);
@@ -159,18 +198,20 @@ export default function PanelFechasEspeciales({
         style={estilos.input}
       />
 
-      {modo === "habilitar" && (
-        <div style={estilos.turnos}>
-          <label style={estilos.check}>
-            <input type="checkbox" checked={manana} onChange={(e) => setManana(e.target.checked)} />{" "}
-            Mañana ({TURNO_MANANA})
-          </label>
-          <label style={estilos.check}>
-            <input type="checkbox" checked={tarde} onChange={(e) => setTarde(e.target.checked)} />{" "}
-            Tarde ({TURNO_TARDE})
-          </label>
-        </div>
-      )}
+      <div style={estilos.turnos}>
+        <p style={estilos.ayuda}>
+          {modo === "bloquear"
+            ? "Horas a bloquear. Sin ninguna se bloquea el día entero; un turno se bloquea si se cruza con alguna de estas horas."
+            : "Turnos que se abren esos días."}
+        </p>
+        <EditorTurnos
+          key={modo}
+          id={`panel-${modo}`}
+          value={modo === "bloquear" ? horasBloqueo : turnosHabilitar}
+          onChange={modo === "bloquear" ? setHorasBloqueo : setTurnosHabilitar}
+          textoVacio={modo === "bloquear" ? "Todo el día" : "Sin turnos"}
+        />
+      </div>
 
       <div style={estilos.acciones}>
         <button
@@ -237,7 +278,8 @@ const estilos = {
     marginBottom: 12,
     fontSize: 14,
   },
-  turnos: { display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 12 },
+  turnos: { marginBottom: 12 },
+  ayuda: { margin: "0 0 6px", fontSize: 12, color: "#6b5a44" },
   check: { fontSize: 14 },
   acciones: { display: "flex", flexWrap: "wrap", gap: 8 },
   botonPrincipal: {

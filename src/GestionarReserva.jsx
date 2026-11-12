@@ -152,6 +152,7 @@ export default function GestionarReserva() {
   const [datos, setDatos] = useState(null); // { reserva, opciones }
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
+  const [edicionId, setEdicionId] = useState(""); // monográficos: se cambia de edición
   const [confirmando, setConfirmando] = useState(false);
   const [cambiada, setCambiada] = useState(null); // { antes, despues }
 
@@ -171,7 +172,15 @@ export default function GestionarReserva() {
     if (datos) pasoDos.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [datos]);
 
-  const paso = cambiada ? 3 : datos?.reserva.puedeCambiar && fecha && turno ? 3 : datos ? 2 : 1;
+  const esEdicion = Array.isArray(datos?.ediciones);
+  const edicionElegida = esEdicion ? datos.ediciones.find((e) => e.id === edicionId) || null : null;
+  const paso = cambiada
+    ? 3
+    : datos?.reserva.puedeCambiar && (esEdicion ? edicionElegida : fecha && turno)
+    ? 3
+    : datos
+    ? 2
+    : 1;
 
   const buscar = async (e) => {
     e.preventDefault();
@@ -183,6 +192,7 @@ export default function GestionarReserva() {
       setDatos(respuesta);
       setFecha("");
       setTurno("");
+      setEdicionId("");
       setConfirmando(false);
     } catch (err) {
       setDatos(null);
@@ -197,7 +207,12 @@ export default function GestionarReserva() {
     setCargando(true);
 
     try {
-      const respuesta = await llamarApi({ accion: "confirmar", codigo, email, fecha, turno });
+      const respuesta = await llamarApi({
+        accion: "confirmar",
+        codigo,
+        email,
+        ...(esEdicion ? { edicionId } : { fecha, turno }),
+      });
       setCambiada({ antes: datos.reserva, despues: respuesta.reserva });
       setDatos(null);
       setConfirmando(false);
@@ -220,6 +235,7 @@ export default function GestionarReserva() {
     setDatos(null);
     setFecha("");
     setTurno("");
+    setEdicionId("");
     setConfirmando(false);
     setError("");
   };
@@ -332,13 +348,102 @@ export default function GestionarReserva() {
                       <ContactoTaller />
                     </p>
                   </Aviso>
-                ) : datos.opciones.length === 0 ? (
+                ) : (esEdicion ? datos.ediciones.length === 0 : datos.opciones.length === 0) ? (
                   <Aviso tipo="info">
                     <p>Ahora mismo no hay otras fechas con plazas para tu reserva.</p>
                     <p className="mt-2">
                       <ContactoTaller texto="Escríbenos y buscamos una alternativa" />
                     </p>
                   </Aviso>
+                ) : esEdicion ? (
+                  <>
+                    <Tarjeta>
+                      <h2 className="font-bold text-[#7a4630] mb-1">Elige la nueva edición</h2>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Se cambian todas las sesiones de tu reserva. Estas ediciones tienen plazas para tu reserva.
+                      </p>
+                      <div className="grid gap-3">
+                        {datos.ediciones.map((ed, i) => (
+                          <button
+                            key={ed.id}
+                            type="button"
+                            aria-pressed={edicionId === ed.id}
+                            onClick={() => {
+                              setEdicionId(ed.id);
+                              setConfirmando(false);
+                            }}
+                            className={`text-left rounded-xl border p-3 text-sm ${
+                              edicionId === ed.id
+                                ? "border-[#b36a4a] bg-[#fff6ef]"
+                                : "border-gray-300 bg-white hover:border-[#b36a4a]"
+                            }`}
+                          >
+                            <strong>Edición {i + 1}</strong>
+                            <ul className="mt-1 list-disc ml-5 text-gray-700">
+                              {ed.fechas.map((f) => (
+                                <li key={`${f.fecha}-${f.turno}`}>
+                                  {formatearFecha(f.fecha)} · {f.turno}
+                                </li>
+                              ))}
+                            </ul>
+                          </button>
+                        ))}
+                      </div>
+                    </Tarjeta>
+
+                    {edicionElegida && (
+                      <Tarjeta className="border-[#b36a4a]">
+                        <h2 className="font-bold text-[#7a4630] mb-3">Resumen del cambio</h2>
+                        <p className="text-sm text-gray-500 line-through">
+                          Desde {formatearFecha(datos.reserva.fecha)}
+                        </p>
+                        <p className="text-lg font-bold text-[#3f3128]">
+                          Edición del {formatearFecha(edicionElegida.fechas[0].fecha)} al{" "}
+                          {formatearFecha(edicionElegida.fechas[edicionElegida.fechas.length - 1].fecha)}
+                        </p>
+
+                        {error && (
+                          <div className="mt-3">
+                            <Aviso>{error}</Aviso>
+                          </div>
+                        )}
+
+                        {!confirmando ? (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmando(true)}
+                            className={`${botonPrincipal} w-full mt-4`}
+                          >
+                            Cambiar mi reserva
+                          </button>
+                        ) : (
+                          <div className="mt-4 rounded-xl bg-yellow-50 border border-yellow-300 p-4">
+                            <p className="text-sm text-yellow-900 font-medium">
+                              Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?
+                            </p>
+                            <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                              <button
+                                type="button"
+                                onClick={confirmar}
+                                disabled={cargando}
+                                className={`${botonPrincipal} flex-1`}
+                              >
+                                {cargando ? "Guardando..." : "Sí, cambiar"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmando(false)}
+                                disabled={cargando}
+                                className={`${botonSecundario} flex-1`}
+                              >
+                                Volver
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Tarjeta>
+                    )}
+                  </>
                 ) : (
                   <>
                     <Tarjeta>

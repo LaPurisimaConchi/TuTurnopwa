@@ -4,6 +4,7 @@ import { adminDb } from "./_firebaseAdmin.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
+import { marcarSobreaforo } from "./_reservarServidor.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -51,6 +52,8 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
   let reservaEncontrada = null;
   const updates = {};
+  // Para detectar pagos que llegan con la plaza ya caducada (sobreaforo)
+  const confirmadas = [];
 
   const pareceReservaDirecta = (obj) => {
     if (!obj || typeof obj !== "object") return false;
@@ -80,6 +83,17 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
     updates[`${rutaBase}/webhookRecibidoEn`] = timestamp;
     updates[`${rutaBase}/actualizadoEn`] = timestamp;
     updates[`${rutaBase}/pagadoEn`] = timestamp;
+
+    confirmadas.push({
+      ruta: rutaBase,
+      fecha: reserva.fecha || fechaKey,
+      turno: reserva.turno || turnoKey,
+      reservadaHasta: reserva.reservadaHasta || "",
+      torno: reserva.incluyeTorno === true,
+    });
+
+    // Con varios días (monográfico) se queda la reserva del primer día
+    if (reservaEncontrada && (reserva.fecha || fechaKey) >= reservaEncontrada.fecha) return;
 
    reservaEncontrada = {
   ...reserva,
@@ -154,6 +168,7 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
   if (reservaEncontrada) {
     await adminDb.ref().update(updates);
+    await marcarSobreaforo(adminDb, confirmadas);
   }
 
   return reservaEncontrada;

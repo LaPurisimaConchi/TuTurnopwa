@@ -838,6 +838,14 @@ useEffect(() => {
             <strong>Email:</strong> {reserva.email || "—"}
           </p>
 
+          {reserva.sobreaforo && (
+            <p style={{ ...styles.reprogramadaInfo, color: "#b3261e" }}>
+              <strong>⚠ Sobreaforo:</strong> el pago llegó cuando la plaza guardada ya había
+              caducado y otra persona ocupó el sitio. La reserva está confirmada, pero la
+              franja supera el aforo.
+            </p>
+          )}
+
           {reserva.reprogramada && (
             <>
               <hr style={styles.hr} />

@@ -3,6 +3,7 @@ import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import PanelFechasEspeciales, { fechasDelRango } from "./components/PanelFechasEspeciales";
+import { bloqueoEsParcial } from "./utils/rangosHora";
 import { useNavigate } from "react-router-dom";
 
 
@@ -533,7 +534,9 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
       };
     }
 
-    if (bloqueos[celda.fechaISO]?.bloqueado) {
+    if (bloqueoEsParcial(bloqueos[celda.fechaISO])) {
+      estilo = { ...estilo, background: "#fff3e0", borderColor: "#e0b36a" };
+    } else if (bloqueos[celda.fechaISO]?.bloqueado) {
       estilo = { ...estilo, background: "#fdecea", borderColor: "#e8a29b" };
     } else if (habilitadas[celda.fechaISO]?.habilitada) {
       estilo = { ...estilo, background: "#e8f5e9", borderColor: "#8fc796" };
@@ -724,7 +727,10 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                         }}
                       >
                         {celda.dia}
-                        {bloqueos[celda.fechaISO]?.bloqueado && " 🚫"}
+                        {bloqueoEsParcial(bloqueos[celda.fechaISO]) && " 🕒"}
+                        {bloqueos[celda.fechaISO]?.bloqueado &&
+                          !bloqueoEsParcial(bloqueos[celda.fechaISO]) &&
+                          " 🚫"}
                         {!bloqueos[celda.fechaISO]?.bloqueado &&
                           habilitadas[celda.fechaISO]?.habilitada &&
                           " ✅"}

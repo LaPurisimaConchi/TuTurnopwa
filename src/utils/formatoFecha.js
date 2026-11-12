@@ -8,3 +8,13 @@ export function fechaDMA(valor) {
   if (!m) return valor;
   return `${m[3]}-${m[2]}-${m[1]}`;
 }
+
+// Hoy en España como AAAA-MM-DD (no en UTC: a las 00:30 ya es otro día aquí)
+export function hoyMadrid(ahora = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Madrid",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(ahora);
+}

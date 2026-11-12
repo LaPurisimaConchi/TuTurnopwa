@@ -8,10 +8,13 @@
 // Las fotos se guardan comprimidas en imagenesClases/{id}.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { cargarConfigEspacio } from "./configuracionEspacio";
 import { ref, get, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import EditorTurnos from "./components/EditorTurnos";
+import EditorEdiciones, { ajustarSesiones } from "./components/EditorEdiciones";
+import { turnosSeSolapan } from "./utils/rangosHora";
 import {
   cargarCategorias,
   categoriasDeSiempre,
@@ -34,6 +37,7 @@ import {
   leerTurnos,
   numeroPositivo,
   turnoInvalido,
+  TURNO_VALIDO,
 } from "./utils/fichaTaller";
 import {
   LADO_MINIATURA,
@@ -209,6 +213,23 @@ export default function AdminTallerForm() {
       .finally(() => setCategoriasCargadas(true));
   }, []);
 
+  // Taller nuevo: se parte de los horarios por defecto de «Espacio»
+  useEffect(() => {
+    if (idEditar) return;
+    let activo = true;
+    cargarConfigEspacio().then((config) => {
+      if (!activo) return;
+      setForm((prev) =>
+        DIAS.some(([dia]) => prev.horarios[dia])
+          ? prev
+          : { ...prev, horarios: { ...prev.horarios, ...config.horariosDefecto } }
+      );
+    });
+    return () => {
+      activo = false;
+    };
+  }, [idEditar]);
+
   useEffect(() => {
     if (!idEditar) return;
 
@@ -303,6 +324,20 @@ export default function AdminTallerForm() {
 
   const quitarVariante = (indice) =>
     setForm((prev) => ({ ...prev, variantes: prev.variantes.filter((_, i) => i !== indice) }));
+
+  // Al cambiar las sesiones del curso, cada edición se ajusta a ese número
+  const cambiarDiasCurso = (valor) =>
+    setForm((prev) => {
+      const sesiones = Math.round(Number(valor));
+      return {
+        ...prev,
+        sesionesCurso: valor,
+        ediciones:
+          sesiones >= 1 && sesiones <= 30
+            ? prev.ediciones.map((edicion) => ajustarSesiones(edicion, sesiones))
+            : prev.ediciones,
+      };
+    });
 
   const turnosInvalidos = useMemo(
     () =>
@@ -401,11 +436,42 @@ export default function AdminTallerForm() {
       form.minPersonasGrupo !== "" &&
       (numeroPositivo(form.minPersonasGrupo) < 2 || numeroPositivo(form.minPersonasGrupo) > 45)
     ) {
-      return fallo("precios", "El mínimo de personas para grupo debe estar entre 2 y 45.");
+      return fallo("precios", "El mínimo de personas para habilitar un día debe estar entre 2 y 45.");
     }
 
-    if (!esBono && !numeroPositivo(form.maxTotales)) {
-      return fallo("precios", "Indica el máximo de plazas por turno.");
+    if (form.monografico && !esBono) {
+      const sesiones = Math.round(numeroPositivo(form.sesionesCurso));
+      if (!(sesiones >= 1 && sesiones <= 30)) {
+        return fallo("horario", "Indica cuántas sesiones tiene el curso (de 1 a 30).");
+      }
+      for (const [i, edicion] of form.ediciones.entries()) {
+        if (edicion.fechas.length !== sesiones || edicion.fechas.some((f) => !f.fecha)) {
+          return fallo(
+            "horario",
+            `La edición ${i + 1} debe tener ${sesiones} sesion${sesiones !== 1 ? "es" : ""} con fecha.`
+          );
+        }
+        for (const f of edicion.fechas) {
+          if (!TURNO_VALIDO.test(f.turno || "")) {
+            return fallo("horario", `Indica la hora de inicio y fin de cada sesión (edición ${i + 1}).`);
+          }
+        }
+        // Un día puede tener dos sesiones, pero no a la misma hora ni solapadas
+        for (const [a, sesionA] of edicion.fechas.entries()) {
+          for (const sesionB of edicion.fechas.slice(a + 1)) {
+            if (
+              sesionA.fecha === sesionB.fecha &&
+              (sesionA.turno === sesionB.turno || turnosSeSolapan(sesionA.turno, sesionB.turno))
+            ) {
+              return fallo(
+                "horario",
+                `En la edición ${i + 1} hay dos sesiones el ${sesionA.fecha} a la misma hora o solapadas.`
+              );
+            }
+          }
+        }
+      }
+      return "";
     }
     if (turnosInvalidos.length) {
       return fallo("horario", `Revisa los turnos (formato 17:30-20:30): ${turnosInvalidos.join(", ")}`);
@@ -1149,37 +1215,16 @@ export default function AdminTallerForm() {
               )}
 
               {!esBono && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="taller-max" className={label}>Plazas máximas por turno</label>
-                    <input
-                      id="taller-max"
-                      type="number"
-                      min="1"
-                      className={input}
-                      value={form.maxTotales}
-                      onChange={(e) => cambiar("maxTotales", e.target.value)}
-                    />
-                  </div>
-                  {conMetodoOVariante && form.metodos.torno && (
-                    <div>
-                      <label htmlFor="taller-max-torno" className={label}>De ellas, con torno</label>
-                      <input
-                        id="taller-max-torno"
-                        type="number"
-                        min="1"
-                        className={input}
-                        value={form.maxTorno}
-                        onChange={(e) => cambiar("maxTorno", e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
+                <p className="text-xs text-gray-500">
+                  El aforo por turno y las plazas de torno son iguales para todos los
+                  talleres y se cambian en{" "}
+                  <Link to="/admin-espacio" className="underline">Espacio</Link>.
+                </p>
               )}
               {!esBono && (
                 <div className="sm:w-1/2">
                   <label htmlFor="taller-min-grupo" className={label}>
-                    Mínimo de personas para reservar en grupo
+                    Mínimo de personas para habilitar un día
                   </label>
                   <input
                     id="taller-min-grupo"
@@ -1192,7 +1237,10 @@ export default function AdminTallerForm() {
                     onChange={(e) => cambiar("minPersonasGrupo", e.target.value)}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Por defecto 5. Es lo mínimo que se pide en la reserva para grupos.
+                    Por defecto 5. Los días en que el taller no se da normalmente se
+                    pueden reservar si se juntan al menos estas personas. El mínimo
+                    para una reserva de grupo es el mismo para todos los talleres y
+                    se cambia en «Espacio».
                   </p>
                 </div>
               )}
@@ -1275,6 +1323,58 @@ export default function AdminTallerForm() {
 
           {!esFijo && (
             <section className={seccion + ocultaSi("horario")}>
+              {!esBono && (
+                <label className="flex items-start gap-3 rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.monografico}
+                    onChange={(e) => cambiar("monografico", e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <strong>Taller monográfico</strong> (solo en fechas concretas)
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      No tiene horario semanal: se da en ediciones de varias sesiones (un día puede tener dos), que se
+                      reservan enteras. Cuando pasa la primera fecha de la última edición,
+                      el taller se oculta solo.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              {form.monografico && !esBono && (
+                <>
+                  <h2 className="text-lg font-semibold text-[#3d3126]">Ediciones</h2>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="taller-sesiones-curso" className={label}>Sesiones del curso</label>
+                      <input
+                        id="taller-sesiones-curso"
+                        type="number"
+                        min="1"
+                        max="30"
+                        className={input}
+                        value={form.sesionesCurso}
+                        onChange={(e) => cambiarDiasCurso(e.target.value)}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 sm:pt-7">
+                      Marca «Torno» en las sesiones que lo usen: esas cuentan en el límite de
+                      plazas de torno.
+                    </p>
+                  </div>
+
+                  <EditorEdiciones
+                    ediciones={form.ediciones}
+                    sesionesCurso={form.sesionesCurso}
+                    onChange={(ediciones) => cambiar("ediciones", ediciones)}
+                  />
+                </>
+              )}
+
+              {!(form.monografico && !esBono) && (
+                <>
               <h2 className="text-lg font-semibold text-[#3d3126]">Horario semanal</h2>
               <p className="text-sm text-gray-600">
                 Elige los turnos de cada día con los atajos o con «Otra hora». Un día
@@ -1333,6 +1433,9 @@ export default function AdminTallerForm() {
                   horario habitual. Sin ninguno, se usan los del horario semanal.
                 </p>
               </div>
+
+                </>
+              )}
 
               {turnosInvalidos.length > 0 && (
                 <p className="text-sm text-red-600">

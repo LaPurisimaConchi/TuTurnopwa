@@ -187,6 +187,7 @@ export function bloqueosPublicos(bloqueos = {}) {
   Object.entries(bloqueos || {}).forEach(([fecha, bloqueo]) => {
     if (bloqueo?.bloqueado) {
       publico[fecha] = { bloqueado: true, motivo: String(bloqueo.motivo || "") };
+      if (bloqueo.turnosBloqueados) publico[fecha].turnosBloqueados = bloqueo.turnosBloqueados;
     }
   });
 

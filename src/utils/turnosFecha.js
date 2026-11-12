@@ -46,7 +46,6 @@ export function turnosDisponiblesEnFecha({
   clase,
   fecha,
   fechasHabilitadas = {},
-  reservasGrupos = {},
 }) {
   if (!fecha) return [];
 
@@ -67,17 +66,8 @@ export function turnosDisponiblesEnFecha({
     });
   }
 
-  Object.values(reservasGrupos || {}).forEach((grupo) => {
-    if (
-      grupo?.fecha === fecha &&
-      grupo?.estado === "Confirmada" &&
-      Number(grupo?.plazas || 0) >= 5 &&
-      grupo?.turno &&
-      !turnos.includes(grupo.turno)
-    ) {
-      turnos.push(grupo.turno);
-    }
-  });
+  // Un grupo confirmado ya no abre turnos: los días de solo grupo se habilitan con
+  // el mínimo de personas del taller (ver estadoDiaTaller).
 
   return turnos;
 }
