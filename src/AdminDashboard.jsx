@@ -15,7 +15,7 @@ const SECCIONES_ACCESOS = [
   {
     titulo: "Reservas",
     accesos: [
-      { to: "/admin-calendario-reservas-nuevo", icono: "📅", texto: "Ver calendario" },
+      { to: "/admin-calendario-reservas", icono: "📅", texto: "Ver calendario" },
       { to: "/admin-reservas-nuevo", icono: "📋", texto: "Ver reservas" },
       { to: "/admin-reservas-grupos", icono: "👥", texto: "Ver reservas de grupo" },
     ],
@@ -171,14 +171,14 @@ const AdminDashboard = () => {
               <button
                 type="button"
                 className="ad-proxima"
-                onClick={() => navigate("/admin-calendario-reservas-nuevo")}
+                onClick={() => navigate("/admin-calendario-reservas")}
               >
                 <strong>{stats.reservasHoy}</strong> reservas hoy
               </button>
               <button
                 type="button"
                 className="ad-proxima"
-                onClick={() => navigate("/admin-calendario-reservas-nuevo")}
+                onClick={() => navigate("/admin-calendario-reservas")}
               >
                 <strong>{stats.reservasManana}</strong> reservas mañana
               </button>

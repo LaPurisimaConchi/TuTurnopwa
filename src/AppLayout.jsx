@@ -9,8 +9,9 @@ export default function AppLayout() {
   const location = useLocation();
   const ocultarFooterEn = ["/perfil", "/dondereservar"];
 
-  // ✅ Rutas que NO deben ir dentro de PageContainer (portada)
-  const sinContenedor = ["/", "/portada"];
+  // ✅ Rutas que NO deben ir dentro de PageContainer (portada y el calendario del
+  // admin, que necesita todo el ancho de la pantalla)
+  const sinContenedor = ["/", "/portada", "/admin-calendario-reservas"];
   const usaContenedor = !sinContenedor.includes(location.pathname);
 
   return (

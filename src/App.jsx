@@ -117,7 +117,7 @@ import AdminReservasNuevo from "./AdminReservasNuevo";
 import AdminDashboard from "./AdminDashboard";
 import AdminClasesNuevo from "./AdminClasesNuevo";
 import AdminUsuariosNuevo from "./AdminUsuariosNuevo";
-import AdminCalendarioReservasNuevo from "./AdminCalendarioReservasNuevo";
+import AdminCalendarioReservas from "./AdminCalendarioReservas";
 import AdminHistorialNuevo from "./AdminHistorialNuevo";
 import AdminDetalleReservaNuevo from "./AdminDetalleReservaNuevo";
 import AdminDetalleUsuarioNuevo from "./AdminDetalleUsuarioNuevo";
@@ -390,12 +390,17 @@ function App() {
             }
           />
           <Route
-            path="/admin-calendario-reservas-nuevo"
+            path="/admin-calendario-reservas"
             element={
               <RutaAdmin>
-                <AdminCalendarioReservasNuevo />
+                <AdminCalendarioReservas />
               </RutaAdmin>
             }
+          />
+          {/* Dirección anterior del calendario: se mantiene para los marcadores */}
+          <Route
+            path="/admin-calendario-reservas-nuevo"
+            element={<Navigate to="/admin-calendario-reservas" replace />}
           />
           <Route
             path="/admin-historial-nuevo"
