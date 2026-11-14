@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BotonVolver from "./BotonVolver";
+import CalendarioReserva from "./components/CalendarioReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
 const AdminDetalleReservaNuevo = () => {
@@ -367,6 +368,22 @@ useEffect(() => {
   };
 
   const horariosClase = claseConfig?.horarios || claseConfig?.horario || {};
+
+  // Turnos de cualquier fecha: los de la fecha habilitada a mano o, si no hay, los
+  // del horario semanal del taller
+  const turnosDeFecha = (fechaISO) => {
+    const habilitados = obtenerTurnosFechaHabilitada(fechaISO);
+    if (habilitados.length > 0) return habilitados;
+    return normalizarTurnos(horariosClase[getNombreDiaSemana(fechaISO)]);
+  };
+
+  // Estado de cada día para el calendario de reprogramar
+  const estadoDiaReprogramar = (fechaISO) => {
+    const bloqueo = fechasBloqueadas?.[fechaISO];
+    if (bloqueo?.bloqueado) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
+    if (turnosDeFecha(fechaISO).length === 0) return { estado: "sin-taller" };
+    return { estado: "disponible" };
+  };
   const metodoOriginal = (reserva?.metodo || "").toLowerCase();
 
   const turnosDisponiblesReprogramacion = useMemo(() => {
@@ -767,26 +784,64 @@ useEffect(() => {
     return <p style={styles.mensaje}>Reserva no encontrada.</p>;
   }
 
+  const fechaLarga = (iso) => {
+    if (!iso) return "—";
+    const texto = new Date(`${iso}T12:00:00`).toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  };
+
+  const urlWhatsApp = (telefono) => {
+    const digitos = String(telefono || "").replace(/\D/g, "");
+    return digitos ? `https://wa.me/34${digitos}` : "";
+  };
+
+  const esPagado = String(reserva.estadoPago).toLowerCase() === "pagado";
+  const mostrarMetodo =
+    !["pintatupieza", "especialpintatupieza"].includes(reserva.claseId) &&
+    reserva.tipoTaller !== "pinta_y_decora" &&
+    reserva.metodo &&
+    reserva.metodo !== "—";
+
+  const chip = (texto, tono) => (
+    <span style={{ ...styles.chip, ...styles[`chip_${tono}`] }}>{texto}</span>
+  );
+
+  const tonoEstado = reservaYaCancelada
+    ? "rojo"
+    : String(reserva.estado).toLowerCase() === "confirmada"
+    ? "verde"
+    : "ambar";
+
+  // Fila "etiqueta · valor" de las tarjetas de datos
+  const dato = (etiqueta, valor, extra = null) => (
+    <div style={styles.dato}>
+      <span style={styles.datoEtiqueta}>{etiqueta}</span>
+      <span style={styles.datoValor}>{valor || "—"}</span>
+      {extra}
+    </div>
+  );
+
+  const plazasReserva = Number(reserva.plazas || 1);
+  const faltaSitio =
+    !!nuevaFecha &&
+    !fechaBloqueadaReprogramacion &&
+    !diaNoDisponibleReprogramacion &&
+    plazasDisponiblesReprogramacion < plazasReserva;
+
   return (
-   <div
-  style={{
-    ...styles.body,
-    ...(isMobile ? styles.bodyMobile : {}),
-  }}
->
-  <div
-    style={{
-      ...styles.container,
-      ...(isMobile ? styles.containerMobile : {}),
-    }}
-  >
+    <div style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>
+      <div style={{ ...styles.container, ...(isMobile ? styles.containerMobile : {}) }}>
         <BotonVolver />
 
-        <h1 style={styles.titulo}>Detalle de reserva</h1>
-
-        <div style={styles.card}>
-          <p>
-            <strong>Clase:</strong>{" "}
+        {/* Cabecera: qué reserva es y cómo está */}
+        <div style={styles.cabecera}>
+          <p style={styles.cabeceraEtiqueta}>Detalle de reserva</p>
+          <h1 style={{ ...styles.titulo, ...(isMobile ? styles.tituloMobile : {}) }}>
             <span
               style={styles.linkClase}
               onClick={() =>
@@ -799,281 +854,243 @@ useEffect(() => {
             >
               {reserva.clase}
             </span>
-          </p>
+          </h1>
 
-          <p>
-            <strong>Fecha de la reserva:</strong>{" "}
-            <span style={styles.fechaReserva}>{reserva.fecha}</span>
-          </p>
-
-          <p>
-            <strong>Fecha de pago:</strong>{" "}
-            <span style={styles.fechaPago}>{reserva.timestamp}</span>
-          </p>
-
-          <p>
-            <strong>Turno:</strong> {reserva.turno}
-          </p>
-
-          {!["pintatupieza", "especialpintatupieza"].includes(reserva.claseId) &&
-            reserva.tipoTaller !== "pinta_y_decora" && (
-              <p>
-                <strong>Método:</strong> {reserva.metodo}
-              </p>
-            )}
-
-          <p>
-            <strong>Plazas:</strong> {reserva.plazas}
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Nombre:</strong> {reserva.nombre || "—"}
-          </p>
-          <p>
-            <strong>Teléfono:</strong> {reserva.telefono || "—"}
-          </p>
-          <p>
-            <strong>Email:</strong> {reserva.email || "—"}
-          </p>
-
-          {reserva.sobreaforo && (
-            <p style={{ ...styles.reprogramadaInfo, color: "#b3261e" }}>
-              <strong>⚠ Sobreaforo:</strong> el pago llegó cuando la plaza guardada ya había
-              caducado y otra persona ocupó el sitio. La reserva está confirmada, pero la
-              franja supera el aforo.
-            </p>
-          )}
-
-          {reserva.reprogramada && (
-            <>
-              <hr style={styles.hr} />
-              <p style={styles.reprogramadaInfo}>
-                <strong>Reserva reprogramada:</strong> Sí
-              </p>
-              <p>
-                <strong>Fecha original:</strong> {fechaDMA(reserva.fechaOriginal) || "—"}
-              </p>
-              <p>
-                <strong>Turno original:</strong> {reserva.turnoOriginal || "—"}
-              </p>
-              <p>
-                <strong>Último cambio:</strong> {reserva.reprogramadaEn || "—"}
-              </p>
-            </>
-          )}
-
-          {reservaYaCancelada && (
-            <>
-              <hr style={styles.hr} />
-              <p style={styles.canceladaInfo}>
-                <strong>Reserva cancelada:</strong> Sí
-              </p>
-              <p>
-                <strong>Cancelada por:</strong> {reserva.canceladaPor || "—"}
-              </p>
-              <p>
-                <strong>Fecha cancelación:</strong> {reserva.canceladaEn || "—"}
-              </p>
-              <p>
-                <strong>Motivo:</strong> {reserva.motivoCancelacion || "—"}
-              </p>
-            </>
-          )}
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Estado:</strong> {reserva.estado}
-          </p>
-          <p>
-            <strong>Estado pago:</strong> {reserva.estadoPago}
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Precio unitario:</strong> {reserva.precioUnitario}€
-          </p>
-          <p>
-            <strong>Precio total:</strong> {reserva.precioTotal}€
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>UID:</strong>{" "}
-            <span
-              style={styles.uidLink}
-              onClick={() =>
-                navigate(`/admin-detalle-usuario?uid=${reserva.uid}`)
-              }
-            >
-              {reserva.uid}
-            </span>
-          </p>
-
-          <p>
-            <strong>Order ID:</strong> {reserva.orderId}
-          </p>
-          <p>
-            <strong>Desde tarjeta:</strong> {reserva.desdeTarjeta ? "Sí" : "No"}
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Procesado:</strong> {reserva.procesado ? "Sí" : "No"}
-          </p>
+          <div style={styles.chips}>
+            {chip(reservaYaCancelada ? "Cancelada" : reserva.estado, tonoEstado)}
+            {chip(esPagado ? "Pagado" : `Pago: ${reserva.estadoPago}`, esPagado ? "verde" : "ambar")}
+            {reserva.reprogramada && chip("Reprogramada", "azul")}
+            {reserva.sobreaforo && chip("⚠ Sobreaforo", "rojo")}
+          </div>
         </div>
 
-        <div style={styles.notasBox}>
-          <h2 style={styles.subtituloBloque}>Reprogramar reserva</h2>
-
-          <div style={styles.campoReprogramacion}>
-            <label style={styles.label}>Nueva fecha</label>
-            <input
-              type="date"
-              value={nuevaFecha}
-              onChange={(e) => {
-                setNuevaFecha(e.target.value);
-                setNuevoTurno("");
-              }}
-              style={styles.input}
-              disabled={reservaYaCancelada}
-            />
+        {/* Lo más importante, de un vistazo */}
+        <div style={{ ...styles.resumen, ...(isMobile ? styles.resumenMobile : {}) }}>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Fecha</span>
+            <span style={styles.resumenValor}>{fechaLarga(reserva.fecha)}</span>
           </div>
-
-          <div style={styles.campoReprogramacion}>
-            <label style={styles.label}>Nuevo turno</label>
-            <select
-              value={nuevoTurno}
-              onChange={(e) =>
-                setNuevoTurno(normalizarTurnoParaRuta(e.target.value))
-              }
-              style={styles.input}
-              disabled={
-                !nuevaFecha || diaNoDisponibleReprogramacion || reservaYaCancelada
-              }
-            >
-              <option value="">-- Elige turno --</option>
-              {turnosDisponiblesReprogramacion.map((turno) => (
-                <option key={turno} value={turno}>
-                  {turno}
-                </option>
-              ))}
-            </select>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Turno</span>
+            <span style={styles.resumenValor}>{reserva.turno || "—"}</span>
           </div>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Plazas</span>
+            <span style={styles.resumenValor}>
+              {plazasReserva}
+              {mostrarMetodo ? ` · ${reserva.metodo}` : ""}
+            </span>
+          </div>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Total</span>
+            <span style={styles.resumenValor}>{reserva.precioTotal} €</span>
+          </div>
+        </div>
 
-          {fechaBloqueadaReprogramacion && (
-            <p style={styles.textoError}>
-              La fecha elegida está bloqueada.
-              {fechaBloqueadaReprogramacion.motivo
-                ? ` Motivo: ${fechaBloqueadaReprogramacion.motivo}.`
-                : ""}
-            </p>
-          )}
+        {reserva.sobreaforo && (
+          <div style={{ ...styles.aviso, ...styles.avisoRojo }}>
+            <strong>Sobreaforo:</strong> el pago llegó cuando la plaza guardada ya había caducado
+            y otra persona ocupó el sitio. La reserva está confirmada, pero la franja supera el
+            aforo.
+          </div>
+        )}
 
-          {nuevaFecha &&
-            !fechaBloqueadaReprogramacion &&
-            diaNoDisponibleReprogramacion && (
-              <p style={styles.textoError}>
-                Esta clase no se imparte ese día. Días disponibles:{" "}
-                {Object.keys(horariosClase).join(", ")}.
-              </p>
+        {reservaYaCancelada && (
+          <div style={{ ...styles.aviso, ...styles.avisoRojo }}>
+            <strong>Reserva cancelada</strong> por {reserva.canceladaPor || "—"} el{" "}
+            {reserva.canceladaEn || "—"}.
+            {reserva.motivoCancelacion ? ` Motivo: ${reserva.motivoCancelacion}.` : ""}
+          </div>
+        )}
+
+        {reserva.reprogramada && (
+          <div style={{ ...styles.aviso, ...styles.avisoAzul }}>
+            <strong>Reprogramada</strong> el {reserva.reprogramadaEn || "—"}. Antes:{" "}
+            {fechaDMA(reserva.fechaOriginal) || "—"}
+            {reserva.turnoOriginal ? ` · ${reserva.turnoOriginal}` : ""}.
+          </div>
+        )}
+
+        {/* Datos agrupados */}
+        <div style={{ ...styles.rejilla, ...(isMobile ? styles.rejillaMobile : {}) }}>
+          <section style={styles.tarjeta}>
+            <h2 style={styles.tarjetaTitulo}>Cliente</h2>
+            {dato("Nombre", reserva.nombre)}
+            {dato(
+              "Teléfono",
+              reserva.telefono ? (
+                <a href={`tel:${reserva.telefono}`} style={styles.enlace}>
+                  {reserva.telefono}
+                </a>
+              ) : (
+                ""
+              ),
+              reserva.telefono ? (
+                <a
+                  href={urlWhatsApp(reserva.telefono)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={styles.botonWhatsApp}
+                >
+                  WhatsApp
+                </a>
+              ) : null
             )}
-
-          {!fechaBloqueadaReprogramacion &&
-            !diaNoDisponibleReprogramacion &&
-            nuevaFecha && (
-              <p style={styles.textoVacio}>
-                Plazas disponibles para esa fecha y turno:{" "}
-                {plazasDisponiblesReprogramacion}
-              </p>
+            {dato(
+              "Email",
+              reserva.email ? (
+                <a href={`mailto:${reserva.email}`} style={styles.enlace}>
+                  {reserva.email}
+                </a>
+              ) : (
+                ""
+              )
             )}
+          </section>
 
-          {reservaYaCancelada && (
+          <section style={styles.tarjeta}>
+            <h2 style={styles.tarjetaTitulo}>Pago</h2>
+            {dato("Precio por plaza", `${reserva.precioUnitario} €`)}
+            {dato("Precio total", `${reserva.precioTotal} €`)}
+            {dato("Fecha de pago", reserva.timestamp)}
+            {dato("Desde tarjeta regalo", reserva.desdeTarjeta ? "Sí" : "No")}
+          </section>
+
+          <section style={{ ...styles.tarjeta, ...(isMobile ? {} : styles.tarjetaAncha) }}>
+            <h2 style={styles.tarjetaTitulo}>Datos técnicos</h2>
+            <div style={{ ...styles.rejillaDatos, ...(isMobile ? styles.rejillaDatosMobile : {}) }}>
+              {dato("Order ID", reserva.orderId)}
+              {dato("Procesado", reserva.procesado ? "Sí" : "No")}
+              {dato(
+                "Usuario (UID)",
+                reserva.uid ? (
+                  <span
+                    style={styles.uidLink}
+                    onClick={() => navigate(`/admin-detalle-usuario?uid=${reserva.uid}`)}
+                  >
+                    {reserva.uid}
+                  </span>
+                ) : (
+                  ""
+                )
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Reprogramar */}
+        <section style={styles.bloque}>
+          <h2 style={styles.bloqueTitulo}>Reprogramar reserva</h2>
+          <p style={styles.bloqueAyuda}>
+            Elige un día en el calendario y, después, el turno. Los días en rojo están cerrados y los
+            grises no se imparten.
+          </p>
+
+          {reservaYaCancelada ? (
             <p style={styles.textoError}>
               Esta reserva está cancelada y ya no se puede reprogramar.
             </p>
-          )}
-
-          <p style={styles.textoVacio}>
-            Al confirmar, se moverá la reserva en Firebase y también se
-            actualizará en el perfil del usuario.
-          </p>
-
-          <button
-            onClick={guardarReprogramacion}
-            style={{
-              ...styles.botonGuardar,
-              opacity: reprogramacionValida ? 1 : 0.6,
-              cursor: reprogramacionValida ? "pointer" : "not-allowed",
-            }}
-            disabled={!reprogramacionValida || guardandoReprogramacion}
-          >
-            {guardandoReprogramacion
-              ? "Guardando cambio..."
-              : "Confirmar reprogramación"}
-          </button>
-        </div>
-
-        <div style={styles.cancelacionBox}>
-          <h2 style={styles.subtituloBloque}>Cancelar reserva</h2>
-
-          <div style={styles.campoReprogramacion}>
-            <label style={styles.label}>Motivo de cancelación (opcional)</label>
-            <textarea
-              value={motivoCancelacion}
-              onChange={(e) => setMotivoCancelacion(e.target.value)}
-              placeholder="Escribe aquí el motivo si quieres dejarlo registrado..."
-              style={styles.textarea}
-              rows={3}
-              disabled={reservaYaCancelada}
-            />
-          </div>
-
-          {reservaYaCancelada ? (
-            <p style={styles.textoError}>Esta reserva ya está cancelada.</p>
           ) : (
-            <p style={styles.textoVacio}>
-              La reserva no se borrará. Quedará guardada como cancelada en admin
-              y en el perfil del usuario.
-            </p>
+            <div style={{ ...styles.reprogramarCols, ...(isMobile ? styles.reprogramarColsMobile : {}) }}>
+              <div style={styles.calendarioCaja}>
+                <CalendarioReserva
+                  value={nuevaFecha}
+                  onChange={(iso) => {
+                    setNuevaFecha(iso);
+                    setNuevoTurno("");
+                  }}
+                  estadoDia={estadoDiaReprogramar}
+                />
+              </div>
+
+              <div style={styles.reprogramarLado}>
+                <p style={styles.ladoTitulo}>
+                  {nuevaFecha ? fechaLarga(nuevaFecha) : "Elige un día"}
+                </p>
+
+                {nuevaFecha && fechaBloqueadaReprogramacion && (
+                  <p style={styles.textoError}>
+                    Ese día está bloqueado.
+                    {fechaBloqueadaReprogramacion.motivo
+                      ? ` Motivo: ${fechaBloqueadaReprogramacion.motivo}.`
+                      : ""}
+                  </p>
+                )}
+
+                {nuevaFecha && !fechaBloqueadaReprogramacion && diaNoDisponibleReprogramacion && (
+                  <p style={styles.textoError}>
+                    Esta clase no se imparte ese día. Días de clase:{" "}
+                    {Object.keys(horariosClase).join(", ") || "—"}.
+                  </p>
+                )}
+
+                {nuevaFecha && !fechaBloqueadaReprogramacion && !diaNoDisponibleReprogramacion && (
+                  <>
+                    <p style={styles.ladoEtiqueta}>Turno</p>
+                    <div style={styles.turnos}>
+                      {turnosDisponiblesReprogramacion.map((turno) => {
+                        const activo = normalizarTurnoParaRuta(nuevoTurno) === turno;
+                        return (
+                          <button
+                            key={turno}
+                            type="button"
+                            onClick={() => setNuevoTurno(turno)}
+                            aria-pressed={activo}
+                            style={{ ...styles.turnoBoton, ...(activo ? styles.turnoBotonActivo : {}) }}
+                          >
+                            {turno}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p style={faltaSitio ? styles.textoError : styles.textoVacio}>
+                      Plazas libres en ese día: <strong>{plazasDisponiblesReprogramacion}</strong>
+                      {faltaSitio ? ` (esta reserva necesita ${plazasReserva})` : ""}
+                    </p>
+                  </>
+                )}
+
+                {hayCambiosReales && nuevaFecha && nuevoTurno && (
+                  <div style={styles.cambio}>
+                    <span style={styles.cambioAntes}>
+                      {fechaDMA(reserva.fecha)} · {reserva.turno}
+                    </span>
+                    <span style={styles.cambioFlecha}>→</span>
+                    <span style={styles.cambioDespues}>
+                      {fechaDMA(nuevaFecha)} · {normalizarTurnoParaRuta(nuevoTurno)}
+                    </span>
+                  </div>
+                )}
+
+                <p style={styles.textoVacio}>
+                  Al confirmar, la reserva se mueve y también se actualiza en el perfil del usuario.
+                </p>
+
+                <button
+                  onClick={guardarReprogramacion}
+                  style={{
+                    ...styles.botonPrincipal,
+                    opacity: reprogramacionValida ? 1 : 0.5,
+                    cursor: reprogramacionValida ? "pointer" : "not-allowed",
+                  }}
+                  disabled={!reprogramacionValida || guardandoReprogramacion}
+                >
+                  {guardandoReprogramacion ? "Guardando cambio..." : "Confirmar reprogramación"}
+                </button>
+              </div>
+            </div>
           )}
+        </section>
 
-          <button
-            onClick={cancelarReserva}
-            style={{
-              ...styles.botonCancelar,
-              opacity: reservaYaCancelada ? 0.6 : 1,
-              cursor: reservaYaCancelada ? "not-allowed" : "pointer",
-            }}
-            disabled={reservaYaCancelada || guardandoCancelacion}
-          >
-            {guardandoCancelacion ? "Cancelando reserva..." : "Cancelar reserva"}
-          </button>
-        </div>
-
-        <div style={styles.notasBox}>
-          <h2 style={styles.subtituloBloque}>Notas</h2>
+        {/* Notas */}
+        <section style={styles.bloque}>
+          <h2 style={styles.bloqueTitulo}>Notas internas</h2>
 
           {notasInternas.length > 0 ? (
             notasInternas.map((nota) => (
-             <div
-  key={nota.id}
-  style={{
-    ...styles.notaItem,
-    ...(isMobile ? styles.notaItemMobile : {}),
-  }}
->
-               <div
-  style={{
-    ...styles.notaHeader,
-    ...(isMobile ? styles.notaHeaderMobile : {}),
-  }}
->
+              <div key={nota.id} style={styles.notaItem}>
+                <div style={{ ...styles.notaHeader, ...(isMobile ? styles.notaHeaderMobile : {}) }}>
                   <div>
                     <p style={styles.notaTexto}>{nota.texto}</p>
                     <p style={styles.notaFecha}>{nota.fecha}</p>
@@ -1098,140 +1115,201 @@ useEffect(() => {
             onChange={(e) => setNuevaNota(e.target.value)}
             placeholder="Escribe aquí una nota..."
             style={styles.textarea}
-            rows={4}
+            rows={3}
           />
 
-          <button
-            onClick={guardarNotaInterna}
-            style={styles.botonGuardar}
-            disabled={guardandoNota}
-          >
+          <button onClick={guardarNotaInterna} style={styles.botonSecundario} disabled={guardandoNota}>
             {guardandoNota ? "Guardando..." : "Guardar nota"}
           </button>
-        </div>
+        </section>
+
+        {/* Cancelar, al final y aparte */}
+        <section style={styles.zonaPeligro}>
+          <h2 style={{ ...styles.bloqueTitulo, color: "#8a3b3b" }}>Cancelar reserva</h2>
+
+          {reservaYaCancelada ? (
+            <p style={styles.textoError}>Esta reserva ya está cancelada.</p>
+          ) : (
+            <>
+              <p style={styles.bloqueAyuda}>
+                La reserva no se borra: queda guardada como cancelada en admin y en el perfil del
+                usuario.
+              </p>
+              <label style={styles.label} htmlFor="motivo-cancelacion">
+                Motivo (opcional)
+              </label>
+              <textarea
+                id="motivo-cancelacion"
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                placeholder="Escribe aquí el motivo si quieres dejarlo registrado..."
+                style={styles.textarea}
+                rows={2}
+              />
+              <button
+                onClick={cancelarReserva}
+                style={styles.botonCancelar}
+                disabled={guardandoCancelacion}
+              >
+                {guardandoCancelacion ? "Cancelando reserva..." : "Cancelar reserva"}
+              </button>
+            </>
+          )}
+        </section>
       </div>
     </div>
   );
 };
 
 const styles = {
-  body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
-    padding: 30,
-  },
-  bodyMobile: {
-  padding: 4,
-},
+  // Sin fondo propio ni alto mínimo: la página ya va dentro de PageContainer y se ve el fondo de la app
+  body: { padding: 0 },
+  bodyMobile: { padding: 0 },
   container: {
-    maxWidth: 700,
+    maxWidth: 920,
     margin: "0 auto",
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
+    boxSizing: "border-box",
   },
-  containerMobile: {
-  width: "100%",
-  maxWidth: "100%",
-  borderRadius: 16,
-  padding: 10,
-  boxSizing: "border-box",
-},
-  titulo: {
-    textAlign: "center",
-    marginBottom: 20,
+  containerMobile: { width: "100%", maxWidth: "100%", borderRadius: 16, padding: 14 },
+
+  // Cabecera
+  cabecera: { margin: "6px 0 16px" },
+  cabeceraEtiqueta: {
+    margin: 0,
+    fontSize: "0.8rem",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "#9a8a6a",
   },
-  notaItemMobile: {
-  paddingBottom: 10,
-},
-notaHeaderMobile: {
-  flexDirection: "column",
-  alignItems: "stretch",
-},
-  card: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    fontSize: "0.95rem",
+  titulo: { margin: "4px 0 10px", fontSize: "1.7rem", color: "#4b3a2a", lineHeight: 1.2 },
+  tituloMobile: { fontSize: "1.35rem" },
+  chips: { display: "flex", gap: 8, flexWrap: "wrap" },
+  chip: {
+    display: "inline-block",
+    padding: "4px 12px",
+    borderRadius: 999,
+    fontSize: "0.8rem",
+    fontWeight: 700,
+    textTransform: "capitalize",
   },
-  hr: {
-    margin: "10px 0",
-    border: "none",
-    borderTop: "1px solid #eee",
-  },
-  uidLink: {
-    color: "#7c5c2e",
-    cursor: "pointer",
-    textDecoration: "underline",
-    fontWeight: 500,
-  },
-  mensaje: {
-    textAlign: "center",
-    padding: 40,
-  },
-  linkClase: {
-    color: "#7c5c2e",
-    cursor: "pointer",
-    textDecoration: "underline",
-    fontWeight: 500,
-  },
-  notasBox: {
-    marginTop: 24,
+  chip_verde: { color: "#2f6b2f", backgroundColor: "#e0f0dc" },
+  chip_ambar: { color: "#8a5a00", backgroundColor: "#fdebc8" },
+  chip_rojo: { color: "#a02828", backgroundColor: "#fbdcdc" },
+  chip_azul: { color: "#27557f", backgroundColor: "#dcebf8" },
+
+  // Resumen
+  resumen: {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr 1.2fr 0.8fr",
+    gap: 12,
     padding: 16,
     backgroundColor: "#fffaf0",
     border: "1px solid #f0e5cf",
     borderRadius: 16,
   },
-  cancelacionBox: {
-    marginTop: 24,
+  resumenMobile: { gridTemplateColumns: "1fr 1fr", padding: 12 },
+  resumenBloque: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 },
+  resumenEtiqueta: { fontSize: "0.75rem", fontWeight: 700, color: "#9a8a6a", textTransform: "uppercase" },
+  resumenValor: { fontSize: "1.02rem", fontWeight: 700, color: "#4b3a2a" },
+
+  // Avisos
+  aviso: { marginTop: 12, padding: "10px 14px", borderRadius: 12, fontSize: "0.92rem", lineHeight: 1.4 },
+  avisoRojo: { backgroundColor: "#fff1f1", border: "1px solid #f0cccc", color: "#8a3b3b" },
+  avisoAzul: { backgroundColor: "#eef6fd", border: "1px solid #cfe2f3", color: "#27557f" },
+
+  // Tarjetas de datos
+  rejilla: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 },
+  rejillaMobile: { gridTemplateColumns: "1fr" },
+  tarjeta: {
     padding: 16,
-    backgroundColor: "#fff5f5",
-    border: "1px solid #f0cccc",
+    border: "1px solid #eee",
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    minWidth: 0,
+  },
+  tarjetaAncha: { gridColumn: "1 / -1" },
+  tarjetaTitulo: { margin: "0 0 10px", fontSize: "0.95rem", color: "#7c5c2e", textTransform: "uppercase", letterSpacing: "0.04em" },
+  dato: { display: "flex", flexDirection: "column", gap: 2, padding: "7px 0", borderTop: "1px solid #f4f0e6", minWidth: 0 },
+  datoEtiqueta: { fontSize: "0.78rem", color: "#9a8a6a", fontWeight: 600 },
+  datoValor: { fontSize: "0.97rem", color: "#333", wordBreak: "break-word" },
+  rejillaDatos: { display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 12 },
+  rejillaDatosMobile: { gridTemplateColumns: "1fr" },
+  enlace: { color: "#7c5c2e", textDecoration: "underline" },
+  botonWhatsApp: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    padding: "4px 12px",
+    borderRadius: 999,
+    backgroundColor: "#e4f7e9",
+    border: "1px solid #b9e3c4",
+    color: "#1f6b3a",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    textDecoration: "none",
+  },
+  uidLink: { color: "#7c5c2e", cursor: "pointer", textDecoration: "underline", fontSize: "0.9rem" },
+  linkClase: { color: "#4b3a2a", cursor: "pointer", textDecoration: "underline", textDecorationColor: "#d8c89f" },
+
+  // Bloques de acción
+  bloque: {
+    marginTop: 22,
+    padding: 18,
+    backgroundColor: "#fffaf0",
+    border: "1px solid #f0e5cf",
     borderRadius: 16,
   },
-  subtituloBloque: {
-    marginTop: 0,
-    marginBottom: 12,
-    color: "#4b3a2a",
-    fontSize: "1.15rem",
+  bloqueTitulo: { margin: "0 0 4px", color: "#4b3a2a", fontSize: "1.15rem" },
+  bloqueAyuda: { margin: "0 0 14px", color: "#7a6a4f", fontSize: "0.9rem", lineHeight: 1.4 },
+
+  reprogramarCols: { display: "grid", gridTemplateColumns: "minmax(0, 360px) minmax(0, 1fr)", gap: 24, alignItems: "start" },
+  reprogramarColsMobile: { gridTemplateColumns: "1fr", gap: 16 },
+  calendarioCaja: { padding: 12, backgroundColor: "#fff", border: "1px solid #eee", borderRadius: 14 },
+  reprogramarLado: { display: "flex", flexDirection: "column", gap: 10, minWidth: 0 },
+  ladoTitulo: { margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#4b3a2a" },
+  ladoEtiqueta: { margin: "4px 0 0", fontSize: "0.78rem", fontWeight: 700, color: "#9a8a6a", textTransform: "uppercase" },
+  turnos: { display: "flex", flexWrap: "wrap", gap: 8 },
+  turnoBoton: {
+    padding: "9px 14px",
+    borderRadius: 12,
+    border: "1px solid #d8c89f",
+    backgroundColor: "#fff",
+    color: "#5b4a2d",
+    fontWeight: 700,
+    fontSize: "0.92rem",
+    cursor: "pointer",
   },
-  notaItem: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottom: "1px solid #eee",
-  },
-  notaHeader: {
+  turnoBotonActivo: { backgroundColor: "#F4C542", borderColor: "#E5B92F", boxShadow: "0 0 0 2px #E5B92F55" },
+  cambio: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+    padding: "10px 12px",
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    border: "1px dashed #d8c89f",
+    fontSize: "0.92rem",
   },
-  notaTexto: {
-    margin: 0,
-    color: "#333",
-    whiteSpace: "pre-wrap",
-  },
-  notaFecha: {
-    margin: "4px 0 0 0",
-    fontSize: "0.82rem",
-    color: "#777",
-  },
-  textoVacio: {
-    color: "#777",
-    fontStyle: "italic",
-  },
-  textarea: {
-    width: "100%",
-    marginTop: 14,
-    padding: 10,
-    borderRadius: 10,
-    border: "1px solid #ddd",
+  cambioAntes: { color: "#8a8a8a", textDecoration: "line-through" },
+  cambioFlecha: { color: "#9a8a6a" },
+  cambioDespues: { color: "#4b3a2a", fontWeight: 700 },
+
+  botonPrincipal: {
+    marginTop: 4,
+    padding: "12px 16px",
+    border: "1px solid #E5B92F",
+    backgroundColor: "#F4C542",
+    borderRadius: 12,
+    fontWeight: 700,
+    color: "#4b3a2a",
     fontSize: "0.95rem",
-    resize: "vertical",
-    boxSizing: "border-box",
   },
-  botonGuardar: {
+  botonSecundario: {
     marginTop: 10,
     padding: "10px 14px",
     border: "1px solid #e5d8b8",
@@ -1240,6 +1318,46 @@ notaHeaderMobile: {
     cursor: "pointer",
     fontWeight: 600,
     color: "#5b4a2d",
+  },
+
+  // Notas
+  notaItem: { marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid #eee" },
+  notaHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
+  notaHeaderMobile: { flexDirection: "column", alignItems: "stretch" },
+  notaTexto: { margin: 0, color: "#333", whiteSpace: "pre-wrap" },
+  notaFecha: { margin: "4px 0 0 0", fontSize: "0.82rem", color: "#777" },
+  textoVacio: { color: "#777", fontStyle: "italic", fontSize: "0.88rem", margin: 0 },
+  textoError: { color: "#b33a3a", fontWeight: 500, margin: 0, fontSize: "0.92rem" },
+  textarea: {
+    width: "100%",
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    border: "1px solid #ddd",
+    fontSize: "0.95rem",
+    resize: "vertical",
+    boxSizing: "border-box",
+    fontFamily: "inherit",
+  },
+  label: { fontSize: "0.9rem", fontWeight: 600, color: "#5b4a2d" },
+  botonEliminar: {
+    padding: "8px 12px",
+    border: "1px solid #e7c9c9",
+    backgroundColor: "#fff1f1",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontWeight: 600,
+    color: "#8a3b3b",
+    flexShrink: 0,
+  },
+
+  // Cancelar
+  zonaPeligro: {
+    marginTop: 22,
+    padding: 18,
+    backgroundColor: "#fff5f5",
+    border: "1px solid #f0cccc",
+    borderRadius: 16,
   },
   botonCancelar: {
     marginTop: 10,
@@ -1251,55 +1369,8 @@ notaHeaderMobile: {
     fontWeight: 700,
     color: "#8a3b3b",
   },
-  botonEliminar: {
-    padding: "8px 12px",
-    border: "1px solid #e7c9c9",
-    backgroundColor: "#fff1f1",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 600,
-    color: "#8a3b3b",
-    flexShrink: 0,
-  },
-  campoReprogramacion: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    marginBottom: 14,
-  },
-  label: {
-    fontSize: "0.92rem",
-    fontWeight: 600,
-    color: "#5b4a2d",
-  },
-  input: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5d8b8",
-    fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
-  },
-  textoError: {
-    color: "#b33a3a",
-    fontWeight: 500,
-    marginTop: 6,
-  },
-  reprogramadaInfo: {
-    color: "#8a6a2f",
-    fontWeight: 600,
-  },
-  canceladaInfo: {
-    color: "#8a3b3b",
-    fontWeight: 600,
-  },
-  fechaReserva: {
-    color: "#8a6a2f",
-    fontWeight: 700,
-  },
-  fechaPago: {
-    color: "#5f7fa3",
-    fontWeight: 600,
-  },
+
+  mensaje: { textAlign: "center", padding: 40 },
 };
 
 export default AdminDetalleReservaNuevo;

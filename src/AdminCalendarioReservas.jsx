@@ -1,19 +1,24 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import PanelFechasEspeciales, { fechasDelRango } from "./components/PanelFechasEspeciales";
 import { bloqueoEsParcial } from "./utils/rangosHora";
+import { ocupacionPorFranja, sumarSolapadas } from "./utils/aforo";
+import { cargarConfigEspacio } from "./configuracionEspacio";
+import { fechaDMA } from "./utils/formatoFecha";
 import { useNavigate } from "react-router-dom";
 
 
 
-const AdminCalendarioReservasNuevo = () => {
+const AdminCalendarioReservas = () => {
   const navigate = useNavigate();
 
   const [reservas, setReservas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  // Las dos columnas (calendario + día) solo caben con una pantalla ancha
+  const [esAncho, setEsAncho] = useState(() => window.innerWidth >= 1200);
 
   const [mesActual, setMesActual] = useState(() => {
     const hoy = new Date();
@@ -35,12 +40,15 @@ const AdminCalendarioReservasNuevo = () => {
   const [bloqueos, setBloqueos] = useState({});
   const [habilitadas, setHabilitadas] = useState({});
   const [modoRango, setModoRango] = useState(false);
-  const [dialogoAbierto, setDialogoAbierto] = useState(false);
   // El diálogo se mantiene montado mientras dura el fundido de salida
-  const [dialogoMontado, setDialogoMontado] = useState(false);
-  const [dialogoVisible, setDialogoVisible] = useState(false);
   const [rangoInicio, setRangoInicio] = useState("");
   const [rangoFin, setRangoFin] = useState("");
+  // Plazas por franja (todos los talleres y grupos) y aforo, para la barra de cada día
+  const [ocupacionFranjas, setOcupacionFranjas] = useState({});
+  const [aforoTotal, setAforoTotal] = useState(45);
+  // En móvil, el panel de bloquear y habilitar sube como una hoja desde abajo
+  const [hojaAbierta, setHojaAbierta] = useState(false);
+  const detalleRef = useRef(null);
 
   const cargarFechasEspeciales = async () => {
     try {
@@ -57,6 +65,7 @@ const AdminCalendarioReservasNuevo = () => {
 
   useEffect(() => {
     cargarFechasEspeciales();
+    cargarConfigEspacio().then((config) => setAforoTotal(config.aforoTotal));
   }, []);
 
   // Con "varios días", el primer clic marca el inicio y el segundo el final
@@ -64,8 +73,12 @@ const AdminCalendarioReservasNuevo = () => {
     setFechaSeleccionada(fechaISO);
 
     if (!modoRango) {
-      // Un día con reservas abre el diálogo con sus detalles
-      if (resumenPorFecha[fechaISO]?.totalReservas > 0) setDialogoAbierto(true);
+      // En móvil los detalles quedan debajo del calendario: se baja hasta ellos
+      if (isMobile) {
+        requestAnimationFrame(() =>
+          detalleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+        );
+      }
       return;
     }
 
@@ -79,29 +92,6 @@ const AdminCalendarioReservasNuevo = () => {
       setRangoFin(fechaISO);
     }
   };
-
-  useEffect(() => {
-    if (dialogoAbierto) {
-      setDialogoMontado(true);
-      const id = requestAnimationFrame(() =>
-        requestAnimationFrame(() => setDialogoVisible(true))
-      );
-      return () => cancelAnimationFrame(id);
-    }
-
-    setDialogoVisible(false);
-    const id = setTimeout(() => setDialogoMontado(false), 220);
-    return () => clearTimeout(id);
-  }, [dialogoAbierto]);
-
-  useEffect(() => {
-    if (!dialogoAbierto) return undefined;
-    const cerrarConEscape = (e) => {
-      if (e.key === "Escape") setDialogoAbierto(false);
-    };
-    window.addEventListener("keydown", cerrarConEscape);
-    return () => window.removeEventListener("keydown", cerrarConEscape);
-  }, [dialogoAbierto]);
 
   const alternarModoRango = () => {
     setModoRango((v) => !v);
@@ -121,6 +111,7 @@ const AdminCalendarioReservasNuevo = () => {
   useEffect(() => {
     const onResize = () => {
       setIsMobile(window.innerWidth <= 768);
+      setEsAncho(window.innerWidth >= 1200);
     };
 
     window.addEventListener("resize", onResize);
@@ -363,6 +354,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
           return (a.turno || "").localeCompare(b.turno || "", "es");
         });
 
+        setOcupacionFranjas(ocupacionPorFranja(reservasSnap, reservasGruposSnap, ""));
         setReservas(datos);
       } catch (error) {
         console.error("Error al cargar calendario de reservas:", error);
@@ -397,6 +389,18 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
 
     return mapa;
   }, [reservas]);
+
+  // Por día: plazas del turno más lleno (sumando turnos que se solapan) sobre el aforo
+  const ocupacionPorDia = useMemo(() => {
+    const mapa = {};
+
+    Object.entries(ocupacionFranjas).forEach(([fecha, turnos]) => {
+      const maximo = Math.max(...Object.keys(turnos).map((t) => sumarSolapadas(turnos, t).total));
+      if (maximo > 0) mapa[fecha] = { maximo, pct: Math.min(100, Math.round((maximo / aforoTotal) * 100)) };
+    });
+
+    return mapa;
+  }, [ocupacionFranjas, aforoTotal]);
 
   const detalleDiaSeleccionado = useMemo(() => {
     return resumenPorFecha[fechaSeleccionada] || null;
@@ -478,15 +482,19 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     return fecha < hoy;
   };
 
-  const formatearFecha = (fecha) => {
+  // "Miércoles, 18 de noviembre" (con el año solo si no es el actual)
+  const tituloDia = (fecha) => {
     const d = new Date(`${fecha}T00:00:00`);
-    return d.toLocaleDateString("es-ES", {
+    const texto = d.toLocaleDateString("es-ES", {
       weekday: "long",
-      day: "2-digit",
+      day: "numeric",
       month: "long",
-      year: "numeric",
+      ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}),
     });
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
   };
+
+
 
   const obtenerEstiloDia = (celda) => {
     if (!celda) {
@@ -588,6 +596,81 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
   navigate(`/admin-reservas-nuevo?fecha=${fechaSeleccionada}`);
 };
 
+  // Lista de reservas del día seleccionado (diálogo en móvil, columna en escritorio)
+  const listaReservasJsx = (
+    <div style={styles.listaReservas}>
+      {reservasDelDia.map((r, index) => {
+        const enProceso = r.estadoCalendario === "grupo_individual_en_proceso";
+        const pagado = String(r.estadoPago || "").toLowerCase() === "pagado";
+
+        return (
+          <div
+            key={`${r.id}-${index}`}
+            style={{ ...styles.reservaFila, ...(enProceso ? styles.reservaFilaGrupoEnProceso : {}) }}
+          >
+            <div style={styles.reservaCabecera}>
+              <p style={styles.reservaClase}>{r.clase}</p>
+              <span style={styles.pagoPrecio}>{r.precioTotal} €</span>
+            </div>
+
+            {r.esGrupo && r.nombreGrupo && <p style={styles.reservaGrupo}>Grupo: {r.nombreGrupo}</p>}
+            {enProceso && (
+              <p style={styles.reservaGrupoProceso}>
+                🟡 Pago individual en proceso · {r.plazasPagadas || 0} pagada
+                {(r.plazasPagadas || 0) !== 1 ? "s" : ""} / {r.plazasPendientes || 0} pendiente
+                {(r.plazasPendientes || 0) !== 1 ? "s" : ""}
+              </p>
+            )}
+
+            <p style={styles.reservaMeta}>
+              {r.turno} · {r.metodo} · {r.plazas} plaza{r.plazas !== 1 ? "s" : ""}
+            </p>
+            {(r.nombre || r.telefono) && (
+              <p style={styles.reservaContacto}>
+                {r.nombre || "Sin nombre"}
+                {r.telefono ? ` · ${r.telefono}` : ""}
+              </p>
+            )}
+
+            <div style={styles.reservaEnlaces}>
+              <span style={{ ...styles.pagoChip, ...(pagado ? styles.pagoChipOk : styles.pagoChipPendiente) }}>
+                {r.estadoPago}
+              </span>
+              <button type="button" style={styles.enlaceDetalle} onClick={() => navigate(rutaDetalleReserva(r))}>
+                Ver detalles →
+              </button>
+              {urlWhatsApp(r.telefono) && (
+                <a href={urlWhatsApp(r.telefono)} target="_blank" rel="noopener noreferrer" style={styles.enlaceWhatsApp}>
+                  WhatsApp
+                </a>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const alCambiarFechas = async () => {
+    await cargarFechasEspeciales();
+    if (isMobile) setHojaAbierta(false);
+  };
+
+  const textoSeleccion =
+    panelInicio === panelFin
+      ? fechaDMA(panelInicio)
+      : `${fechaDMA(panelInicio)} → ${fechaDMA(panelFin)} (${diasEnRango.size} días)`;
+
+  const panelFechasJsx = fechaSeleccionada ? (
+    <PanelFechasEspeciales
+      inicio={panelInicio}
+      fin={panelFin}
+      bloqueos={bloqueos}
+      habilitadas={habilitadas}
+      onCambio={alCambiarFechas}
+    />
+  ) : null;
+
   return (
     <div style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>
       <div
@@ -616,8 +699,9 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
           <button
             style={{ ...styles.botonMes, ...(isMobile ? styles.botonMesMobile : {}) }}
             onClick={() => cambiarMes(-1)}
+            aria-label="Mes anterior"
           >
-            ← Anterior
+            {isMobile ? "‹" : "← Anterior"}
           </button>
 
           <div style={{ ...styles.mesCentro, ...(isMobile ? styles.mesCentroMobile : {}) }}>
@@ -628,15 +712,16 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               style={{ ...styles.botonHoy, ...(isMobile ? styles.botonHoyMobile : {}) }}
               onClick={irAMesActual}
             >
-              Ir a hoy
+              {isMobile ? "Hoy" : "Ir a hoy"}
             </button>
           </div>
 
           <button
             style={{ ...styles.botonMes, ...(isMobile ? styles.botonMesMobile : {}) }}
             onClick={() => cambiarMes(1)}
+            aria-label="Mes siguiente"
           >
-            Siguiente →
+            {isMobile ? "›" : "Siguiente →"}
           </button>
         </div>
 
@@ -660,13 +745,14 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                 : "Pulsa otro día para empezar una nueva selección."}
             </span>
           )}
-          <span style={{ fontSize: 12, color: "#777" }}>🚫 bloqueado · ✅ habilitado</span>
+          <span style={{ fontSize: 12, color: "#777" }}>Personas por día: verde = hay sitio · naranja = casi lleno · rojo = completo{isMobile ? " · punto: rojo cerrado, naranja por horas, verde abierto" : ""}</span>
         </div>
 
         {cargando ? (
           <p style={styles.mensaje}>Cargando calendario...</p>
         ) : (
-          <>
+          <div style={esAncho ? styles.dosColumnas : undefined}>
+            <div style={{ minWidth: 0 }}>
             <div
               style={{
                 ...styles.calendarioBox,
@@ -712,77 +798,94 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                   }
 
                   const resumen = resumenPorFecha[celda.fechaISO];
+                  const ocupacion = ocupacionPorDia[celda.fechaISO];
+                  const llena = ocupacion?.pct >= 100;
+                  const bloqueo = bloqueos[celda.fechaISO];
+
+                  // Verde: hay sitio · naranja: casi lleno · rojo: completo · gris: pago en curso
+                  const nivel = !resumen
+                    ? { color: "#6b6558", fondo: "#ece8dc" }
+                    : llena
+                    ? { color: "#a3281c", fondo: "#f8d7d3" }
+                    : ocupacion?.pct >= 80
+                    ? { color: "#8a5a00", fondo: "#fdebc8" }
+                    : { color: "#2f6b2f", fondo: "#e0f0dc" };
+
+                  // Estado del día cuando no es normal
+                  const estadoDia = bloqueoEsParcial(bloqueo)
+                    ? { texto: "Por horas", color: "#8a5a00", fondo: "#fdebc8" }
+                    : bloqueo?.bloqueado
+                    ? { texto: "Cerrado", color: "#a3281c", fondo: "#f8d7d3" }
+                    : habilitadas[celda.fechaISO]?.habilitada
+                    ? { texto: "Abierto", color: "#2f6b2f", fondo: "#d9eed4" }
+                    : null;
+
+                  // Detalle completo al pasar el ratón
+                  const titulo = [
+                    fechaDMA(celda.fechaISO),
+                    resumen
+                      ? `${resumen.totalReservas} reserva${resumen.totalReservas !== 1 ? "s" : ""} · ${resumen.totalPlazas} plaza${resumen.totalPlazas !== 1 ? "s" : ""}`
+                      : ocupacion
+                      ? "Plazas guardadas mientras se paga"
+                      : "Sin reservas",
+                    ocupacion ? `Turno más lleno: ${ocupacion.maximo}/${aforoTotal}${llena ? " (completo)" : ""}` : "",
+                    bloqueoEsParcial(bloqueo)
+                      ? "Cerrado por horas"
+                      : bloqueo?.bloqueado
+                      ? "Cerrado"
+                      : habilitadas[celda.fechaISO]?.habilitada
+                      ? "Abierto a mano"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join("\n");
 
                   return (
                     <button
                       key={celda.fechaISO}
                       type="button"
+                      title={titulo}
                       style={obtenerEstiloDia(celda)}
                       onClick={() => elegirDia(celda.fechaISO)}
                     >
-                      <div
-                        style={{
-                          ...styles.diaNumero,
-                          ...(isMobile ? styles.diaNumeroMobile : {}),
-                        }}
-                      >
-                        {celda.dia}
-                        {bloqueoEsParcial(bloqueos[celda.fechaISO]) && " 🕒"}
-                        {bloqueos[celda.fechaISO]?.bloqueado &&
-                          !bloqueoEsParcial(bloqueos[celda.fechaISO]) &&
-                          " 🚫"}
-                        {!bloqueos[celda.fechaISO]?.bloqueado &&
-                          habilitadas[celda.fechaISO]?.habilitada &&
-                          " ✅"}
+                      <div style={styles.diaCabecera}>
+                        <span
+                          style={{
+                            ...styles.diaNumero,
+                            ...(isMobile ? styles.diaNumeroMobile : {}),
+                          }}
+                        >
+                          {celda.dia}
+                        </span>
+                        {estadoDia &&
+                          (isMobile ? (
+                            <span style={{ ...styles.diaPunto, backgroundColor: estadoDia.color }} />
+                          ) : (
+                            <span style={{ ...styles.diaEstado, color: estadoDia.color, backgroundColor: estadoDia.fondo }}>
+                              {estadoDia.texto}
+                            </span>
+                          ))}
                       </div>
 
-                      {resumen ? (
-                        <div
-                          style={{
-                            ...styles.infoDia,
-                            ...(isMobile ? styles.infoDiaMobile : {}),
-                          }}
-                        >
-                          {isMobile ? (
-                            <>
-                              <span
-                                style={{
-                                  ...styles.infoDiaTexto,
-                                  ...styles.infoDiaTextoMobile,
-                                }}
-                              >
-                                {resumen.totalReservas} res.
-                              </span>
-                              <span
-                                style={{
-                                  ...styles.infoDiaTexto,
-                                  ...styles.infoDiaTextoMobile,
-                                }}
-                              >
-                                {resumen.totalPlazas} pl.
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span style={styles.infoDiaTexto}>
-                                {resumen.totalReservas} reserva
-                                {resumen.totalReservas !== 1 ? "s" : ""}
-                              </span>
-                              <span style={styles.infoDiaTexto}>
-                                {resumen.totalPlazas} plaza
-                                {resumen.totalPlazas !== 1 ? "s" : ""}
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          style={{
-                            ...styles.infoDiaVacio,
-                            ...(isMobile ? styles.infoDiaVacioMobile : {}),
-                          }}
-                        >
-                          {isMobile ? "—" : "Sin reservas"}
+                      {/* Un solo dato por día: personas, con el color de lo lleno que está el turno más ocupado */}
+                      {(resumen || ocupacion) && (
+                        <div style={styles.diaPie}>
+                          <span
+                            style={{
+                              ...styles.diaPersonas,
+                              ...(isMobile ? styles.diaPersonasMobile : {}),
+                              color: nivel.color,
+                              backgroundColor: nivel.fondo,
+                            }}
+                          >
+                            {resumen
+                              ? isMobile
+                                ? resumen.totalPlazas
+                                : `${resumen.totalPlazas} pers.`
+                              : isMobile
+                              ? "pago"
+                              : "En pago"}
+                          </span>
                         </div>
                       )}
                     </button>
@@ -791,226 +894,106 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               </div>
             </div>
 
-            {fechaSeleccionada && (
-              <PanelFechasEspeciales
-                inicio={panelInicio}
-                fin={panelFin}
-                bloqueos={bloqueos}
-                habilitadas={habilitadas}
-                onCambio={cargarFechasEspeciales}
-              />
-            )}
+            </div>
 
+            <div style={esAncho ? styles.columnaDerecha : { marginTop: 16 }}>
             <div
+              ref={detalleRef}
               style={{
                 ...styles.detalleBox,
                 ...(isMobile ? styles.detalleBoxMobile : {}),
               }}
             >
-              <div
-                style={{
-                  ...styles.detalleCabecera,
-                  ...(isMobile ? styles.detalleCabeceraMobile : {}),
-                }}
-              >
-                <div style={{ flex: 1 }}>
+              <div style={styles.detalleCabecera}>
+                <div>
                   <h3
                     style={{
                       ...styles.detalleTitulo,
                       ...(isMobile ? styles.detalleTituloMobile : {}),
                     }}
                   >
-                    {fechaSeleccionada
-                      ? `Detalle del ${formatearFecha(fechaSeleccionada)}`
-                      : "Selecciona un día"}
+                    {fechaSeleccionada ? tituloDia(fechaSeleccionada) : "Selecciona un día"}
                   </h3>
 
-                  {detalleDiaSeleccionado ? (
-                    <p
-                      style={{
-                        ...styles.detalleSubtitulo,
-                        ...(isMobile ? styles.detalleSubtituloMobile : {}),
-                      }}
-                    >
-                      {detalleDiaSeleccionado.totalReservas} reserva
-                      {detalleDiaSeleccionado.totalReservas !== 1 ? "s" : ""} ·{" "}
-                      {detalleDiaSeleccionado.totalPlazas} plaza
-                      {detalleDiaSeleccionado.totalPlazas !== 1 ? "s" : ""} ·{" "}
-                      {detalleDiaSeleccionado.totalIngresos}€
-                    </p>
-                  ) : (
-                    <p
-                      style={{
-                        ...styles.detalleSubtitulo,
-                        ...(isMobile ? styles.detalleSubtituloMobile : {}),
-                      }}
-                    >
-                      No hay reservas confirmadas para este día.
-                    </p>
-                  )}
+                  <p
+                    style={{
+                      ...styles.detalleSubtitulo,
+                      ...(isMobile ? styles.detalleSubtituloMobile : {}),
+                    }}
+                  >
+                    {detalleDiaSeleccionado
+                      ? `${detalleDiaSeleccionado.totalReservas} reserva${
+                          detalleDiaSeleccionado.totalReservas !== 1 ? "s" : ""
+                        } · ${detalleDiaSeleccionado.totalPlazas} plaza${
+                          detalleDiaSeleccionado.totalPlazas !== 1 ? "s" : ""
+                        } · ${detalleDiaSeleccionado.totalIngresos} €`
+                      : "No hay reservas confirmadas para este día."}
+                  </p>
                 </div>
 
                 {detalleDiaSeleccionado?.reservas?.length > 0 && (
-                  <button
-                    style={{
-                      ...styles.botonIrReservas,
-                      ...(isMobile ? styles.botonIrReservasMobile : {}),
-                    }}
-                    onClick={() => setDialogoAbierto(true)}
-                  >
-                    Ver detalles
-                  </button>
-                )}
-
-                {detalleDiaSeleccionado?.reservas?.length > 0 && (
-                  <button
-                    style={{
-                      ...styles.botonIrReservas,
-                      ...(isMobile ? styles.botonIrReservasMobile : {}),
-                    }}
-                    onClick={irAReservasDelDia}
-                  >
-                    Ir a reservas del día
-                  </button>
+                  <div style={styles.detalleAcciones}>
+                    <button style={{ ...styles.botonIrReservas, ...styles.botonAccion }} onClick={irAReservasDelDia}>
+                      Ir a reservas del día
+                    </button>
+                  </div>
                 )}
               </div>
 
+              {detalleDiaSeleccionado?.reservas?.length > 0 && listaReservasJsx}
             </div>
-          </>
+
+            {!isMobile && panelFechasJsx && <div style={{ marginTop: 16 }}>{panelFechasJsx}</div>}
+            </div>
+          </div>
         )}
       </div>
 
-      {dialogoMontado && detalleDiaSeleccionado?.reservas?.length > 0 && (
-        <div
-          style={{ ...styles.dialogoFondo, opacity: dialogoVisible ? 1 : 0 }}
-          onClick={() => setDialogoAbierto(false)}
-          role="presentation"
-        >
+      {isMobile && !cargando && (
+        <>
+          <div style={styles.barraInferior}>
+            <span style={styles.barraInferiorTexto}>{textoSeleccion}</span>
+            <button type="button" style={styles.barraInferiorBoton} onClick={() => setHojaAbierta(true)}>
+              Bloquear / habilitar
+            </button>
+          </div>
+
           <div
             style={{
-              ...styles.dialogo,
-              opacity: dialogoVisible ? 1 : 0,
-              transform: dialogoVisible ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)",
+              ...styles.hojaFondo,
+              opacity: hojaAbierta ? 1 : 0,
+              visibility: hojaAbierta ? "visible" : "hidden",
+              transition: hojaAbierta
+                ? "opacity 0.2s ease"
+                : "opacity 0.2s ease, visibility 0s linear 0.25s",
             }}
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Reservas del ${formatearFecha(fechaSeleccionada)}`}
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => setHojaAbierta(false)}
+            role="presentation"
           >
-            <div style={styles.dialogoCabecera}>
-              <div style={{ flex: 1 }}>
-                <h3 style={styles.detalleTitulo}>
-                  {formatearFecha(fechaSeleccionada)}
-                </h3>
-                <p style={styles.detalleSubtitulo}>
-                  {detalleDiaSeleccionado.totalReservas} reserva
-                  {detalleDiaSeleccionado.totalReservas !== 1 ? "s" : ""} ·{" "}
-                  {detalleDiaSeleccionado.totalPlazas} plaza
-                  {detalleDiaSeleccionado.totalPlazas !== 1 ? "s" : ""} ·{" "}
-                  {detalleDiaSeleccionado.totalIngresos}€
-                </p>
+            <div
+              style={{
+                ...styles.hoja,
+                transform: hojaAbierta ? "translateY(0)" : "translateY(100%)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={styles.hojaCabecera}>
+                <span style={styles.hojaTitulo}>Bloquear o habilitar días</span>
+                <button
+                  type="button"
+                  aria-label="Cerrar"
+                  style={styles.dialogoCerrar}
+                  onClick={() => setHojaAbierta(false)}
+                >
+                  ✕
+                </button>
               </div>
-              <button
-                type="button"
-                aria-label="Cerrar"
-                style={styles.dialogoCerrar}
-                onClick={() => setDialogoAbierto(false)}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={styles.dialogoCuerpo}>
-              {(
-                <>
-                 
-
-                  <div style={styles.listaReservas}>
-                    {reservasDelDia.map((r, index) => (
-                      <div
-                        key={`${r.id}-${index}`}
-                       style={{
-  ...styles.reservaFila,
-  ...(r.estadoCalendario === "grupo_individual_en_proceso"
-    ? styles.reservaFilaGrupoEnProceso
-    : {}),
-  ...(isMobile ? styles.reservaFilaMobile : {}),
-}}
-                      >
-                        <div
-                          style={{
-                            ...styles.reservaIzq,
-                            ...(isMobile ? styles.reservaIzqMobile : {}),
-                          }}
-                        >
-                          <p style={styles.reservaClase}>{r.clase}</p>
-                          {r.esGrupo && r.nombreGrupo && (
-  <p style={styles.reservaGrupo}>
-    Grupo: {r.nombreGrupo}
-  </p>
-)}
-{r.estadoCalendario === "grupo_individual_en_proceso" && (
-  <p style={styles.reservaGrupoProceso}>
-    🟡 Pago individual en proceso · {r.plazasPagadas || 0} pagada
-    {(r.plazasPagadas || 0) !== 1 ? "s" : ""} / {r.plazasPendientes || 0} pendiente
-    {(r.plazasPendientes || 0) !== 1 ? "s" : ""}
-  </p>
-)}
-                          <p style={styles.reservaMeta}>
-                            {r.turno} · {r.metodo} · {r.plazas} plaza
-                            {r.plazas !== 1 ? "s" : ""}
-                          </p>
-                          {(r.nombre || r.telefono) && (
-  <p style={styles.reservaContacto}>
-    {r.nombre || "Sin nombre"}
-    {r.telefono ? ` · ${r.telefono}` : ""}
-  </p>
-)}
-                          <div style={styles.reservaEnlaces}>
-                            <button
-                              type="button"
-                              style={styles.enlaceDetalle}
-                              onClick={() => navigate(rutaDetalleReserva(r))}
-                            >
-                              Ver detalles →
-                            </button>
-                            {urlWhatsApp(r.telefono) && (
-                              <a
-                                href={urlWhatsApp(r.telefono)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={styles.enlaceWhatsApp}
-                              >
-                                WhatsApp
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            ...styles.reservaDer,
-                            ...(isMobile ? styles.reservaDerMobile : {}),
-                          }}
-                        >
-                          <span style={styles.pagoEstado}>{r.estadoPago}</span>
-                          <span style={styles.pagoPrecio}>{r.precioTotal}€</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div style={styles.dialogoPie}>
-              <button style={styles.botonIrReservas} onClick={irAReservasDelDia}>
-                Ir a reservas del día
-              </button>
+              {panelFechasJsx}
             </div>
           </div>
-        </div>
+        </>
       )}
+
     </div>
   );
 };
@@ -1019,14 +1002,14 @@ const styles = {
   body: {
     backgroundColor: "#fdf8ee",
     minHeight: "100vh",
-    padding: 30,
+    padding: "20px 24px",
     fontFamily: "'Segoe UI', sans-serif",
   },
   bodyMobile: {
-    padding: 4,
+    padding: "4px 4px 0",
   },
   container: {
-    maxWidth: 1200,
+    maxWidth: 1180, // en pantallas grandes el calendario no se estira sin fin
     margin: "0 auto",
     backgroundColor: "#ffffff",
     borderRadius: 28,
@@ -1077,10 +1060,12 @@ const styles = {
     marginBottom: 20,
   },
   barraMesMobile: {
-    flexDirection: "column",
-    alignItems: "stretch",
-    padding: 12,
-    gap: 10,
+    flexDirection: "row",
+    flexWrap: "nowrap",
+    alignItems: "center",
+    padding: 8,
+    gap: 8,
+    marginBottom: 12,
   },
   mesCentro: {
     display: "flex",
@@ -1091,7 +1076,8 @@ const styles = {
     minWidth: 220,
   },
   mesCentroMobile: {
-    minWidth: "auto",
+    minWidth: 0,
+    gap: 2,
   },
   mesTitulo: {
     margin: 0,
@@ -1113,8 +1099,11 @@ const styles = {
     color: "#5b4a2d",
   },
   botonMesMobile: {
-    width: "100%",
-    fontSize: "0.95rem",
+    width: 48,
+    minHeight: 48,
+    padding: 0,
+    fontSize: "1.6rem",
+    lineHeight: 1,
   },
   botonHoy: {
     padding: "8px 12px",
@@ -1126,7 +1115,9 @@ const styles = {
     color: "#5b4a2d",
   },
   botonHoyMobile: {
-    width: "100%",
+    width: "auto",
+    padding: "4px 14px",
+    fontSize: "0.85rem",
   },
   mensaje: {
     textAlign: "center",
@@ -1146,7 +1137,7 @@ const styles = {
   },
   semanaHeader: {
     display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
     gap: 10,
     marginBottom: 10,
   },
@@ -1167,14 +1158,16 @@ const styles = {
   },
   gridDias: {
     display: "grid",
-    gridTemplateColumns: "repeat(7, 1fr)",
+    gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
     gap: 10,
   },
   gridDiasMobile: {
     gap: 4,
   },
   dia: {
-    minHeight: 110,
+    minWidth: 0,
+    overflow: "hidden",
+    minHeight: 88,
     borderRadius: 16,
     border: "1px solid #efe4ca",
     backgroundColor: "#fffaf2",
@@ -1187,7 +1180,7 @@ const styles = {
     transition: "all 0.2s ease",
   },
   diaMobile: {
-    minHeight: 68,
+    minHeight: 62,
     padding: 6,
     borderRadius: 10,
   },
@@ -1231,59 +1224,116 @@ const styles = {
   diaNumeroMobile: {
     fontSize: "0.92rem",
   },
-  infoDia: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 4,
+  dosColumnas: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) 360px",
+    gap: 16,
+    alignItems: "start",
   },
-  infoDiaMobile: {
-    gap: 2,
+  columnaDerecha: {
+    position: "sticky",
+    top: 72, // bajo la cabecera fija de la web (56 px)
+    maxHeight: "calc(100vh - 88px)",
+    overflowY: "auto",
+    paddingRight: 2,
   },
-  infoDiaTexto: {
-    fontSize: "0.8rem",
-    color: "#6d5a3c",
-    fontWeight: 600,
-    lineHeight: 1.2,
-  },
-  infoDiaTextoMobile: {
-    fontSize: "0.66rem",
-    lineHeight: 1.1,
-  },
-  infoDiaVacio: {
-    fontSize: "0.78rem",
-    color: "#b0a38d",
-  },
-  infoDiaVacioMobile: {
-    fontSize: "0.72rem",
-    textAlign: "center",
-  },
-  dialogoFondo: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(0,0,0,0.45)",
+  barraInferior: {
+    // Pegada al borde inferior mientras se navega, pero dentro de la página: al llegar
+    // al final se queda sobre el pie y no lo tapa
+    position: "sticky",
+    bottom: 0,
+    margin: "12px -4px 0",
+    zIndex: 40,
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
-    zIndex: 1000,
-    transition: "opacity 200ms ease",
+    justifyContent: "space-between",
+    gap: 10,
+    padding: "10px 14px calc(10px + env(safe-area-inset-bottom))",
+    backgroundColor: "#fffdf7",
+    borderTop: "1px solid #e5d8b8",
+    boxShadow: "0 -4px 14px rgba(0,0,0,0.08)",
   },
-  dialogo: {
-    background: "#fffdf7",
-    borderRadius: 18,
+  barraInferiorTexto: {
+    fontSize: "0.9rem",
+    fontWeight: 700,
+    color: "#4b3a2a",
+    minWidth: 0,
+  },
+  barraInferiorBoton: {
+    flexShrink: 0,
+    minHeight: 44,
+    padding: "0 16px",
+    borderRadius: 12,
+    border: "none",
+    backgroundColor: "#5c3c00",
+    color: "#fff",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+  hojaFondo: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 900,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "flex-end",
+  },
+  hoja: {
     width: "100%",
-    maxWidth: 640,
-    maxHeight: "90vh",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
-    transition: "opacity 200ms ease, transform 200ms ease",
+    maxHeight: "88vh",
+    overflowY: "auto",
+    backgroundColor: "#fffdf7",
+    borderRadius: "20px 20px 0 0",
+    padding: "14px 14px calc(18px + env(safe-area-inset-bottom))",
+    transition: "transform 0.25s ease",
   },
-  dialogoCabecera: {
+  hojaCabecera: {
     display: "flex",
-    gap: 12,
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  hojaTitulo: {
+    fontWeight: 700,
+    color: "#4b3a2a",
+    fontSize: "1.05rem",
+  },
+  diaCabecera: {
+    display: "flex",
+    justifyContent: "space-between",
     alignItems: "flex-start",
-    padding: "18px 20px 10px",
+    gap: 4,
+  },
+  diaPunto: {
+    width: 9,
+    height: 9,
+    borderRadius: "50%",
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  diaEstado: {
+    fontSize: "0.66rem",
+    fontWeight: 700,
+    lineHeight: 1,
+    padding: "3px 6px",
+    borderRadius: 999,
+    whiteSpace: "nowrap",
+  },
+  diaPie: {
+    marginTop: "auto",
+    display: "flex",
+  },
+  diaPersonas: {
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    lineHeight: 1,
+    padding: "5px 10px",
+    borderRadius: 999,
+    whiteSpace: "nowrap",
+  },
+  diaPersonasMobile: {
+    fontSize: "0.72rem",
+    padding: "3px 7px",
   },
   dialogoCerrar: {
     border: "none",
@@ -1292,8 +1342,6 @@ const styles = {
     cursor: "pointer",
     color: "#5c3c00",
   },
-  dialogoCuerpo: { padding: "0 20px", overflowY: "auto", flex: 1 },
-  dialogoPie: { padding: "12px 20px 18px", display: "flex", justifyContent: "flex-end" },
   detalleBox: {
     backgroundColor: "#fffdf7",
     border: "1px solid #f0e5cf",
@@ -1301,35 +1349,38 @@ const styles = {
     padding: 20,
   },
   detalleBoxMobile: {
+    scrollMarginTop: 64, // deja ver el título bajo la cabecera fija
     borderRadius: 16,
     padding: 14,
   },
   detalleCabecera: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
-    flexWrap: "wrap",
-    marginBottom: 16,
-  },
-  detalleCabeceraMobile: {
     flexDirection: "column",
-    alignItems: "stretch",
     gap: 12,
+    marginBottom: 14,
+  },
+  detalleAcciones: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 8,
+  },
+  botonAccion: {
+    width: "100%",
   },
   detalleTitulo: {
     margin: 0,
     color: "#4b3a2a",
-    textTransform: "capitalize",
-    fontSize: "1.2rem",
+    fontSize: "1.25rem",
+    lineHeight: 1.25,
   },
   detalleTituloMobile: {
     fontSize: "1.02rem",
     lineHeight: 1.35,
   },
   detalleSubtitulo: {
-    marginTop: 8,
+    margin: "6px 0 0",
     color: "#7a7a7a",
+    fontSize: "0.92rem",
   },
   detalleSubtituloMobile: {
     fontSize: "0.92rem",
@@ -1359,26 +1410,34 @@ const styles = {
   },
   reservaFila: {
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
-    padding: "12px 0",
-    borderBottom: "1px solid #f3ead7",
-    flexWrap: "wrap",
-  },
-  reservaFilaMobile: {
-    padding: "12px",
+    flexDirection: "column",
+    gap: 2,
+    padding: "12px 14px",
     border: "1px solid #f1e6cf",
     borderRadius: 14,
     backgroundColor: "#fffaf2",
   },
-  reservaIzq: {
-    minWidth: 220,
-    flex: 1,
+  reservaCabecera: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    gap: 10,
   },
-  reservaIzqMobile: {
-    minWidth: "auto",
-    width: "100%",
+  pagoChip: {
+    fontSize: "0.75rem",
+    fontWeight: 700,
+    padding: "5px 10px",
+    borderRadius: 999,
+    lineHeight: 1.2,
+    textTransform: "capitalize",
+  },
+  pagoChipOk: {
+    color: "#2f6b2f",
+    backgroundColor: "#e0f0dc",
+  },
+  pagoChipPendiente: {
+    color: "#8a5a00",
+    backgroundColor: "#fdebc8",
   },
   reservaClase: {
     margin: 0,
@@ -1403,32 +1462,14 @@ const styles = {
   fontSize: "0.9rem",
   fontWeight: 600,
 },
-  reservaDer: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: 4,
-    minWidth: 90,
-  },
-  reservaDerMobile: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    minWidth: "auto",
-    marginTop: 6,
-  },
-  pagoEstado: {
-    color: "#5b4a2d",
-    fontSize: "0.88rem",
-    textTransform: "capitalize",
-  },
   pagoPrecio: {
+    whiteSpace: "nowrap",
+    flexShrink: 0,
     color: "#333",
     fontWeight: 700,
     fontSize: "0.96rem",
   },
-  reservaEnlaces: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 },
+  reservaEnlaces: { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 },
   enlaceDetalle: {
     padding: "6px 12px",
     borderRadius: 10,
@@ -1468,4 +1509,4 @@ reservaGrupoProceso: {
 },
 };
 
-export default AdminCalendarioReservasNuevo;
+export default AdminCalendarioReservas;

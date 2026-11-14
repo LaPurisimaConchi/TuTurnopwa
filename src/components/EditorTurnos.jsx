@@ -8,7 +8,6 @@ import { leerTurnos, turnoInvalido } from "../utils/fichaTaller";
 
 export const TURNO_MANANA = "11:30-14:30";
 export const TURNO_TARDE = "17:30-20:30";
-const A_CONSULTAR = "Horario a consultar";
 
 const inicioEnMinutos = (turno) => {
   const m = /^(\d{1,2}):(\d{2})/.exec(turno);
@@ -71,11 +70,6 @@ export default function EditorTurnos({ value = "", onChange, id, textoVacio = "S
       {!turnos.includes(TURNO_TARDE) && (
         <button type="button" className={boton} onClick={() => anadir(TURNO_TARDE)}>
           + Tarde
-        </button>
-      )}
-      {!turnos.includes(A_CONSULTAR) && (
-        <button type="button" className={boton} onClick={() => anadir(A_CONSULTAR)}>
-          + A consultar
         </button>
       )}
 

@@ -106,7 +106,8 @@ export default function Header() {
                 </Link>
               )}
 
-              {!hayUsuario && (
+              {/* Quien compró como invitado también puede querer entrar a su cuenta */}
+              {(!hayUsuario || esInvitado) && (
                 <>
                   <Link to="/login" className={contorno}>
                     Iniciar sesión
@@ -115,12 +116,6 @@ export default function Header() {
                     Crear cuenta
                   </Link>
                 </>
-              )}
-
-              {esInvitado && (
-                <Link to="/registro" className={`${contorno} hidden sm:inline-flex`}>
-                  Crear cuenta
-                </Link>
               )}
 
               {/* El invitado no tiene perfil que gestionar: su reserva se abre con código + email */}

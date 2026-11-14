@@ -425,7 +425,7 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 | `/admin-reservas-nuevo` | `AdminReservasNuevo` | Listado de reservas |
 | `/admin-detalle-reserva` | `AdminDetalleReservaNuevo` | Detalle, cancelar, reprogramar |
 | `/admin-reservas-grupos` | `AdminReservasGrupos` | Grupos y pagos parciales |
-| `/admin-calendario-reservas-nuevo` | `AdminCalendarioReservasNuevo` | Calendario |
+| `/admin-calendario-reservas` | `AdminCalendarioReservas` | Calendario |
 | `/admin-historial-nuevo` | `AdminHistorialNuevo` | Historial (sin enlace en dashboard) |
 | `/admin-clases-nuevo` | `AdminClasesNuevo` | Gestión de clases |
 | `/admin-detalle-clase` | `AdminDetalleClaseNuevo` | Detalle de clase |
