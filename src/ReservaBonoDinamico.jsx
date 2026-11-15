@@ -405,8 +405,13 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
-        Reserva – {nombreClase}
+      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+          Reserva
+        </span>
+        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+          {nombreClase}
+        </span>
       </h1>
 
       {desdeTarjeta && (
@@ -490,9 +495,12 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </p>
           )}
 
-          {!!turno && plazasListas && plazasQuedan > 0 && (
-            <p className="text-sm text-green-700">
-              Quedan {plazasQuedan} plazas disponibles en este turno.
+          {!!turno && plazasListas && plazasQuedan > 0 && plazasQuedan <= 10 && (
+            <p className="text-sm text-amber-700 font-medium">
+              {plazasQuedan <= 5
+                ? `Quedan ${plazasQuedan} ${plazasQuedan === 1 ? "plaza disponible" : "plazas disponibles"}`
+                : "Quedan pocas plazas"}{" "}
+              en este turno.
             </p>
           )}
 

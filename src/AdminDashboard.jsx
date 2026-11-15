@@ -27,6 +27,7 @@ const SECCIONES_ACCESOS = [
       { to: "/admin-ordenar-clases", icono: "↕️", texto: "Ordenar clases" },
       { to: "/admin-taller", icono: "➕", texto: "Añadir taller nuevo" },
       { to: "/admin-categorias", icono: "🏷️", texto: "Categorías de talleres" },
+      { to: "/admin-paginas-especiales", icono: "⭐", texto: "Recomendados de regalo y grupos" },
     ],
   },
   {

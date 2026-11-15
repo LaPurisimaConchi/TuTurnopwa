@@ -630,6 +630,8 @@ export function FormularioReserva({ claseId, clase }) {
   const minGrupo = configEspacio.minPersonasGrupo;
   const faltanPersonasGrupo =
     diaSoloGrupo && !turnosAbiertos.includes(turno) && plazasNum < minHabilitar;
+  // El aviso solo sale con un turno elegido: hasta entonces no se sabe si ya está abierto
+  const avisarMinimo = faltanPersonasGrupo && !!turno;
   const mostrarSugerencia = !desdeTarjeta && plazasNum >= minGrupo;
   const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
   if (conVariante && varianteId) parametrosGrupo.set("variante", varianteId);
@@ -674,12 +676,17 @@ export function FormularioReserva({ claseId, clase }) {
     ? "Comprobando plazas…"
     : plazasDisponibles <= 0
     ? "No quedan plazas disponibles."
-    : `Máximo ${plazasDisponibles} plazas disponibles.`;
+    : ""; // las plazas que quedan se avisan arriba, y solo cuando son pocas
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
-        Reserva – {nombreClase}
+      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+          Reserva
+        </span>
+        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+          {nombreClase}
+        </span>
       </h1>
 
       {desdeTarjeta && (
@@ -867,9 +874,11 @@ export function FormularioReserva({ claseId, clase }) {
             }
           />
 
-          {puedeElegirTurno && !!turno && plazasListas && plazasDisponibles > 0 && (
-            <p className="text-sm text-green-700">
-              Quedan {plazasDisponibles} plazas disponibles
+          {puedeElegirTurno && !!turno && plazasListas && plazasDisponibles > 0 && plazasDisponibles <= 10 && (
+            <p className="text-sm text-amber-700 font-medium">
+              {plazasDisponibles <= 5
+                ? `Quedan ${plazasDisponibles} ${plazasDisponibles === 1 ? "plaza disponible" : "plazas disponibles"}`
+                : "Quedan pocas plazas"}
               {conMetodo ? " para este método" : " en este turno"}.
             </p>
           )}
@@ -967,10 +976,10 @@ export function FormularioReserva({ claseId, clase }) {
             </p>
           </div>
 
-          {faltanPersonasGrupo && (
+          {avisarMinimo && (
             <p className="text-sm text-red-600 font-medium">
-              Este día es solo para grupos: hace falta un mínimo de {minHabilitar} personas
-              para reservar (ahora tienes {plazasNum}). Sube las plazas o elige otro día.
+              Para abrir este turno hacen falta al menos {minHabilitar} personas (ahora tienes{" "}
+              {plazasNum}). Sube las plazas o elige otro turno u otro día.
             </p>
           )}
 

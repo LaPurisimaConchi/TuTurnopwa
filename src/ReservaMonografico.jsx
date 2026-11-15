@@ -318,11 +318,22 @@ export default function ReservaMonografico({ claseId, clase }) {
     ? "Comprobando plazas…"
     : plazasDisponibles <= 0
     ? "No quedan plazas en esta edición."
-    : `Máximo ${plazasDisponibles} plazas disponibles.`;
+    : plazasDisponibles <= 5
+    ? `Quedan ${plazasDisponibles} ${plazasDisponibles === 1 ? "plaza disponible" : "plazas disponibles"}.`
+    : plazasDisponibles <= 10
+    ? "Quedan pocas plazas."
+    : "";
 
   return (
     <PantallaReserva ancho="max-w-2xl">
-      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">Reserva – {nombreClase}</h1>
+      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+          Reserva
+        </span>
+        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+          {nombreClase}
+        </span>
+      </h1>
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">

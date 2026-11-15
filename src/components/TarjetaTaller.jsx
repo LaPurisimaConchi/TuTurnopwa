@@ -1,7 +1,8 @@
 // src/components/TarjetaTaller.jsx
 // Tarjeta de taller con foto, usada en la portada y en los listados
 import { useNavigate } from "react-router-dom";
-import { formatearEuros } from "../catalogoTalleres";
+import { formatearEuros, TALLERES_FIJOS } from "../catalogoTalleres";
+import ImagenTaller from "./ImagenTaller";
 
 export default function TarjetaTaller({ taller, imagen, textoBoton = "Ver taller", onElegir }) {
   const navigate = useNavigate();
@@ -15,11 +16,10 @@ export default function TarjetaTaller({ taller, imagen, textoBoton = "Ver taller
         className="relative block aspect-[4/3] w-full overflow-hidden bg-[#f6efe6]"
         aria-label={`Ver ${taller.nombre}`}
       >
-        <img
-          src={imagen || taller.imagen}
+        <ImagenTaller
+          src={imagen === undefined ? undefined : imagen || (TALLERES_FIJOS[taller.id] ? taller.imagen : null)}
           alt={taller.nombre}
-          loading="lazy"
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          imgClassName="transition duration-300 group-hover:scale-105"
         />
         {taller.sesiones > 1 && (
           <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-[#6b4f3f] shadow-sm">

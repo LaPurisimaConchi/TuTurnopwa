@@ -4,7 +4,7 @@
 // El taller sale del catálogo (clases/{id}); desde la página de un taller se llega
 // con ?taller=<id>&variante=<id>&metodo=<id> y llega ya elegido.
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, set } from "firebase/database";
 import { dbRealtime } from "./firebase";
@@ -194,13 +194,6 @@ export default function ReservaGrupos() {
     notas,
   })}`;
 
-  const elegirTaller = (id) => {
-    const nuevo = talleres.find((t) => t.id === id);
-    setTallerId(id);
-    const { lista } = nuevo ? opcionesDelTaller(nuevo) : { lista: [] };
-    setOpcionId(lista.length === 1 ? lista[0].id : "");
-  };
-
   useEffect(() => {
     setPersonas((actual) => Math.max(Number(actual) || 0, MIN_PERSONAS));
   }, [MIN_PERSONAS]);
@@ -364,8 +357,16 @@ export default function ReservaGrupos() {
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-2">
-        Reserva para grupos
+      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+          Reserva para grupos
+        </span>
+        {taller && (
+          <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+            {taller.nombre}
+          </span>
+        )}
+        {!taller && !cargandoTalleres && <span className="block text-2xl mt-1">Elige un taller</span>}
       </h1>
       <p className="text-center text-sm text-gray-700 max-w-2xl mx-auto mb-5">
         Para grupos de <strong>{MIN_PERSONAS} o más personas</strong>. Antes de pagar, habla con el taller por
@@ -380,37 +381,17 @@ export default function ReservaGrupos() {
         )}
 
         <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
-          <p className="md:col-span-2 text-xs text-center text-[#7a5a1e]">
-            Los campos marcados con <span className="font-bold text-red-600">*</span> son obligatorios.
-          </p>
 
           {/* Izquierda: qué y cuándo */}
           <div className="space-y-4">
-            <div>
-              <label htmlFor="taller" className="block font-bold text-sm mb-1">
-                Taller <span className="text-red-600">*</span>
-              </label>
-              <select
-                id="taller"
-                value={tallerId}
-                onChange={(e) => elegirTaller(e.target.value)}
-                className={campo}
-                required
-                disabled={cargandoTalleres}
-              >
-                <option value="">
-                  {cargandoTalleres ? "Cargando talleres..." : "-- Elige un taller --"}
-                </option>
-                {talleres.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}
-                    {!opcionesDelTaller(t).lista.length && t.precioDesde
-                      ? ` — ${formatearEuros(t.precioDesde)}`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!cargandoTalleres && !taller && (
+              <p className="rounded-lg border border-[#eadfbe] bg-[#fffaf0] px-3 py-2 text-sm text-gray-700">
+                Elige primero un taller en su página y pulsa su botón de reserva para grupos.{" "}
+                <Link to="/portada" className="text-blue-700 underline">
+                  Ver talleres
+                </Link>
+              </p>
+            )}
 
             {opciones.lista.length > 1 && (
               <div>

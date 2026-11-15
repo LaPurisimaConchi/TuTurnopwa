@@ -65,14 +65,14 @@ export default function Portada() {
 
             <button
               className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
-              onClick={() => navigate("/tarjeta-regalo")}
+              onClick={() => navigate("/regalar-taller")}
             >
               🎁 Regalar un taller
             </button>
 
             <button
               className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
-              onClick={() => navigate("/reserva-grupos")}
+              onClick={() => navigate("/grupos")}
             >
               👥 Reservas para grupos
             </button>
