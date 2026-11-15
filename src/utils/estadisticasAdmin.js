@@ -94,8 +94,8 @@ function registrarPagoPendiente(acc, id, grupo) {
 
   acc.gruposPagoPendiente.push({
     id,
-    nombre: grupo.nombreGrupo || grupo.nombreReserva || grupo.clase || "Grupo",
-    fecha: grupo.fecha || "",
+    nombre: String(grupo.nombreGrupo || grupo.nombreReserva || grupo.clase || "Grupo"),
+    fecha: typeof grupo.fecha === "string" ? grupo.fecha : "",
     limite: limite.toISOString(),
     vencido: horasRestantes <= 0,
   });

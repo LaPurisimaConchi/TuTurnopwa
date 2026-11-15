@@ -1,11 +1,11 @@
-/* Panel admin (AdminDashboard.jsx). Prefijo ad- para no chocar con otros estilos. */
+/* Panel admin (AdminDashboard.jsx). Prefijo pa- (panel admin): no uses «ad-», los bloqueadores de anuncios ocultan esas clases. */
 
-.ad-body {
+.pa-body {
   padding: 30px;
   font-family: "Segoe UI", sans-serif;
 }
 
-.ad-container {
+.pa-container {
   max-width: 1100px;
   margin: 0 auto;
   background-color: #fff;
@@ -14,31 +14,31 @@
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
 }
 
-.ad-header {
+.pa-header {
   text-align: center;
   margin-bottom: 28px;
 }
 
-.ad-titulo {
+.pa-titulo {
   margin: 0;
   color: #3f3128;
   font-size: 2rem;
 }
 
-.ad-subtitulo {
+.pa-subtitulo {
   margin: 8px 0 0;
   color: #666;
   font-size: 1rem;
 }
 
-.ad-grid {
+.pa-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
 
-.ad-card {
+.pa-card {
   display: block;
   box-sizing: border-box;
   background-color: #fff6d6;
@@ -50,14 +50,14 @@
   text-decoration: none;
 }
 
-.ad-card-label {
+.pa-card-label {
   margin: 0;
   color: #3f3128;
   font-weight: 600;
   font-size: 0.95rem;
 }
 
-.ad-card-valor {
+.pa-card-valor {
   margin: 12px 0 0;
   color: #333;
   font-size: 2rem;
@@ -65,29 +65,29 @@
   min-height: 1.2em;
 }
 
-.ad-card-nota {
+.pa-card-nota {
   margin: 6px 0 0;
   color: #3f3128;
   font-size: 0.8rem;
   min-height: 1.2em;
 }
 
-.ad-skeleton {
+.pa-skeleton {
   display: inline-block;
   width: 3.5ch;
   height: 0.9em;
   border-radius: 8px;
   background: #ecdfae;
-  animation: ad-pulso 1.2s ease-in-out infinite;
+  animation: pa-pulso 1.2s ease-in-out infinite;
 }
 
-@keyframes ad-pulso {
+@keyframes pa-pulso {
   50% {
     opacity: 0.4;
   }
 }
 
-.ad-error {
+.pa-error {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -101,7 +101,7 @@
   margin-bottom: 16px;
 }
 
-.ad-boton-reintentar {
+.pa-boton-reintentar {
   padding: 8px 14px;
   background-color: #8a1f11;
   color: #fff;
@@ -110,37 +110,37 @@
   cursor: pointer;
 }
 
-.ad-boton-reintentar:disabled {
+.pa-boton-reintentar:disabled {
   opacity: 0.7;
   cursor: default;
 }
 
-.ad-panel {
+.pa-panel {
   background-color: #fdfaf5;
   border: 1px solid #eadfd2;
   border-radius: 22px;
   padding: 22px;
 }
 
-.ad-panel + .ad-panel,
-.ad-panel-sep {
+.pa-panel + .pa-panel,
+.pa-panel-sep {
   margin-top: 28px;
 }
 
-.ad-panel-titulo {
+.pa-panel-titulo {
   margin: 0 0 18px;
   color: #3f3128;
   font-size: 1.25rem;
 }
 
-.ad-proximas {
+.pa-proximas {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
 
-.ad-proxima {
+.pa-proxima {
   padding: 10px 16px;
   background-color: #fff6d6;
   color: #3f3128;
@@ -150,13 +150,13 @@
   cursor: pointer;
 }
 
-.ad-vacio {
+.pa-vacio {
   margin: 0;
   color: #666;
   font-size: 0.95rem;
 }
 
-.ad-lista {
+.pa-lista {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -164,7 +164,7 @@
   gap: 8px;
 }
 
-.ad-pendiente {
+.pa-pendiente {
   width: 100%;
   box-sizing: border-box;
   display: flex;
@@ -181,17 +181,17 @@
   cursor: pointer;
 }
 
-.ad-pendiente--vencido {
+.pa-pendiente--vencido {
   background-color: #fdecea;
   border-color: #f3b8b0;
   color: #8a1f11;
 }
 
-.ad-seccion {
+.pa-seccion {
   margin-top: 18px;
 }
 
-.ad-seccion-titulo {
+.pa-seccion-titulo {
   margin: 0 0 10px;
   color: #3f3128;
   font-size: 0.9rem;
@@ -200,13 +200,13 @@
   letter-spacing: 0.04em;
 }
 
-.ad-botones {
+.pa-botones {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 
-.ad-boton {
+.pa-boton {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -224,42 +224,42 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.ad-icono {
+.pa-icono {
   font-size: 1.25rem;
   line-height: 1;
 }
 
 /* Hover y foco visibles para ratón y teclado */
-.ad-card[href],
-.ad-boton,
-.ad-proxima,
-.ad-pendiente {
+.pa-card[href],
+.pa-boton,
+.pa-proxima,
+.pa-pendiente {
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
-.ad-card[href]:hover,
-.ad-boton:hover,
-.ad-proxima:hover,
-.ad-pendiente:hover {
+.pa-card[href]:hover,
+.pa-boton:hover,
+.pa-proxima:hover,
+.pa-pendiente:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
 }
 
-.ad-card[href]:focus-visible,
-.ad-boton:focus-visible,
-.ad-proxima:focus-visible,
-.ad-pendiente:focus-visible,
-.ad-boton-reintentar:focus-visible {
+.pa-card[href]:focus-visible,
+.pa-boton:focus-visible,
+.pa-proxima:focus-visible,
+.pa-pendiente:focus-visible,
+.pa-boton-reintentar:focus-visible {
   outline: 3px solid #a9683f;
   outline-offset: 2px;
 }
 
 @media (max-width: 768px) {
-  .ad-body {
+  .pa-body {
     padding: 4px;
   }
 
-  .ad-container {
+  .pa-container {
     width: 100%;
     max-width: 100%;
     border-radius: 16px;
@@ -267,26 +267,26 @@
     box-sizing: border-box;
   }
 
-  .ad-header {
+  .pa-header {
     margin-bottom: 18px;
   }
 
-  .ad-titulo {
+  .pa-titulo {
     font-size: 1.5rem;
   }
 
-  .ad-subtitulo {
+  .pa-subtitulo {
     font-size: 0.9rem;
   }
 
   /* Casillas del resumen: dos por fila, compactas, con el dato como protagonista */
-  .ad-grid {
+  .pa-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     margin-bottom: 20px;
   }
 
-  .ad-card {
+  .pa-card {
     position: relative;
     display: flex;
     flex-direction: column;
@@ -295,7 +295,7 @@
     border-radius: 16px;
   }
 
-  .ad-card-label {
+  .pa-card-label {
     padding-right: 14px; /* deja sitio a la flecha de las casillas que abren una lista */
     font-size: 0.78rem;
     line-height: 1.25;
@@ -303,7 +303,7 @@
     letter-spacing: 0.03em;
   }
 
-  .ad-card-valor {
+  .pa-card-valor {
     margin: 8px 0 0;
     font-size: 1.7rem;
     line-height: 1.1;
@@ -311,19 +311,19 @@
     overflow-wrap: anywhere;
   }
 
-  .ad-card-nota {
+  .pa-card-nota {
     margin: 4px 0 0;
     font-size: 0.72rem;
     line-height: 1.25;
     min-height: 0;
   }
 
-  .ad-card-nota:empty {
+  .pa-card-nota:empty {
     display: none;
   }
 
   /* Flecha: avisa de que la casilla se puede tocar */
-  .ad-card[href]::after {
+  .pa-card[href]::after {
     content: "\203A";
     position: absolute;
     top: 8px;
@@ -336,21 +336,21 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ad-skeleton {
+  .pa-skeleton {
     animation: none;
   }
 
-  .ad-card[href],
-  .ad-boton,
-  .ad-proxima,
-  .ad-pendiente {
+  .pa-card[href],
+  .pa-boton,
+  .pa-proxima,
+  .pa-pendiente {
     transition: none;
   }
 
-  .ad-card[href]:hover,
-  .ad-boton:hover,
-  .ad-proxima:hover,
-  .ad-pendiente:hover {
+  .pa-card[href]:hover,
+  .pa-boton:hover,
+  .pa-proxima:hover,
+  .pa-pendiente:hover {
     transform: none;
   }
 }

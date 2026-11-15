@@ -105,28 +105,28 @@ const AdminDashboard = () => {
   // Esqueleto mientras carga, "—" si falló, el valor si todo fue bien
   const valor = (campo, formato = (v) => v) => {
     if (cargando) {
-      return <span className="ad-skeleton" role="status" aria-label="Cargando" />;
+      return <span className="pa-skeleton" role="status" aria-label="Cargando" />;
     }
     if (!stats) return "—";
     return formato(stats[campo]);
   };
 
   return (
-    <main className="ad-body">
-      <div className="ad-container">
+    <main className="pa-body">
+      <div className="pa-container">
         <BotonVolver />
 
-        <header className="ad-header">
-          <h1 className="ad-titulo">Panel admin</h1>
-          <p className="ad-subtitulo">Resumen general del taller.</p>
+        <header className="pa-header">
+          <h1 className="pa-titulo">Panel admin</h1>
+          <p className="pa-subtitulo">Resumen general del taller.</p>
         </header>
 
         {error && (
-          <div role="alert" className="ad-error">
+          <div role="alert" className="pa-error">
             <span>No se pudieron cargar los datos del resumen.</span>
             <button
               type="button"
-              className="ad-boton-reintentar"
+              className="pa-boton-reintentar"
               onClick={cargarDashboard}
               disabled={cargando}
             >
@@ -135,14 +135,14 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        <div className="ad-grid" aria-busy={cargando}>
+        <div className="pa-grid" aria-busy={cargando}>
           {TARJETAS.map(({ campo, etiqueta, to, formato }) => {
             const contenido = (
               <>
-                <p className="ad-card-label">{etiqueta}</p>
-                <p className="ad-card-valor">{valor(campo, formato)}</p>
+                <p className="pa-card-label">{etiqueta}</p>
+                <p className="pa-card-valor">{valor(campo, formato)}</p>
                 {campo === "reservasTotales" && (
-                  <p className="ad-card-nota">
+                  <p className="pa-card-nota">
                     {stats && !cargando
                       ? `${stats.reservasConfirmadas} confirmadas y pagadas`
                       : null}
@@ -152,11 +152,11 @@ const AdminDashboard = () => {
             );
 
             return to ? (
-              <Link key={campo} to={to} className="ad-card">
+              <Link key={campo} to={to} className="pa-card">
                 {contenido}
               </Link>
             ) : (
-              <div key={campo} className="ad-card">
+              <div key={campo} className="pa-card">
                 {contenido}
               </div>
             );
@@ -164,22 +164,22 @@ const AdminDashboard = () => {
         </div>
 
         {stats && !cargando && (
-          <section className="ad-panel" aria-labelledby="ad-pendientes">
-            <h2 id="ad-pendientes" className="ad-panel-titulo">
+          <section className="pa-panel" aria-labelledby="pa-pendientes">
+            <h2 id="pa-pendientes" className="pa-panel-titulo">
               Pendientes de atender
             </h2>
 
-            <div className="ad-proximas">
+            <div className="pa-proximas">
               <button
                 type="button"
-                className="ad-proxima"
+                className="pa-proxima"
                 onClick={() => navigate("/admin-calendario-reservas")}
               >
                 <strong>{stats.reservasHoy}</strong> reservas hoy
               </button>
               <button
                 type="button"
-                className="ad-proxima"
+                className="pa-proxima"
                 onClick={() => navigate("/admin-calendario-reservas")}
               >
                 <strong>{stats.reservasManana}</strong> reservas mañana
@@ -187,16 +187,16 @@ const AdminDashboard = () => {
             </div>
 
             {stats.gruposPagoPendiente.length === 0 ? (
-              <p className="ad-vacio">
+              <p className="pa-vacio">
                 Ninguna reserva de grupo con el plazo de pago a punto de vencer.
               </p>
             ) : (
-              <ul className="ad-lista">
+              <ul className="pa-lista">
                 {stats.gruposPagoPendiente.map((g) => (
                   <li key={g.id}>
                     <button
                       type="button"
-                      className={`ad-pendiente${g.vencido ? " ad-pendiente--vencido" : ""}`}
+                      className={`pa-pendiente${g.vencido ? " pa-pendiente--vencido" : ""}`}
                       onClick={() =>
                         navigate(
                           g.fecha
@@ -206,8 +206,8 @@ const AdminDashboard = () => {
                       }
                     >
                       <span>
-                        {g.nombre}
-                        {g.fecha ? ` · ${fechaDMA(g.fecha)}` : ""}
+                        {String(g.nombre)}
+                        {g.fecha ? ` · ${fechaDMA(String(g.fecha))}` : ""}
                       </span>
                       <span>{describirPlazo(g.limite)}</span>
                     </button>
@@ -219,21 +219,21 @@ const AdminDashboard = () => {
         )}
 
         <nav
-          className="ad-panel ad-panel-sep"
-          aria-labelledby="ad-accesos"
+          className="pa-panel pa-panel-sep"
+          aria-labelledby="pa-accesos"
         >
-          <h2 id="ad-accesos" className="ad-panel-titulo">
+          <h2 id="pa-accesos" className="pa-panel-titulo">
             Accesos rápidos
           </h2>
 
           {SECCIONES_ACCESOS.map((seccion) => (
-            <section key={seccion.titulo} className="ad-seccion">
-              <h3 className="ad-seccion-titulo">{seccion.titulo}</h3>
+            <section key={seccion.titulo} className="pa-seccion">
+              <h3 className="pa-seccion-titulo">{seccion.titulo}</h3>
 
-              <div className="ad-botones">
+              <div className="pa-botones">
                 {seccion.accesos.map((acceso) => (
-                  <Link key={acceso.to} to={acceso.to} className="ad-boton">
-                    <span aria-hidden="true" className="ad-icono">
+                  <Link key={acceso.to} to={acceso.to} className="pa-boton">
+                    <span aria-hidden="true" className="pa-icono">
                       <Icono nombre={acceso.icono} tamano={22} />
                     </span>
                     {acceso.texto}

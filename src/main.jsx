@@ -3,6 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 
 const esStaging = import.meta.env.VITE_ENV === 'staging'
 
@@ -13,6 +14,8 @@ createRoot(document.getElementById('root')).render(
         ENTORNO DE PRUEBAS · {import.meta.env.VITE_FIREBASE_PROJECT_ID}
       </div>
     )}
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )
