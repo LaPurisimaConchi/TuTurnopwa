@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
@@ -616,7 +617,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             {r.esGrupo && r.nombreGrupo && <p style={styles.reservaGrupo}>Grupo: {r.nombreGrupo}</p>}
             {enProceso && (
               <p style={styles.reservaGrupoProceso}>
-                🟡 Pago individual en proceso · {r.plazasPagadas || 0} pagada
+                <Icono nombre="punto" tamano="0.7em" className="text-amber-500 mr-1" /> Pago individual en proceso · {r.plazasPagadas || 0} pagada
                 {(r.plazasPagadas || 0) !== 1 ? "s" : ""} / {r.plazasPendientes || 0} pendiente
                 {(r.plazasPendientes || 0) !== 1 ? "s" : ""}
               </p>
@@ -637,7 +638,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                 {r.estadoPago}
               </span>
               <button type="button" style={styles.enlaceDetalle} onClick={() => navigate(rutaDetalleReserva(r))}>
-                Ver detalles →
+                Ver detalles <Icono nombre="derecha" />
               </button>
               {urlWhatsApp(r.telefono) && (
                 <a href={urlWhatsApp(r.telefono)} target="_blank" rel="noopener noreferrer" style={styles.enlaceWhatsApp}>
@@ -659,7 +660,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
   const textoSeleccion =
     panelInicio === panelFin
       ? fechaDMA(panelInicio)
-      : `${fechaDMA(panelInicio)} → ${fechaDMA(panelFin)} (${diasEnRango.size} días)`;
+      : `${fechaDMA(panelInicio)} – ${fechaDMA(panelFin)} (${diasEnRango.size} días)`;
 
   const panelFechasJsx = fechaSeleccionada ? (
     <PanelFechasEspeciales
@@ -701,7 +702,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             onClick={() => cambiarMes(-1)}
             aria-label="Mes anterior"
           >
-            {isMobile ? "‹" : "← Anterior"}
+            {isMobile ? <Icono nombre="anterior" /> : <><Icono nombre="izquierda" className="mr-1" />Anterior</>}
           </button>
 
           <div style={{ ...styles.mesCentro, ...(isMobile ? styles.mesCentroMobile : {}) }}>
@@ -721,7 +722,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             onClick={() => cambiarMes(1)}
             aria-label="Mes siguiente"
           >
-            {isMobile ? "›" : "Siguiente →"}
+            {isMobile ? <Icono nombre="siguiente" /> : <>Siguiente<Icono nombre="derecha" className="ml-1" /></>}
           </button>
         </div>
 
@@ -984,9 +985,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                   aria-label="Cerrar"
                   style={styles.dialogoCerrar}
                   onClick={() => setHojaAbierta(false)}
-                >
-                  ✕
-                </button>
+                ><Icono nombre="cerrar" /></button>
               </div>
               {panelFechasJsx}
             </div>

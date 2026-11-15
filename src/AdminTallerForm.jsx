@@ -7,6 +7,7 @@
 // - Talleres de siempre sin migrar: solo fotos y visibilidad en portada.
 // Las fotos se guardan comprimidas en imagenesClases/{id}.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { cargarConfigEspacio } from "./configuracionEspacio";
 import { ref, get, set, update } from "firebase/database";
@@ -121,12 +122,12 @@ async function comprobarDependencias(claseId, clase = {}) {
 }
 
 const ICONOS_PESTANAS = {
-  datos: "📝",
-  pagina: "📄",
-  precios: "💶",
-  horario: "🗓️",
-  fotos: "📷",
-  visibilidad: "👁️",
+  datos: "notas",
+  pagina: "pagina",
+  precios: "euro",
+  horario: "calendario",
+  fotos: "camara",
+  visibilidad: "ojo",
 };
 
 export default function AdminTallerForm() {
@@ -734,9 +735,9 @@ export default function AdminTallerForm() {
               rel="noopener noreferrer"
               className="shrink-0 inline-flex items-center justify-center gap-2 self-start rounded-full border-2 border-[#E5B92F] bg-transparent px-5 py-2.5 text-sm font-bold text-[#5c3c00] transition hover:bg-[#fff6d6]"
             >
-              <span aria-hidden="true">🔗</span>
+              <Icono nombre="enlace" />
               Ver página del taller
-              <span aria-hidden="true">↗</span>
+              <Icono nombre="externo" />
             </a>
           )}
           </div>
@@ -780,7 +781,7 @@ export default function AdminTallerForm() {
                   }`}
                 >
                   <span aria-hidden="true" className={activa ? "" : "grayscale opacity-70"}>
-                    {ICONOS_PESTANAS[clave]}
+                    <Icono nombre={ICONOS_PESTANAS[clave]} />
                   </span>
                   {texto}
                   {conError && (
@@ -1043,9 +1044,7 @@ export default function AdminTallerForm() {
                           className={`${botonMini} text-red-600`}
                           onClick={() => quitarSeccion(indice)}
                           aria-label="Quitar sección"
-                        >
-                          ✕
-                        </button>
+                        ><Icono nombre="cerrar" /></button>
                       </div>
                     </div>
 
@@ -1086,13 +1085,13 @@ export default function AdminTallerForm() {
 
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={botonMini} onClick={() => añadirSeccion()}>
-                  ➕ Añadir sección
+                  <Icono nombre="mas" className="mr-1" />Añadir sección
                 </button>
                 <button type="button" className={botonMini} onClick={() => añadirSeccion("Qué incluye")}>
-                  ➕ Qué incluye
+                  <Icono nombre="mas" className="mr-1" />Qué incluye
                 </button>
                 <button type="button" className={botonMini} onClick={() => añadirSeccion("Duración")}>
-                  ➕ Duración
+                  <Icono nombre="mas" className="mr-1" />Duración
                 </button>
               </div>
 
@@ -1209,14 +1208,12 @@ export default function AdminTallerForm() {
                         className={`${botonMini} text-red-600`}
                         onClick={() => quitarVariante(indice)}
                         aria-label="Quitar opción"
-                      >
-                        ✕
-                      </button>
+                      ><Icono nombre="cerrar" /></button>
                     </div>
                   ))}
 
                   <button type="button" className={botonMini} onClick={añadirVariante}>
-                    ➕ Añadir opción
+                    <Icono nombre="mas" className="mr-1" />Añadir opción
                   </button>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1605,9 +1602,7 @@ export default function AdminTallerForm() {
                         onClick={() => quitarImagen(indice)}
                         className="px-2 py-1 text-red-600"
                         aria-label="Quitar foto"
-                      >
-                        ✕
-                      </button>
+                      ><Icono nombre="cerrar" /></button>
                     </div>
                   </li>
                 ))}
@@ -1619,7 +1614,7 @@ export default function AdminTallerForm() {
                 imagenes.length >= MAX_IMAGENES || procesandoImagenes ? "opacity-50 pointer-events-none" : ""
               }`}
             >
-              {procesandoImagenes ? "Procesando fotos..." : "📷 Añadir fotos"}
+              {procesandoImagenes ? "Procesando fotos..." : <><Icono nombre="camara" className="mr-1" />Añadir fotos</>}
               <input
                 type="file"
                 accept="image/*"

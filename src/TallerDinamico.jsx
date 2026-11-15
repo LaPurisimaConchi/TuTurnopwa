@@ -1,6 +1,7 @@
 // src/TallerDinamico.jsx
 // Página de un taller creado desde el panel admin (clases/{id} con dinamica: true)
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
@@ -337,7 +338,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 disabled={faltaOpcion}
                 className="w-full px-4 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold text-sm hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                👥 Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
+                <Icono nombre="usuarios" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>
             )}
 
@@ -349,7 +350,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 }
                 className="w-full px-4 py-2 rounded-full border border-pink-300 text-pink-700 font-semibold text-sm hover:bg-pink-50 transition"
               >
-                🎁 Regalar este taller
+                <Icono nombre="regalo" className="mr-1" />Regalar este taller
               </button>
             )}
             </div>

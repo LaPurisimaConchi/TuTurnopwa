@@ -5,6 +5,7 @@
 // con estado Pendiente → /resumen-pago → Redsys, o confirmada con tarjeta regalo.
 // Los bonos tienen su propia pantalla (ReservaBonoDinamico).
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
@@ -691,7 +692,7 @@ export function FormularioReserva({ claseId, clase }) {
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">
-          Estás usando una tarjeta regalo 🎁
+          Estás usando una tarjeta regalo <Icono nombre="regalo" />
           {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
         </p>
       )}
@@ -916,7 +917,7 @@ export function FormularioReserva({ claseId, clase }) {
                 tabIndex={mostrarSugerencia ? 0 : -1}
                 className="mt-2 w-full px-4 py-2 rounded-full bg-[#F4C542] text-[#5c3c00] font-semibold hover:bg-[#E5B92F] transition"
               >
-                👥 Reservar para grupo
+                <Icono nombre="usuarios" className="mr-1" />Reservar para grupo
               </button>
             </div>
             </div>

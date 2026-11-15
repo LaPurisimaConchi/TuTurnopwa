@@ -4,6 +4,7 @@
 // atajos de mañana y tarde. El valor sigue siendo el texto de siempre
 // ("11:30-14:30, 17:30-20:30"), así que el formulario y la ficha no cambian.
 import { useState } from "react";
+import Icono from "./Icono";
 import { leerTurnos, turnoInvalido } from "../utils/fichaTaller";
 
 export const TURNO_MANANA = "11:30-14:30";
@@ -56,9 +57,7 @@ export default function EditorTurnos({ value = "", onChange, id, textoVacio = "S
             onClick={() => quitar(turno)}
             aria-label={`Quitar el turno ${bonito(turno)}`}
             className="w-5 h-5 rounded-full text-xs leading-none hover:bg-black/10"
-          >
-            ✕
-          </button>
+          ><Icono nombre="cerrar" /></button>
         </span>
       ))}
 

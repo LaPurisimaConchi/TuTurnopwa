@@ -1,5 +1,6 @@
 // src/PaginaGrupos.jsx — presentación de «Reservas para grupos»
 import PaginaPresentacion from "./components/PaginaPresentacion";
+import Icono from "./components/Icono";
 
 export default function PaginaGrupos() {
   return (
@@ -13,9 +14,9 @@ export default function PaginaGrupos() {
         "Cada persona crea su propia pieza y se la lleva a casa como recuerdo del día.",
       ]}
       ventajas={[
-        { icono: "👥", titulo: "Para todo tipo de grupos", texto: "Amigas, familia, empresa…" },
-        { icono: "🗓️", titulo: "Tú eliges el día", texto: "Fecha y horario a medida." },
-        { icono: "🏺", titulo: "Todos se llevan su pieza", texto: "Un recuerdo hecho a mano." },
+        { icono: "usuarios", titulo: "Para todo tipo de grupos", texto: "Amigas, familia, empresa…" },
+        { icono: "calendario", titulo: "Tú eliges el día", texto: "Fecha y horario a medida." },
+        { icono: "taller", titulo: "Todos se llevan su pieza", texto: "Un recuerdo hecho a mano." },
       ]}
       galeria={["/img/grupos/portadagrupos.jpg", "/img/grupos/desdecero.jpg", "/img/grupos/enjoy.jpg"]}
       pasos={[

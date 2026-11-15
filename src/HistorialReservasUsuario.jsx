@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
@@ -78,7 +79,7 @@ export default function HistorialReservasUsuario() {
     <PantallaConVolver>
       <div className="mt-8 px-4">
         <h3 className="text-lg font-semibold text-[#3b3025] mb-4 text-center">
-          📌 Reservas activas
+          <Icono nombre="chincheta" className="mr-1.5" />Reservas activas
         </h3>
 
         {reservasFuturas.length === 0 ? (
@@ -92,7 +93,7 @@ export default function HistorialReservasUsuario() {
         )}
 
         <h3 className="text-lg font-semibold text-[#3b3025] mb-4 text-center">
-          📜 Historial de reservas
+          <Icono nombre="historial" className="mr-1.5" />Historial de reservas
         </h3>
 
         {reservasPasadas.length === 0 ? (

@@ -2,6 +2,7 @@
 // Categorías de talleres. Las que crea el admin, y las de siempre una vez migradas
 // al panel, se pueden renombrar, ordenar, ocultar y borrar (si están vacías).
 import React, { useCallback, useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { Link } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { GRUPOS_TALLER, cargarTalleres } from "./catalogoTalleres";
@@ -263,18 +264,14 @@ export default function AdminCategorias() {
                                 onClick={() => mover(indice, -1)}
                                 disabled={ocupado || indice === 0}
                                 aria-label={`Subir ${c.titulo}`}
-                              >
-                                ↑
-                              </button>
+                              ><Icono nombre="arriba" /></button>
                               <button
                                 type="button"
                                 className={botonMini}
                                 onClick={() => mover(indice, 1)}
                                 disabled={ocupado || indice === propias.length - 1}
                                 aria-label={`Bajar ${c.titulo}`}
-                              >
-                                ↓
-                              </button>
+                              ><Icono nombre="abajo" /></button>
                             </div>
                           </div>
 

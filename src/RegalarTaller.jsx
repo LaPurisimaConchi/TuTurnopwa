@@ -1,5 +1,6 @@
 // src/RegalarTaller.jsx — presentación de «Regalar un taller»
 import PaginaPresentacion from "./components/PaginaPresentacion";
+import Icono from "./components/Icono";
 
 export default function RegalarTaller() {
   return (
@@ -13,9 +14,9 @@ export default function RegalarTaller() {
         "No hace falta saber de cerámica: en cada taller te acompañamos paso a paso y se lleva su pieza terminada.",
       ]}
       ventajas={[
-        { icono: "🎁", titulo: "Vale para todo", texto: "Cualquier taller del estudio." },
-        { icono: "📅", titulo: "Fecha a su gusto", texto: "Reserva cuando le venga bien." },
-        { icono: "✨", titulo: "Sin experiencia", texto: "Apto para principiantes." },
+        { icono: "regalo", titulo: "Vale para todo", texto: "Cualquier taller del estudio." },
+        { icono: "calendarioEvento", titulo: "Fecha a su gusto", texto: "Reserva cuando le venga bien." },
+        { icono: "brillo", titulo: "Sin experiencia", texto: "Apto para principiantes." },
       ]}
       galeria={["/img/2clasesregalo.jpg", "/img/4clasesregalo.jpg", "/img/creatupiezafavoritaregalo.jpg"]}
       pasos={[

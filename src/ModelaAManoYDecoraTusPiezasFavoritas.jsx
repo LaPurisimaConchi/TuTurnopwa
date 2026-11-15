@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import BotonReserva from "./BotonReserva";
 import PantallaConVolver from "./PantallaConVolver";
 import { useNavigate } from "react-router-dom";
@@ -173,7 +174,7 @@ export default function ModelaAManoYDecoraTusPiezasFavoritas() {
                       : "border-gray-300 bg-white"
                   }`}
                 >
-                  SÍ QUIERO 🏺 (+{extraTorno.toFixed(2).replace(".", ",")} €)
+                  SÍ QUIERO <Icono nombre="taller" /> (+{extraTorno.toFixed(2).replace(".", ",")} €)
                 </button>
 
                 <button
@@ -185,7 +186,7 @@ export default function ModelaAManoYDecoraTusPiezasFavoritas() {
                       : "border-gray-300 bg-white"
                   }`}
                 >
-                  En otra ocasión 😊
+                  En otra ocasión
                 </button>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import BotonVolver from "./BotonVolver";
 import { faqData } from "./faqData";
 
@@ -509,9 +510,7 @@ const ChatAyuda = () => {
           <div className="border-b border-[#efe7dc] bg-[#f7efe6] px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#d8b08c] text-xl text-white">
-                  💬
-                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#d8b08c] text-xl text-white"><Icono nombre="chat" color="currentColor" /></div>
                 <div>
                   <h1 className="text-xl font-semibold text-[#5c3d2e]">
                     Soy Junquillo
@@ -630,7 +629,7 @@ const ChatAyuda = () => {
             className="border-t border-[#efe7dc] bg-white px-4 py-4"
           >
             <div className="flex items-center gap-3 rounded-2xl border border-[#e7dbcf] bg-[#fcfaf7] px-4 py-3">
-              <span className="text-lg text-[#a68a73]">🔍</span>
+              <span className="text-lg text-[#a68a73]"><Icono nombre="buscar" /></span>
               <input
                 type="text"
                 value={input}
@@ -642,9 +641,7 @@ const ChatAyuda = () => {
                 type="submit"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8b08c] text-white transition hover:opacity-90"
                 aria-label="Enviar mensaje"
-              >
-                ➤
-              </button>
+              ><Icono nombre="enviar" /></button>
             </div>
 
             <p className="mt-3 text-xs text-[#9b8574]">

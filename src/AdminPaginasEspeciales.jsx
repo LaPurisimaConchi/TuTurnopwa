@@ -2,6 +2,7 @@
 // Talleres recomendados que salen en las páginas «Regalar un taller» y
 // «Reservas para grupos». Se marcan y se ordenan aquí.
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { Link } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { cargarTalleres } from "./catalogoTalleres";
@@ -83,8 +84,8 @@ function Recomendados({ pagina, talleres }) {
                   className="flex items-center gap-2 rounded-xl border border-[#eadfbe] bg-[#fffaf0] px-3 py-2"
                 >
                   <span className="flex-1 font-medium text-[#3d3126]">{porId.get(id).nombre}</span>
-                  <button type="button" className={botonMini} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir">↑</button>
-                  <button type="button" className={botonMini} disabled={i === elegidos.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar">↓</button>
+                  <button type="button" className={botonMini} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><Icono nombre="arriba" /></button>
+                  <button type="button" className={botonMini} disabled={i === elegidos.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar"><Icono nombre="abajo" /></button>
                   <button
                     type="button"
                     className={botonMini}

@@ -4,6 +4,7 @@
 // Las plazas son las del espacio (aforo y torno comunes a todos los talleres) y
 // el servidor las comprueba al reservar (api/codigo-reserva.js, tipo "reservar").
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
@@ -337,7 +338,7 @@ export default function ReservaMonografico({ claseId, clase }) {
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">
-          Estás usando una tarjeta regalo 🎁
+          Estás usando una tarjeta regalo <Icono nombre="regalo" />
           {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
         </p>
       )}

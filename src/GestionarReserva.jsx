@@ -4,6 +4,7 @@
 // comprueba api/cambiar-fecha.js; aquí solo se pide, se enseñan las opciones que
 // devuelve y se confirma, en tres pasos: tu reserva → nueva fecha → confirmar.
 import { useEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import { Link, useSearchParams } from "react-router-dom";
 import PageContainer from "./PageContainer";
 import CalendarioReserva from "./components/CalendarioReserva";
@@ -65,7 +66,7 @@ function Pasos({ actual }) {
                 hecho || activo ? "bg-[#b36a4a] text-white" : "bg-gray-200 text-gray-500"
               }`}
             >
-              {hecho ? "✓" : numero}
+              {hecho ? <Icono nombre="check" /> : numero}
             </span>
             <span
               className={`text-sm ${activo ? "font-semibold text-[#3f3128]" : "text-gray-500 hidden sm:inline"}`}
@@ -262,7 +263,7 @@ export default function GestionarReserva() {
           <div className="space-y-4" aria-live="polite">
             <Tarjeta className="text-center">
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-3xl text-green-700">
-                ✓
+                <Icono nombre="check" tamano={32} />
               </div>
               <h2 className="text-xl font-bold text-[#3f3128]">¡Fecha cambiada!</h2>
               <p className="text-sm text-gray-600 mt-1">Te esperamos el nuevo día. Guarda estos datos.</p>
@@ -362,7 +363,7 @@ export default function GestionarReserva() {
                     disabled={cargando}
                     className="text-sm underline text-[#b36a4a]"
                   >
-                    ← Elegir otra sesión
+                    <Icono nombre="izquierda" className="mr-1" />Elegir otra sesión
                   </button>
                 )}
 

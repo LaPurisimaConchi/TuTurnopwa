@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import { auth, dbRealtime } from "./firebase";
 import { ref, get } from "firebase/database";
@@ -453,7 +454,7 @@ export default function PerfilUsuario() {
 
         <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
-            🎟️ Mis bonos
+            <Icono nombre="bono" className="mr-1.5" />Mis bonos
           </summary>
 
           <div className="mt-3">
@@ -517,7 +518,7 @@ export default function PerfilUsuario() {
 
         <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
-            🎁 Mis tarjetas regalo
+            <Icono nombre="regalo" className="mr-1.5" />Mis tarjetas regalo
           </summary>
 
           <div className="mt-3">
@@ -584,7 +585,7 @@ export default function PerfilUsuario() {
 
         <details className="mb-5 bg-[#fbf4d8] border border-[#ead66d] rounded-2xl p-4 shadow-sm">
   <summary className="cursor-pointer font-semibold">
-    🏺 Quiero recoger mi pieza
+    <Icono nombre="taller" className="mr-1.5" />Quiero recoger mi pieza
   </summary>
 
   <div className="mt-3 text-sm text-[#3b3025] space-y-3">
@@ -646,13 +647,13 @@ export default function PerfilUsuario() {
 
         <details className="mb-6 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
-            📍 Contacto
+            <Icono nombre="ubicacion" className="mr-1.5" />Contacto
           </summary>
 
           <ul className="mt-3 text-sm space-y-2">
-            <li>📞 644 671 664</li>
-            <li>📧 lapurisimaconchioficial@gmail.com</li>
-            <li>🏠 Calle Israel Nº5, Córdoba</li>
+            <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
+            <li><Icono nombre="correo" className="mr-1.5" />lapurisimaconchioficial@gmail.com</li>
+            <li><Icono nombre="casa" className="mr-1.5" />Calle Israel Nº5, Córdoba</li>
           </ul>
 
           <div className="mt-4">
@@ -665,7 +666,7 @@ export default function PerfilUsuario() {
               }
               className="w-full px-4 py-2 bg-[#f5f1ea] hover:bg-[#ebe4da] rounded-xl text-sm font-medium transition"
             >
-              📍 Cómo llegar
+              <Icono nombre="ubicacion" className="mr-1.5" />Cómo llegar
             </button>
           </div>
         </details>

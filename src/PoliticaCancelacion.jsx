@@ -1,4 +1,5 @@
 import React from "react";
+import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 
@@ -22,7 +23,7 @@ export default function PoliticaCancelacion() {
 
         <section className="mb-6">
           <h2 className="text-xl font-semibold text-orange-700 mb-2">
-            ✅ Confirmación de Reserva
+            <Icono nombre="confirmado" className="mr-1.5" />Confirmación de Reserva
           </h2>
           <p>
             Para garantizar tu plaza en el taller, es necesario abonar el
@@ -33,7 +34,7 @@ export default function PoliticaCancelacion() {
 
         <section className="mb-6">
           <h2 className="text-xl font-semibold text-orange-700 mb-2">
-            🔁 Cambios, Cancelaciones y Cesiones
+            <Icono nombre="repetir" className="mr-1.5" />Cambios, Cancelaciones y Cesiones
           </h2>
           <p>
             <strong>No se realizan devoluciones de dinero</strong> bajo ninguna circunstancia.
@@ -62,7 +63,7 @@ export default function PoliticaCancelacion() {
 
         <section className="mb-6">
           <h2 className="text-xl font-semibold text-orange-700 mb-2">
-            🌟 Importancia de esta Política
+            <Icono nombre="estrella" className="mr-1.5" />Importancia de esta Política
           </h2>
           <p>
             Tu reserva bloquea una plaza que no podemos ofrecer a otra persona,

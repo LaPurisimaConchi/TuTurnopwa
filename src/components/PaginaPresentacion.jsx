@@ -2,6 +2,7 @@
 // Página de presentación (imagen, descripción, pasos, galería y talleres
 // recomendados) de «Regalar un taller» y «Reservas para grupos».
 import TarjetaTaller from "./TarjetaTaller";
+import Icono from "./Icono";
 import useMiniaturasTalleres from "./useMiniaturasTalleres";
 import { useTalleresRecomendados } from "../paginasEspeciales";
 
@@ -48,7 +49,7 @@ export default function PaginaPresentacion({
         <section className="grid sm:grid-cols-3 gap-3">
           {ventajas.map((v) => (
             <div key={v.titulo} className="rounded-2xl border border-[#eadfd2] bg-white p-4 text-center">
-              <p className="text-2xl" aria-hidden="true">{v.icono}</p>
+              <p><Icono nombre={v.icono} tamano={30} /></p>
               <p className="font-semibold text-[#3f3128] mt-1">{v.titulo}</p>
               <p className="text-sm text-gray-600 mt-1">{v.texto}</p>
             </div>

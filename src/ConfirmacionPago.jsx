@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
@@ -119,7 +120,7 @@ const ConfirmacionPago = () => {
   return (
     <div style={styles.body}>
       <div style={styles.container}>
-        <div style={styles.check}>✓</div>
+        <div style={styles.check}><Icono nombre="check" tamano={32} /></div>
 
         {cargando ? (
           <>

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get, push, remove, update } from "firebase/database";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
@@ -860,7 +861,7 @@ useEffect(() => {
             {chip(reservaYaCancelada ? "Cancelada" : reserva.estado, tonoEstado)}
             {chip(esPagado ? "Pagado" : `Pago: ${reserva.estadoPago}`, esPagado ? "verde" : "ambar")}
             {reserva.reprogramada && chip("Reprogramada", "azul")}
-            {reserva.sobreaforo && chip("⚠ Sobreaforo", "rojo")}
+            {reserva.sobreaforo && chip("Sobreaforo", "rojo")}
           </div>
         </div>
 
@@ -1056,7 +1057,7 @@ useEffect(() => {
                     <span style={styles.cambioAntes}>
                       {fechaDMA(reserva.fecha)} · {reserva.turno}
                     </span>
-                    <span style={styles.cambioFlecha}>→</span>
+                    <span style={styles.cambioFlecha}><Icono nombre="derecha" /></span>
                     <span style={styles.cambioDespues}>
                       {fechaDMA(nuevaFecha)} · {normalizarTurnoParaRuta(nuevoTurno)}
                     </span>

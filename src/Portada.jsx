@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
@@ -67,14 +68,14 @@ export default function Portada() {
               className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
               onClick={() => navigate("/regalar-taller")}
             >
-              🎁 Regalar un taller
+              <Icono nombre="regalo" className="mr-2" />Regalar un taller
             </button>
 
             <button
               className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
               onClick={() => navigate("/grupos")}
             >
-              👥 Reservas para grupos
+              <Icono nombre="usuarios" className="mr-2" />Reservas para grupos
             </button>
           </div>
         </div>

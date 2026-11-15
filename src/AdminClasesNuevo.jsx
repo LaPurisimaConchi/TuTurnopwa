@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { useNavigate } from "react-router-dom";
@@ -557,14 +558,14 @@ listaClases.push({
             style={{ ...styles.boton, marginTop: 12 }}
             onClick={() => navigate("/admin-taller")}
           >
-            ➕ Añadir taller nuevo
+            <Icono nombre="mas" className="mr-1" />Añadir taller nuevo
           </button>
           {clases.some((c) => !c.dinamica && c.id in TALLERES_FIJOS) && (
             <button
               style={{ ...styles.boton, marginTop: 12, marginLeft: 8 }}
               onClick={() => navigate("/admin-migrar-talleres")}
             >
-              🔁 Migrar talleres existentes al panel
+              <Icono nombre="repetir" className="mr-1" />Migrar talleres existentes al panel
             </button>
           )}
         </div>
@@ -658,7 +659,7 @@ listaClases.push({
       ...(clase.activa ? styles.estadoActiva : styles.estadoOculta),
     }}
   >
-    {clase.activa ? "● Activa" : "● Oculta"}
+    {clase.activa ? <><Icono nombre="punto" tamano="0.55em" className="mr-1.5" />Activa</> : <><Icono nombre="punto" tamano="0.55em" className="mr-1.5" />Oculta</>}
   </span>
 </p>
                   <p style={styles.linea}>

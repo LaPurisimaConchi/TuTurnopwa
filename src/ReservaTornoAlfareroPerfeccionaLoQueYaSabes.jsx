@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update } from "firebase/database";
@@ -497,7 +498,7 @@ if (turnosConfig) {
 
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
-            Estás usando una tarjeta regalo 🎁
+            Estás usando una tarjeta regalo <Icono nombre="regalo" />
           </p>
         )}
 

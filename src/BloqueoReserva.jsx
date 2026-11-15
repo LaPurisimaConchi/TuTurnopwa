@@ -1,5 +1,6 @@
 // src/BloqueoReserva.jsx
 import { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Link, useLocation } from "react-router-dom";
 
@@ -29,7 +30,7 @@ export default function BloqueoReserva({ children, permitirVisitante = false }) 
     return (
       <div className="text-center text-gray-700 bg-yellow-100 border border-yellow-300 rounded-xl p-6 max-w-xl mx-auto shadow">
         <p className="text-lg font-semibold">
-          🔒 Inicia sesión para poder reservar esta clase.
+          <Icono nombre="candado" className="mr-1" />Inicia sesión para poder reservar esta clase.
         </p>
         <p className="mt-2">
           Puedes ver todos los detalles, pero para reservar necesitas estar registrado.
