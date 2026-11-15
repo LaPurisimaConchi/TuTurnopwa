@@ -5,9 +5,11 @@ import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
 import useMiniaturasTalleres from "./components/useMiniaturasTalleres";
 import useCategorias from "./components/useCategorias";
+import { useConfigEspacio } from "./configuracionEspacio";
 
 export default function Portada() {
   const navigate = useNavigate();
+  const { config } = useConfigEspacio();
   const [talleres, setTalleres] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [grupoActivo, setGrupoActivo] = useState("todos");
@@ -49,33 +51,60 @@ export default function Portada() {
             Hazte un hueco. <br /> Y una taza.
           </h1>
 
-          <p className="text-lg text-gray-700 mt-4">
-            Reserva tu taller de cerámica o sorprende con una tarjeta regalo.
+          <p className="text-lg text-gray-800 mt-4">
+            Reserva tu taller de cerámica en un momento.
           </p>
-          <p className="text-sm text-gray-600 mt-2 mb-8">
-            Sin necesidad de registrarte: eliges, reservas y pagas en un momento.
+          <p className="text-sm text-gray-600 mt-1 mb-7">
+            Sin registrarte: eliges, reservas y pagas.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              className="w-full sm:w-auto bg-[#b36a4a] hover:bg-[#9e5c3f] text-white text-lg font-semibold px-6 py-3 rounded-lg shadow-md transition"
-              onClick={irATalleres}
-            >
-              Ver talleres
-            </button>
+          <button
+            type="button"
+            className="w-full sm:w-auto bg-[#b36a4a] hover:bg-[#9e5c3f] text-white text-lg font-semibold px-10 py-3 rounded-full shadow-md transition"
+            onClick={irATalleres}
+          >
+            Ver talleres
+          </button>
 
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 max-w-2xl mx-auto text-left">
             <button
-              className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
+              type="button"
               onClick={() => navigate("/regalar-taller")}
+              className="flex items-center gap-3 text-left rounded-2xl border border-[#E5B92F] bg-[#fff6d6] hover:bg-[#fdecaa] p-2.5 pr-4 transition"
             >
-              <Icono nombre="regalo" className="mr-2" />Regalar un taller
+              <img
+                src="/img/creatupiezafavoritaregalo.jpg"
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-xl object-cover"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 font-semibold text-[#5c3c00]">
+                  <Icono nombre="regalo" />
+                  Regalar un taller
+                </span>
+                <span className="block text-xs text-[#7a5a1e]">Tarjeta regalo</span>
+              </span>
             </button>
 
             <button
-              className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
+              type="button"
               onClick={() => navigate("/grupos")}
+              className="flex items-center gap-3 text-left rounded-2xl border border-[#8fbf9f] bg-[#eef6f0] hover:bg-[#ddeee3] p-2.5 pr-4 transition"
             >
-              <Icono nombre="usuarios" className="mr-2" />Reservas para grupos
+              <img
+                src="/img/grupos/portadagrupos.jpg"
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-xl object-cover"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 font-semibold text-[#2f6b44]">
+                  <Icono nombre="usuarios" color="#3f8f5a" />
+                  Reservas para grupos
+                </span>
+                <span className="block text-xs text-[#3f7a55]">
+                  Desde {config.minPersonasGrupo} personas
+                </span>
+              </span>
             </button>
           </div>
         </div>
