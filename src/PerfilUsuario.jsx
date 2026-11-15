@@ -119,7 +119,30 @@ function AvisoReprogramacion({ reserva }) {
 }
 
 function AvisoCancelacion({ reserva }) {
+  const navigate = useNavigate();
+
+  // Cancelada por el estudio y ya vuelta a reservar con su código
+  if (reserva?.recuperada === true && !esReservaCancelada(reserva)) {
+    return (
+      <div className="mt-3 rounded-xl border border-[#8fbf9f] bg-[#eef6f0] px-3 py-3">
+        <p className="text-sm font-semibold text-[#2f6b44]">Reserva recuperada</p>
+        <p className="text-sm text-[#2f6b44] leading-relaxed mt-1">
+          Elegiste nueva fecha tras la cancelación
+          {reserva.canceladaEnOriginal ? ` del ${reserva.canceladaEnOriginal}` : ""}.
+        </p>
+      </div>
+    );
+  }
+
   if (!esReservaCancelada(reserva)) return null;
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  const puedeRecuperar =
+    reserva.cancelacionEstudio === true &&
+    !reserva.recuperada &&
+    !!reserva.codigoReserva &&
+    String(reserva.recuperableHasta || "") >= hoy;
+  const codigoBonito = String(reserva.codigoReserva || "").replace(/^(.{4})(.{4})$/, "$1-$2");
 
   return (
     <div className="mt-3 rounded-xl border border-[#e5bcbc] bg-[#fff5f5] px-3 py-3">
@@ -145,6 +168,26 @@ function AvisoCancelacion({ reserva }) {
           <span className="font-semibold">Motivo:</span>{" "}
           {reserva.motivoCancelacion}
         </p>
+      )}
+
+      {puedeRecuperar && (
+        <>
+          <p className="text-sm text-[#7a4747] leading-relaxed mt-1">
+            Puedes volver a reservar hasta el {fechaDMA(reserva.recuperableHasta)}.
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/gestionar-reserva?codigo=${encodeURIComponent(reserva.codigoReserva)}&auto=1`)
+            }
+            className="mt-3 w-full rounded-full bg-terracota px-4 py-2.5 text-sm font-semibold text-white hover:bg-terracota-oscuro transition"
+          >
+            Elegir nueva fecha
+          </button>
+          <p className="mt-2 text-center text-xs text-[#7a4747]">
+            Tu código: <span className="font-mono tracking-widest">{codigoBonito}</span>
+          </p>
+        </>
       )}
     </div>
   );

@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Icono from "./components/Icono";
 import { Link, useSearchParams } from "react-router-dom";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import PageContainer from "./PageContainer";
 import CalendarioReserva from "./components/CalendarioReserva";
 
@@ -160,6 +161,20 @@ export default function GestionarReserva() {
 
   const pasoDos = useRef(null);
 
+  // Desde el perfil (?codigo=…&auto=1): el email es el de la cuenta y se busca sola
+  const [emailDeCuenta, setEmailDeCuenta] = useState(false);
+  const busquedaAutomatica = useRef(false);
+  const vieneDelPerfil = params.get("auto") === "1" && !!params.get("codigo");
+  useEffect(() => {
+    if (!vieneDelPerfil) return undefined;
+    return onAuthStateChanged(getAuth(), (usuario) => {
+      if (usuario?.email) {
+        setEmail((previo) => previo || usuario.email);
+        setEmailDeCuenta(true);
+      }
+    });
+  }, [vieneDelPerfil]);
+
   // Solo se ofrecen los días que el servidor ha dicho que tienen sitio
   const diasConPlaza = useMemo(() => new Set(datos?.opciones.map((o) => o.fecha) || []), [datos]);
   const estadoDia = (iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-taller" });
@@ -211,6 +226,13 @@ export default function GestionarReserva() {
       setCargando(false);
     }
   };
+
+  useEffect(() => {
+    if (!vieneDelPerfil || !emailDeCuenta || busquedaAutomatica.current || !codigo || !email) return;
+    busquedaAutomatica.current = true;
+    buscar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vieneDelPerfil, emailDeCuenta, codigo, email]);
 
   const confirmar = async () => {
     setError("");
@@ -265,7 +287,9 @@ export default function GestionarReserva() {
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-3xl text-green-700">
                 <Icono nombre="check" tamano={32} />
               </div>
-              <h2 className="text-xl font-bold text-tinta">¡Fecha cambiada!</h2>
+              <h2 className="text-xl font-bold text-tinta">
+                {cambiada.antes.recuperacion ? "¡Reserva recuperada!" : "¡Fecha cambiada!"}
+              </h2>
               <p className="text-sm text-tinta-suave mt-1">Te esperamos el nuevo día. Guarda estos datos.</p>
             </Tarjeta>
 
@@ -355,6 +379,23 @@ export default function GestionarReserva() {
                     reserva={datos.reserva}
                     titulo={datos.sesionElegida ? `Sesión ${datos.sesionElegida} de tu reserva` : "Tu reserva actual"}
                   />
+                )}
+                {datos.reserva.recuperacion && !eligiendoSesion && (
+                  <Aviso tipo="info">
+                    <p className="font-semibold">Hemos cancelado esta clase.</p>
+                    <p className="mt-1">
+                      No pierdes tu plaza: elige una nueva fecha sin coste
+                      {datos.reserva.recuperableHasta
+                        ? ` hasta el ${formatearFecha(datos.reserva.recuperableHasta)}`
+                        : ""}
+                      .
+                    </p>
+                    {datos.reserva.motivoCancelacion && (
+                      <p className="mt-1">
+                        <span className="font-semibold">Motivo:</span> {datos.reserva.motivoCancelacion}
+                      </p>
+                    )}
+                  </Aviso>
                 )}
                 {datos.sesionElegida && !eligiendoSesion && (
                   <button
@@ -484,12 +525,14 @@ export default function GestionarReserva() {
                             onClick={() => setConfirmando(true)}
                             className={`${botonPrincipal} w-full mt-4`}
                           >
-                            Cambiar mi reserva
+                            {datos.reserva.recuperacion ? "Reservar en la nueva fecha" : "Cambiar mi reserva"}
                           </button>
                         ) : (
                           <div className="mt-4 rounded-xl bg-mostaza-suave border border-mostaza p-4">
                             <p className="text-sm text-tinta font-medium">
-                              Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?
+                              {datos.reserva.recuperacion
+                                ? "¿Confirmas la nueva fecha para tu reserva?"
+                                : "Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?"}
                             </p>
                             <div className="mt-3 flex flex-col sm:flex-row gap-2">
                               <button
@@ -579,12 +622,14 @@ export default function GestionarReserva() {
                             onClick={() => setConfirmando(true)}
                             className={`${botonPrincipal} w-full mt-4`}
                           >
-                            Cambiar mi reserva
+                            {datos.reserva.recuperacion ? "Reservar en la nueva fecha" : "Cambiar mi reserva"}
                           </button>
                         ) : (
                           <div className="mt-4 rounded-xl bg-mostaza-suave border border-mostaza p-4">
                             <p className="text-sm text-tinta font-medium">
-                              Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?
+                              {datos.reserva.recuperacion
+                                ? "¿Confirmas la nueva fecha para tu reserva?"
+                                : "Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?"}
                             </p>
                             <div className="mt-3 flex flex-col sm:flex-row gap-2">
                               <button

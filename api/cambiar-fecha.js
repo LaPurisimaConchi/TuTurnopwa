@@ -156,6 +156,9 @@ const resumenDe = (reserva, evaluacion, { tipo, codigo }) => ({
   motivo: evaluacion.motivo,
   antelacionHoras: ANTELACION_HORAS,
   cambiosRestantes: Math.max(MAX_CAMBIOS_CLIENTE - Number(reserva.numCambiosCliente || 0), 0),
+  recuperacion: evaluacion.recuperacion === true,
+  motivoCancelacion: evaluacion.recuperacion ? reserva.motivoCancelacion || "" : "",
+  recuperableHasta: evaluacion.recuperacion ? reserva.recuperableHasta || "" : "",
 });
 
 async function contextoDeLaClase(segmentos, reserva) {
@@ -191,7 +194,29 @@ const sinOnline =
   "No se puede cambiar esta reserva por internet. Escríbenos y la cambiamos.";
 
 // Campos que deja un cambio hecho por el cliente (mismos que usa el panel)
-function camposDeCambio({ reserva, nuevaFecha, nuevoTurno, turnoAnterior, cambio }) {
+function camposDeCambio({ reserva, nuevaFecha, nuevoTurno, turnoAnterior, cambio, recuperacion = false }) {
+  // Reserva cancelada por el estudio que el cliente vuelve a reservar: vuelve a estar
+  // confirmada en la nueva fecha, sin contar como cambio del cliente
+  if (recuperacion) {
+    return {
+      fecha: nuevaFecha,
+      turno: nuevoTurno,
+      estado: "Confirmada",
+      cancelada: false,
+      recuperada: true,
+      recuperadaEn: cambio,
+      canceladaEnOriginal: reserva.canceladaEn || "",
+      motivoCancelacionOriginal: reserva.motivoCancelacion || "",
+      fechaOriginal: reserva.fechaOriginal || reserva.fecha,
+      turnoOriginal: limpiarTurno(reserva.turnoOriginal || turnoAnterior),
+      canceladaPor: null,
+      canceladaEn: null,
+      motivoCancelacion: null,
+      recuperableHasta: null,
+      avisoPerfil: "Has elegido una nueva fecha tras la cancelación. Revisa la nueva fecha y turno.",
+    };
+  }
+
   return {
     fecha: nuevaFecha,
     turno: nuevoTurno,
@@ -636,7 +661,14 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, li
 
   const cambio = textoFechaHora();
   const turnoAnterior = limpiarTurno(reserva.turno || turnoActual);
-  const seguimiento = camposDeCambio({ reserva, nuevaFecha, nuevoTurno, turnoAnterior, cambio });
+  const seguimiento = camposDeCambio({
+    reserva,
+    nuevaFecha,
+    nuevoTurno,
+    turnoAnterior,
+    cambio,
+    recuperacion: evaluacion.recuperacion === true,
+  });
 
   const actualizaciones = {
     [rutaNueva]: { ...reserva, ...seguimiento },
@@ -652,7 +684,7 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, li
     reserva,
     turnoAnterior,
     cambio,
-    etiqueta: "Reserva",
+    etiqueta: evaluacion.recuperacion ? "Reserva cancelada (recuperada con su código)" : "Reserva",
   });
 
   await adminDb.ref().update(actualizaciones);
@@ -661,7 +693,12 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, li
     ok: true,
     reserva: resumen(
       { ...reserva, ...seguimiento },
-      { ok: false, motivo: "Ya has cambiado la fecha de esta reserva." }
+      {
+        ok: false,
+        motivo: evaluacion.recuperacion
+          ? "Ya has elegido una nueva fecha para esta reserva."
+          : "Ya has cambiado la fecha de esta reserva.",
+      }
     ),
   });
 }

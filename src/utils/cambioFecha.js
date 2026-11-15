@@ -13,6 +13,9 @@ export const ANTELACION_HORAS = 72;
 // La nueva clase debe empezar con este margen, para que el taller pueda prepararla
 export const MARGEN_NUEVA_CLASE_HORAS = 24;
 export const MAX_CAMBIOS_CLIENTE = 1;
+// Una reserva que cancela el estudio se puede recuperar con su código durante este
+// tiempo: el cliente elige otra fecha sin pagar de nuevo
+export const MESES_RECUPERACION = 6;
 export const DIAS_VENTANA = 90;
 
 const ZONA = "Europe/Madrid";
@@ -53,6 +56,15 @@ export function ahoraMadridMs(ahora = new Date()) {
 }
 
 export const fechaDeMs = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+// Suma meses a una fecha AAAA-MM-DD (el día se recorta al último del mes si hace falta)
+export function sumarMesesISO(fecha, meses) {
+  const [anio, mes, dia] = String(fecha).split("-").map(Number);
+  const destino = new Date(Date.UTC(anio, mes - 1 + meses, 1));
+  const ultimo = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+  destino.setUTCDate(Math.min(dia, ultimo));
+  return destino.toISOString().slice(0, 10);
+}
 
 // Inicio de la clase en milisegundos «de pared». Turno "17:30-20:30" → 17:30; si
 // el turno no tiene hora, se toma el comienzo del día (el caso más restrictivo)
@@ -114,6 +126,18 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
     reserva?.cancelada === true ||
     String(reserva?.estado || "").toLowerCase() === "cancelada"
   ) {
+    // Cancelada por el estudio: se puede volver a reservar con el código, sin el
+    // plazo de 72 h ni el límite de cambios (no es un cambio del cliente)
+    if (reserva?.cancelacionEstudio === true && !reserva?.recuperada) {
+      const hasta = String(reserva?.recuperableHasta || "");
+      if (esFechaISO(hasta) && hasta >= fechaDeMs(ahoraMs)) {
+        return { ok: true, motivo: "", recuperacion: true };
+      }
+      return {
+        ok: false,
+        motivo: "El plazo para volver a reservar esta clase ya ha terminado. Escríbenos y lo vemos.",
+      };
+    }
     return { ok: false, motivo: "Esta reserva está cancelada." };
   }
 

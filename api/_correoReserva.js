@@ -315,3 +315,168 @@ export async function enviarCorreoReserva({ reserva, uid, orderId, tipo = "reser
     return false;
   }
 }
+
+// --- Cancelación por el estudio -----------------------------------------------
+// Correo que avisa de que el estudio ha cancelado una reserva, con el motivo y el
+// código para volver a reservar sin coste (api/cambiar-fecha.js la recupera).
+// Con cuenta, el botón lleva al perfil; sin cuenta, a «Gestionar reserva».
+const COLOR_TERRACOTA = "#b36a4a";
+
+export function construirCorreoCancelacion({ datos, nombre, motivo, codigo, hasta, conCuenta, conReprogramacion = true }) {
+  const saludo = nombre ? `Hola ${nombre.split(" ")[0]},` : "Hola,";
+  const titulo = "Hemos cancelado tu reserva";
+  const intro = conReprogramacion
+    ? "lamentamos informarte de que hemos tenido que cancelar tu reserva. No pierdes tu plaza: puedes volver a reservar con tu código, sin coste."
+    : "lamentamos informarte de que hemos tenido que cancelar tu reserva. Si tienes cualquier duda, escríbenos y te ayudamos.";
+
+  const filas = [
+    ["Taller", datos.clase || ""],
+    ["Fecha cancelada", datos.fecha ? formatearFecha(datos.fecha) : ""],
+    ["Turno", datos.turno || ""],
+    ["Plazas", datos.plazas ? String(datos.plazas) : ""],
+  ].filter(([, valor]) => valor);
+
+  const codigoTexto = formatearCodigo(codigo);
+  const limite = hasta ? formatearFecha(hasta).replace(/^\S+,\s*/, "") : "";
+  const nota = !conReprogramacion
+    ? ""
+    : conCuenta
+    ? `Entra en tu perfil, en «Mis reservas», y pulsa «Elegir nueva fecha». ${limite ? `Puedes volver a reservar hasta el ${limite}.` : ""}`
+    : `Para elegir una nueva fecha, entra en «Gestionar reserva» e introduce este código y el email con el que reservaste. No hace falta iniciar sesión. ${limite ? `Puedes volver a reservar hasta el ${limite}.` : ""}`;
+  const enlace = !conReprogramacion
+    ? null
+    : conCuenta
+    ? { ruta: "/perfil", texto: "Ver mi reserva" }
+    : { ruta: "/gestionar-reserva", texto: "Elegir nueva fecha" };
+
+  const base = urlBase();
+  const logo = base
+    ? `<img src="${escapar(base)}/img/logoPCsin.png" alt="La Purísima Conchi" height="64" style="display:block;margin:0 auto 16px;height:64px;width:auto;">`
+    : `<div style="text-align:center;font-size:18px;font-weight:bold;color:${COLOR_TERRACOTA};margin-bottom:16px;">La Purísima Conchi</div>`;
+  const boton = base && enlace
+    ? `<p style="text-align:center;margin:20px 0 0;"><a href="${escapar(base)}${enlace.ruta}" style="display:inline-block;background:${COLOR_TERRACOTA};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:15px;font-weight:bold;">${escapar(enlace.texto)}</a></p>`
+    : "";
+  const bloqueMotivo = motivo
+    ? `<div style="background:#f6efe6;border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;margin:0 0 16px;"><span style="display:block;color:#7a6858;font-size:12px;margin-bottom:2px;">Motivo de la cancelación</span>${escapar(motivo)}</div>`
+    : "";
+
+  const html = `<!doctype html>
+<html lang="es">
+  <body style="margin:0;padding:24px;background:#fdfaf5;font-family:Arial,Helvetica,sans-serif;color:#2d2a26;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #eadfd2;border-radius:12px;padding:28px;">
+      <tr><td>
+        ${logo}
+        <h1 style="margin:0 0 12px;font-size:22px;text-align:center;color:${COLOR_TERRACOTA};">${titulo}</h1>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">${escapar(saludo)} ${escapar(intro)}</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:15px;border-top:1px solid #eee;margin-bottom:16px;">
+          ${filas
+            .map(
+              ([etiqueta, valor]) =>
+                `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#7a736a;width:38%;">${escapar(etiqueta)}</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:bold;">${escapar(valor)}</td></tr>`
+            )
+            .join("")}
+        </table>
+        ${bloqueMotivo}
+        ${
+          conReprogramacion
+            ? `<div style="background:#f9ece6;border:1px dashed ${COLOR_TERRACOTA};border-radius:10px;padding:14px;text-align:center;margin:0 0 14px;">
+          <span style="display:block;font-size:12px;color:#7a6858;">Tu código de reserva (guárdalo)</span>
+          <strong style="display:block;font-size:26px;letter-spacing:3px;color:#9a5638;margin-top:4px;font-family:monospace;">${escapar(codigoTexto)}</strong>
+        </div>
+        <p style="margin:0;font-size:14px;line-height:1.5;color:#5b4f45;">${escapar(nota.trim())}</p>`
+            : ""
+        }
+        ${boton}
+        <p style="margin:20px 0 0;font-size:12px;line-height:1.6;color:#7a736a;text-align:center;">
+          La Purísima Conchi · C/ Israel, local 5, 14009 Córdoba<br>
+          +34 644 67 16 64 · <a href="mailto:${EMAIL_ESTUDIO}" style="color:${COLOR_TERRACOTA};">${EMAIL_ESTUDIO}</a>
+        </p>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+  const texto = [
+    titulo,
+    "",
+    `${saludo} ${intro}`,
+    "",
+    ...filas.map(([etiqueta, valor]) => `${etiqueta}: ${valor}`),
+    ...(motivo ? ["", `Motivo de la cancelación: ${motivo}`] : []),
+    ...(conReprogramacion ? ["", `Tu código de reserva: ${codigoTexto}`, nota.trim()] : []),
+    "",
+    "La Purísima Conchi · C/ Israel, local 5, 14009 Córdoba",
+    `+34 644 67 16 64 · ${EMAIL_ESTUDIO}`,
+  ].join("\n");
+
+  return { asunto: `Hemos cancelado tu reserva${datos.clase ? ` · ${datos.clase}` : ""}`, html, texto };
+}
+
+/**
+ * Envía el aviso de cancelación. Devuelve { estado, email }:
+ *   "enviado" | "sin_clave" (falta RESEND_API_KEY) | "sin_email" | "rechazado" | "error"
+ * No lanza nunca.
+ */
+export async function enviarCorreoCancelacion({ reserva, orderId, motivo, codigo, hasta, conReprogramacion = true }) {
+  try {
+    const clave = String(process.env.RESEND_API_KEY || "").trim();
+    if (!clave) {
+      console.warn("Correo cancelación: falta RESEND_API_KEY, no se envía.", { orderId });
+      return { estado: "sin_clave", email: "" };
+    }
+
+    const { nombre, email: emailPerfil } = await datosDelCliente(reserva.uid);
+    const email = emailPerfil || String(reserva.email || "").trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      console.warn("Correo cancelación: la persona no tiene email.", { orderId });
+      return { estado: "sin_email", email: "" };
+    }
+
+    // Con cuenta propia (no invitado anónimo) el botón lleva al perfil
+    let conCuenta = false;
+    try {
+      const cuenta = await adminAuth.getUser(reserva.uid);
+      conCuenta = cuenta.providerData.length > 0;
+    } catch {
+      conCuenta = false;
+    }
+
+    const { asunto, html, texto } = construirCorreoCancelacion({
+      datos: reserva,
+      nombre,
+      motivo,
+      codigo,
+      hasta,
+      conCuenta,
+      conReprogramacion,
+    });
+
+    const copia = String(process.env.CORREO_COPIA_ADMIN || "").trim();
+    const responderA = String(process.env.CORREO_RESPONDER_A || "").trim();
+
+    const respuesta = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: String(process.env.CORREO_REMITENTE || "").trim() || REMITENTE_POR_DEFECTO,
+        to: [email],
+        ...(copia ? { bcc: [copia] } : {}),
+        ...(responderA ? { reply_to: responderA } : {}),
+        subject: asunto,
+        html,
+        text: texto,
+      }),
+    });
+
+    if (!respuesta.ok) {
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("Correo cancelación: Resend rechazó el envío:", respuesta.status, detalle);
+      return { estado: "rechazado", email };
+    }
+
+    return { estado: "enviado", email };
+  } catch (error) {
+    console.error("Correo cancelación: error inesperado:", error);
+    return { estado: "error", email: "" };
+  }
+}
