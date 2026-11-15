@@ -1247,8 +1247,6 @@ const guardarPlazoPago = async (r) => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },

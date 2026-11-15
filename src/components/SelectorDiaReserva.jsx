@@ -2,6 +2,7 @@
 // Elección del día en una reserva: calendario y, debajo, el aviso que toque (día
 // cerrado con su motivo, fecha habilitada a mano o día sin taller). `children` va
 // después de los avisos.
+import { useRef } from "react";
 import CalendarioReserva from "./CalendarioReserva";
 
 export default function SelectorDiaReserva({
@@ -15,17 +16,38 @@ export default function SelectorDiaReserva({
   diaNoDisponible,
   clase,
   producto = "Este taller",
+  desde = "",
   children,
 }) {
+  const raiz = useRef(null);
+
+  // En móvil, las siguientes opciones (turno, método, plazas…) quedan debajo del
+  // calendario: al elegir un día se baja hasta ellas. En escritorio van al lado.
+  const elegir = (iso) => {
+    onChange(iso);
+    if (window.innerWidth >= 768) return;
+
+    setTimeout(() => {
+      let el = raiz.current;
+      for (let i = 0; i < 3 && el && !el.nextElementSibling; i += 1) el = el.parentElement;
+      const siguiente = el?.nextElementSibling;
+      if (!siguiente) return;
+
+      const arriba = siguiente.getBoundingClientRect().top + window.scrollY - 76; // cabecera fija
+      window.scrollTo({ top: arriba, behavior: "smooth" });
+    }, 60);
+  };
+
   return (
-    <div>
+    <div ref={raiz}>
       <p className="block font-bold text-sm mb-2">{etiqueta}</p>
 
       <CalendarioReserva
         value={value}
-        onChange={onChange}
+        onChange={elegir}
         estadoDia={estadoDia}
         cargando={cargando}
+        desde={desde}
       />
 
       {fechaBloqueada && (

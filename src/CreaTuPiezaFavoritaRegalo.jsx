@@ -1,24 +1,9 @@
 import React from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function CreaTuPiezaFavoritaRegalo() {
-  const navigate = useNavigate();
-
   return (
     <div className="p-6 bg-[#fffef4] min-h-screen text-gray-800">
-      <button
-        onClick={() => {
-          if (window.history.length > 1) {
-            navigate(-1);
-          } else {
-            navigate("/menu");
-          }
-        }}
-        className="text-sm text-blue-600 underline mb-4"
-      >
-        ← Volver
-      </button>
-
       <h1 className="text-3xl font-serif font-bold mb-4 text-yellow-900">
         Crea tu pieza favorita
       </h1>

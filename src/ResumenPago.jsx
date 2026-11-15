@@ -132,6 +132,7 @@ export default function ResumenPago() {
     payMethod: payMethodFromState,
     codigoTarjeta,
     tarjetaRegaloId,
+    sesiones: sesionesElegidas,
   } = state;
 
   const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
@@ -458,13 +459,28 @@ export default function ResumenPago() {
           </p>
         )}
 
-        <p className="mb-2">
-          <strong>Fecha:</strong> {fechaDMA(fecha || fechaInicio) || "-"}
-        </p>
+        {Array.isArray(sesionesElegidas) && sesionesElegidas.length > 1 ? (
+          <div className="mb-2">
+            <strong>Sesiones:</strong>
+            <ul className="mt-1 space-y-0.5">
+              {sesionesElegidas.map((sesion, i) => (
+                <li key={`${sesion.fecha}-${sesion.turno}`}>
+                  {i + 1}. {fechaDMA(sesion.fecha)} · {sesion.turno}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <>
+            <p className="mb-2">
+              <strong>Fecha:</strong> {fechaDMA(fecha || fechaInicio) || "-"}
+            </p>
 
-        <p className="mb-2">
-          <strong>Turno:</strong> {turno || "-"}
-        </p>
+            <p className="mb-2">
+              <strong>Turno:</strong> {turno || "-"}
+            </p>
+          </>
+        )}
 
        <p className="mb-2">
   <strong>Modalidad:</strong> {tipo === "grupo" ? "Reserva para grupo" : (metodo || modalidad || "-")}

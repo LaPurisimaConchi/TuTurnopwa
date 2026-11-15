@@ -499,7 +499,7 @@ const ChatAyuda = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f5f0] px-4 py-6">
+    <div className="px-4 py-6">
       <div className="mx-auto max-w-3xl">
         <div className="mb-4">
           <BotonVolver />

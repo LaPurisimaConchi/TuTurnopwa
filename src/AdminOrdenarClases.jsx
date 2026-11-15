@@ -153,7 +153,7 @@ export default function AdminOrdenarClases() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf8ee] p-3 md:p-8 font-sans">
+    <div className="p-3 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-4 md:p-7">
         <BotonVolver />
 

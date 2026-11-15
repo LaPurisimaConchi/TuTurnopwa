@@ -10,8 +10,11 @@ import PantallaConVolver from "./PantallaConVolver";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  // Si se viene de una reserva o compra, se vuelve allí con sus datos
-  const destino = location.state?.from;
+  // Se vuelve a la pantalla donde estaba antes de entrar (con sus datos, si es una
+  // reserva o compra); sin ninguna, a la portada
+  const origen = location.state?.from;
+  const destino =
+    origen && !["/login", "/registro"].includes(origen.pathname || origen) ? origen : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,8 +35,8 @@ export default function Login() {
         email.trim().toLowerCase(),
         password
       );
-      navigate(destino || "/dondereservar", {
-        replace: !!destino,
+      navigate(destino || "/portada", {
+        replace: true,
         state: destino?.state,
       });
     } catch (error) {
@@ -72,7 +75,7 @@ export default function Login() {
 
   return (
     <PantallaConVolver>
-      <div className="bg-[#fdfaf5] min-h-screen flex items-center justify-center px-2 sm:px-4 py-6 sm:py-8 text-[#333]">
+      <div className="flex items-center justify-center px-2 sm:px-4 py-6 sm:py-8 text-[#333]">
   <div className="w-full max-w-md">
           <div className="flex flex-col items-center mb-6">
             <img

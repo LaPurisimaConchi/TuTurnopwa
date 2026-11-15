@@ -2,7 +2,7 @@
 // Compras sin registro: el cliente entra con una sesión anónima de Firebase
 // y deja sus datos de contacto en usuarios/{uid}, igual que un usuario normal.
 // Así las reglas (auth != null), el webhook y el panel admin siguen funcionando.
-import { signInAnonymously, updateProfile } from "firebase/auth";
+import { signInAnonymously, signOut, updateProfile } from "firebase/auth";
 import { ref, get, set, update } from "firebase/database";
 import { auth, dbRealtime } from "../firebase";
 
@@ -74,6 +74,38 @@ export function cerrarCompraInvitado() {
 export function cerrarCompraInvitadoTrasSalir() {
   cancelarCierreCompraInvitado();
   cierrePendiente = setTimeout(cerrarCompraInvitado, 400);
+}
+
+// Fin de la compra: al salir de la confirmación (o del pago fallido) la sesión de
+// invitado se cierra y no queda ningún perfil abierto en el navegador. La excepción
+// es «Crear mi cuenta», que necesita la sesión para conservar sus reservas. El
+// pequeño plazo evita cerrarla si la pantalla se vuelve a montar enseguida.
+let cierreSesionPendiente = null;
+let conservarSesion = false;
+
+export const cancelarCierreSesionInvitado = () => {
+  clearTimeout(cierreSesionPendiente);
+  cierreSesionPendiente = null;
+};
+
+export const conservarSesionInvitado = () => {
+  conservarSesion = true;
+};
+
+export function cerrarSesionInvitadoTrasSalir() {
+  cancelarCierreSesionInvitado();
+  cierreSesionPendiente = setTimeout(async () => {
+    cierreSesionPendiente = null;
+    if (conservarSesion) {
+      conservarSesion = false;
+      return;
+    }
+
+    cerrarCompraInvitado();
+    if (auth.currentUser?.isAnonymous) {
+      await signOut(auth).catch((error) => console.error("Error al cerrar la sesión de invitado:", error));
+    }
+  }, 400);
 }
 
 export async function leerDatosContacto(uid) {

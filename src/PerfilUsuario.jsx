@@ -294,7 +294,7 @@ export default function PerfilUsuario() {
           setBonos([]);
         }
       } else {
-        navigate("/login");
+        navigate("/login", { state: { from: { pathname: "/perfil" } }, replace: true });
       }
     });
 

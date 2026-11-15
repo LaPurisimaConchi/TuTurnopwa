@@ -1,8 +1,6 @@
 /* Panel admin (AdminDashboard.jsx). Prefijo ad- para no chocar con otros estilos. */
 
 .ad-body {
-  background-color: #fdf8ee;
-  min-height: 100vh;
   padding: 30px;
   font-family: "Segoe UI", sans-serif;
 }
@@ -267,6 +265,73 @@
     border-radius: 16px;
     padding: 10px;
     box-sizing: border-box;
+  }
+
+  .ad-header {
+    margin-bottom: 18px;
+  }
+
+  .ad-titulo {
+    font-size: 1.5rem;
+  }
+
+  .ad-subtitulo {
+    font-size: 0.9rem;
+  }
+
+  /* Casillas del resumen: dos por fila, compactas, con el dato como protagonista */
+  .ad-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .ad-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 96px;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+  }
+
+  .ad-card-label {
+    padding-right: 14px; /* deja sitio a la flecha de las casillas que abren una lista */
+    font-size: 0.78rem;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ad-card-valor {
+    margin: 8px 0 0;
+    font-size: 1.7rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .ad-card-nota {
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    min-height: 0;
+  }
+
+  .ad-card-nota:empty {
+    display: none;
+  }
+
+  /* Flecha: avisa de que la casilla se puede tocar */
+  .ad-card[href]::after {
+    content: "\203A";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: #b59a52;
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1;
   }
 }
 

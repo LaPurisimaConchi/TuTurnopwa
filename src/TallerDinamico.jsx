@@ -118,8 +118,9 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
       etiqueta: clase.variante?.etiqueta || "Opción",
       opciones: variantes,
     },
+    // Con tipo o tamaño, el método se muestra aunque solo haya uno (para ver su extra)
     !esBono &&
-      metodosDelProducto.length > 1 && {
+      (metodosDelProducto.length > 1 || (variantes.length > 0 && metodosDelProducto.length === 1)) && {
         clave: "metodo",
         etiqueta: "Método",
         opciones: metodosDelProducto,
@@ -131,6 +132,18 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   );
 
   // Con opciones que elegir, reservar necesita que haya una elegida en cada grupo
+  // Precio según lo elegido (tipo o tamaño + extra del método); si no se puede
+  // saber, el «desde» de siempre
+  const varianteElegida = variantes.find((v) => v.id === elegidas.variante);
+  const metodoElegido = metodosDelProducto.find((m) => m.id === elegidas.metodo);
+  const precioExacto = varianteElegida
+    ? varianteElegida.precio + (metodoElegido?.extra || 0)
+    : !variantes.length && metodoElegido?.precio > 0 && !preciosIguales
+    ? metodoElegido.precio
+    : 0;
+  const precioMostrado = precioExacto > 0 ? precioExacto : desde;
+  const esDesde = !(precioExacto > 0) && !preciosIguales;
+
   const grupoSinElegir = grupos.find((g) => !elegidas[g.clave]);
   const faltaOpcion = !!grupoSinElegir;
 
@@ -146,34 +159,35 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   }`;
 
   return (
-    <PantallaConVolver>
-      <div className="bg-white text-[#333] font-sans max-w-5xl w-full mx-auto shadow-md rounded-2xl overflow-hidden">
+    <PantallaConVolver recortar={false}>
+      <div className="bg-white text-[#333] font-sans max-w-5xl w-full mx-auto shadow-md rounded-3xl overflow-clip">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-          <div className="p-4 sm:p-5">
+          {/* En escritorio la foto se queda a la vista mientras se lee el resto */}
+          <div className="p-3 sm:p-5 md:sticky md:top-20 md:self-start">
             <button
               type="button"
               onClick={() => imagenActiva && setModalAbierto(true)}
-              className="w-full rounded-2xl overflow-hidden bg-[#f8f8f8] flex items-center justify-center min-h-[260px] sm:min-h-[320px] md:min-h-[420px]"
+              className="w-full rounded-2xl overflow-hidden bg-[#f8f4ea] flex items-center justify-center aspect-[4/3] sm:aspect-[16/10] md:aspect-square"
             >
               <img
                 src={imagenActiva || "/img/logoPCsin.png"}
                 alt={clase.nombre}
                 className={
                   imagenActiva
-                    ? "w-full h-auto max-h-[70vh] object-contain"
+                    ? "w-full h-full object-cover"
                     : "w-40 opacity-80"
                 }
               />
             </button>
 
             {imagenes.length > 1 && (
-              <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+              <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
                 {imagenes.map((img, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => setImagenActiva(img)}
-                    className={`shrink-0 rounded-xl overflow-hidden border-2 w-[72px] h-[72px] sm:w-[80px] sm:h-[80px] ${
+                    className={`shrink-0 rounded-xl overflow-hidden border-2 w-16 h-16 sm:w-[72px] sm:h-[72px] ${
                       imagenActiva === img ? "border-[#F4C542]" : "border-[#f1e7c6]"
                     }`}
                   >
@@ -188,25 +202,27 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             )}
 
             {imagenActiva && (
-              <p className="text-xs text-gray-500 mt-2">
-                Toca la imagen para verla en grande
-              </p>
+              <p className="text-xs text-gray-400 mt-1">Toca la foto para verla en grande</p>
             )}
           </div>
 
-          <div className="p-4 sm:p-6 flex flex-col justify-start min-w-0">
+          <div className="px-4 pb-6 pt-2 sm:px-6 md:pt-6 flex flex-col justify-start min-w-0">
             <h1 className="text-2xl md:text-3xl font-bold text-[#3b3025] mb-2 leading-tight break-words">
               {clase.nombre}
             </h1>
 
-            <p className="text-lg sm:text-xl font-semibold text-[#6b3700] mb-1 leading-snug">
-              {desde
-                ? `${preciosIguales ? "" : "Desde "}${formatearEuros(desde)}`
-                : ""}
-            </p>
+            {precioMostrado > 0 && (
+              <p className="flex items-baseline gap-2 mb-1">
+                {esDesde && <span className="text-sm text-gray-500">Desde</span>}
+                <span className="text-2xl font-bold text-[#6b3700]">
+                  {formatearEuros(precioMostrado)}
+                </span>
+                <span className="text-sm text-gray-500">{esBono ? "" : "por persona"}</span>
+              </p>
+            )}
 
             {grupos.length > 0 && (
-              <div className="mt-3 mb-4 space-y-4">
+              <div className="mt-3 mb-5 space-y-4 rounded-2xl bg-[#fffaf0] border border-[#f0e5cf] p-4">
                 {grupos.map((grupo) => (
                   <div key={grupo.clave} role="radiogroup" aria-label={grupo.etiqueta}>
                     <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
@@ -234,6 +250,9 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                             <span className="block text-sm font-semibold">{opcion.nombre}</span>
                             {opcion.precio > 0 && (
                               <span className="block text-xs">{formatearEuros(opcion.precio)}</span>
+                            )}
+                            {opcion.extra > 0 && (
+                              <span className="block text-xs">+{formatearEuros(opcion.extra)}</span>
                             )}
                           </button>
                         );
@@ -288,14 +307,16 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             )}
 
             <div className="mt-3">
-              <BotonReserva
-                destino={destinoReserva}
-                className="shrink-0"
-                texto={esBono ? "Comprar bono" : "Reservar ahora"}
-                disabled={faltaOpcion}
-              />
+              <div className="hidden md:block">
+                <BotonReserva
+                  destino={destinoReserva}
+                  className="shrink-0 !py-3 !mb-3"
+                  texto={esBono ? "Comprar bono" : "Reservar ahora"}
+                  disabled={faltaOpcion}
+                />
+              </div>
               {faltaOpcion && (
-                <p className="text-xs text-gray-600 -mt-3 mb-3" role="status">
+                <p className="text-xs text-gray-600 mb-3" role="status">
                   Elige una opción de «{grupoSinElegir.etiqueta}» para poder reservar.
                 </p>
               )}
@@ -308,12 +329,13 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               )}
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6 empty:hidden">
             {!esBono && !esMonografico(clase) && (
               <button
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
-                className="w-full -mt-2 mb-3 px-6 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold text-sm hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 👥 Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>
@@ -325,13 +347,14 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 onClick={() =>
                   navigate(`/comprar-tarjeta-regalo?taller=${encodeURIComponent(claseId)}`)
                 }
-                className="w-full -mt-2 mb-5 px-6 py-2 rounded-full border border-pink-300 text-pink-700 font-semibold hover:bg-pink-50 transition"
+                className="w-full px-4 py-2 rounded-full border border-pink-300 text-pink-700 font-semibold text-sm hover:bg-pink-50 transition"
               >
                 🎁 Regalar este taller
               </button>
             )}
+            </div>
 
-            <div className="mb-5 min-w-0">
+            <div className="mb-5 min-w-0 border-t border-[#f0e5cf] pt-5">
               <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
                 {esBono ? "Información del bono" : "Información del taller"}
               </h2>
@@ -434,6 +457,24 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Móvil: el precio y el botón de reservar siempre a mano, a todo el ancho de la
+        pantalla. Es "sticky" dentro de la página, así que al llegar al final se queda
+        sobre el pie y no lo tapa */}
+      <div className="md:hidden sticky bottom-0 z-30 -mb-6 mt-4 w-screen ml-[calc(50%-50vw)] flex items-center gap-3 border-t border-[#eadfd2] bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+        {precioMostrado > 0 && (
+          <div className="shrink-0 leading-tight">
+            <p className="text-[11px] text-gray-500">{esDesde ? "Desde" : "Precio"}</p>
+            <p className="text-lg font-bold text-[#6b3700]">{formatearEuros(precioMostrado)}</p>
+          </div>
+        )}
+        <BotonReserva
+          destino={destinoReserva}
+          className="!mb-0 !py-3"
+          texto={esBono ? "Comprar bono" : "Reservar ahora"}
+          disabled={faltaOpcion}
+        />
       </div>
 
       {modalAbierto && (

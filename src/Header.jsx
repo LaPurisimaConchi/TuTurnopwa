@@ -49,6 +49,19 @@ export default function Header() {
   const nombre = String(usuario?.displayName || "").trim().split(/\s+/)[0] || "";
   const inicial = (nombre || usuario?.email || "").charAt(0).toUpperCase();
 
+  // Al entrar desde aquí se vuelve a la pantalla actual
+  const location = useLocation();
+  const volverAqui = ["/login", "/registro"].includes(pathname)
+    ? undefined
+    : {
+        from: {
+          pathname,
+          search: location.search,
+          hash: location.hash,
+          state: location.state,
+        },
+      };
+
   const enPanel = pathname.startsWith("/admin");
   const enPerfil = pathname === "/perfil" || pathname === "/editar-perfil";
   const enGestion = pathname === "/gestionar-reserva";
@@ -109,7 +122,7 @@ export default function Header() {
               {/* Quien compró como invitado también puede querer entrar a su cuenta */}
               {(!hayUsuario || esInvitado) && (
                 <>
-                  <Link to="/login" className={contorno}>
+                  <Link to="/login" state={volverAqui} className={contorno}>
                     Iniciar sesión
                   </Link>
                   <Link to="/registro" className={`${relleno} hidden sm:inline-flex`}>

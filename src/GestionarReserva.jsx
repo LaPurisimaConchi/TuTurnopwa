@@ -153,6 +153,7 @@ export default function GestionarReserva() {
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
   const [edicionId, setEdicionId] = useState(""); // monográficos: se cambia de edición
+  const [sesion, setSesion] = useState(0); // talleres de varias sesiones: la que se cambia
   const [confirmando, setConfirmando] = useState(false);
   const [cambiada, setCambiada] = useState(null); // { antes, despues }
 
@@ -173,6 +174,8 @@ export default function GestionarReserva() {
   }, [datos]);
 
   const esEdicion = Array.isArray(datos?.ediciones);
+  // Varias sesiones reservadas juntas: primero se elige cuál cambiar
+  const eligiendoSesion = Array.isArray(datos?.sesiones) && !datos?.sesionElegida;
   const edicionElegida = esEdicion ? datos.ediciones.find((e) => e.id === edicionId) || null : null;
   const paso = cambiada
     ? 3
@@ -182,14 +185,20 @@ export default function GestionarReserva() {
     ? 2
     : 1;
 
-  const buscar = async (e) => {
-    e.preventDefault();
+  const buscar = async (e, numeroSesion = 0) => {
+    e?.preventDefault?.();
     setError("");
     setCargando(true);
 
     try {
-      const respuesta = await llamarApi({ accion: "buscar", codigo, email });
+      const respuesta = await llamarApi({
+        accion: "buscar",
+        codigo,
+        email,
+        ...(numeroSesion ? { sesion: numeroSesion } : {}),
+      });
       setDatos(respuesta);
+      setSesion(numeroSesion);
       setFecha("");
       setTurno("");
       setEdicionId("");
@@ -212,6 +221,7 @@ export default function GestionarReserva() {
         codigo,
         email,
         ...(esEdicion ? { edicionId } : { fecha, turno }),
+        ...(sesion ? { sesion } : {}),
       });
       setCambiada({ antes: datos.reserva, despues: respuesta.reserva });
       setDatos(null);
@@ -339,9 +349,68 @@ export default function GestionarReserva() {
 
             {datos && (
               <div ref={pasoDos} className="space-y-4 scroll-mt-20">
-                <ResumenReserva reserva={datos.reserva} titulo="Tu reserva actual" />
+                {!eligiendoSesion && (
+                  <ResumenReserva
+                    reserva={datos.reserva}
+                    titulo={datos.sesionElegida ? `Sesión ${datos.sesionElegida} de tu reserva` : "Tu reserva actual"}
+                  />
+                )}
+                {datos.sesionElegida && !eligiendoSesion && (
+                  <button
+                    type="button"
+                    onClick={() => buscar(null, 0)}
+                    disabled={cargando}
+                    className="text-sm underline text-[#b36a4a]"
+                  >
+                    ← Elegir otra sesión
+                  </button>
+                )}
 
-                {!datos.reserva.puedeCambiar ? (
+                {eligiendoSesion ? (
+                  <Tarjeta>
+                    <h2 className="font-bold text-[#7a4630] mb-1">Tus sesiones</h2>
+                    <p className="text-xs text-gray-500 mb-3">
+                      Esta reserva incluye {datos.sesiones.length} sesiones. Elige la que quieres cambiar: cada
+                      una se cambia por separado, una vez, y respeta el tiempo mínimo
+                      que hay entre sesiones.
+                    </p>
+                    <ul className="space-y-3">
+                      {datos.sesiones.map((s) => (
+                        <li key={s.sesion} className="rounded-xl border border-gray-200 p-3">
+                          <p className="text-sm font-semibold text-[#3f3128]">Sesión {s.sesion}</p>
+                          <p className="text-sm text-gray-700">
+                            {formatearFecha(s.fecha)} · {s.turno}
+                          </p>
+                          {s.diasDesdeAnterior > 0 && (
+                            <p className="text-xs text-gray-500">
+                              Al menos {s.diasDesdeAnterior} días después de la sesión anterior
+                            </p>
+                          )}
+                          {s.puedeCambiar ? (
+                            <button
+                              type="button"
+                              onClick={() => buscar(null, s.sesion)}
+                              disabled={cargando}
+                              className={`${botonSecundario} mt-2 w-full`}
+                            >
+                              Cambiar esta sesión
+                            </button>
+                          ) : (
+                            <p className="mt-1 text-xs text-gray-500">{s.motivo}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    {error && (
+                      <div className="mt-3">
+                        <Aviso>{error}</Aviso>
+                      </div>
+                    )}
+                    <p className="mt-3 text-xs text-gray-500">
+                      <ContactoTaller texto="¿Necesitas otro cambio? Escríbenos" />
+                    </p>
+                  </Tarjeta>
+                ) : !datos.reserva.puedeCambiar ? (
                   <Aviso tipo="info">
                     <p>{datos.reserva.motivo}</p>
                     <p className="mt-2">

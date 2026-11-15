@@ -113,6 +113,9 @@ listaClases.push({
   turnos: claseData.turnos || [],
   horarios: claseData.horarios || claseData.horario || {},
   estado: estadoClase,
+  orden: Number.isFinite(Number(claseData.orden ?? claseData["orden "]))
+    ? Number(claseData.orden ?? claseData["orden "])
+    : 999,
   activa: estadoClase === "activa",
   dinamica: !!claseData.dinamica,
 });
@@ -191,7 +194,8 @@ listaClases.push({
           });
         }
 
-        listaClases.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+        // Mismo orden que la portada: por `orden` y, si empatan, por nombre
+        listaClases.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
 
         setClases(listaClases);
         setResumen(mapaResumen);
@@ -912,8 +916,6 @@ listaClases.push({
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -1032,9 +1034,12 @@ const styles = {
     fontSize: "0.92rem",
   },
   estadoEtiqueta: {
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
-    padding: "2px 10px",
+    padding: "4px 12px",
+    lineHeight: 1,
     fontSize: "0.85rem",
     fontWeight: 700,
   },

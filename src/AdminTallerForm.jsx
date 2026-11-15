@@ -957,8 +957,45 @@ export default function AdminTallerForm() {
                     onChange={(e) => cambiar("sesiones", e.target.value)}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Con 2 o más, la reserva guarda el aviso de que la segunda sesión
-                    se habilita 4 semanas después de la primera.
+                    Con 2 o más, el cliente puede reservar todas las sesiones de una vez
+                    (cada una en su día) o solo la primera y el resto más adelante.
+                  </p>
+                </div>
+              )}
+
+              {!esBono && !form.monografico && Math.round(Number(form.sesiones)) > 1 && Math.round(Number(form.sesiones)) <= 30 && (
+                <div>
+                  <p className={label}>Tiempo mínimo entre sesiones (días)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+                    {Array.from({ length: Math.round(Number(form.sesiones)) - 1 }, (_, i) => i).map((i) => (
+                      <div key={i}>
+                        <label htmlFor={`taller-dias-sesiones-${i}`} className="block text-xs text-gray-600 mb-1">
+                          Entre la sesión {i + 1} y la {i + 2}
+                        </label>
+                        <input
+                          id={`taller-dias-sesiones-${i}`}
+                          type="number"
+                          min="1"
+                          max="365"
+                          className={input}
+                          value={form.diasEntreSesiones?.[i] ?? "28"}
+                          onChange={(e) =>
+                            setForm((prev) => {
+                              const dias = Array.from(
+                                { length: Math.round(Number(prev.sesiones)) - 1 },
+                                (_, j) => prev.diasEntreSesiones?.[j] ?? "28"
+                              );
+                              dias[i] = e.target.value;
+                              return { ...prev, diasEntreSesiones: dias };
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cada sesión tiene que caer al menos esos días después de la anterior. Por defecto 28
+                    (4 semanas), para dar tiempo a que la pieza esté lista.
                   </p>
                 </div>
               )}
@@ -1182,18 +1219,38 @@ export default function AdminTallerForm() {
                     ➕ Añadir opción
                   </button>
 
-                  <div className="flex flex-wrap gap-4 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     {METODOS_TALLER.slice(0, 2).map((m) => (
-                      <label key={m.id} className="flex items-center gap-2 text-sm">
+                      <div key={m.id} className="rounded-xl border border-[#eadfbe] p-3">
+                        <label className="flex items-center gap-2 text-sm font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={!!form.metodos[m.id]}
+                            onChange={(e) => cambiarAnidado("metodos", m.id, e.target.checked)}
+                          />
+                          Se puede hacer con {m.nombre.toLowerCase()}
+                        </label>
+                        <label htmlFor={`extra-${m.clavePrecio}`} className="block text-xs text-gray-600 mt-2 mb-1">
+                          Extra de precio por persona (€, opcional)
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={!!form.metodos[m.id]}
-                          onChange={(e) => cambiarAnidado("metodos", m.id, e.target.checked)}
+                          id={`extra-${m.clavePrecio}`}
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          className={input}
+                          placeholder="0"
+                          value={form.extrasMetodo?.[m.clavePrecio] ?? ""}
+                          onChange={(e) => cambiarAnidado("extrasMetodo", m.clavePrecio, e.target.value)}
+                          disabled={!form.metodos[m.id]}
+                          aria-label={`Extra de precio con ${m.nombre.toLowerCase()}`}
                         />
-                        Se puede hacer con {m.nombre.toLowerCase()}
-                      </label>
+                      </div>
                     ))}
                   </div>
+                  <p className="text-xs text-gray-500">
+                    El extra se suma al precio de la opción elegida cuando el cliente escoge ese método.
+                  </p>
                 </div>
               )}
 

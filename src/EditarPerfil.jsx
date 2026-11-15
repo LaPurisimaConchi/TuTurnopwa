@@ -26,7 +26,7 @@ export default function EditarPerfil() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        navigate("/login");
+        navigate("/login", { state: { from: { pathname: "/editar-perfil" } }, replace: true });
         return;
       }
 

@@ -121,8 +121,12 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
     return { ok: false, motivo: "Esta reserva no está confirmada y pagada." };
   }
 
-  // Bonos y talleres de dos sesiones tienen otras fechas ligadas a la reserva
-  if (reserva?.desdeBono || reserva?.segundaSesion || reserva?.tipoTaller === "dos_sesiones") {
+  // Bonos y talleres de dos sesiones tienen otras fechas ligadas a la reserva, salvo los
+  // de varias sesiones reservadas de una vez: cada sesión se cambia por separado
+  if (
+    !reserva?.sesionCurso &&
+    (reserva?.desdeBono || reserva?.segundaSesion || reserva?.tipoTaller === "dos_sesiones")
+  ) {
     return {
       ok: false,
       motivo: "Esta reserva forma parte de un bono o de un taller de dos sesiones. Escríbenos y la cambiamos.",

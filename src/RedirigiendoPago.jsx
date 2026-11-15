@@ -51,22 +51,6 @@ const RedirigiendoPago = () => {
   return (
     <div style={styles.body}>
       <div style={styles.container}>
-        {/* 🔙 Botón volver */}
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "#1a73e8",
-            textDecoration: "underline",
-            fontSize: "0.9rem",
-            cursor: "pointer",
-            marginBottom: "12px"
-          }}
-        >
-          ← Volver
-        </button>
-
         <h1 style={styles.title}>Redirigiendo al pago seguro...</h1>
         <p style={styles.text}>
           Estamos conectando con la pasarela de pago segura. Por favor, espera unos segundos...

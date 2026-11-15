@@ -3,7 +3,7 @@ import BotonVolver from "./BotonVolver";
 
 export default function AvisoLegal() {
   return (
-    <div className="bg-orange-50 text-gray-800 min-h-screen px-4 py-8 font-sans">
+    <div className="text-gray-800 px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <img src="/img/logoPCsin.png" alt="Logo del taller" className="mx-auto mb-6 w-36" />
 

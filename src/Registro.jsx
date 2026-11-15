@@ -123,7 +123,7 @@ export default function Registro() {
 };
 
   return (
-    <div className="bg-[#fdfaf5] min-h-screen flex flex-col items-center justify-center px-4 text-[#333]">
+    <div className="flex flex-col items-center justify-center px-4 text-[#333]">
       <BotonVolver volverA="/" />
 
       <img

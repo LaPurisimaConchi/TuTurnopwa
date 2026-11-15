@@ -4,7 +4,7 @@
 // Sigue el mismo flujo que las reservas de siempre: reservas/{ruta}/...
 // con estado Pendiente → /resumen-pago → Redsys, o confirmada con tarjeta regalo.
 // Los bonos tienen su propia pantalla (ReservaBonoDinamico).
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
@@ -30,6 +30,8 @@ import BloqueoReserva from "./BloqueoReserva";
 import PantallaReserva from "./components/PantallaReserva";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
+import SesionExtraReserva from "./components/SesionExtraReserva";
+import { diasEntreSesionesDe, fechaMinimaSiguiente, sesionesDeTaller, sumarDias, textoDias } from "./utils/sesionesTaller";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
@@ -38,12 +40,6 @@ import { esMonografico } from "./utils/monografico";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { useConfigEspacio } from "./configuracionEspacio";
-
-const sumar28Dias = (fechaISO) => {
-  const d = new Date(`${fechaISO}T12:00:00`);
-  d.setDate(d.getDate() + 28);
-  return d.toISOString().slice(0, 10);
-};
 
 export default function ReservaTallerDinamico() {
   const { claseId } = useParams();
@@ -145,6 +141,14 @@ export function FormularioReserva({ claseId, clase }) {
   const conVariante = variantes.length > 0;
   const rutaReservas = clase.reservasPath || claseId;
   const sesiones = Number(clase.sesiones || 1);
+  // Talleres de varias sesiones: se reservan todas ahora (cada una en su día y turno) o solo
+  // la primera, dejando el resto para más adelante
+  const sesionesTotales = sesionesDeTaller(clase);
+  const diasEntreSesiones = diasEntreSesionesDe(clase); // uno por hueco entre sesiones
+  const todosIguales = diasEntreSesiones.every((d) => d === diasEntreSesiones[0]);
+  const [modoSesiones, setModoSesiones] = useState("todas"); // todas | mas_adelante
+  const [extras, setExtras] = useState([]); // sesiones 2, 3…: [{ fecha, turno }]
+  const [extrasListos, setExtrasListos] = useState({});
   const nombreClase = clase.nombre || "Taller";
 
   useEffect(() => {
@@ -290,8 +294,11 @@ export function FormularioReserva({ claseId, clase }) {
   const variante = variantes.find((v) => v.id === varianteId) || null;
   const metodoElegido = metodos.find((m) => m.id === metodo) || null;
 
+  // Con variantes, el método elegido puede sumar un extra (torno, modelado a mano)
+  const extraMetodo = conVariante ? metodoElegido?.extra || 0 : 0;
+
   const precioUnitario = conVariante
-    ? variante?.precio || 0
+    ? (variante?.precio || 0) + extraMetodo
     : conMetodo
     ? metodoElegido?.precio || 0
     : Number(clase.precio || 0);
@@ -299,6 +306,16 @@ export function FormularioReserva({ claseId, clase }) {
   const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
   const precioTotal = precioUnitario * plazasNum;
   const nombreMetodo = metodoElegido?.nombre || "";
+
+  const marcarExtraListo = useCallback((numero, lista) => {
+    setExtrasListos((previos) => (previos[numero] === lista ? previos : { ...previos, [numero]: lista }));
+  }, []);
+
+  const todasLasSesiones = sesionesTotales > 1 && modoSesiones === "todas";
+  const extraDe = (i) => extras[i] || { fecha: "", turno: "" };
+  const cambiarExtra = (i, valor) =>
+    // Al cambiar una sesión se borran las siguientes: dependen de su fecha
+    setExtras((previas) => [...previas.slice(0, i), valor]);
 
   const handleVarianteChange = (valor) => {
     setVarianteId(valor);
@@ -311,6 +328,7 @@ export function FormularioReserva({ claseId, clase }) {
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
+    setExtras([]);
     if (!metodoTarjeta && !metodoPrevio && metodos.length !== 1) setMetodo("");
     setTurno("");
     setPlazas(1);
@@ -381,6 +399,21 @@ export function FormularioReserva({ claseId, clase }) {
       return;
     }
 
+    // Taller de varias sesiones reservadas de una vez: todas tienen que estar elegidas y con plazas
+    if (todasLasSesiones) {
+      const completas = Array.from({ length: sesionesTotales - 1 }, (_, i) => extraDe(i)).every(
+        (x) => x.fecha && x.turno
+      );
+      if (!completas) {
+        alert(`Elige el día y el turno de las ${sesionesTotales} sesiones.`);
+        return;
+      }
+      if (!Array.from({ length: sesionesTotales - 1 }, (_, i) => extrasListos[i + 2]).every(Boolean)) {
+        alert("Alguna de las sesiones no tiene plazas suficientes. Revisa los días elegidos.");
+        return;
+      }
+    }
+
     // Sin sesión se piden los datos de contacto ahora; la cuenta de invitado se
     // abre al enviarlos, no al entrar en la pantalla
     let usuario = user || getAuth().currentUser;
@@ -417,12 +450,12 @@ export function FormularioReserva({ claseId, clase }) {
         estadoPago: "pendiente",
         orderId,
         timestamp,
-        ...(sesiones > 1
+        ...(sesiones > 1 && !todasLasSesiones
           ? {
               fechaPrimeraSesion: fecha,
               segundaSesion: {
                 habilitada: false,
-                fechaDisponible: sumar28Dias(fecha),
+                fechaDisponible: sumarDias(fecha, diasEntreSesiones[0]),
                 reservada: false,
                 fechaReserva: null,
               },
@@ -430,28 +463,61 @@ export function FormularioReserva({ claseId, clase }) {
           : {}),
       };
 
-      const carpeta = conMetodo
-        ? `reservas/${rutaReservas}/${fecha}/${turno}/${metodo}`
-        : `reservas/${rutaReservas}/${fecha}/${turno}`;
+      // Las sesiones que se reservan ahora (una sola, salvo «todas las sesiones»)
+      const sesionesElegidas = todasLasSesiones
+        ? [{ fecha, turno }, ...Array.from({ length: sesionesTotales - 1 }, (_, i) => extraDe(i))]
+        : [{ fecha, turno }];
+
+      // Con varias, cada sesión es una reserva con el mismo pedido; el precio va en la primera
+      const reservaDeSesion = (sesion, indice) =>
+        todasLasSesiones
+          ? {
+              ...reserva,
+              fecha: sesion.fecha,
+              turno: sesion.turno,
+              sesionCurso: indice + 1,
+              sesionesCurso: sesionesTotales,
+              fechasSesiones: sesionesElegidas,
+              ...(indice > 0 ? { precio: 0, precioUnitario: 0, precioTotal: 0, precioEnSesion1: true } : {}),
+            }
+          : reserva;
+
+      const carpetaDe = (sesion) =>
+        conMetodo
+          ? `reservas/${rutaReservas}/${sesion.fecha}/${sesion.turno}/${metodo}`
+          : `reservas/${rutaReservas}/${sesion.fecha}/${sesion.turno}`;
 
       // El servidor comprueba el aforo y reserva la plaza mientras se paga. En
       // desarrollo, si la función aún no está desplegada, se escribe directamente.
-      let nuevaReservaRef;
+      let creadas;
       try {
-        const { reservas: creadas } = await reservarEnServidor(claseId, [
-          { fecha, turno, metodo: reserva.metodo, plazas: plazasNum, reserva },
-        ]);
-        nuevaReservaRef = ref(dbRealtime, creadas[0].ruta);
+        ({ reservas: creadas } = await reservarEnServidor(
+          claseId,
+          sesionesElegidas.map((sesion, indice) => ({
+            fecha: sesion.fecha,
+            turno: sesion.turno,
+            metodo: reserva.metodo,
+            plazas: plazasNum,
+            reserva: reservaDeSesion(sesion, indice),
+          }))
+        ));
       } catch (errorServidor) {
         if (!errorServidor.sinServidor) throw errorServidor;
         console.warn("Sin función de reserva en el servidor: se escribe directamente (solo desarrollo).");
-        nuevaReservaRef = push(ref(dbRealtime, carpeta));
-        await update(nuevaReservaRef, { uid: usuario.uid, ...reserva });
+        creadas = [];
+        for (const [indice, sesion] of sesionesElegidas.entries()) {
+          const nueva = push(ref(dbRealtime, carpetaDe(sesion)));
+          await update(nueva, { uid: usuario.uid, ...reservaDeSesion(sesion, indice) });
+          creadas.push({ ruta: nueva.toString().replace(/^.*?\/\/[^/]+\//, ""), id: nueva.key });
+        }
       }
+      const nuevaReservaRef = ref(dbRealtime, creadas[0].ruta);
 
-      // Con tarjeta regalo la reserva se confirma al momento
+      // Con tarjeta regalo la reserva (todas sus sesiones) se confirma al momento
       if (desdeTarjeta) {
-        await update(nuevaReservaRef, { estado: "Confirmada", estadoPago: "pagado" });
+        await Promise.all(
+          creadas.map((c) => update(ref(dbRealtime, c.ruta), { estado: "Confirmada", estadoPago: "pagado" }))
+        );
       }
 
       if (desdeTarjeta) {
@@ -534,6 +600,7 @@ export function FormularioReserva({ claseId, clase }) {
           modalidad: nombreMetodo,
           plazas: plazasNum,
           orderId,
+          ...(todasLasSesiones ? { sesiones: sesionesElegidas } : {}),
         },
       });
     } catch (err) {
@@ -636,11 +703,43 @@ export function FormularioReserva({ claseId, clase }) {
               <p>
                 <strong>Incluye {sesiones} sesiones.</strong>
               </p>
-              <p>
-                La primera sesión se reserva ahora. La segunda se habilitará a
-                partir de 4 semanas después de la primera, y antes deberás
-                contactar con el taller para confirmar que tu pieza ya está lista.
-              </p>
+              {sesionesTotales > 1 ? (
+                <div className="mt-2 space-y-2" role="radiogroup" aria-label="Cómo reservar las sesiones">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="radio"
+                      name="modoSesiones"
+                      className="mt-1"
+                      checked={modoSesiones === "todas"}
+                      onChange={() => setModoSesiones("todas")}
+                    />
+                    <span>
+                      <strong>Reservar todas las sesiones ahora.</strong> Eliges el día y el turno de cada
+                      una ({todosIguales ? `con al menos ${diasEntreSesiones[0]} días entre ellas` : "respetando el tiempo mínimo que se indica en cada una"}) y se paga todo junto.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="radio"
+                      name="modoSesiones"
+                      className="mt-1"
+                      checked={modoSesiones === "mas_adelante"}
+                      onChange={() => setModoSesiones("mas_adelante")}
+                    />
+                    <span>
+                      <strong>Reservar solo la primera y el resto más adelante.</strong> Las siguientes
+                      se habilitan a partir de {textoDias(diasEntreSesiones[0])} después; antes tendrás que
+                      contactar con el taller para confirmar que tu pieza está lista.
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <p>
+                  La primera sesión se reserva ahora. La segunda se habilitará a
+                  partir de 4 semanas después de la primera, y antes deberás
+                  contactar con el taller para confirmar que tu pieza ya está lista.
+                </p>
+              )}
             </div>
           )}
 
@@ -682,6 +781,33 @@ export function FormularioReserva({ claseId, clase }) {
             producto="Este taller"
           />
 
+          {todasLasSesiones && !!fecha && !!turno && (
+            <div className="space-y-3">
+              {Array.from({ length: sesionesTotales - 1 }, (_, i) => i).map((i) => {
+                const anterior = i === 0 ? fecha : extraDe(i - 1).fecha;
+                if (!anterior || (i > 0 && !extraDe(i - 1).turno)) return null;
+
+                return (
+                  <SesionExtraReserva
+                    key={`${i}-${anterior}`}
+                    numero={i + 2}
+                    clase={clase}
+                    desde={fechaMinimaSiguiente(anterior, diasEntreSesiones[i])}
+                    fecha={extraDe(i).fecha}
+                    turno={extraDe(i).turno}
+                    onCambiar={(valor) => cambiarExtra(i, valor)}
+                    contexto={{ fechasBloqueadas, fechasHabilitadas, reservasGrupos }}
+                    ocupacion={ocupacion}
+                    conTorno={metodo === "torno"}
+                    plazas={plazasNum}
+                    cargando={!contextoCargado}
+                    onListo={marcarExtraListo}
+                  />
+                );
+              })}
+            </div>
+          )}
+
           </div>
 
           {/* Derecha: método, turno, plazas, resumen y pago */}
@@ -712,6 +838,7 @@ export function FormularioReserva({ claseId, clase }) {
                   <option key={m.id} value={m.id}>
                     {m.nombre}
                     {!conVariante && m.precio > 0 ? ` — ${m.precio}€` : ""}
+                    {conVariante && m.extra > 0 ? ` (+${m.extra}€)` : ""}
                   </option>
                 ))}
               </select>
@@ -723,6 +850,7 @@ export function FormularioReserva({ claseId, clase }) {
             onChange={(valor) => {
               setTurno(valor);
               setPlazas(1);
+              setExtras([]);
             }}
             turnos={turnosDisponibles}
             deshabilitado={!puedeElegirTurno}
@@ -752,23 +880,8 @@ export function FormularioReserva({ claseId, clase }) {
             </p>
           )}
 
-          {/* Los dos avisos se despliegan y pliegan con animación */}
+          {/* El aviso de grupo solo aparece al elegir plazas suficientes, con animación */}
           <div>
-          <div
-            className={`grid transition-all duration-300 ease-in-out ${
-              mostrarSugerencia ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
-            }`}
-            aria-hidden={mostrarSugerencia}
-          >
-            <div className="overflow-hidden">
-            <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
-              <strong>¿Sois {minGrupo} o más personas?</strong>
-              <br />
-              Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
-            </div>
-            </div>
-          </div>
-
           <div
             className={`grid transition-all duration-300 ease-in-out ${
               mostrarSugerencia ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"

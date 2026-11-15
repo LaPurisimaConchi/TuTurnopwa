@@ -3,7 +3,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { cerrarCompraInvitado } from "./utils/invitado";
+import {
+  cancelarCierreSesionInvitado,
+  cerrarCompraInvitado,
+  cerrarSesionInvitadoTrasSalir,
+  conservarSesionInvitado,
+} from "./utils/invitado";
 import CodigoReserva from "./components/CodigoReserva";
 
 const ConfirmacionPago = () => {
@@ -19,7 +24,10 @@ const ConfirmacionPago = () => {
 
   // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
   useEffect(() => {
+    cancelarCierreSesionInvitado();
     cerrarCompraInvitado();
+    // Al salir de aquí se cierra la sesión de invitado: no queda perfil en la web
+    return () => cerrarSesionInvitadoTrasSalir();
   }, []);
 
   useEffect(() => {
@@ -187,12 +195,14 @@ const ConfirmacionPago = () => {
                 Copiar código
               </button>
 
-              <button
-                onClick={() => navigate("/perfil")}
-                style={styles.botonSecundario}
-              >
-                Ver mi perfil
-              </button>
+              {!esInvitado && (
+                <button
+                  onClick={() => navigate("/perfil")}
+                  style={styles.botonSecundario}
+                >
+                  Ver mi perfil
+                </button>
+              )}
             </div>
             <div style={styles.descargaBox}>
   <p style={styles.descargaTexto}>
@@ -239,12 +249,14 @@ const ConfirmacionPago = () => {
                 Seguir reservando
               </button>
 
-              <button
-                onClick={() => navigate("/perfil")}
-                style={styles.botonSecundario}
-              >
-                Ver mi reserva
-              </button>
+              {!esInvitado && (
+                <button
+                  onClick={() => navigate("/perfil")}
+                  style={styles.botonSecundario}
+                >
+                  Ver mi reserva
+                </button>
+              )}
             </div>
           </>
         )}
@@ -257,7 +269,10 @@ const ConfirmacionPago = () => {
                 : "Has reservado sin cuenta. El taller ya tiene tus datos de contacto; si creas una contraseña podrás consultar tus reservas desde cualquier dispositivo."}
             </p>
             <button
-              onClick={() => navigate("/registro")}
+              onClick={() => {
+                conservarSesionInvitado();
+                navigate("/registro");
+              }}
               style={styles.botonSecundario}
             >
               Crear mi cuenta
