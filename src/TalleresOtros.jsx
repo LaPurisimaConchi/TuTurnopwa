@@ -7,7 +7,7 @@ export default function TalleresOtros() {
   const [hayTalleres, setHayTalleres] = useState(true);
 
   return (
-    <div className="p-5 bg-[#fffef4] min-h-screen font-sans">
+    <div className="p-5 bg-crema min-h-screen font-sans">
       <BotonVolver />
 
       <div className="flex flex-col md:flex-row items-center mb-7">
@@ -18,10 +18,10 @@ export default function TalleresOtros() {
         />
 
         <div className="text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-bold text-yellow-900 font-serif">
+          <h1 className="text-3xl md:text-4xl font-bold text-tinta font-serif">
             Otros talleres
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-tinta-suave mt-1">
             Nuevas experiencias y talleres especiales del estudio.
           </p>
         </div>
@@ -37,7 +37,7 @@ export default function TalleresOtros() {
       />
 
       {cargado && !hayTalleres && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-tinta-suave">
           Ahora mismo no hay otros talleres disponibles.
         </p>
       )}

@@ -10,8 +10,11 @@ import PantallaConVolver from "./PantallaConVolver";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  // Si se viene de una reserva o compra, se vuelve allí con sus datos
-  const destino = location.state?.from;
+  // Se vuelve a la pantalla donde estaba antes de entrar (con sus datos, si es una
+  // reserva o compra); sin ninguna, a la portada
+  const origen = location.state?.from;
+  const destino =
+    origen && !["/login", "/registro"].includes(origen.pathname || origen) ? origen : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,8 +35,8 @@ export default function Login() {
         email.trim().toLowerCase(),
         password
       );
-      navigate(destino || "/dondereservar", {
-        replace: !!destino,
+      navigate(destino || "/portada", {
+        replace: true,
         state: destino?.state,
       });
     } catch (error) {
@@ -72,7 +75,7 @@ export default function Login() {
 
   return (
     <PantallaConVolver>
-      <div className="bg-[#fdfaf5] min-h-screen flex items-center justify-center px-2 sm:px-4 py-6 sm:py-8 text-[#333]">
+      <div className="flex items-center justify-center px-2 sm:px-4 py-6 sm:py-8 text-[#333]">
   <div className="w-full max-w-md">
           <div className="flex flex-col items-center mb-6">
             <img
@@ -106,7 +109,7 @@ export default function Login() {
       {mensaje}
     </div>
 
-    <p className="text-xs text-[#7b6d62] mt-2 text-center">
+    <p className="text-xs text-tinta-suave mt-2 text-center">
       Si no ves el email, revisa tu carpeta de spam o correo no deseado.
     </p>
   </>
@@ -119,7 +122,7 @@ export default function Login() {
               <input
                 type="email"
                 id="email"
-                className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-[#b36a4a]"
+                className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-terracota"
                 placeholder="tucorreo@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -137,7 +140,7 @@ export default function Login() {
                 <input
                   type={mostrarPassword ? "text" : "password"}
                   id="password"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-3 pr-20 text-base outline-none focus:border-[#b36a4a]"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-3 pr-20 text-base outline-none focus:border-terracota"
                   placeholder="Tu contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -150,7 +153,7 @@ export default function Login() {
                   onClick={() =>
                     setMostrarPassword((prev) => !prev)
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8a5a44]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-tinta-suave"
                 >
                   {mostrarPassword ? "Ocultar" : "Mostrar"}
                 </button>
@@ -160,7 +163,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={cargando}
-              className="bg-[#b36a4a] hover:bg-[#9e5c3f] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 rounded-xl transition"
+              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 rounded-xl transition"
             >
               {cargando ? "Entrando..." : "Entrar"}
             </button>
@@ -169,7 +172,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={handleResetPassword}
-                className="text-[#8a5a44] font-semibold underline"
+                className="text-tinta-suave font-semibold underline"
               >
                 ¿Has olvidado tu contraseña?
               </button>

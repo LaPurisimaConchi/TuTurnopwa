@@ -133,25 +133,25 @@ const CanjearTarjetaRegalo = () => {
       const tarjeta = await buscarTarjetaPorCodigo(code);
 
       if (!tarjeta) {
-        setMensaje("❌ Código no válido. Revisa que lo has escrito bien.");
+        setMensaje("Código no válido. Revisa que lo has escrito bien.");
         setValidando(false);
         return;
       }
 
       if (String(tarjeta.estadoPago || "").toLowerCase() !== "pagado") {
-        setMensaje("❌ Esta tarjeta regalo aún no consta como pagada.");
+        setMensaje("Esta tarjeta regalo aún no consta como pagada.");
         setValidando(false);
         return;
       }
 
       if (tarjeta.usado) {
-        setMensaje("❌ Este código ya ha sido usado.");
+        setMensaje("Este código ya ha sido usado.");
         setValidando(false);
         return;
       }
 
       if (tarjeta.canjeadoPorUID && tarjeta.canjeadoPorUID !== user.uid) {
-        setMensaje("❌ Este código ya ha sido canjeado por otro usuario.");
+        setMensaje("Este código ya ha sido canjeado por otro usuario.");
         setValidando(false);
         return;
       }
@@ -161,13 +161,13 @@ const CanjearTarjetaRegalo = () => {
 
       if (!opcionRegalo || !opcionRegalo.rutaReserva) {
         setMensaje(
-          "❌ No se ha podido identificar la clase de esta tarjeta regalo."
+          "No se ha podido identificar la clase de esta tarjeta regalo."
         );
         setValidando(false);
         return;
       }
 
-      setMensaje("✅ Código válido. Redirigiendo a tu reserva...");
+      setMensaje("Código válido. Redirigiendo a tu reserva...");
 
       navigate(opcionRegalo.rutaReserva, {
         state: {
@@ -190,7 +190,7 @@ const CanjearTarjetaRegalo = () => {
       });
    } catch (error) {
   console.error("Error al validar el código:", error);
-  setMensaje(`⚠️ Error al validar: ${error?.message || "desconocido"}`);
+  setMensaje(`Error al validar: ${error?.message || "desconocido"}`);
 } finally {
   setValidando(false);
 }
@@ -230,7 +230,7 @@ const CanjearTarjetaRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     minHeight: "100vh",
     padding: 20,
@@ -248,7 +248,7 @@ const styles = {
     textAlign: "center",
   },
   titulo: {
-    color: "#6b3700",
+    color: "#3f3128",
     fontSize: "1.3rem",
     marginBottom: 10,
   },
@@ -280,7 +280,7 @@ const styles = {
   mensaje: {
     marginTop: 20,
     fontSize: "0.95rem",
-    color: "#6b3700",
+    color: "#3f3128",
   },
 };
 

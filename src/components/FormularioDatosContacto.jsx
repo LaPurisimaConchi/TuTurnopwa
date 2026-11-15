@@ -89,15 +89,15 @@ export default function FormularioDatosContacto({ alEnviar, textoBoton = "Contin
         type="submit"
         disabled={enviando}
         className="w-full px-6 py-3 rounded-full text-white font-semibold
-        bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+        bg-terracota
         shadow-md hover:shadow-lg
-        hover:from-[#F4C542] hover:to-[#E5B92F]
+        hover:bg-terracota-oscuro
         transition-all duration-200 disabled:opacity-50"
       >
         {enviando ? "Un momento..." : textoBoton}
       </button>
 
-      <p className="text-xs text-gray-500 text-center leading-5">
+      <p className="text-xs text-tinta-suave text-center leading-5">
         Al continuar aceptas nuestra{" "}
         <Link to="/politica-privacidad" className="underline">
           política de privacidad

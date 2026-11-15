@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
 import useMiniaturasTalleres from "./components/useMiniaturasTalleres";
 import useCategorias from "./components/useCategorias";
+import { useConfigEspacio } from "./configuracionEspacio";
 
 export default function Portada() {
   const navigate = useNavigate();
+  const { config } = useConfigEspacio();
   const [talleres, setTalleres] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [grupoActivo, setGrupoActivo] = useState("todos");
@@ -34,7 +37,7 @@ export default function Portada() {
     document.getElementById("talleres")?.scrollIntoView({ behavior: "smooth" });
 
   return (
-    <div className="bg-[#fdfaf5] min-h-screen w-full">
+    <div className="bg-crema min-h-screen w-full">
       {/* CABECERA */}
       <section className="px-4 pt-8 pb-10 md:pt-12 md:pb-14">
         <div className="w-full max-w-3xl mx-auto text-center">
@@ -44,37 +47,64 @@ export default function Portada() {
             className="w-36 sm:w-44 md:w-52 mx-auto mb-7"
           />
 
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-gray-800">
+          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-tinta">
             Hazte un hueco. <br /> Y una taza.
           </h1>
 
-          <p className="text-lg text-gray-700 mt-4">
-            Reserva tu taller de cerámica o sorprende con una tarjeta regalo.
+          <p className="text-lg text-tinta mt-4">
+            Reserva tu taller de cerámica en un momento.
           </p>
-          <p className="text-sm text-gray-600 mt-2 mb-8">
-            Sin necesidad de registrarte: eliges, reservas y pagas en un momento.
+          <p className="text-sm text-tinta-suave mt-1 mb-7">
+            Sin registrarte: eliges, reservas y pagas.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            type="button"
+            className="w-full sm:w-auto bg-terracota hover:bg-terracota-oscuro text-white text-lg font-semibold px-10 py-3 rounded-full shadow-md transition"
+            onClick={irATalleres}
+          >
+            Ver talleres
+          </button>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 max-w-2xl mx-auto text-left">
             <button
-              className="w-full sm:w-auto bg-[#b36a4a] hover:bg-[#9e5c3f] text-white text-lg font-semibold px-6 py-3 rounded-lg shadow-md transition"
-              onClick={irATalleres}
+              type="button"
+              onClick={() => navigate("/regalar-taller")}
+              className="flex items-center gap-3 text-left rounded-2xl border border-mostaza-borde bg-mostaza-suave hover:bg-mostaza/30 p-2.5 pr-4 transition"
             >
-              Ver talleres
+              <img
+                src="/img/creatupiezafavoritaregalo.jpg"
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-xl object-cover"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 font-semibold text-tinta">
+                  <Icono nombre="regalo" />
+                  Regalar un taller
+                </span>
+                <span className="block text-xs text-tinta-suave">Tarjeta regalo</span>
+              </span>
             </button>
 
             <button
-              className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
-              onClick={() => navigate("/tarjeta-regalo")}
+              type="button"
+              onClick={() => navigate("/grupos")}
+              className="flex items-center gap-3 text-left rounded-2xl border border-[#8fbf9f] bg-[#eef6f0] hover:bg-[#ddeee3] p-2.5 pr-4 transition"
             >
-              🎁 Regalar un taller
-            </button>
-
-            <button
-              className="w-full sm:w-auto border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6] text-lg font-semibold px-6 py-3 rounded-lg transition"
-              onClick={() => navigate("/reserva-grupos")}
-            >
-              👥 Reservas para grupos
+              <img
+                src="/img/grupos/portadagrupos.jpg"
+                alt=""
+                className="h-16 w-16 shrink-0 rounded-xl object-cover"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 font-semibold text-[#2f6b44]">
+                  <Icono nombre="usuarios" color="#3f8f5a" />
+                  Reservas para grupos
+                </span>
+                <span className="block text-xs text-[#3f7a55]">
+                  Desde {config.minPersonasGrupo} personas
+                </span>
+              </span>
             </button>
           </div>
         </div>
@@ -84,10 +114,10 @@ export default function Portada() {
       <section id="talleres" className="px-4 pb-12 scroll-mt-16">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-5">
-            <h2 className="text-2xl md:text-3xl font-serif font-semibold text-[#3f3128]">
+            <h2 className="text-2xl md:text-3xl font-serif font-semibold text-tinta">
               Nuestros talleres
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-tinta-suave mt-1">
               Elige tu experiencia y reserva tu plaza.
             </p>
           </div>
@@ -101,8 +131,8 @@ export default function Portada() {
                   onClick={() => setGrupoActivo(g.id)}
                   className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
                     grupoActivo === g.id
-                      ? "border-[#b36a4a] bg-[#b36a4a] text-white"
-                      : "border-[#eadfd2] bg-white text-[#6b4f3f] hover:bg-[#f9ece6]"
+                      ? "border-terracota bg-terracota text-white"
+                      : "border-linea bg-white text-tinta-suave hover:bg-terracota-suave"
                   }`}
                 >
                   {g.titulo}
@@ -116,18 +146,18 @@ export default function Portada() {
               {Array.from({ length: 4 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-2xl border border-[#eadfd2] bg-white overflow-hidden animate-pulse"
+                  className="rounded-2xl border border-linea bg-white overflow-hidden animate-pulse"
                 >
-                  <div className="aspect-[4/3] bg-[#f3ebe1]" />
+                  <div className="aspect-[4/3] bg-arena" />
                   <div className="p-4 space-y-2">
-                    <div className="h-4 bg-[#f3ebe1] rounded w-3/4" />
-                    <div className="h-3 bg-[#f3ebe1] rounded w-1/3" />
+                    <div className="h-4 bg-arena rounded w-3/4" />
+                    <div className="h-3 bg-arena rounded w-1/3" />
                   </div>
                 </div>
               ))}
             </div>
           ) : talleresVisibles.length === 0 ? (
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-tinta-suave">
               Ahora mismo no hay talleres disponibles.
             </p>
           ) : (

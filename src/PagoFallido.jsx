@@ -1,14 +1,21 @@
 import React, { useEffect } from "react";
+import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
-import { cerrarCompraInvitado } from "./utils/invitado";
+import {
+  cancelarCierreSesionInvitado,
+  cerrarCompraInvitado,
+  cerrarSesionInvitadoTrasSalir,
+} from "./utils/invitado";
 
 const PagoFallido = () => {
   const navigate = useNavigate();
 
   // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
   useEffect(() => {
+    cancelarCierreSesionInvitado();
     cerrarCompraInvitado();
+    return () => cerrarSesionInvitadoTrasSalir();
   }, []);
 
   return (
@@ -18,7 +25,7 @@ const PagoFallido = () => {
       </div>
 
       <div style={styles.mensaje}>
-        <h2>😞 El pago no se ha completado</h2>
+        <h2><Icono nombre="triste" className="mr-1.5" />El pago no se ha completado</h2>
         <p>Puedes volver a intentarlo desde tu perfil.</p>
       </div>
     </div>

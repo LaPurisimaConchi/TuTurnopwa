@@ -1,4 +1,5 @@
 import React from "react";
+import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 
@@ -6,7 +7,7 @@ export default function PoliticaCancelacion() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-orange-50 text-gray-800 min-h-screen px-4 py-8 font-sans">
+    <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <img
           src="/img/logoPCsin.png"
@@ -16,13 +17,13 @@ export default function PoliticaCancelacion() {
 
         <BotonVolver />
 
-        <h1 className="text-2xl font-bold text-center text-orange-800 mb-8">
+        <h1 className="text-2xl font-bold text-center text-terracota-oscuro mb-8">
           Política de Reservas y Cancelaciones
         </h1>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
-            ✅ Confirmación de Reserva
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
+            <Icono nombre="confirmado" className="mr-1.5" />Confirmación de Reserva
           </h2>
           <p>
             Para garantizar tu plaza en el taller, es necesario abonar el
@@ -32,8 +33,8 @@ export default function PoliticaCancelacion() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
-            🔁 Cambios, Cancelaciones y Cesiones
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
+            <Icono nombre="repetir" className="mr-1.5" />Cambios, Cancelaciones y Cesiones
           </h2>
           <p>
             <strong>No se realizan devoluciones de dinero</strong> bajo ninguna circunstancia.
@@ -61,8 +62,8 @@ export default function PoliticaCancelacion() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
-            🌟 Importancia de esta Política
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
+            <Icono nombre="estrella" className="mr-1.5" />Importancia de esta Política
           </h2>
           <p>
             Tu reserva bloquea una plaza que no podemos ofrecer a otra persona,
@@ -75,7 +76,7 @@ export default function PoliticaCancelacion() {
           </p>
         </section>
 
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-tinta-suave">
           ¿Tienes dudas? Contacta con nosotros directamente.
         </div>
       </div>

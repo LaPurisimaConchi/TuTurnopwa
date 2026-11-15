@@ -43,6 +43,7 @@ import {
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 import { escribirConAforo } from "./_reservarServidor.js";
+import { diasEntreSesionesDe, fechaMinimaSiguiente, sumarDias } from "../src/utils/sesionesTaller.js";
 
 import { fechaDMA } from "../src/utils/formatoFecha.js";
 export const config = { runtime: "nodejs" };
@@ -155,6 +156,9 @@ const resumenDe = (reserva, evaluacion, { tipo, codigo }) => ({
   motivo: evaluacion.motivo,
   antelacionHoras: ANTELACION_HORAS,
   cambiosRestantes: Math.max(MAX_CAMBIOS_CLIENTE - Number(reserva.numCambiosCliente || 0), 0),
+  recuperacion: evaluacion.recuperacion === true,
+  motivoCancelacion: evaluacion.recuperacion ? reserva.motivoCancelacion || "" : "",
+  recuperableHasta: evaluacion.recuperacion ? reserva.recuperableHasta || "" : "",
 });
 
 async function contextoDeLaClase(segmentos, reserva) {
@@ -190,7 +194,29 @@ const sinOnline =
   "No se puede cambiar esta reserva por internet. Escríbenos y la cambiamos.";
 
 // Campos que deja un cambio hecho por el cliente (mismos que usa el panel)
-function camposDeCambio({ reserva, nuevaFecha, nuevoTurno, turnoAnterior, cambio }) {
+function camposDeCambio({ reserva, nuevaFecha, nuevoTurno, turnoAnterior, cambio, recuperacion = false }) {
+  // Reserva cancelada por el estudio que el cliente vuelve a reservar: vuelve a estar
+  // confirmada en la nueva fecha, sin contar como cambio del cliente
+  if (recuperacion) {
+    return {
+      fecha: nuevaFecha,
+      turno: nuevoTurno,
+      estado: "Confirmada",
+      cancelada: false,
+      recuperada: true,
+      recuperadaEn: cambio,
+      canceladaEnOriginal: reserva.canceladaEn || "",
+      motivoCancelacionOriginal: reserva.motivoCancelacion || "",
+      fechaOriginal: reserva.fechaOriginal || reserva.fecha,
+      turnoOriginal: limpiarTurno(reserva.turnoOriginal || turnoAnterior),
+      canceladaPor: null,
+      canceladaEn: null,
+      motivoCancelacion: null,
+      recuperableHasta: null,
+      avisoPerfil: "Has elegido una nueva fecha tras la cancelación. Revisa la nueva fecha y turno.",
+    };
+  }
+
   return {
     fecha: nuevaFecha,
     turno: nuevoTurno,
@@ -431,10 +457,120 @@ async function resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res }) {
   });
 }
 
+// --- Talleres de varias sesiones reservadas de una vez ---------------------
+// Cada sesión es una reserva con el mismo pedido (sesionCurso 1, 2…). El cliente ve todas
+// y cambia cada una por separado (un cambio y 72 h de antelación por sesión), siempre con
+// los días mínimos entre sesiones.
+function recogerSesiones(arbol, orderId, ruta, destino = []) {
+  if (!arbol || typeof arbol !== "object") return destino;
+
+  for (const [clave, hijo] of Object.entries(arbol)) {
+    if (!hijo || typeof hijo !== "object") continue;
+    if ("orderId" in hijo) {
+      if (hijo.orderId === orderId && hijo.sesionCurso) {
+        destino.push({ segmentos: [...ruta, clave], reserva: hijo });
+      }
+    } else {
+      recogerSesiones(hijo, orderId, [...ruta, clave], destino);
+    }
+  }
+
+  return destino;
+}
+
+// Fechas entre las que puede caer la sesión `numero` respetando las de sus vecinas
+function limitesDeSesion(sesiones, numero, dias) {
+  const anterior = sesiones.find((s) => Number(s.reserva.sesionCurso) === numero - 1);
+  const siguiente = sesiones.find((s) => Number(s.reserva.sesionCurso) === numero + 1);
+  const diasAntes = dias[numero - 2] || 0; // entre la sesión anterior y esta
+  const diasDespues = dias[numero - 1] || 0; // entre esta y la siguiente
+
+  return {
+    min: anterior ? fechaMinimaSiguiente(anterior.reserva.fecha, diasAntes) : "",
+    max: siguiente ? sumarDias(siguiente.reserva.fecha, -diasDespues) : "",
+    diasAntes,
+    diasDespues,
+  };
+}
+
+async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res }) {
+  const { segmentos, reserva, codigo } = encontrada;
+  const orderId = reserva.orderId;
+
+  const contexto = await contextoDeLaClase(segmentos, reserva);
+  if (!contexto.clase) {
+    return res.status(409).json({ ok: false, error: sinOnline });
+  }
+
+  const diasEntre = diasEntreSesionesDe(contexto.clase, Number(reserva.sesionesCurso) || undefined);
+  const sesiones = recogerSesiones(
+    contexto.reservas.child(segmentos[1]).val() || {},
+    orderId,
+    ["reservas", segmentos[1]]
+  ).sort((a, b) => Number(a.reserva.sesionCurso) - Number(b.reserva.sesionCurso));
+
+  if (!sesiones.length) return res.status(409).json({ ok: false, error: sinOnline });
+
+  const lista = sesiones.map((s, indice) => {
+    const ev = evaluarCambio(s.reserva, ahoraMs);
+    return {
+      diasDesdeAnterior: indice > 0 ? diasEntre[indice - 1] || 0 : 0,
+      sesion: Number(s.reserva.sesionCurso),
+      fecha: s.reserva.fecha || "",
+      turno: limpiarTurno(s.reserva.turno || ""),
+      puedeCambiar: ev.ok,
+      motivo: ev.motivo,
+      cambiosRestantes: Math.max(MAX_CAMBIOS_CLIENTE - Number(s.reserva.numCambiosCliente || 0), 0),
+    };
+  });
+
+  const numero = Number(cuerpo.sesion);
+  const elegida = sesiones.find((s) => Number(s.reserva.sesionCurso) === numero) || null;
+
+  if (accion === "buscar") {
+    const base = resumenDe(sesiones[0].reserva, { ok: false, motivo: "" }, { tipo: "individual", codigo });
+    if (!elegida) {
+      return res.status(200).json({ ok: true, reserva: base, sesiones: lista, diasEntreSesiones: diasEntre, opciones: [] });
+    }
+
+    const ev = evaluarCambio(elegida.reserva, ahoraMs);
+    const { min, max } = limitesDeSesion(sesiones, numero, diasEntre);
+    const opciones = ev.ok
+      ? opcionesDeCambio({ ...contexto, reserva: elegida.reserva, ahoraMs })
+          .filter((o) => (!min || o.fecha >= min) && (!max || o.fecha <= max))
+      : [];
+
+    return res.status(200).json({
+      ok: true,
+      reserva: resumenDe(elegida.reserva, ev, { tipo: "individual", codigo }),
+      sesiones: lista,
+      diasEntreSesiones: diasEntre,
+      sesionElegida: numero,
+      opciones,
+    });
+  }
+
+  if (!elegida) return res.status(400).json({ ok: false, error: "Elige la sesión que quieres cambiar." });
+
+  return resolverIndividual({
+    accion,
+    encontrada: { ...encontrada, segmentos: elegida.segmentos, reserva: elegida.reserva },
+    cuerpo,
+    ahoraMs,
+    res,
+    limites: limitesDeSesion(sesiones, numero, diasEntre),
+    sinSesiones: true,
+  });
+}
+
 // --- Rama de reservas individuales ------------------------------------------
-async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) {
+async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, limites = null, sinSesiones = false }) {
   if (encontrada.reserva?.edicionId) {
     return resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res });
+  }
+
+  if (encontrada.reserva?.sesionCurso && !sinSesiones) {
+    return resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res });
   }
 
   const { segmentos, reserva, codigo } = encontrada;
@@ -481,6 +617,16 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) 
   });
   if (motivo) return res.status(409).json({ ok: false, error: motivo });
 
+  if (limites && ((limites.min && nuevaFecha < limites.min) || (limites.max && nuevaFecha > limites.max))) {
+    const antes = limites.min && nuevaFecha < limites.min;
+    return res.status(409).json({
+      ok: false,
+      error: antes
+        ? `Esa sesión tiene que caer al menos ${limites.diasAntes} días después de la anterior.`
+        : `Esa sesión tiene que caer al menos ${limites.diasDespues} días antes de la siguiente.`,
+    });
+  }
+
   const turnosDelDia = turnosElegibles({
     clase: contexto.clase,
     fecha: nuevaFecha,
@@ -515,7 +661,14 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) 
 
   const cambio = textoFechaHora();
   const turnoAnterior = limpiarTurno(reserva.turno || turnoActual);
-  const seguimiento = camposDeCambio({ reserva, nuevaFecha, nuevoTurno, turnoAnterior, cambio });
+  const seguimiento = camposDeCambio({
+    reserva,
+    nuevaFecha,
+    nuevoTurno,
+    turnoAnterior,
+    cambio,
+    recuperacion: evaluacion.recuperacion === true,
+  });
 
   const actualizaciones = {
     [rutaNueva]: { ...reserva, ...seguimiento },
@@ -531,7 +684,7 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) 
     reserva,
     turnoAnterior,
     cambio,
-    etiqueta: "Reserva",
+    etiqueta: evaluacion.recuperacion ? "Reserva cancelada (recuperada con su código)" : "Reserva",
   });
 
   await adminDb.ref().update(actualizaciones);
@@ -540,7 +693,12 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res }) 
     ok: true,
     reserva: resumen(
       { ...reserva, ...seguimiento },
-      { ok: false, motivo: "Ya has cambiado la fecha de esta reserva." }
+      {
+        ok: false,
+        motivo: evaluacion.recuperacion
+          ? "Ya has elegido una nueva fecha para esta reserva."
+          : "Ya has cambiado la fecha de esta reserva.",
+      }
     ),
   });
 }

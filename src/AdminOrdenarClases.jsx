@@ -153,12 +153,12 @@ export default function AdminOrdenarClases() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf8ee] p-3 md:p-8 font-sans">
+    <div className="p-3 md:p-8 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg p-4 md:p-7">
         <BotonVolver />
 
-        <h1 className="text-2xl font-bold text-[#2f2f2f] text-center mt-2">Ordenar clases</h1>
-        <p className="text-center text-[#7a7a7a] mt-1 mb-5">
+        <h1 className="text-2xl font-bold text-tinta text-center mt-2">Ordenar clases</h1>
+        <p className="text-center text-tinta-suave mt-1 mb-5">
           Es el orden en que salen en la portada. Arrastra cada taller desde el icono ⠿ y pulsa «Guardar orden». Puedes filtrar por categoría.
         </p>
 
@@ -184,8 +184,8 @@ export default function AdminOrdenarClases() {
                   disabled={!!drag}
                   className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
                     filtro === c.id
-                      ? "border-[#b36a4a] bg-[#b36a4a] text-white"
-                      : "border-[#eadfd2] bg-white text-[#6b4f3f] hover:bg-[#f9ece6]"
+                      ? "border-terracota bg-terracota text-white"
+                      : "border-linea bg-white text-tinta-suave hover:bg-terracota-suave"
                   }`}
                 >
                   {c.titulo}
@@ -193,7 +193,7 @@ export default function AdminOrdenarClases() {
               ))}
             </div>
             {filtro !== "todas" && (
-              <p className="text-xs text-[#7a7a7a] mt-1">
+              <p className="text-xs text-tinta-suave mt-1">
                 Solo ordenas los de esta categoría entre sí; el resto mantiene su sitio en la portada.
               </p>
             )}
@@ -201,9 +201,9 @@ export default function AdminOrdenarClases() {
         )}
 
         {cargando ? (
-          <p className="text-center text-[#7a7a7a]">Cargando...</p>
+          <p className="text-center text-tinta-suave">Cargando...</p>
         ) : lista.length === 0 ? (
-          <p className="text-center text-[#7a7a7a]">No hay talleres.</p>
+          <p className="text-center text-tinta-suave">No hay talleres.</p>
         ) : (
           <>
             <ol className="space-y-2">
@@ -219,22 +219,22 @@ export default function AdminOrdenarClases() {
                     position: "relative",
                     zIndex: drag?.id === t.id ? 10 : 0,
                   }}
-                  className={`flex items-center gap-3 rounded-2xl border bg-[#fffdf7] px-3 py-2 ${
+                  className={`flex items-center gap-3 rounded-2xl border bg-crema px-3 py-2 ${
                     drag?.id === t.id
-                      ? "border-[#3d3126] shadow-lg"
-                      : "border-[#eadfbe]"
+                      ? "border-tinta shadow-lg"
+                      : "border-linea"
                   }`}
                 >
                   <img
                     src={miniaturas[t.id] || t.imagen}
                     alt=""
                     draggable={false}
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0 bg-[#f3ebe1]"
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl object-cover shrink-0 bg-arena"
                   />
-                  <span className="w-7 text-center font-bold text-[#7a6331]">{lista.indexOf(t) + 1}</span>
+                  <span className="w-7 text-center font-bold text-tinta">{lista.indexOf(t) + 1}</span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-[#3d3126] truncate">{t.nombre}</p>
-                    <p className="text-xs text-[#7a7a7a] truncate">
+                    <p className="font-semibold text-tinta truncate">{t.nombre}</p>
+                    <p className="text-xs text-tinta-suave truncate">
                       {tituloCategoria(t.grupo)}
                       {t.estado !== "activa" && " · Oculto"}
                       {t.estado === "activa" && !t.enPortada && " · No sale en portada"}
@@ -248,7 +248,7 @@ export default function AdminOrdenarClases() {
                     onPointerUp={terminarArrastre}
                     onPointerCancel={terminarArrastre}
                     style={{ touchAction: "none" }}
-                    className={`px-3 py-2 -my-1 text-2xl leading-none text-[#b9a77d] hover:text-[#7a6331] select-none ${
+                    className={`px-3 py-2 -my-1 text-2xl leading-none text-[#b9a77d] hover:text-tinta select-none ${
                       drag?.id === t.id ? "cursor-grabbing" : "cursor-grab"
                     }`}
                   >
@@ -263,7 +263,7 @@ export default function AdminOrdenarClases() {
                 type="button"
                 onClick={guardar}
                 disabled={!hayCambios || guardando}
-                className="px-5 py-2.5 rounded-xl bg-[#3d3126] text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-5 py-2.5 rounded-xl bg-tinta text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {guardando ? "Guardando..." : "Guardar orden"}
               </button>

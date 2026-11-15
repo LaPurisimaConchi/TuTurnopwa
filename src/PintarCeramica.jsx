@@ -14,7 +14,7 @@ export default function PintarCeramica() {
           className="w-full h-[260px] object-cover object-center"
         />
 
-        <div className="absolute top-3 left-4 bg-[#fde68a] text-[#3b3025] font-bold text-sm px-4 py-1 rounded-full z-10">
+        <div className="absolute top-3 left-4 bg-[#fde68a] text-tinta font-bold text-sm px-4 py-1 rounded-full z-10">
           desde 25€
         </div>
 
@@ -22,11 +22,11 @@ export default function PintarCeramica() {
           <h2 className="text-center text-xl font-bold mb-1">
             DECORA TU PIEZA FAVORITA
           </h2>
-          <p className="text-center text-sm text-gray-500 mb-4">
+          <p className="text-center text-sm text-tinta-suave mb-4">
             Taller único para disfrutar dando color
           </p>
 
-          <div className="bg-yellow-100 border border-yellow-300 text-sm text-center font-bold p-3 rounded-xl mb-4">
+          <div className="bg-mostaza-suave border border-mostaza text-sm text-center font-bold p-3 rounded-xl mb-4">
             Ideal para quienes desean disfrutar del proceso de pintar y decorar
             piezas.
             <br />

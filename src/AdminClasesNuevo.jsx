@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { useNavigate } from "react-router-dom";
@@ -113,6 +114,9 @@ listaClases.push({
   turnos: claseData.turnos || [],
   horarios: claseData.horarios || claseData.horario || {},
   estado: estadoClase,
+  orden: Number.isFinite(Number(claseData.orden ?? claseData["orden "]))
+    ? Number(claseData.orden ?? claseData["orden "])
+    : 999,
   activa: estadoClase === "activa",
   dinamica: !!claseData.dinamica,
 });
@@ -191,7 +195,8 @@ listaClases.push({
           });
         }
 
-        listaClases.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+        // Mismo orden que la portada: por `orden` y, si empatan, por nombre
+        listaClases.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
 
         setClases(listaClases);
         setResumen(mapaResumen);
@@ -553,14 +558,14 @@ listaClases.push({
             style={{ ...styles.boton, marginTop: 12 }}
             onClick={() => navigate("/admin-taller")}
           >
-            ➕ Añadir taller nuevo
+            <Icono nombre="mas" className="mr-1" />Añadir taller nuevo
           </button>
           {clases.some((c) => !c.dinamica && c.id in TALLERES_FIJOS) && (
             <button
               style={{ ...styles.boton, marginTop: 12, marginLeft: 8 }}
               onClick={() => navigate("/admin-migrar-talleres")}
             >
-              🔁 Migrar talleres existentes al panel
+              <Icono nombre="repetir" className="mr-1" />Migrar talleres existentes al panel
             </button>
           )}
         </div>
@@ -654,7 +659,7 @@ listaClases.push({
       ...(clase.activa ? styles.estadoActiva : styles.estadoOculta),
     }}
   >
-    {clase.activa ? "● Activa" : "● Oculta"}
+    {clase.activa ? <><Icono nombre="punto" tamano="0.55em" className="mr-1.5" />Activa</> : <><Icono nombre="punto" tamano="0.55em" className="mr-1.5" />Oculta</>}
   </span>
 </p>
                   <p style={styles.linea}>
@@ -912,8 +917,6 @@ listaClases.push({
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -944,17 +947,18 @@ const styles = {
   },
   filtro: {
     padding: "8px 14px",
-    backgroundColor: "#fffaf0",
-    color: "#3d3126",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
     borderRadius: 999,
     fontSize: "0.92rem",
     cursor: "pointer",
   },
   filtroActivo: {
-    backgroundColor: "#f4c542",
-    borderColor: "#e0b230",
+    backgroundColor: "#b36a4a",
+    borderColor: "#b36a4a",
     fontWeight: 600,
+    color: "#ffffff",
   },
   header: {
     textAlign: "center",
@@ -965,16 +969,16 @@ const styles = {
 },
   titulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     marginTop: 8,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   grid: {
@@ -983,8 +987,8 @@ const styles = {
     gap: 18,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 22,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
@@ -1023,18 +1027,21 @@ const styles = {
   },
   nombre: {
     margin: 0,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.15rem",
   },
   categoria: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.92rem",
   },
   estadoEtiqueta: {
-    display: "inline-block",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 999,
-    padding: "2px 10px",
+    padding: "4px 12px",
+    lineHeight: 1,
     fontSize: "0.85rem",
     fontWeight: 700,
   },
@@ -1049,9 +1056,9 @@ const styles = {
     border: "1px solid #e8a29b",
   },
   badge: {
-    backgroundColor: "#fff8da",
-    color: "#7a6331",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
     borderRadius: 999,
     padding: "8px 12px",
     fontSize: "0.88rem",
@@ -1090,9 +1097,9 @@ const styles = {
   boton: {
     display: "inline-block",
     padding: "12px 16px",
-    backgroundColor: "#fffaf0",
-    color: "#3d3126",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
     borderRadius: 14,
     fontSize: "0.96rem",
     cursor: "pointer",
@@ -1102,7 +1109,7 @@ const styles = {
     marginTop: 14,
     padding: 14,
     backgroundColor: "#fffaf3",
-    border: "1px solid #eadfbe",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     display: "grid",
     gap: 10,

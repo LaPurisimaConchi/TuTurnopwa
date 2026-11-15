@@ -132,6 +132,7 @@ export default function ResumenPago() {
     payMethod: payMethodFromState,
     codigoTarjeta,
     tarjetaRegaloId,
+    sesiones: sesionesElegidas,
   } = state;
 
   const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
@@ -440,11 +441,11 @@ export default function ResumenPago() {
   }
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-6">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-6">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6 text-[#333] text-center">
         <BotonVolver />
 
-        <h1 className="text-[1.6rem] text-[#3b3025] font-semibold mb-4">
+        <h1 className="text-[1.6rem] text-tinta font-semibold mb-4">
           Resumen del pago
         </h1>
 
@@ -458,13 +459,28 @@ export default function ResumenPago() {
           </p>
         )}
 
-        <p className="mb-2">
-          <strong>Fecha:</strong> {fechaDMA(fecha || fechaInicio) || "-"}
-        </p>
+        {Array.isArray(sesionesElegidas) && sesionesElegidas.length > 1 ? (
+          <div className="mb-2">
+            <strong>Sesiones:</strong>
+            <ul className="mt-1 space-y-0.5">
+              {sesionesElegidas.map((sesion, i) => (
+                <li key={`${sesion.fecha}-${sesion.turno}`}>
+                  {i + 1}. {fechaDMA(sesion.fecha)} · {sesion.turno}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <>
+            <p className="mb-2">
+              <strong>Fecha:</strong> {fechaDMA(fecha || fechaInicio) || "-"}
+            </p>
 
-        <p className="mb-2">
-          <strong>Turno:</strong> {turno || "-"}
-        </p>
+            <p className="mb-2">
+              <strong>Turno:</strong> {turno || "-"}
+            </p>
+          </>
+        )}
 
        <p className="mb-2">
   <strong>Modalidad:</strong> {tipo === "grupo" ? "Reserva para grupo" : (metodo || modalidad || "-")}
@@ -490,7 +506,7 @@ export default function ResumenPago() {
           )}
         </p>
 
-        <div className="text-sm text-gray-700 text-left mb-4">
+        <div className="text-sm text-tinta text-left mb-4">
           <label className="flex items-start">
             <input
               type="checkbox"
@@ -536,7 +552,7 @@ export default function ResumenPago() {
             aceptaPoliticas &&
             ((desdeTarjeta || desdeTarjetaRegalo) || totalEuros > 0) &&
             !cargando
-              ? "bg-yellow-600 hover:bg-yellow-500 text-white"
+              ? "bg-yellow-600 hover:bg-mostaza text-white"
               : "bg-gray-400 text-white cursor-not-allowed"
           }`}
         >

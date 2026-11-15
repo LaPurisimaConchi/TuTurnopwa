@@ -3,6 +3,7 @@
 // rango de días que le pasa el calendario (un día o varios) y guarda en
 // bloqueosFechas/{fecha} y fechasHabilitadas/{fecha}, igual que las páginas
 // admin-bloqueos-fechas y admin-habilitar-fechas.
+import Icono from "./Icono";
 import { useEffect, useMemo, useState } from "react";
 import { ref, update, remove, get } from "firebase/database";
 import { dbRealtime } from "../firebase";
@@ -172,15 +173,16 @@ export default function PanelFechasEspeciales({
 
       <div style={estilos.pestanas}>
         {[
-          ["bloquear", "🚫 Bloquear"],
-          ["habilitar", "✅ Habilitar"],
-        ].map(([clave, texto]) => (
+          ["bloquear", "bloquear", "Bloquear"],
+          ["habilitar", "confirmado", "Habilitar"],
+        ].map(([clave, icono, texto]) => (
           <button
             key={clave}
             type="button"
             onClick={() => setModo(clave)}
             style={{ ...estilos.pestana, ...(modo === clave ? estilos.pestanaActiva : {}) }}
           >
+            <Icono nombre={icono} className="mr-1" />
             {texto}
           </button>
         ))}
@@ -257,7 +259,7 @@ const estilos = {
     padding: 16,
     marginBottom: 16,
   },
-  titulo: { margin: "0 0 12px", fontSize: 16, color: "#5c3c00" },
+  titulo: { margin: "0 0 12px", fontSize: 16, color: "#3f3128" },
   pestanas: { display: "flex", gap: 8, marginBottom: 12 },
   pestana: {
     flex: 1,
@@ -268,7 +270,9 @@ const estilos = {
     cursor: "pointer",
     fontWeight: 600,
   },
-  pestanaActiva: { background: "#F4C542", borderColor: "#E5B92F" },
+  pestanaActiva: { background: "#b36a4a", borderColor: "#b36a4a",
+    color: "#ffffff",
+  },
   input: {
     width: "100%",
     boxSizing: "border-box",
@@ -286,7 +290,7 @@ const estilos = {
     padding: "10px 16px",
     borderRadius: 10,
     border: "none",
-    background: "#5c3c00",
+    background: "#3f3128",
     color: "#fff",
     fontWeight: 700,
     cursor: "pointer",

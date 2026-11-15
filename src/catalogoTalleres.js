@@ -232,8 +232,8 @@ export function variantesDelTaller(clase = {}) {
 }
 
 // Métodos en los que se imparte (torno, modelado, decoración). Si el taller
-// tiene variantes, el precio sale de la variante y el método solo reparte
-// las plazas; si no, cada método trae su precio. Vacío = sin método.
+// tiene variantes, el precio sale de la variante (más el `extra` del método, si
+// lo tiene) y el método reparte las plazas; si no, cada método trae su precio. Vacío = sin método.
 export function metodosDelTaller(clase = {}) {
   const precios = clase.precios || {};
   const conVariantes = variantesDelTaller(clase).length > 0;
@@ -246,6 +246,8 @@ export function metodosDelTaller(clase = {}) {
   ).map((m) => ({
     ...m,
     precio: conVariantes ? 0 : Number(precios[m.clavePrecio]) || 0,
+    // Con variantes, el método puede sumar un extra al precio de la opción elegida
+    extra: conVariantes ? Number(clase.extrasMetodo?.[m.clavePrecio]) || 0 : 0,
   }));
 }
 

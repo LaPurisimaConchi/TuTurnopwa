@@ -48,7 +48,7 @@ const FuncionamientoTarjetaRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     margin: 0,
     padding: 20,
@@ -71,7 +71,7 @@ const styles = {
   },
   titulo: {
     textAlign: "center",
-    color: "#5c3c00",
+    color: "#3f3128",
     fontSize: "1.2rem",
     marginBottom: 20
   },

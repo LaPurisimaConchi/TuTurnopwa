@@ -21,7 +21,7 @@ function Barra({ valor, maximo }) {
   const color = valor >= maximo ? "#c0392b" : pct >= 80 ? "#e08e0b" : "#4a8f4a";
 
   return (
-    <div className="h-2 w-full rounded-full bg-[#f3ead7] overflow-hidden" aria-hidden="true">
+    <div className="h-2 w-full rounded-full bg-arena overflow-hidden" aria-hidden="true">
       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
     </div>
   );
@@ -63,23 +63,23 @@ export default function OcupacionProximosDias({ version = 0 }) {
   }, [version]);
 
   return (
-    <section className="mt-5 bg-white rounded-2xl border border-[#eadfbe] p-5 shadow-sm space-y-3">
-      <h2 className="text-lg font-semibold text-[#3d3126]">
+    <section className="mt-5 bg-white rounded-2xl border border-linea p-5 shadow-sm space-y-3">
+      <h2 className="text-lg font-semibold text-tinta">
         Ocupación de los próximos {DIAS_VISTOS} días
       </h2>
 
       {error && <p className="text-sm text-red-700">No se ha podido calcular la ocupación.</p>}
-      {!datos && !error && <p className="text-sm text-gray-600">Calculando…</p>}
+      {!datos && !error && <p className="text-sm text-tinta-suave">Calculando…</p>}
 
       {datos && !datos.fechas.length && (
-        <p className="text-sm text-gray-600">No hay reservas en este periodo.</p>
+        <p className="text-sm text-tinta-suave">No hay reservas en este periodo.</p>
       )}
 
       {datos && datos.fechas.length > 0 && (
         <div className="space-y-3">
           {datos.fechas.map((fecha) => (
-            <div key={fecha} className="border-b border-[#f3ead7] last:border-0 pb-3 last:pb-0">
-              <p className="text-sm font-bold text-[#3d3126] mb-1.5">{fechaDMA(fecha)}</p>
+            <div key={fecha} className="border-b border-arena last:border-0 pb-3 last:pb-0">
+              <p className="text-sm font-bold text-tinta mb-1.5">{fechaDMA(fecha)}</p>
               <div className="space-y-2">
                 {Object.entries(datos.porFranja[fecha])
                   .sort(([a], [b]) => a.localeCompare(b))
@@ -87,9 +87,9 @@ export default function OcupacionProximosDias({ version = 0 }) {
                     const { total, torno } = sumarSolapadas(datos.porFranja[fecha], turno);
                     return (
                     <div key={turno} className="grid grid-cols-1 sm:grid-cols-[120px_1fr_auto] items-center gap-1 sm:gap-3">
-                      <span className="text-sm text-[#3d3126]">{turno}</span>
+                      <span className="text-sm text-tinta">{turno}</span>
                       <Barra valor={total} maximo={datos.config.aforoTotal} />
-                      <span className="text-xs text-gray-600 whitespace-nowrap">
+                      <span className="text-xs text-tinta-suave whitespace-nowrap">
                         {total}/{datos.config.aforoTotal} plazas
                         {torno > 0 ? ` · torno ${torno}/${datos.config.maxTorno}` : ""}
                         {total >= datos.config.aforoTotal ? " · completo" : ""}

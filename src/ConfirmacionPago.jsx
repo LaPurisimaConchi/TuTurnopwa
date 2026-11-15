@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { cerrarCompraInvitado } from "./utils/invitado";
+import {
+  cancelarCierreSesionInvitado,
+  cerrarCompraInvitado,
+  cerrarSesionInvitadoTrasSalir,
+  conservarSesionInvitado,
+} from "./utils/invitado";
 import CodigoReserva from "./components/CodigoReserva";
 
 const ConfirmacionPago = () => {
@@ -19,7 +25,10 @@ const ConfirmacionPago = () => {
 
   // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
   useEffect(() => {
+    cancelarCierreSesionInvitado();
     cerrarCompraInvitado();
+    // Al salir de aquí se cierra la sesión de invitado: no queda perfil en la web
+    return () => cerrarSesionInvitadoTrasSalir();
   }, []);
 
   useEffect(() => {
@@ -111,7 +120,7 @@ const ConfirmacionPago = () => {
   return (
     <div style={styles.body}>
       <div style={styles.container}>
-        <div style={styles.check}>✓</div>
+        <div style={styles.check}><Icono nombre="check" tamano={32} /></div>
 
         {cargando ? (
           <>
@@ -187,12 +196,14 @@ const ConfirmacionPago = () => {
                 Copiar código
               </button>
 
-              <button
-                onClick={() => navigate("/perfil")}
-                style={styles.botonSecundario}
-              >
-                Ver mi perfil
-              </button>
+              {!esInvitado && (
+                <button
+                  onClick={() => navigate("/perfil")}
+                  style={styles.botonSecundario}
+                >
+                  Ver mi perfil
+                </button>
+              )}
             </div>
             <div style={styles.descargaBox}>
   <p style={styles.descargaTexto}>
@@ -239,12 +250,14 @@ const ConfirmacionPago = () => {
                 Seguir reservando
               </button>
 
-              <button
-                onClick={() => navigate("/perfil")}
-                style={styles.botonSecundario}
-              >
-                Ver mi reserva
-              </button>
+              {!esInvitado && (
+                <button
+                  onClick={() => navigate("/perfil")}
+                  style={styles.botonSecundario}
+                >
+                  Ver mi reserva
+                </button>
+              )}
             </div>
           </>
         )}
@@ -257,7 +270,10 @@ const ConfirmacionPago = () => {
                 : "Has reservado sin cuenta. El taller ya tiene tus datos de contacto; si creas una contraseña podrás consultar tus reservas desde cualquier dispositivo."}
             </p>
             <button
-              onClick={() => navigate("/registro")}
+              onClick={() => {
+                conservarSesionInvitado();
+                navigate("/registro");
+              }}
               style={styles.botonSecundario}
             >
               Crear mi cuenta
@@ -323,7 +339,7 @@ function obtenerUltimaReserva(reservasObj) {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     margin: 0,
     padding: 20,
@@ -347,7 +363,7 @@ const styles = {
   title: {
     fontSize: "1.6rem",
     marginBottom: 10,
-    color: "#6b3700",
+    color: "#3f3128",
   },
   text: {
     fontSize: "1rem",
@@ -360,8 +376,8 @@ const styles = {
     marginBottom: 16,
   },
   cardBox: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 18,
     marginBottom: 24,
@@ -369,17 +385,17 @@ const styles = {
   },
   label: {
     fontSize: "0.95rem",
-    color: "#5c3c00",
+    color: "#3f3128",
     marginBottom: 8,
     lineHeight: 1.5,
   },
   codigoBox: {
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#f6efe6",
     borderRadius: 12,
     padding: "12px 16px",
     fontSize: "1.15rem",
     fontWeight: "bold",
-    color: "#5c3c00",
+    color: "#3f3128",
     textAlign: "center",
     letterSpacing: "1px",
   },
@@ -403,8 +419,8 @@ descargaTexto: {
 
 botonDescarga: {
   display: "inline-block",
-  backgroundColor: "#f5f1ea",
-  color: "#5f5247",
+  backgroundColor: "#f6efe6",
+  color: "#7a6858",
   padding: "12px 20px",
   border: "1px solid #d1c7b8",
   borderRadius: "999px",
@@ -434,15 +450,15 @@ botonDescarga: {
     cursor: "pointer",
   },
   avisoInvitado: {
-    backgroundColor: "#fff8df",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
   },
   avisoInvitadoTexto: {
     fontSize: "0.92rem",
-    color: "#6b4f3f",
+    color: "#7a6858",
     lineHeight: 1.5,
     marginBottom: 12,
   },

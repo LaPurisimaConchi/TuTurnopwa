@@ -5,7 +5,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { cargarRegistrosCategorias, unirCategorias } from "./categoriasTalleres";
 
-const COLOR = "border-[#F4C542]";
+const COLOR = "border-mostaza";
 
 // Imagen y talleres de siempre de cada categoría (el nombre, el texto y el orden
 // salen de la categoría). Las categorías nuevas usan FICHA_NUEVA.
@@ -137,7 +137,7 @@ export default function Clases() {
   };
 
   return (
-    <div className="p-5 bg-[#fffef4] min-h-screen font-sans">
+    <div className="p-5 bg-crema min-h-screen font-sans">
       <BotonVolver />
 
       <div className="flex flex-col md:flex-row items-center mb-7">
@@ -148,20 +148,20 @@ export default function Clases() {
         />
 
         <div className="text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-bold text-yellow-900 font-serif">
+          <h1 className="text-3xl md:text-4xl font-bold text-tinta font-serif">
             Talleres disponibles
           </h1>
 
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-tinta-suave mt-1">
             Elige una categoría para ver los talleres y reservar tu plaza.
           </p>
         </div>
       </div>
 
       {cargandoConfig ? (
-        <p className="text-sm text-gray-600">Cargando talleres...</p>
+        <p className="text-sm text-tinta-suave">Cargando talleres...</p>
       ) : categoriasVisibles.length === 0 ? (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-tinta-suave">
           Ahora mismo no hay talleres disponibles.
         </p>
       ) : (
@@ -169,7 +169,7 @@ export default function Clases() {
           {categoriasVisibles.map((cat, indice) => (
             <div
               key={cat.id}
-              className={`rounded-2xl bg-white p-5 border border-[#f1e7c6] border-l-8 ${cat.color}
+              className={`rounded-2xl bg-white p-5 border border-linea border-l-8 ${cat.color}
 shadow-lg
 hover:shadow-xl
 hover:scale-[1.015]
@@ -182,7 +182,7 @@ flex flex-col justify-between`}
                 </div>
 
                 <div className="flex-1">
-                 <h3 className="text-xl font-semibold text-gray-800">
+                 <h3 className="text-xl font-semibold text-tinta">
   {cat.titulo}
 </h3>
 
@@ -199,9 +199,9 @@ flex flex-col justify-between`}
 
 <button
                     className="mt-4 px-6 py-2.5 rounded-full text-white font-semibold
-  bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+  bg-terracota
   shadow-md hover:shadow-lg
-  hover:from-[#F4C542] hover:to-[#E5B92F]
+  hover:bg-terracota-oscuro
   transition-all duration-200"
                     onClick={() => handleClick(cat)}
                   >

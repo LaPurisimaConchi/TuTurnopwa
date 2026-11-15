@@ -31,7 +31,7 @@ export default function DondeReservar() {
   const esAdmin = correosAdmin.includes(userEmail);
 
   return (
-    <div className="p-4 bg-[#fffef4] min-h-screen font-sans relative">
+    <div className="p-4 bg-crema min-h-screen font-sans relative">
       <BotonVolver />
 
       <div className="flex flex-col md:flex-row items-start mb-6">
@@ -42,14 +42,14 @@ export default function DondeReservar() {
         />
 
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-yellow-900 font-serif text-center md:text-left">
+          <h1 className="text-3xl font-bold text-tinta font-serif text-center md:text-left">
             Reserva tu clase
           </h1>
         </div>
 
         <button
           onClick={() => navigate("/clases-online")}
-          className="mt-3 md:mt-0 md:ml-auto bg-gradient-to-r from-pink-400 to-red-400 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-md hover:scale-105 transition text-center leading-snug w-52"
+          className="mt-3 md:mt-0 md:ml-auto bg-terracota text-white px-4 py-2 rounded-full text-sm font-semibold shadow-md hover:scale-105 transition text-center leading-snug w-52"
         >
           🌟 Novedad:
           <br /> ¡Reserva tu clase online!
@@ -59,7 +59,7 @@ export default function DondeReservar() {
       <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto">
         {/* Taller */}
         <div
-          className="cursor-pointer rounded-2xl border border-[#ece7df] bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
+          className="cursor-pointer rounded-2xl border border-linea bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
           onClick={() => navigate("/clases")}
         >
           <img
@@ -67,10 +67,10 @@ export default function DondeReservar() {
             alt="Cerámica Estudio"
             className="w-24 h-24 object-contain mx-auto mb-4"
           />
-          <h2 className="text-xl font-semibold text-gray-800 text-center">
+          <h2 className="text-xl font-semibold text-tinta text-center">
             Cerámica Estudio La Purísima Conchi
           </h2>
-          <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+          <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
             Reserva tu plaza para cualquiera de nuestras clases en el taller.
             Estamos en la Calle Israel nº 5, Córdoba - España -
           </p>
@@ -78,7 +78,7 @@ export default function DondeReservar() {
 
         {/* Reservas para grupos */}
         <div
-          className="cursor-pointer rounded-2xl border border-[#ece7df] bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
+          className="cursor-pointer rounded-2xl border border-linea bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
           onClick={() => navigate("/reserva-grupos")}
         >
           <img
@@ -86,10 +86,10 @@ export default function DondeReservar() {
             alt="Reservas para grupos"
             className="w-24 h-24 object-contain rounded-xl mx-auto mb-4"
           />
-          <h2 className="text-xl font-semibold text-gray-800 text-center">
+          <h2 className="text-xl font-semibold text-tinta text-center">
             Reservas para grupos
           </h2>
-          <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+          <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
            Si sois un grupo de <strong>5 personas o más</strong> y queréis realizar una actividad de formación en el taller,
   podéis solicitar vuestra reserva aquí. 
           </p>
@@ -98,7 +98,7 @@ export default function DondeReservar() {
         
 
    <div
-  className="cursor-pointer rounded-2xl border border-[#ece7df] bg-[#fffaf0] p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition min-h-[360px]"
+  className="cursor-pointer rounded-2xl border border-linea bg-crema p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition min-h-[360px]"
   onClick={() => navigate("/tarjeta-regalo")}
 >
   <div>
@@ -112,21 +112,21 @@ export default function DondeReservar() {
       className="w-24 h-24 object-cover rounded-xl mx-auto mb-4"
     />
 
-    <h2 className="text-xl font-semibold text-gray-800 text-center">
+    <h2 className="text-xl font-semibold text-tinta text-center">
       Tarjeta regalo
     </h2>
 
-    <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+    <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
       Regala un taller sin fecha fija.
     </p>
 
-    <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+    <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
       Ideal para sorprender a alguien con una experiencia creativa y especial.
     </p>
   </div>
 
   <button
-    className="mt-5 mx-auto px-8 py-3 rounded-full text-white font-semibold bg-gradient-to-b from-[#F6D66A] to-[#F4C542] shadow-md hover:shadow-lg hover:from-[#F4C542] hover:to-[#E5B92F] transition-all duration-200"
+    className="mt-5 mx-auto px-8 py-3 rounded-full text-white font-semibold bg-terracota shadow-md hover:shadow-lg hover:bg-terracota-oscuro transition-all duration-200"
     onClick={(e) => {
       e.stopPropagation();
       navigate("/tarjeta-regalo");
@@ -139,7 +139,7 @@ export default function DondeReservar() {
         {/* Mi perfil */}
         {/* Mi perfil */}
 <div
-  className="cursor-pointer rounded-2xl border border-[#ece7df] bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
+  className="cursor-pointer rounded-2xl border border-linea bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
   onClick={() => navigate("/perfil")}
 >
   <img
@@ -148,15 +148,15 @@ export default function DondeReservar() {
     className="w-24 h-24 object-contain rounded-xl mx-auto mb-4"
   />
 
-  <h2 className="text-xl font-semibold text-gray-800 text-center">
+  <h2 className="text-xl font-semibold text-tinta text-center">
     Mi perfil
   </h2>
 
-  <p className="text-sm text-[#7b6d62] mt-0.5 text-center font-medium">
+  <p className="text-sm text-tinta-suave mt-0.5 text-center font-medium">
   {nombre || "Tu espacio personal"}
 </p>
 
-  <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+  <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
     Consulta tus reservas, edita tus datos y gestiona tu cuenta.
   </p>
 </div>
@@ -164,7 +164,7 @@ export default function DondeReservar() {
         {/* The Club oculto temporalmente */}
         {mostrarTheClub && (
           <div
-            className="cursor-pointer rounded-2xl border border-[#ece7df] bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
+            className="cursor-pointer rounded-2xl border border-linea bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
             onClick={() => navigate("/theclub")}
           >
             <img
@@ -172,10 +172,10 @@ export default function DondeReservar() {
               alt="Logo The Club"
               className="w-24 h-24 object-contain mx-auto mb-4"
             />
-            <h2 className="text-xl font-semibold text-gray-800 text-center">
+            <h2 className="text-xl font-semibold text-tinta text-center">
               The Club
             </h2>
-            <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+            <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
               Reserva tu experiencia para pintar cerámica en The Club
               (Av. Fray Albino, 3, Córdoba).
             </p>
@@ -185,7 +185,7 @@ export default function DondeReservar() {
         {/* Tearium oculto temporalmente */}
         {mostrarTearium && (
           <div
-            className="cursor-pointer rounded-2xl border border-[#ece7df] bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
+            className="cursor-pointer rounded-2xl border border-linea bg-white p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
             onClick={() => navigate("/teariumInfo")}
           >
             <img
@@ -193,10 +193,10 @@ export default function DondeReservar() {
               alt="Logo Tearium"
               className="w-24 h-24 object-contain mx-auto mb-4"
             />
-            <h2 className="text-xl font-semibold text-gray-800 text-center">
+            <h2 className="text-xl font-semibold text-tinta text-center">
               Tearium
             </h2>
-            <p className="text-sm text-gray-600 mt-2 text-center leading-6">
+            <p className="text-sm text-tinta-suave mt-2 text-center leading-6">
               Pinta tu pieza de cerámica en Pl. Ramón y Cajal, 4 (Córdoba).
             </p>
           </div>
@@ -208,7 +208,7 @@ export default function DondeReservar() {
         <div className="mt-10 flex flex-col items-center">
           <div
             onClick={() => navigate("/admin-dashboard")}
-            className="bg-yellow-300 p-4 rounded-2xl shadow-lg hover:scale-105 transition duration-300 cursor-pointer"
+            className="bg-mostaza p-4 rounded-2xl shadow-lg hover:scale-105 transition duration-300 cursor-pointer"
           >
             <img
               src="/img/panel-admin-negro.jpg"
@@ -216,14 +216,14 @@ export default function DondeReservar() {
               className="w-24 h-auto mx-auto"
             />
           </div>
-          <p className="mt-2 text-sm text-gray-700 font-medium text-center">
+          <p className="mt-2 text-sm text-tinta font-medium text-center">
             Panel admin
           </p>
         </div>
       )}
 
       <div className="mt-8 text-center">
-        <p className="text-sm text-gray-500 mb-1">
+        <p className="text-sm text-tinta-suave mb-1">
           Descubre el ambiente del taller
         </p>
 
@@ -235,12 +235,12 @@ export default function DondeReservar() {
           href="https://www.instagram.com/lapurisimaconchi/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-pink-200 bg-white text-sm font-medium text-[#E1306C] hover:shadow-sm transition"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-terracota-suave bg-white text-sm font-medium text-[#E1306C] hover:shadow-sm transition"
         >
           📸 @lapurisimaconchi
         </a>
 
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="text-xs text-tinta-suave mt-2">
           Más de 5.000 seguidores
         </p>
       </div>
@@ -260,7 +260,7 @@ export default function DondeReservar() {
     </div>
 
     <div className="pr-1 text-left leading-tight">
-      <span className="block text-sm font-semibold text-[#6b4f3f]">
+      <span className="block text-sm font-semibold text-tinta-suave">
         ¿Tienes dudas?
       </span>
       <span className="block text-xs text-[#8a6a57]">

@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get, push, remove, update } from "firebase/database";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 import { dbRealtime } from "./firebase";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BotonVolver from "./BotonVolver";
@@ -31,6 +33,10 @@ const AdminDetalleReservaNuevo = () => {
 
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
   const [guardandoCancelacion, setGuardandoCancelacion] = useState(false);
+  const [avisarPorCorreo, setAvisarPorCorreo] = useState(true);
+  const [permitirReprogramar, setPermitirReprogramar] = useState(true);
+  const [quitandoReprogramacion, setQuitandoReprogramacion] = useState(false);
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -684,6 +690,94 @@ useEffect(() => {
     }
   };
 
+  // El servidor deja la reserva recuperable con su código y, si se pide, avisa por correo
+  const prepararAvisoCancelacion = async (enviarCorreo, permitir = true) => {
+    const ruta = obtenerRutaReservaActual();
+    const token = await getAuth().currentUser?.getIdToken();
+    if (!ruta || !token) throw new Error("No se pudo identificar la reserva o tu sesión.");
+
+    const respuesta = await fetch("/api/codigo-reserva", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar: permitir }),
+    });
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok || !datos.ok) throw new Error(datos.error || "Error del servidor");
+    return datos;
+  };
+
+  const textoResultadoCorreo = (datos) => {
+    switch (datos.correo) {
+      case "enviado":
+        return `Correo enviado a ${datos.email}.`;
+      case "sin_email":
+        return "El cliente no tiene email: no se ha enviado el correo.";
+      case "sin_clave":
+        return "El envío de correos no está configurado en el servidor (falta RESEND_API_KEY).";
+      case "rechazado":
+      case "error":
+        return "No se pudo enviar el correo. Puedes reintentarlo desde esta misma pantalla.";
+      default:
+        return "";
+    }
+  };
+
+  const aplicarAvisoCancelacion = (datos) =>
+    setReserva((prev) => ({
+      ...prev,
+      ...(datos.codigo ? { codigoReserva: datos.codigo.replace("-", "") } : {}),
+      cancelacionEstudio: datos.reprogramable !== false,
+      recuperada: false,
+      recuperableHasta: datos.recuperableHasta || "",
+      ...(datos.correo === "enviado" ? { correoCancelacionEnviadoEn: new Date().toISOString() } : {}),
+    }));
+
+  // Reserva cancelada sin opción de volver a reservar (o cuyo aviso falló): se abre ahora
+  const permitirVolverAReservar = async () => {
+    setQuitandoReprogramacion(true);
+    try {
+      const datos = await prepararAvisoCancelacion(false, true);
+      aplicarAvisoCancelacion(datos);
+      alert(`Listo: el cliente puede volver a reservar con el código ${datos.codigo}.`);
+    } catch (error) {
+      console.error("Error al permitir volver a reservar:", error);
+      alert("No se pudo cambiar: " + error.message);
+    } finally {
+      setQuitandoReprogramacion(false);
+    }
+  };
+
+  const quitarReprogramacion = async () => {
+    if (!window.confirm("¿Quitar la opción de volver a reservar? El código dejará de recuperar esta reserva.")) {
+      return;
+    }
+    setQuitandoReprogramacion(true);
+    try {
+      const datos = await prepararAvisoCancelacion(false, false);
+      aplicarAvisoCancelacion(datos);
+      alert("Listo: esta reserva ya no se puede volver a reservar.");
+    } catch (error) {
+      console.error("Error al quitar la reprogramación:", error);
+      alert("No se pudo cambiar: " + error.message);
+    } finally {
+      setQuitandoReprogramacion(false);
+    }
+  };
+
+  const enviarCorreoDeCancelacion = async () => {
+    setEnviandoCorreo(true);
+    try {
+      const datos = await prepararAvisoCancelacion(true, reserva.cancelacionEstudio === true);
+      aplicarAvisoCancelacion(datos);
+      alert(textoResultadoCorreo(datos) || "Hecho.");
+    } catch (error) {
+      console.error("Error al enviar el correo de cancelación:", error);
+      alert("No se pudo enviar el correo: " + error.message);
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
   const cancelarReserva = async () => {
     if (!reserva || reservaYaCancelada) return;
 
@@ -767,7 +861,28 @@ useEffect(() => {
 
       setMotivoCancelacion("");
 
-      alert("Reserva cancelada correctamente.");
+      // Código para volver a reservar y, si se ha marcado, correo al cliente
+      let mensaje = "Reserva cancelada correctamente.";
+      if (permitirReprogramar || avisarPorCorreo) {
+        try {
+          const datos = await prepararAvisoCancelacion(avisarPorCorreo, permitirReprogramar);
+          aplicarAvisoCancelacion(datos);
+          if (datos.codigo) {
+            mensaje += ` El cliente puede volver a reservar con el código ${datos.codigo}.`;
+          } else {
+            mensaje += " El cliente no podrá volver a reservar.";
+          }
+          const correo = textoResultadoCorreo(datos);
+          if (correo) mensaje += ` ${correo}`;
+        } catch (errorAviso) {
+          console.error("Error al preparar el aviso de cancelación:", errorAviso);
+          mensaje += ` Pero no se pudo preparar el aviso (${errorAviso.message}).`;
+        }
+      } else {
+        mensaje += " El cliente no podrá volver a reservar.";
+      }
+
+      alert(mensaje);
     } catch (error) {
       console.error("Error al cancelar la reserva:", error);
       alert("No se pudo cancelar la reserva.");
@@ -860,7 +975,7 @@ useEffect(() => {
             {chip(reservaYaCancelada ? "Cancelada" : reserva.estado, tonoEstado)}
             {chip(esPagado ? "Pagado" : `Pago: ${reserva.estadoPago}`, esPagado ? "verde" : "ambar")}
             {reserva.reprogramada && chip("Reprogramada", "azul")}
-            {reserva.sobreaforo && chip("⚠ Sobreaforo", "rojo")}
+            {reserva.sobreaforo && chip("Sobreaforo", "rojo")}
           </div>
         </div>
 
@@ -900,6 +1015,7 @@ useEffect(() => {
             <strong>Reserva cancelada</strong> por {reserva.canceladaPor || "—"} el{" "}
             {reserva.canceladaEn || "—"}.
             {reserva.motivoCancelacion ? ` Motivo: ${reserva.motivoCancelacion}.` : ""}
+            {reserva.recuperada && " El cliente ya ha elegido una nueva fecha."}
           </div>
         )}
 
@@ -1056,7 +1172,7 @@ useEffect(() => {
                     <span style={styles.cambioAntes}>
                       {fechaDMA(reserva.fecha)} · {reserva.turno}
                     </span>
-                    <span style={styles.cambioFlecha}>→</span>
+                    <span style={styles.cambioFlecha}><Icono nombre="derecha" /></span>
                     <span style={styles.cambioDespues}>
                       {fechaDMA(nuevaFecha)} · {normalizarTurnoParaRuta(nuevoTurno)}
                     </span>
@@ -1128,7 +1244,68 @@ useEffect(() => {
           <h2 style={{ ...styles.bloqueTitulo, color: "#8a3b3b" }}>Cancelar reserva</h2>
 
           {reservaYaCancelada ? (
-            <p style={styles.textoError}>Esta reserva ya está cancelada.</p>
+            <>
+              <p style={styles.textoError}>
+                Esta reserva ya está cancelada
+                {reserva.cancelacionEstudio ? "." : " y no se puede volver a reservar."}
+              </p>
+              {reserva.cancelacionEstudio && (
+                <>
+                  <p style={styles.bloqueAyuda}>
+                    Código para volver a reservar: <strong>{formatearCodigoReserva(reserva.codigoReserva)}</strong>
+                    {reserva.recuperableHasta ? ` · hasta el ${fechaDMA(reserva.recuperableHasta)}` : ""}
+                    {reserva.recuperada ? " · ya usado." : "."}
+                    {reserva.correoCancelacionEnviadoEn
+                      ? " Correo de cancelación enviado."
+                      : " Todavía no se ha enviado el correo de cancelación."}
+                  </p>
+                  {!reserva.recuperada && (
+                    <button
+                      onClick={enviarCorreoDeCancelacion}
+                      style={styles.botonSecundario}
+                      disabled={enviandoCorreo}
+                    >
+                      {enviandoCorreo
+                        ? "Enviando..."
+                        : reserva.correoCancelacionEnviadoEn
+                        ? "Reenviar correo al cliente"
+                        : "Enviar correo al cliente"}
+                    </button>
+                  )}
+                  {!reserva.recuperada && (
+                    <button
+                      onClick={quitarReprogramacion}
+                      style={{ ...styles.botonSecundario, marginLeft: 8 }}
+                      disabled={quitandoReprogramacion}
+                    >
+                      {quitandoReprogramacion ? "Guardando..." : "Quitar la opción de volver a reservar"}
+                    </button>
+                  )}
+                </>
+              )}
+              {!reserva.cancelacionEstudio && (
+                <button
+                  onClick={permitirVolverAReservar}
+                  style={{ ...styles.botonSecundario, marginRight: 8 }}
+                  disabled={quitandoReprogramacion}
+                >
+                  {quitandoReprogramacion ? "Guardando..." : "Permitir volver a reservar"}
+                </button>
+              )}
+              {!reserva.cancelacionEstudio && (
+                <button
+                  onClick={enviarCorreoDeCancelacion}
+                  style={styles.botonSecundario}
+                  disabled={enviandoCorreo}
+                >
+                  {enviandoCorreo
+                    ? "Enviando..."
+                    : reserva.correoCancelacionEnviadoEn
+                    ? "Reenviar correo de cancelación"
+                    : "Enviar correo de cancelación"}
+                </button>
+              )}
+            </>
           ) : (
             <>
               <p style={styles.bloqueAyuda}>
@@ -1146,6 +1323,30 @@ useEffect(() => {
                 style={styles.textarea}
                 rows={2}
               />
+              <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "8px 0 4px", fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={permitirReprogramar}
+                  onChange={(e) => setPermitirReprogramar(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Permitir que el cliente vuelva a reservar con su código, sin coste, durante 6 meses.
+                  Si lo desmarcas, la reserva queda cancelada del todo.
+                </span>
+              </label>
+              <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "8px 0 12px", fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={avisarPorCorreo}
+                  onChange={(e) => setAvisarPorCorreo(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Avisar al cliente por correo, con el motivo
+                  {permitirReprogramar ? " y su código para volver a reservar." : "."}
+                </span>
+              </label>
               <button
                 onClick={cancelarReserva}
                 style={styles.botonCancelar}
@@ -1159,6 +1360,11 @@ useEffect(() => {
       </div>
     </div>
   );
+};
+
+const formatearCodigoReserva = (codigo = "") => {
+  const limpio = String(codigo || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return limpio.length === 8 ? `${limpio.slice(0, 4)}-${limpio.slice(4)}` : limpio || "—";
 };
 
 const styles = {
@@ -1186,7 +1392,7 @@ const styles = {
     textTransform: "uppercase",
     color: "#9a8a6a",
   },
-  titulo: { margin: "4px 0 10px", fontSize: "1.7rem", color: "#4b3a2a", lineHeight: 1.2 },
+  titulo: { margin: "4px 0 10px", fontSize: "1.7rem", color: "#3f3128", lineHeight: 1.2 },
   tituloMobile: { fontSize: "1.35rem" },
   chips: { display: "flex", gap: 8, flexWrap: "wrap" },
   chip: {
@@ -1208,14 +1414,14 @@ const styles = {
     gridTemplateColumns: "2fr 1fr 1.2fr 0.8fr",
     gap: 12,
     padding: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
   },
   resumenMobile: { gridTemplateColumns: "1fr 1fr", padding: 12 },
   resumenBloque: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 },
   resumenEtiqueta: { fontSize: "0.75rem", fontWeight: 700, color: "#9a8a6a", textTransform: "uppercase" },
-  resumenValor: { fontSize: "1.02rem", fontWeight: 700, color: "#4b3a2a" },
+  resumenValor: { fontSize: "1.02rem", fontWeight: 700, color: "#3f3128" },
 
   // Avisos
   aviso: { marginTop: 12, padding: "10px 14px", borderRadius: 12, fontSize: "0.92rem", lineHeight: 1.4 },
@@ -1253,24 +1459,24 @@ const styles = {
     textDecoration: "none",
   },
   uidLink: { color: "#7c5c2e", cursor: "pointer", textDecoration: "underline", fontSize: "0.9rem" },
-  linkClase: { color: "#4b3a2a", cursor: "pointer", textDecoration: "underline", textDecorationColor: "#d8c89f" },
+  linkClase: { color: "#3f3128", cursor: "pointer", textDecoration: "underline", textDecorationColor: "#d8c89f" },
 
   // Bloques de acción
   bloque: {
     marginTop: 22,
     padding: 18,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
   },
-  bloqueTitulo: { margin: "0 0 4px", color: "#4b3a2a", fontSize: "1.15rem" },
+  bloqueTitulo: { margin: "0 0 4px", color: "#3f3128", fontSize: "1.15rem" },
   bloqueAyuda: { margin: "0 0 14px", color: "#7a6a4f", fontSize: "0.9rem", lineHeight: 1.4 },
 
   reprogramarCols: { display: "grid", gridTemplateColumns: "minmax(0, 360px) minmax(0, 1fr)", gap: 24, alignItems: "start" },
   reprogramarColsMobile: { gridTemplateColumns: "1fr", gap: 16 },
   calendarioCaja: { padding: 12, backgroundColor: "#fff", border: "1px solid #eee", borderRadius: 14 },
   reprogramarLado: { display: "flex", flexDirection: "column", gap: 10, minWidth: 0 },
-  ladoTitulo: { margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#4b3a2a" },
+  ladoTitulo: { margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#3f3128" },
   ladoEtiqueta: { margin: "4px 0 0", fontSize: "0.78rem", fontWeight: 700, color: "#9a8a6a", textTransform: "uppercase" },
   turnos: { display: "flex", flexWrap: "wrap", gap: 8 },
   turnoBoton: {
@@ -1278,12 +1484,14 @@ const styles = {
     borderRadius: 12,
     border: "1px solid #d8c89f",
     backgroundColor: "#fff",
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontWeight: 700,
     fontSize: "0.92rem",
     cursor: "pointer",
   },
-  turnoBotonActivo: { backgroundColor: "#F4C542", borderColor: "#E5B92F", boxShadow: "0 0 0 2px #E5B92F55" },
+  turnoBotonActivo: { backgroundColor: "#b36a4a", borderColor: "#b36a4a", boxShadow: "0 0 0 2px #b36a4a55",
+    color: "#ffffff",
+  },
   cambio: {
     display: "flex",
     flexWrap: "wrap",
@@ -1297,27 +1505,27 @@ const styles = {
   },
   cambioAntes: { color: "#8a8a8a", textDecoration: "line-through" },
   cambioFlecha: { color: "#9a8a6a" },
-  cambioDespues: { color: "#4b3a2a", fontWeight: 700 },
+  cambioDespues: { color: "#3f3128", fontWeight: 700 },
 
   botonPrincipal: {
     marginTop: 4,
     padding: "12px 16px",
-    border: "1px solid #E5B92F",
-    backgroundColor: "#F4C542",
+    border: "1px solid #b36a4a",
+    backgroundColor: "#b36a4a",
     borderRadius: 12,
     fontWeight: 700,
-    color: "#4b3a2a",
+    color: "#ffffff",
     fontSize: "0.95rem",
   },
   botonSecundario: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
 
   // Notas
@@ -1339,7 +1547,7 @@ const styles = {
     boxSizing: "border-box",
     fontFamily: "inherit",
   },
-  label: { fontSize: "0.9rem", fontWeight: 600, color: "#5b4a2d" },
+  label: { fontSize: "0.9rem", fontWeight: 600, color: "#3f3128" },
   botonEliminar: {
     padding: "8px 12px",
     border: "1px solid #e7c9c9",

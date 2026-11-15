@@ -116,19 +116,19 @@ await set(userListaReservasRef, reserva);
   };
 
   return (
-    <div className="p-6 bg-[#fffef4] min-h-screen font-sans text-gray-800">
+    <div className="p-6 bg-crema min-h-screen font-sans text-tinta">
       <BotonVolver />
 
       <h1 className="text-2xl font-bold text-center mb-2">
         Pinta tu pieza de cerámica - Tearium
       </h1>
-      <p className="text-center text-lg mb-6 text-gray-700">
+      <p className="text-center text-lg mb-6 text-tinta">
         Horarios: lunes, martes y jueves (11:00–13:00 y 18:30–20:30) — miércoles y sábado (11:00–13:00)
       </p>
 
       <div className="max-w-md mx-auto bg-white shadow-md rounded-xl p-4 space-y-4">
         <div>
-          <span className="text-gray-700 font-medium block mb-1">Elige la fecha:</span>
+          <span className="text-tinta font-medium block mb-1">Elige la fecha:</span>
           <DatePicker
             selected={fecha}
             onChange={(date) => {
@@ -147,7 +147,7 @@ await set(userListaReservasRef, reserva);
         </div>
 
         <div>
-          <span className="text-gray-700 font-medium block mb-1">Elige el turno:</span>
+          <span className="text-tinta font-medium block mb-1">Elige el turno:</span>
           <select
             className="block w-full rounded border border-gray-300 p-2"
             value={turno}
@@ -161,7 +161,7 @@ await set(userListaReservasRef, reserva);
         </div>
 
         <div>
-          <span className="text-gray-700 font-medium block mb-1">Número de plazas:</span>
+          <span className="text-tinta font-medium block mb-1">Número de plazas:</span>
           <input
             type="number"
             min="1"
@@ -175,7 +175,7 @@ await set(userListaReservasRef, reserva);
         <div className="text-center pt-4">
           <button
             onClick={handleReserva}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-full"
+            className="bg-mostaza hover:bg-mostaza-borde text-white font-bold py-2 px-6 rounded-full"
           >
             Confirmar y pagar {precio * plazas} €
           </button>

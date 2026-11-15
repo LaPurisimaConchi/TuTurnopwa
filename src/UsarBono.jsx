@@ -321,32 +321,32 @@ const turnosDisponibles = useMemo(() => {
 
   if (!user) {
     return (
-      <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
         <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6 text-center">
-          <p className="text-gray-600">Debes iniciar sesión para usar tu bono.</p>
+          <p className="text-tinta-suave">Debes iniciar sesión para usar tu bono.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Usar bono
         </h1>
 
         {cargando ? (
-          <p className="text-center text-gray-500 py-8">Cargando bono...</p>
+          <p className="text-center text-tinta-suave py-8">Cargando bono...</p>
         ) : !bono ? (
           <p className="text-center text-red-600 py-8">
             No se ha encontrado este bono.
           </p>
         ) : (
           <form onSubmit={handleReservar} className="space-y-4">
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Bono:</strong> {bono.clase || "Bono"}
               </p>
@@ -439,9 +439,9 @@ const turnosDisponibles = useMemo(() => {
                     diaNoDisponible
                   }
                   className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-                  bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+                  bg-terracota
                   shadow-md hover:shadow-lg
-                  hover:from-[#F4C542] hover:to-[#E5B92F]
+                  hover:bg-terracota-oscuro
                   transition-all duration-200"
                 >
                   {guardando ? "Reservando..." : "Confirmar sesión con bono"}

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
@@ -110,7 +111,7 @@ useEffect(() => {
 >
       <BotonVolver />
 
-      <h2 style={styles.titulo}>📊 Panel de Control</h2>
+      <h2 style={styles.titulo}><Icono nombre="estadisticas" className="mr-2" />Panel de Control</h2>
 
       {/* TARJETAS */}
      <div
@@ -142,7 +143,7 @@ useEffect(() => {
     ...(isMobile ? styles.bloqueMobile : {}),
   }}
 >
-        <h3>📅 Próximas reservas</h3>
+        <h3><Icono nombre="calendario" className="mr-1.5" />Próximas reservas</h3>
 
         {obtenerProximasReservas().length === 0 ? (
           <p>No hay reservas.</p>

@@ -5,11 +5,14 @@
 //
 // POST Authorization: Bearer <idToken de Firebase>
 //      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }  |  { tipo: "correo", orderId }
+//      { tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar? }
 //      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
 // "correo" pide el correo de confirmación de una reserva o un bono ya confirmados con
 // tarjeta regalo (se confirman en el navegador, sin pasar por el aviso del TPV). Vive
 // aquí y no en una función propia porque Vercel limita a 12 funciones por proyecto.
+// "cancelacion" (solo admins) deja recuperable una reserva que cancela el estudio y envía
+// el correo de aviso (api/_cancelacionReserva.js).
 // "reservar" crea la reserva pendiente comprobando el aforo real (api/_reservarServidor.js).
 //
 // Solo responde al dueño de la reserva (uid del token = uid de la reserva).
@@ -24,6 +27,8 @@ import {
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { reservarConAforo } from "./_reservarServidor.js";
+import { registrarCancelacion } from "./_cancelacionReserva.js";
+import { ADMIN_EMAILS } from "../src/utils/administradores.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -41,8 +46,22 @@ export default async function handler(req, res) {
     const token = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return res.status(401).json({ ok: false, error: "Autenticación requerida" });
 
-    const { uid } = await adminAuth.verifyIdToken(token);
+    const { uid, email } = await adminAuth.verifyIdToken(token);
     const cuerpo = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+
+    // Solo el panel: prepara una reserva cancelada por el estudio para que el cliente
+    // pueda volver a reservar con su código, y le avisa por correo si se pide
+    if (cuerpo.tipo === "cancelacion") {
+      if (!ADMIN_EMAILS.includes(String(email || "").toLowerCase())) {
+        return res.status(403).json({ ok: false, error: "Solo los administradores" });
+      }
+      const { status, ...resto } = await registrarCancelacion(adminDb, {
+        ruta: cuerpo.ruta,
+        enviarCorreo: cuerpo.enviarCorreo === true,
+        permitirReprogramar: cuerpo.permitirReprogramar !== false,
+      });
+      return res.status(status).json(resto);
+    }
 
     if (cuerpo.tipo === "reservar") {
       const resultado = await reservarConAforo(adminDb, uid, cuerpo.claseId, cuerpo.items, {

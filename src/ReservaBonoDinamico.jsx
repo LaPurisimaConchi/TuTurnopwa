@@ -4,6 +4,7 @@
 // pantallas de bono de siempre: el bono se guarda en usuarios/{uid}/bonos al
 // confirmarse el pago (webhook), o al momento si se paga con tarjeta regalo.
 import React, { useState, useEffect } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update, push } from "firebase/database";
@@ -405,20 +406,25 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
-        Reserva – {nombreClase}
+      <h1 className="text-center font-serif text-tinta mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
+          Reserva
+        </span>
+        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+          {nombreClase}
+        </span>
       </h1>
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">
-          Estás usando una tarjeta regalo 🎁
+          Estás usando una tarjeta regalo <Icono nombre="regalo" />
         </p>
       )}
 
       <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
         {/* Izquierda: qué es el bono y desde cuándo */}
         <div className="space-y-4">
-          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+          <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             <p>
               <strong>Bono mensual de {numeroClases} clases.</strong>
             </p>
@@ -435,7 +441,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           </div>
 
           {permiteCambioTorno && extraCambioTorno > 0 && (
-            <label className="flex items-start gap-2 text-sm text-[#5c3c00] bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3">
+            <label className="flex items-start gap-2 text-sm text-tinta bg-crema border border-linea rounded-xl p-3">
               <input
                 type="checkbox"
                 className="mt-1"
@@ -466,7 +472,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             clase={clase}
             producto="Esta clase"
           >
-            <div className="mt-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="mt-2 bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               Tu primera clase queda reservada en la fecha y el turno que elijas.
               Las demás las reservas desde tu perfil, en “Mis bonos”.
             </div>
@@ -490,9 +496,12 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </p>
           )}
 
-          {!!turno && plazasListas && plazasQuedan > 0 && (
-            <p className="text-sm text-green-700">
-              Quedan {plazasQuedan} plazas disponibles en este turno.
+          {!!turno && plazasListas && plazasQuedan > 0 && plazasQuedan <= 10 && (
+            <p className="text-sm text-tinta font-medium">
+              {plazasQuedan <= 5
+                ? `Quedan ${plazasQuedan} ${plazasQuedan === 1 ? "plaza disponible" : "plazas disponibles"}`
+                : "Quedan pocas plazas"}{" "}
+              en este turno.
             </p>
           )}
 
@@ -502,7 +511,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </p>
           )}
 
-          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+          <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             {modalidad && (
               <p>
                 <strong>Modalidad:</strong> {modalidad}
@@ -519,7 +528,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           </div>
 
           {fechaInicio && (
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Precio total:</strong> {desdeTarjeta ? "0€" : `${precioTotal}€`}
               </p>

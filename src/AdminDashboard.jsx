@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get } from "firebase/database";
 import { Link, useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
@@ -15,39 +16,40 @@ const SECCIONES_ACCESOS = [
   {
     titulo: "Reservas",
     accesos: [
-      { to: "/admin-calendario-reservas", icono: "📅", texto: "Ver calendario" },
-      { to: "/admin-reservas-nuevo", icono: "📋", texto: "Ver reservas" },
-      { to: "/admin-reservas-grupos", icono: "👥", texto: "Ver reservas de grupo" },
+      { to: "/admin-calendario-reservas", icono: "calendario", texto: "Ver calendario" },
+      { to: "/admin-reservas-nuevo", icono: "reservas", texto: "Ver reservas" },
+      { to: "/admin-reservas-grupos", icono: "usuarios", texto: "Ver reservas de grupo" },
     ],
   },
   {
     titulo: "Talleres",
     accesos: [
-      { to: "/admin-clases", icono: "🏺", texto: "Ver clases" },
-      { to: "/admin-ordenar-clases", icono: "↕️", texto: "Ordenar clases" },
-      { to: "/admin-taller", icono: "➕", texto: "Añadir taller nuevo" },
-      { to: "/admin-categorias", icono: "🏷️", texto: "Categorías de talleres" },
+      { to: "/admin-clases", icono: "taller", texto: "Ver clases" },
+      { to: "/admin-ordenar-clases", icono: "ordenar", texto: "Ordenar clases" },
+      { to: "/admin-taller", icono: "mas", texto: "Añadir taller nuevo" },
+      { to: "/admin-categorias", icono: "etiqueta", texto: "Categorías de talleres" },
+      { to: "/admin-paginas-especiales", icono: "estrella", texto: "Recomendados de regalo y grupos" },
     ],
   },
   {
     titulo: "Clientes",
     accesos: [
-      { to: "/admin-usuarios-nuevo", icono: "👤", texto: "Ver usuarios" },
-      { to: "/admin-bonos-nuevo", icono: "🎫", texto: "Ver bonos" },
-      { to: "/admin-tarjetas-regalo", icono: "🎁", texto: "Ver tarjetas regalo" },
+      { to: "/admin-usuarios-nuevo", icono: "usuario", texto: "Ver usuarios" },
+      { to: "/admin-bonos-nuevo", icono: "bono", texto: "Ver bonos" },
+      { to: "/admin-tarjetas-regalo", icono: "regalo", texto: "Ver tarjetas regalo" },
     ],
   },
   {
     titulo: "Espacio",
     accesos: [
-      { to: "/admin-espacio", icono: "🏠", texto: "Aforo, grupos y horarios por defecto" },
+      { to: "/admin-espacio", icono: "casa", texto: "Aforo, grupos y horarios por defecto" },
     ],
   },
   {
     titulo: "Calendario y disponibilidad",
     accesos: [
-      { to: "/admin-bloqueos-fechas", icono: "🚫", texto: "Bloquear fechas" },
-      { to: "/admin-habilitar-fechas", icono: "✅", texto: "Habilitar fechas y Turnos" },
+      { to: "/admin-bloqueos-fechas", icono: "bloquear", texto: "Bloquear fechas" },
+      { to: "/admin-habilitar-fechas", icono: "confirmado", texto: "Habilitar fechas y Turnos" },
     ],
   },
 ];
@@ -232,7 +234,7 @@ const AdminDashboard = () => {
                 {seccion.accesos.map((acceso) => (
                   <Link key={acceso.to} to={acceso.to} className="ad-boton">
                     <span aria-hidden="true" className="ad-icono">
-                      {acceso.icono}
+                      <Icono nombre={acceso.icono} tamano={22} />
                     </span>
                     {acceso.texto}
                   </Link>

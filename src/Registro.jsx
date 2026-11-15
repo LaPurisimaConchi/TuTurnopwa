@@ -123,7 +123,7 @@ export default function Registro() {
 };
 
   return (
-    <div className="bg-[#fdfaf5] min-h-screen flex flex-col items-center justify-center px-4 text-[#333]">
+    <div className="flex flex-col items-center justify-center px-4 text-[#333]">
       <BotonVolver volverA="/" />
 
       <img
@@ -135,7 +135,7 @@ export default function Registro() {
       <h1 className="text-2xl font-serif text-[#5c2e00] mb-4">Crear cuenta</h1>
 
       {esInvitado && (
-        <p className="text-sm text-[#6b4f3f] bg-[#fff8df] border border-[#f1e7c6] rounded-xl px-4 py-3 mb-4 max-w-md text-center">
+        <p className="text-sm text-tinta-suave bg-mostaza-suave border border-linea rounded-xl px-4 py-3 mb-4 max-w-md text-center">
           Crea una contraseña y guardaremos en tu cuenta las reservas y compras
           que has hecho como invitado.
         </p>
@@ -226,7 +226,7 @@ export default function Registro() {
 
         <button
           type="submit"
-          className="bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-bold text-lg py-3 rounded-xl"
+          className="bg-terracota hover:bg-terracota-oscuro text-white font-bold text-lg py-3 rounded-xl"
         >
           Registrarse
         </button>

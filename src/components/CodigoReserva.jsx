@@ -53,14 +53,14 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "", 
   };
 
   return (
-    <div className={`bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-sm text-gray-800 ${className}`}>
-      <p className="font-semibold text-base text-[#7a4630] mb-1">Tu código de reserva</p>
+    <div className={`bg-mostaza-suave border border-mostaza rounded-xl p-4 text-sm text-tinta ${className}`}>
+      <p className="font-semibold text-base text-tinta mb-1">Tu código de reserva</p>
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="font-mono text-2xl tracking-widest font-bold text-gray-900 select-all">{codigo}</span>
+        <span className="font-mono text-2xl tracking-widest font-bold text-tinta select-all">{codigo}</span>
         <button
           type="button"
           onClick={copiar}
-          className="px-3 py-1 rounded-lg border border-[#b36a4a] text-[#b36a4a] hover:bg-[#b36a4a] hover:text-white"
+          className="px-3 py-1 rounded-lg border border-terracota text-terracota hover:bg-terracota hover:text-white"
         >
           {copiado ? "¡Copiado!" : "Copiar"}
         </button>
@@ -70,7 +70,7 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "", 
       ) : (
       <p className="mt-2">
         Guárdalo: con este código y tu email podrás{" "}
-        <Link to="/gestionar-reserva" className="underline text-[#b36a4a]">
+        <Link to="/gestionar-reserva" className="underline text-terracota">
           cambiar la fecha de tu reserva
         </Link>{" "}
         sin iniciar sesión.

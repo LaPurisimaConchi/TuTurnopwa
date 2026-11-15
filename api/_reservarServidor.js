@@ -16,6 +16,7 @@ import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
+import { diasEntreSesionesDe, motivoSesionesNoValidas, sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -137,6 +138,35 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
     }));
   } else if (edicionId) {
     return fallo(400, "Este taller no tiene ediciones");
+  }
+
+  // Taller de varias sesiones reservadas de una vez: una reserva por sesión, con el mismo
+  // pedido, en orden y con los días mínimos entre ellas (con una sola, se reserva la
+  // primera y el resto se acuerda más adelante)
+  const numSesiones = clase ? sesionesDeTaller(clase) : 1;
+  if (clase && numSesiones > 1 && items.length > 1) {
+    if (items.length !== numSesiones) return fallo(400, "Faltan sesiones por elegir");
+    if (!items.every((i) => FECHA.test(String(i?.fecha || "")))) return fallo(400, "Fecha no válida");
+
+    const motivoSesiones = motivoSesionesNoValidas(
+      items.map((i) => ({ fecha: String(i.fecha) })),
+      diasEntreSesionesDe(clase, numSesiones)
+    );
+    if (motivoSesiones) return fallo(400, motivoSesiones);
+
+    const pedido = String(items[0]?.reserva?.orderId || "");
+    if (!items.every((i) => String(i?.reserva?.orderId || "") === pedido)) return fallo(400, "Pedido no válido");
+
+    const fechasSesiones = items.map((i) => ({ fecha: String(i.fecha), turno: String(i.turno || "") }));
+    items = items.map((item, indice) => ({
+      ...item,
+      reserva: {
+        ...(item.reserva || {}),
+        sesionCurso: indice + 1,
+        sesionesCurso: numSesiones,
+        fechasSesiones,
+      },
+    }));
   }
 
   // Un bono solo se reserva con su primera sesión (desdeBono); el resto, talleres

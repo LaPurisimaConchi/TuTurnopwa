@@ -8,17 +8,18 @@ export default function SelectorTurnoReserva({
   turnos,
   deshabilitado = false,
   placeholder = "-- Elige turno --",
+  id = "turno",
 }) {
   return (
     <div>
-      <label htmlFor="turno" className="block font-bold text-sm mb-1">
+      <label htmlFor={id} className="block font-bold text-sm mb-1">
         {etiqueta}
       </label>
       <select
-        id="turno"
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
         required
         disabled={deshabilitado}
       >

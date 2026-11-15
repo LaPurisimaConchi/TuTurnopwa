@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { auth } from "./firebase";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
@@ -37,8 +38,8 @@ export default function AvisosUsuario() {
       <ul className="text-sm text-red-800 list-disc pl-4">
         {avisos.map((aviso, index) => (
           <li key={index}>
-            {aviso.mensaje || "⚠️ Sin mensaje registrado"}{" "}
-            <span className="text-gray-500 text-xs">
+            {aviso.mensaje || "Sin mensaje registrado"}{" "}
+            <span className="text-tinta-suave text-xs">
               ({aviso.fecha ? new Date(aviso.fecha).toLocaleDateString("es-ES") : "Sin fecha"})
             </span>
           </li>

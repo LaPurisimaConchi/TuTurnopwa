@@ -166,7 +166,7 @@ export default function TalleresCrearPiezas() {
 
   const CardTaller = ({ taller }) => (
     <div
-      className="rounded-2xl bg-white p-5 border border-[#f1e7c6] border-l-8 border-[#F4C542]
+      className="rounded-2xl bg-white p-5 border border-linea border-l-8 border-mostaza
       shadow-lg
       hover:shadow-xl
       hover:scale-[1.015]
@@ -179,22 +179,22 @@ export default function TalleresCrearPiezas() {
         </div>
 
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-800">
+          <h3 className="text-lg font-semibold text-tinta">
             {taller.titulo}
           </h3>
 
-          <p className="text-[13px] text-gray-600 mt-2">
+          <p className="text-[13px] text-tinta-suave mt-2">
             Precio: <span className="font-semibold">{taller.precio}</span>
           </p>
 
           {taller.especial && (
-            <p className="text-[12px] text-gray-500 mt-1">
+            <p className="text-[12px] text-tinta-suave mt-1">
               (Cuenco/taza 55€)
             </p>
           )}
 
           {taller.descripcion && (
-            <p className="text-[12px] text-gray-500 mt-1">
+            <p className="text-[12px] text-tinta-suave mt-1">
               {taller.descripcion}
             </p>
           )}
@@ -202,9 +202,9 @@ export default function TalleresCrearPiezas() {
           {desdeGrupos ? (
             <button
               className="mt-4 px-6 py-2.5 rounded-full text-white font-semibold
-              bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+              bg-terracota
               shadow-md hover:shadow-lg
-              hover:from-[#F4C542] hover:to-[#E5B92F]
+              hover:bg-terracota-oscuro
               transition-all duration-200"
               onClick={() => handleAccionTaller(taller)}
             >
@@ -213,9 +213,9 @@ export default function TalleresCrearPiezas() {
           ) : (
             <button
               className="mt-4 px-6 py-2.5 rounded-full text-white font-semibold
-              bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+              bg-terracota
               shadow-md hover:shadow-lg
-              hover:from-[#F4C542] hover:to-[#E5B92F]
+              hover:bg-terracota-oscuro
               transition-all duration-200"
               onClick={() => handleAccionTaller(taller)}
             >
@@ -244,7 +244,7 @@ export default function TalleresCrearPiezas() {
     return (
       <button
         onClick={() => setOpenSection(isOpen ? null : id)}
-        className="w-full rounded-2xl bg-white p-5 border border-[#f1e7c6] border-l-8 border-[#F4C542]
+        className="w-full rounded-2xl bg-white p-5 border border-linea border-l-8 border-mostaza
         shadow-lg
         hover:shadow-xl
         hover:scale-[1.015]
@@ -253,8 +253,8 @@ export default function TalleresCrearPiezas() {
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-  <h2 className="text-xl font-bold text-gray-800">{titulo}</h2>
-  <p className="text-sm text-gray-600 mt-1 max-w-[90%] leading-5">
+  <h2 className="text-xl font-bold text-tinta">{titulo}</h2>
+  <p className="text-sm text-tinta-suave mt-1 max-w-[90%] leading-5">
     {subtitulo}
   </p>
 </div>
@@ -268,7 +268,7 @@ export default function TalleresCrearPiezas() {
   };
 
   return (
-    <div className="p-5 bg-[#fffef4] min-h-screen font-sans">
+    <div className="p-5 bg-crema min-h-screen font-sans">
       <BotonVolver />
 
       <div className="flex flex-col md:flex-row items-center mb-7">
@@ -279,18 +279,18 @@ export default function TalleresCrearPiezas() {
         />
 
         <div className="text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-bold text-yellow-900 font-serif">
+          <h1 className="text-3xl md:text-4xl font-bold text-tinta font-serif">
             Crear piezas desde cero
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-tinta-suave mt-1">
             Elige el tipo de clase y luego la pieza que quieres crear.
           </p>
         </div>
       </div>
 
       {desdeGrupos && (
-        <div className="max-w-5xl mx-auto bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-4 mb-6">
-          <p className="text-sm text-[#7a5a1e] text-center leading-relaxed">
+        <div className="max-w-5xl mx-auto bg-mostaza-suave border border-linea rounded-xl p-4 mb-6">
+          <p className="text-sm text-tinta-suave text-center leading-relaxed">
             Estás viendo esta sección en modo informativo para una reserva de grupo.
             Aquí podéis consultar las distintas opciones y precios. Si alguna os interesa,
             podéis seleccionarla directamente y volveréis a la pantalla de grupos con esa opción elegida.
@@ -333,7 +333,7 @@ export default function TalleresCrearPiezas() {
         <div className="mt-8 flex justify-center">
           <button
             onClick={() => navigate(volverA)}
-            className="px-6 py-3 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold hover:bg-[#e8b932] transition"
+            className="px-6 py-3 rounded-full bg-terracota text-white font-semibold hover:bg-terracota-oscuro transition"
           >
             Volver a reservas de grupo
           </button>

@@ -27,7 +27,7 @@ body {
   margin: 0;
   /* IMPORTANTÍSIMO: NO uses display:flex aquí */
   overflow-x: hidden;          /* evita banda blanca lateral */
-  background: #fffef4;         /* tu fondo base de la app */
+  background: #fdfaf5;         /* tu fondo base de la app */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 

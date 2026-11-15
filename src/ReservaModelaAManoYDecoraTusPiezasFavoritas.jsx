@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update } from "firebase/database";
@@ -482,23 +483,23 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Reserva –{" "}
           {claseConfig?.nombre || "Modela a mano y decora tus piezas favoritas"}
         </h1>
 
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
-            Estás usando una tarjeta regalo 🎁
+            Estás usando una tarjeta regalo <Icono nombre="regalo" />
           </p>
         )}
 
         {cargandoConfig ? (
-          <p className="text-center text-gray-500 py-8">
+          <p className="text-center text-tinta-suave py-8">
             Cargando configuración del bono...
           </p>
         ) : !claseConfig ? (
@@ -507,7 +508,7 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p><strong>Bono mensual de {numeroClases} clases.</strong></p>
               <p>
                 El bono incluye {numeroClases} sesiones de {duracionClase}. El
@@ -554,7 +555,7 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
                     {Object.keys(claseConfig?.horarios || {}).join(", ")}.
                   </p>
                 )}
-                <div className="mt-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+                <div className="mt-2 bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 La fecha de inicio del bono no constituye una reserva de clase.
                 Deberás gestionar cada reserva desde tu perfil, en “Mis bonos”.
                 </div>
@@ -583,7 +584,7 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
 
             
 
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Modalidad principal:</strong> {modalidad}
               </p>
@@ -598,7 +599,7 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
             </div>
 
             {fechaInicio && (
-              <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+              <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 <p>
                   <strong>Precio base:</strong>{" "}
                   {desdeTarjeta ? "Tarjeta regalo" : `${precioBase}€`}
@@ -625,9 +626,9 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
             <button
               type="submit"
               className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-                bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+                bg-terracota
                 shadow-md hover:shadow-lg
-                hover:from-[#F4C542] hover:to-[#E5B92F]
+                hover:bg-terracota-oscuro
                 transition-all duration-200"
               disabled={
                 !!fechaBloqueada ||

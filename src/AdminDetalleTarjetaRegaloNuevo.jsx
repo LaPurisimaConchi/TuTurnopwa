@@ -333,8 +333,6 @@ useEffect(() => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
   },
   bodyMobile: {
@@ -390,14 +388,14 @@ notaItemMobile: {
   notasBox: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
   },
   subtituloBloque: {
     marginTop: 0,
     marginBottom: 12,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.15rem",
   },
   notaItem: {
@@ -438,12 +436,12 @@ notaItemMobile: {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",
@@ -460,12 +458,12 @@ notaItemMobile: {
   },
   botonVolverLista: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   linkClase: {
     color: "#7c5c2e",

@@ -7,6 +7,7 @@
 // - Talleres de siempre sin migrar: solo fotos y visibilidad en portada.
 // Las fotos se guardan comprimidas en imagenesClases/{id}.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { cargarConfigEspacio } from "./configuracionEspacio";
 import { ref, get, set, update } from "firebase/database";
@@ -121,12 +122,12 @@ async function comprobarDependencias(claseId, clase = {}) {
 }
 
 const ICONOS_PESTANAS = {
-  datos: "📝",
-  pagina: "📄",
-  precios: "💶",
-  horario: "🗓️",
-  fotos: "📷",
-  visibilidad: "👁️",
+  datos: "notas",
+  pagina: "pagina",
+  precios: "euro",
+  horario: "calendario",
+  fotos: "camara",
+  visibilidad: "ojo",
 };
 
 export default function AdminTallerForm() {
@@ -686,14 +687,14 @@ export default function AdminTallerForm() {
   };
 
   if (cargando) {
-    return <p className="text-center text-gray-500 py-16">Cargando taller...</p>;
+    return <p className="text-center text-tinta-suave py-16">Cargando taller...</p>;
   }
 
   const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
-  const label = "block font-bold text-sm mb-1 text-[#3d3126]";
-  const seccion = "bg-white rounded-2xl border border-[#eadfbe] p-5 shadow-sm space-y-4";
+  const label = "block font-bold text-sm mb-1 text-tinta";
+  const seccion = "bg-white rounded-2xl border border-linea p-5 shadow-sm space-y-4";
   const botonMini =
-    "px-2.5 py-1 rounded-lg border border-[#eadfbe] bg-[#fffaf0] text-sm disabled:opacity-30";
+    "px-2.5 py-1 rounded-lg border border-linea bg-crema text-sm disabled:opacity-30";
 
   const handleCrearCategoria = async () => {
     setErrorCategoria("");
@@ -714,13 +715,13 @@ export default function AdminTallerForm() {
   const conMetodoOVariante = !esBono && (form.modalidad === "metodos" || form.modalidad === "variante");
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-6 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-6 font-sans">
       <div className="max-w-3xl mx-auto">
         <BotonVolver volverA="/admin-clases-nuevo" />
 
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#3d3126] font-serif">
+          <h1 className="text-2xl md:text-3xl font-bold text-tinta font-serif">
             {esNuevo
               ? "Añadir taller nuevo"
               : esFijo
@@ -732,21 +733,21 @@ export default function AdminTallerForm() {
               href={rutaPublica}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center justify-center gap-2 self-start rounded-full border-2 border-[#E5B92F] bg-transparent px-5 py-2.5 text-sm font-bold text-[#5c3c00] transition hover:bg-[#fff6d6]"
+              className="shrink-0 inline-flex items-center justify-center gap-2 self-start rounded-full border-2 border-mostaza-borde bg-transparent px-5 py-2.5 text-sm font-bold text-tinta transition hover:bg-mostaza-suave"
             >
-              <span aria-hidden="true">🔗</span>
+              <Icono nombre="enlace" />
               Ver página del taller
-              <span aria-hidden="true">↗</span>
+              <Icono nombre="externo" />
             </a>
           )}
           </div>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-tinta-suave mt-1">
             {esFijo
               ? "Este taller todavía tiene su página hecha a mano. Aquí puedes cambiar la foto de la portada y si aparece en ella."
               : "El taller tiene su propia página, se puede reservar y pagar online y sale en la portada y en su categoría."}
           </p>
           {esFijo && (
-            <p className="text-sm text-gray-700 mt-3 bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
+            <p className="text-sm text-tinta mt-3 bg-mostaza-suave border border-linea rounded-xl p-3">
               Para editar todo, ocultarlo o borrarlo como el resto, primero hay que{" "}
               <Link to="/admin-migrar-talleres" className="text-blue-700 underline">
                 migrarlo al panel
@@ -760,7 +761,7 @@ export default function AdminTallerForm() {
           <div
             role="tablist"
             aria-label="Secciones del taller"
-            className="sticky top-2 z-20 flex gap-1.5 overflow-x-auto rounded-2xl border border-[#eadfbe] bg-white/95 p-1.5 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="sticky top-2 z-20 flex gap-1.5 overflow-x-auto rounded-2xl border border-linea bg-white/95 p-1.5 shadow-md backdrop-blur [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {pestanas.map(([clave, texto]) => {
               const activa = pestana === clave;
@@ -775,12 +776,12 @@ export default function AdminTallerForm() {
                   onClick={() => setPestana(clave)}
                   className={`relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all duration-200 ${
                     activa
-                      ? "bg-[#F4C542] text-[#3d3126] shadow-sm"
-                      : "text-gray-500 hover:bg-[#fff6d6] hover:text-[#3d3126]"
+                      ? "bg-terracota text-white shadow-sm"
+                      : "text-tinta-suave hover:bg-mostaza-suave hover:text-tinta"
                   }`}
                 >
                   <span aria-hidden="true" className={activa ? "" : "grayscale opacity-70"}>
-                    {ICONOS_PESTANAS[clave]}
+                    <Icono nombre={ICONOS_PESTANAS[clave]} />
                   </span>
                   {texto}
                   {conError && (
@@ -797,7 +798,7 @@ export default function AdminTallerForm() {
 
           {!esFijo && (
             <section className={seccion + ocultaSi("datos")}>
-              <h2 className="text-lg font-semibold text-[#3d3126]">Datos del taller</h2>
+              <h2 className="text-lg font-semibold text-tinta">Datos del taller</h2>
 
               {esNuevo && (
                 <div>
@@ -829,12 +830,12 @@ export default function AdminTallerForm() {
                 <label htmlFor="taller-id" className={label}>Identificador</label>
                 <input
                   id="taller-id"
-                  className={`${input} ${esNuevo ? "" : "bg-gray-100 text-gray-500"}`}
+                  className={`${input} ${esNuevo ? "" : "bg-arena text-tinta-suave"}`}
                   value={form.id}
                   onChange={(e) => cambiar("id", generarId(e.target.value))}
                   disabled={!esNuevo}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinta-suave mt-1">
                   Se usa en la dirección (/taller/{form.id || "…"}) y en las reservas. No se puede cambiar después.
                 </p>
               </div>
@@ -878,7 +879,7 @@ export default function AdminTallerForm() {
                         </Link>
                       </div>
                     ) : (
-                      <div className="rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-3 space-y-2">
+                      <div className="rounded-xl border border-linea bg-crema p-3 space-y-2">
                         <label htmlFor="taller-nueva-categoria" className={label}>
                           Nombre de la categoría nueva
                         </label>
@@ -901,7 +902,7 @@ export default function AdminTallerForm() {
                             type="button"
                             onClick={handleCrearCategoria}
                             disabled={creandoCategoria || !nuevaCategoria.trim()}
-                            className="px-4 py-2 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold text-sm hover:bg-[#e8b932] disabled:opacity-50"
+                            className="px-4 py-2 rounded-full bg-terracota text-white font-semibold text-sm hover:bg-terracota-oscuro disabled:opacity-50"
                           >
                             {creandoCategoria ? "Creando..." : "Crear y elegir"}
                           </button>
@@ -956,9 +957,46 @@ export default function AdminTallerForm() {
                     value={form.sesiones}
                     onChange={(e) => cambiar("sesiones", e.target.value)}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Con 2 o más, la reserva guarda el aviso de que la segunda sesión
-                    se habilita 4 semanas después de la primera.
+                  <p className="text-xs text-tinta-suave mt-1">
+                    Con 2 o más, el cliente puede reservar todas las sesiones de una vez
+                    (cada una en su día) o solo la primera y el resto más adelante.
+                  </p>
+                </div>
+              )}
+
+              {!esBono && !form.monografico && Math.round(Number(form.sesiones)) > 1 && Math.round(Number(form.sesiones)) <= 30 && (
+                <div>
+                  <p className={label}>Tiempo mínimo entre sesiones (días)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
+                    {Array.from({ length: Math.round(Number(form.sesiones)) - 1 }, (_, i) => i).map((i) => (
+                      <div key={i}>
+                        <label htmlFor={`taller-dias-sesiones-${i}`} className="block text-xs text-tinta-suave mb-1">
+                          Entre la sesión {i + 1} y la {i + 2}
+                        </label>
+                        <input
+                          id={`taller-dias-sesiones-${i}`}
+                          type="number"
+                          min="1"
+                          max="365"
+                          className={input}
+                          value={form.diasEntreSesiones?.[i] ?? "28"}
+                          onChange={(e) =>
+                            setForm((prev) => {
+                              const dias = Array.from(
+                                { length: Math.round(Number(prev.sesiones)) - 1 },
+                                (_, j) => prev.diasEntreSesiones?.[j] ?? "28"
+                              );
+                              dias[i] = e.target.value;
+                              return { ...prev, diasEntreSesiones: dias };
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-tinta-suave mt-1">
+                    Cada sesión tiene que caer al menos esos días después de la anterior. Por defecto 28
+                    (4 semanas), para dar tiempo a que la pieza esté lista.
                   </p>
                 </div>
               )}
@@ -967,8 +1005,8 @@ export default function AdminTallerForm() {
 
           {!esFijo && (
             <section className={seccion + ocultaSi("pagina")}>
-              <h2 className="text-lg font-semibold text-[#3d3126]">Secciones de la página</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-lg font-semibold text-tinta">Secciones de la página</h2>
+              <p className="text-sm text-tinta-suave">
                 Bloques de texto que salen bajo la descripción, en este orden:
                 «Qué aprenderás», «Qué incluye», «Duración», «Entrega de tu pieza»…
                 Cada uno puede llevar un título, texto (separa los párrafos con
@@ -977,9 +1015,9 @@ export default function AdminTallerForm() {
 
               <div className="space-y-3">
                 {form.secciones.map((s, indice) => (
-                  <div key={indice} className="rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-3 space-y-2">
+                  <div key={indice} className="rounded-xl border border-linea bg-crema p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className="text-xs font-semibold text-tinta-suave">
                         Sección {indice + 1}
                       </span>
                       <div className="flex gap-1">
@@ -1006,9 +1044,7 @@ export default function AdminTallerForm() {
                           className={`${botonMini} text-red-600`}
                           onClick={() => quitarSeccion(indice)}
                           aria-label="Quitar sección"
-                        >
-                          ✕
-                        </button>
+                        ><Icono nombre="cerrar" /></button>
                       </div>
                     </div>
 
@@ -1049,13 +1085,13 @@ export default function AdminTallerForm() {
 
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={botonMini} onClick={() => añadirSeccion()}>
-                  ➕ Añadir sección
+                  <Icono nombre="mas" className="mr-1" />Añadir sección
                 </button>
                 <button type="button" className={botonMini} onClick={() => añadirSeccion("Qué incluye")}>
-                  ➕ Qué incluye
+                  <Icono nombre="mas" className="mr-1" />Qué incluye
                 </button>
                 <button type="button" className={botonMini} onClick={() => añadirSeccion("Duración")}>
-                  ➕ Duración
+                  <Icono nombre="mas" className="mr-1" />Duración
                 </button>
               </div>
 
@@ -1084,7 +1120,7 @@ export default function AdminTallerForm() {
 
           {!esFijo && (
             <section className={seccion + ocultaSi("precios")}>
-              <h2 className="text-lg font-semibold text-[#3d3126]">
+              <h2 className="text-lg font-semibold text-tinta">
                 {esBono ? "Precio y características del bono" : "Precio y plazas"}
               </h2>
 
@@ -1172,28 +1208,46 @@ export default function AdminTallerForm() {
                         className={`${botonMini} text-red-600`}
                         onClick={() => quitarVariante(indice)}
                         aria-label="Quitar opción"
-                      >
-                        ✕
-                      </button>
+                      ><Icono nombre="cerrar" /></button>
                     </div>
                   ))}
 
                   <button type="button" className={botonMini} onClick={añadirVariante}>
-                    ➕ Añadir opción
+                    <Icono nombre="mas" className="mr-1" />Añadir opción
                   </button>
 
-                  <div className="flex flex-wrap gap-4 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     {METODOS_TALLER.slice(0, 2).map((m) => (
-                      <label key={m.id} className="flex items-center gap-2 text-sm">
+                      <div key={m.id} className="rounded-xl border border-linea p-3">
+                        <label className="flex items-center gap-2 text-sm font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={!!form.metodos[m.id]}
+                            onChange={(e) => cambiarAnidado("metodos", m.id, e.target.checked)}
+                          />
+                          Se puede hacer con {m.nombre.toLowerCase()}
+                        </label>
+                        <label htmlFor={`extra-${m.clavePrecio}`} className="block text-xs text-tinta-suave mt-2 mb-1">
+                          Extra de precio por persona (€, opcional)
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={!!form.metodos[m.id]}
-                          onChange={(e) => cambiarAnidado("metodos", m.id, e.target.checked)}
+                          id={`extra-${m.clavePrecio}`}
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          className={input}
+                          placeholder="0"
+                          value={form.extrasMetodo?.[m.clavePrecio] ?? ""}
+                          onChange={(e) => cambiarAnidado("extrasMetodo", m.clavePrecio, e.target.value)}
+                          disabled={!form.metodos[m.id]}
+                          aria-label={`Extra de precio con ${m.nombre.toLowerCase()}`}
                         />
-                        Se puede hacer con {m.nombre.toLowerCase()}
-                      </label>
+                      </div>
                     ))}
                   </div>
+                  <p className="text-xs text-tinta-suave">
+                    El extra se suma al precio de la opción elegida cuando el cliente escoge ese método.
+                  </p>
                 </div>
               )}
 
@@ -1215,7 +1269,7 @@ export default function AdminTallerForm() {
               )}
 
               {!esBono && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-tinta-suave">
                   El aforo por turno y las plazas de torno son iguales para todos los
                   talleres y se cambian en{" "}
                   <Link to="/admin-espacio" className="underline">Espacio</Link>.
@@ -1236,7 +1290,7 @@ export default function AdminTallerForm() {
                     value={form.minPersonasGrupo}
                     onChange={(e) => cambiar("minPersonasGrupo", e.target.value)}
                   />
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-tinta-suave mt-1">
                     Por defecto 5. Los días en que el taller no se da normalmente se
                     pueden reservar si se juntan al menos estas personas. El mínimo
                     para una reserva de grupo es el mismo para todos los talleres y
@@ -1245,7 +1299,7 @@ export default function AdminTallerForm() {
                 </div>
               )}
               {conMetodoOVariante && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-tinta-suave">
                   Como en el resto de talleres de torno/modelado, las plazas se
                   comparten con las demás clases del mismo turno.
                 </p>
@@ -1324,7 +1378,7 @@ export default function AdminTallerForm() {
           {!esFijo && (
             <section className={seccion + ocultaSi("horario")}>
               {!esBono && (
-                <label className="flex items-start gap-3 rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-3 cursor-pointer">
+                <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
                   <input
                     type="checkbox"
                     className="mt-1"
@@ -1333,7 +1387,7 @@ export default function AdminTallerForm() {
                   />
                   <span className="text-sm">
                     <strong>Taller monográfico</strong> (solo en fechas concretas)
-                    <span className="block text-xs text-gray-500 mt-0.5">
+                    <span className="block text-xs text-tinta-suave mt-0.5">
                       No tiene horario semanal: se da en ediciones de varias sesiones (un día puede tener dos), que se
                       reservan enteras. Cuando pasa la primera fecha de la última edición,
                       el taller se oculta solo.
@@ -1344,7 +1398,7 @@ export default function AdminTallerForm() {
 
               {form.monografico && !esBono && (
                 <>
-                  <h2 className="text-lg font-semibold text-[#3d3126]">Ediciones</h2>
+                  <h2 className="text-lg font-semibold text-tinta">Ediciones</h2>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -1359,7 +1413,7 @@ export default function AdminTallerForm() {
                         onChange={(e) => cambiarDiasCurso(e.target.value)}
                       />
                     </div>
-                    <p className="text-xs text-gray-500 sm:pt-7">
+                    <p className="text-xs text-tinta-suave sm:pt-7">
                       Marca «Torno» en las sesiones que lo usen: esas cuentan en el límite de
                       plazas de torno.
                     </p>
@@ -1375,8 +1429,8 @@ export default function AdminTallerForm() {
 
               {!(form.monografico && !esBono) && (
                 <>
-              <h2 className="text-lg font-semibold text-[#3d3126]">Horario semanal</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-lg font-semibold text-tinta">Horario semanal</h2>
+              <p className="text-sm text-tinta-suave">
                 Elige los turnos de cada día con los atajos o con «Otra hora». Un día
                 sin turnos es un día sin taller. Las fechas bloqueadas y habilitadas
                 desde el panel también se aplican.
@@ -1386,7 +1440,7 @@ export default function AdminTallerForm() {
                 {DIAS.map(([dia, nombreDia]) => (
                   <div
                     key={dia}
-                    className="grid grid-cols-1 sm:grid-cols-[88px_1fr] items-start gap-1.5 sm:gap-3 py-2 border-b border-[#f3ead7] last:border-0"
+                    className="grid grid-cols-1 sm:grid-cols-[88px_1fr] items-start gap-1.5 sm:gap-3 py-2 border-b border-arena last:border-0"
                   >
                     <label htmlFor={`horario-${dia}`} className="text-sm font-semibold pt-1">
                       {nombreDia}
@@ -1408,7 +1462,7 @@ export default function AdminTallerForm() {
                               ),
                             }))
                           }
-                          className="text-xs text-[#b36a4a] underline"
+                          className="text-xs text-terracota underline"
                         >
                           Copiar este horario a todos los días
                         </button>
@@ -1428,7 +1482,7 @@ export default function AdminTallerForm() {
                   value={form.turnos}
                   onChange={(valor) => cambiar("turnos", valor)}
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinta-suave mt-1">
                   Son los turnos que se abren cuando habilitas una fecha fuera del
                   horario habitual. Sin ninguno, se usan los del horario semanal.
                 </p>
@@ -1447,23 +1501,23 @@ export default function AdminTallerForm() {
 
           <section className={seccion + ocultaSi("fotos")}>
             <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-lg font-semibold text-[#3d3126]">Fotos</h2>
-              <span className="text-xs text-gray-500">
+              <h2 className="text-lg font-semibold text-tinta">Fotos</h2>
+              <span className="text-xs text-tinta-suave">
                 {imagenes.length}/{MAX_IMAGENES}
               </span>
             </div>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-tinta-suave">
               La primera foto es la principal: sale en la portada y en los
               listados. Arrastra las fotos para cambiar el orden (o usa las flechas).
               Se reducen automáticamente para que carguen rápido.
             </p>
 
             {imagenes.length === 0 && (
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              <div className="flex items-center gap-3 text-sm text-tinta-suave">
                 <img
                   src={imagenPorDefecto(idEditar || form.id)}
                   alt=""
-                  className="w-20 h-16 object-cover rounded-lg border border-[#eadfbe]"
+                  className="w-20 h-16 object-cover rounded-lg border border-linea"
                 />
                 {esFijo
                   ? "Sin fotos subidas: se usa la foto actual de su página."
@@ -1509,14 +1563,14 @@ export default function AdminTallerForm() {
                     onDragEnd={terminarArrastreFotos}
                     className={`rounded-xl border overflow-hidden cursor-grab active:cursor-grabbing ${
                       fotoArrastrada === img.key
-                        ? "border-dashed border-[#b36a4a] bg-[#f3e3d9] opacity-50"
-                        : "border-[#eadfbe] bg-[#fffaf0]"
+                        ? "border-dashed border-terracota bg-[#f3e3d9] opacity-50"
+                        : "border-linea bg-crema"
                     }`}
                   >
-                    <div className="relative aspect-[4/3] bg-gray-100">
+                    <div className="relative aspect-[4/3] bg-arena">
                       <img src={img.src} alt={`Foto ${indice + 1}`} draggable={false} className="w-full h-full object-cover select-none" />
                       {indice === 0 && (
-                        <span className="absolute left-1 top-1 rounded-full bg-[#F4C542] px-2 py-0.5 text-[11px] font-bold text-[#5c3c00]">
+                        <span className="absolute left-1 top-1 rounded-full bg-terracota px-2 py-0.5 text-[11px] font-bold text-white">
                           Principal
                         </span>
                       )}
@@ -1542,15 +1596,13 @@ export default function AdminTallerForm() {
                           ▶
                         </button>
                       </div>
-                      <span className="text-[11px] text-gray-400">{pesoDataUrlKb(img.src)} KB</span>
+                      <span className="text-[11px] text-tinta-suave">{pesoDataUrlKb(img.src)} KB</span>
                       <button
                         type="button"
                         onClick={() => quitarImagen(indice)}
                         className="px-2 py-1 text-red-600"
                         aria-label="Quitar foto"
-                      >
-                        ✕
-                      </button>
+                      ><Icono nombre="cerrar" /></button>
                     </div>
                   </li>
                 ))}
@@ -1558,11 +1610,11 @@ export default function AdminTallerForm() {
             )}
 
             <label
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-[#eadfbe] bg-[#fffaf0] text-sm font-semibold cursor-pointer ${
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-linea bg-crema text-sm font-semibold cursor-pointer ${
                 imagenes.length >= MAX_IMAGENES || procesandoImagenes ? "opacity-50 pointer-events-none" : ""
               }`}
             >
-              {procesandoImagenes ? "Procesando fotos..." : "📷 Añadir fotos"}
+              {procesandoImagenes ? "Procesando fotos..." : <><Icono nombre="camara" className="mr-1" />Añadir fotos</>}
               <input
                 type="file"
                 accept="image/*"
@@ -1575,7 +1627,7 @@ export default function AdminTallerForm() {
           </section>
 
           <section className={seccion + ocultaSi("visibilidad")}>
-            <h2 className="text-lg font-semibold text-[#3d3126]">Visibilidad</h2>
+            <h2 className="text-lg font-semibold text-tinta">Visibilidad</h2>
 
             {!esFijo && (
               <div>
@@ -1623,7 +1675,7 @@ export default function AdminTallerForm() {
                   />
                   Hace falta cuenta para comprarlo
                 </label>
-                <p className="text-xs text-gray-500 ml-6 mt-1">
+                <p className="text-xs text-tinta-suave ml-6 mt-1">
                   {esBono
                     ? "Los bonos siempre piden cuenta: las clases se reservan desde el perfil."
                     : "Sin marcar, se puede reservar sin registrarse. Márcalo si la reserva se gestiona desde el perfil."}
@@ -1644,7 +1696,7 @@ export default function AdminTallerForm() {
             </div>
 
             {esFijo && (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-tinta-suave">
                 Precios, plazas y horarios de este taller:{" "}
                 <Link to={`/admin-detalle-clase?clase=${idEditar}`} className="text-blue-700 underline">
                   ficha de la clase
@@ -1668,7 +1720,7 @@ export default function AdminTallerForm() {
           <button
             type="submit"
             disabled={guardando || procesandoImagenes}
-            className="sticky bottom-3 z-10 w-full px-6 py-3 rounded-full text-white font-semibold bg-[#b36a4a] hover:bg-[#9e5c3f] shadow-lg disabled:opacity-50"
+            className="sticky bottom-3 z-10 w-full px-6 py-3 rounded-full text-white font-semibold bg-terracota hover:bg-terracota-oscuro shadow-lg disabled:opacity-50"
           >
             {guardando ? "Guardando..." : esNuevo ? "Crear taller" : "Guardar cambios"}
           </button>
@@ -1677,7 +1729,7 @@ export default function AdminTallerForm() {
         {!esNuevo && !esFijo && (
           <section className={"mt-8 rounded-2xl border border-red-200 bg-white p-5 shadow-sm space-y-3" + ocultaSi("visibilidad")}>
             <h2 className="text-lg font-semibold text-red-800">Borrar taller</h2>
-            <p className="text-sm text-gray-700 leading-relaxed">
+            <p className="text-sm text-tinta leading-relaxed">
               Elimina la ficha, las fotos y las notas internas del taller. Solo se
               puede si no tiene reservas confirmadas de hoy en adelante, tarjetas
               regalo sin canjear ni bonos activos de clientes. Las reservas

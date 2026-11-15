@@ -223,8 +223,6 @@ useEffect(() => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -252,16 +250,16 @@ const styles = {
   },
   titulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     marginTop: 8,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   buscadorBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 16,
@@ -271,27 +269,27 @@ const styles = {
     marginBottom: 8,
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     width: "100%",
     padding: "12px 14px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     boxSizing: "border-box",
   },
   resumen: {
     marginBottom: 16,
   },
   resumenTexto: {
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "0.96rem",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   grid: {
@@ -304,8 +302,8 @@ const styles = {
   gap: 14,
 },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 22,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
@@ -328,12 +326,12 @@ const styles = {
 },
   nombre: {
     margin: 0,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.1rem",
   },
   email: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.92rem",
     wordBreak: "break-word",
   },
@@ -344,9 +342,9 @@ const styles = {
   alignItems: "flex-start",
 },
   badge: {
-    backgroundColor: "#fff8da",
-    color: "#7a6331",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
     borderRadius: 999,
     padding: "8px 12px",
     fontSize: "0.88rem",

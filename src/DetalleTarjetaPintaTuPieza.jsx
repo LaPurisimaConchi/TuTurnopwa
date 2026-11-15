@@ -50,7 +50,7 @@ const DetalleTarjetaPintaTuPieza = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     margin: 0,
     padding: 20,
@@ -79,7 +79,7 @@ const styles = {
   titulo: {
     fontSize: "1.3rem",
     marginBottom: 6,
-    color: "#3b3025",
+    color: "#3f3128",
   },
   precio: {
     fontSize: "1.1rem",

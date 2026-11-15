@@ -4,6 +4,7 @@
 // Las plazas son las del espacio (aforo y torno comunes a todos los talleres) y
 // el servidor las comprueba al reservar (api/codigo-reserva.js, tipo "reservar").
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
@@ -318,15 +319,26 @@ export default function ReservaMonografico({ claseId, clase }) {
     ? "Comprobando plazas…"
     : plazasDisponibles <= 0
     ? "No quedan plazas en esta edición."
-    : `Máximo ${plazasDisponibles} plazas disponibles.`;
+    : plazasDisponibles <= 5
+    ? `Quedan ${plazasDisponibles} ${plazasDisponibles === 1 ? "plaza disponible" : "plazas disponibles"}.`
+    : plazasDisponibles <= 10
+    ? "Quedan pocas plazas."
+    : "";
 
   return (
     <PantallaReserva ancho="max-w-2xl">
-      <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">Reserva – {nombreClase}</h1>
+      <h1 className="text-center font-serif text-tinta mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
+          Reserva
+        </span>
+        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+          {nombreClase}
+        </span>
+      </h1>
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">
-          Estás usando una tarjeta regalo 🎁
+          Estás usando una tarjeta regalo <Icono nombre="regalo" />
           {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
         </p>
       )}
@@ -341,13 +353,13 @@ export default function ReservaMonografico({ claseId, clase }) {
         <form onSubmit={handleSubmit} className="grid gap-6">
           <fieldset>
             <legend className="block font-bold text-sm mb-2">Elige la edición</legend>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-tinta-suave mb-3">
               Se reservan todas las sesiones de la edición. Solo se puede reservar antes de que
               empiece.
             </p>
 
             {!contextoCargado || !ediciones.length ? (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-tinta-suave">
                 {contextoCargado ? "No hay ediciones abiertas ahora mismo." : "Cargando…"}
               </p>
             ) : (
@@ -361,8 +373,8 @@ export default function ReservaMonografico({ claseId, clase }) {
                       key={ed.id}
                       className={`block rounded-xl border p-3 cursor-pointer text-sm ${
                         edicionId === ed.id
-                          ? "border-[#E5B92F] bg-[#fff6d6]"
-                          : "border-gray-300 bg-white hover:bg-[#fffaf0]"
+                          ? "border-mostaza-borde bg-mostaza-suave"
+                          : "border-gray-300 bg-white hover:bg-crema"
                       } ${sinPlazas ? "opacity-60 cursor-not-allowed" : ""}`}
                     >
                       <input
@@ -376,7 +388,7 @@ export default function ReservaMonografico({ claseId, clase }) {
                       />
                       <strong>Edición {indice + 1}</strong>
                       {sinPlazas && <span className="ml-2 text-red-600 font-medium">Completa</span>}
-                      <ul className="mt-1 ml-6 list-disc text-gray-700">
+                      <ul className="mt-1 ml-6 list-disc text-tinta">
                         {ed.fechas.map((f) => (
                           <li key={`${f.fecha}-${f.turno}`}>
                             {fechaDMA(f.fecha)} · {f.turno.replace("-", " – ")}{f.torno ? " · torno" : ""}
@@ -400,7 +412,7 @@ export default function ReservaMonografico({ claseId, clase }) {
                 type="button"
                 onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
                 disabled={!puedeElegirPlazas || !!plazasTarjeta}
-                className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 −
               </button>
@@ -409,16 +421,16 @@ export default function ReservaMonografico({ claseId, clase }) {
                 type="button"
                 onClick={() => setPlazas(Math.min(plazasDisponibles || 1, plazasNum + 1))}
                 disabled={!puedeElegirPlazas || !!plazasTarjeta}
-                className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 +
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mt-1">{mensajePlazas}</p>
+            <p className="text-xs text-tinta-suave mt-1">{mensajePlazas}</p>
           </div>
 
-          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+          <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             <p>
               <strong>Precio por persona (curso completo):</strong>{" "}
               {desdeTarjeta ? "Tarjeta regalo" : `${precioUnitario}€`}

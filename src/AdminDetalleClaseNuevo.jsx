@@ -467,7 +467,7 @@ useEffect(() => {
         <div style={styles.bloque}>
           <h2 style={styles.subtitulo}>Editar información de la clase</h2>
 
-          <p style={{ margin: "0 0 14px 0", color: "#5f5247", lineHeight: 1.5 }}>
+          <p style={{ margin: "0 0 14px 0", color: "#7a6858", lineHeight: 1.5 }}>
             Este taller todavía tiene su página hecha a mano: su categoría no se puede cambiar
             aquí y sus fotos se editan en «Fotos y portada». Migrándolo al panel se edita con
             el mismo formulario que un taller nuevo (categoría, fotos, textos, precios y más).
@@ -678,8 +678,6 @@ Acompañamiento en el taller`}
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -704,7 +702,7 @@ const styles = {
   titulo: {
     textAlign: "center",
     margin: "0 0 20px 0",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   notaHeaderMobile: {
@@ -713,15 +711,15 @@ const styles = {
 },
   subtitulo: {
     margin: "0 0 14px 0",
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   notaItemMobile: {
   padding: 10,
 },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -741,8 +739,8 @@ const styles = {
     marginBottom: 4,
   },
   bloque: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -761,7 +759,7 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     width: "100%",
@@ -780,8 +778,8 @@ const styles = {
   reservaItem: {
     padding: 14,
     borderRadius: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     cursor: "pointer",
     transition: "0.2s",
   },
@@ -792,12 +790,12 @@ const styles = {
   },
   textoVacio: {
     margin: 0,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   mensaje: {
     textAlign: "center",
     padding: 40,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   listaNotas: {
     display: "grid",
@@ -840,12 +838,12 @@ const styles = {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",

@@ -39,8 +39,8 @@ export default function DetalleClaseSolo() {
   if (!clase) return null;
 
   return (
-    <div className="p-6 bg-[#fffef4] min-h-screen text-gray-800 font-sans max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold text-center mb-4 text-[#3b3025]">{clase.nombre}</h1>
+    <div className="p-6 bg-crema min-h-screen text-tinta font-sans max-w-xl mx-auto">
+      <h1 className="text-2xl font-bold text-center mb-4 text-tinta">{clase.nombre}</h1>
 
       {clase.imagen && (
         <img
@@ -51,8 +51,8 @@ export default function DetalleClaseSolo() {
       )}
 
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-[#5c3c00] mb-2">Turnos disponibles:</h2>
-        <ul className="list-disc list-inside text-sm text-gray-700">
+        <h2 className="text-lg font-semibold text-tinta mb-2">Turnos disponibles:</h2>
+        <ul className="list-disc list-inside text-sm text-tinta">
           {Array.isArray(clase.turnos) ? (
             clase.turnos.map((t, i) => <li key={i}>{t}</li>)
           ) : (
@@ -61,20 +61,20 @@ export default function DetalleClaseSolo() {
         </ul>
       </div>
 
-      <p className="text-gray-600 text-sm mb-6 text-center">
+      <p className="text-tinta-suave text-sm mb-6 text-center">
         Para poder reservar esta clase, necesitas iniciar sesión o registrarte.
       </p>
 
       <div className="flex gap-4 justify-center">
         <button
           onClick={() => navigate("/login")}
-          className="bg-[#b36a4a] text-white px-5 py-2 rounded-lg hover:bg-[#9e5c3f]"
+          className="bg-terracota text-white px-5 py-2 rounded-lg hover:bg-terracota-oscuro"
         >
           Iniciar sesión
         </button>
         <button
           onClick={() => navigate("/registro")}
-          className="bg-[#b36a4a] text-white px-5 py-2 rounded-lg hover:bg-[#9e5c3f]"
+          className="bg-terracota text-white px-5 py-2 rounded-lg hover:bg-terracota-oscuro"
         >
           Registrarse
         </button>

@@ -2,6 +2,7 @@
 // Conversión entre la ficha de un taller en Firebase (clases/{id}) y el
 // formulario del panel admin. Son funciones puras, sin acceso a la base de datos.
 import { edicionesDeClase } from "./monografico";
+import { diasEntreSesionesDe } from "./sesionesTaller";
 import {
   GRUPOS_TALLER,
   METODOS_TALLER,
@@ -33,11 +34,13 @@ export const FORMULARIO_VACIO = {
   mostrarAvisos: true,
   secciones: [],
   sesiones: "1",
+  diasEntreSesiones: [], // días mínimos entre sesiones: [entre la 1 y la 2, entre la 2 y la 3…]
   modalidad: "metodos",
   metodos: { torno: true, "modelado a mano": true, "decoración con esmaltes": false },
   precios: { torno: "", modelado: "", decoracion: "" },
   varianteEtiqueta: "Tipo de pieza",
   variantes: [],
+  extrasMetodo: { torno: "", modelado: "" },
   precioUnico: "",
   maxTotales: "10",
   maxTorno: "6",
@@ -157,6 +160,7 @@ export function formularioDesdeClase(id, clase = {}) {
     mostrarAvisos: clase.mostrarAvisos !== false,
     secciones: seccionesDesdeClase(clase),
     sesiones: String(clase.sesiones || 1),
+    diasEntreSesiones: diasEntreSesionesDe(clase).map(String),
     modalidad,
     metodos: metodosMarcados,
     precios: {
@@ -166,6 +170,10 @@ export function formularioDesdeClase(id, clase = {}) {
     },
     varianteEtiqueta: clase.variante?.etiqueta || "Tipo de pieza",
     variantes: variantes.map((v) => ({ id: v.id, nombre: v.nombre, precio: String(v.precio || "") })),
+    extrasMetodo: {
+      torno: clase.extrasMetodo?.torno ? String(clase.extrasMetodo.torno) : "",
+      modelado: clase.extrasMetodo?.modelado ? String(clase.extrasMetodo.modelado) : "",
+    },
     precioUnico: clase.precio ? String(clase.precio) : "",
     maxTotales: String(clase.plazas?.maxTotales || ""),
     maxTorno: String(clase.plazas?.maxTorno || ""),
@@ -275,6 +283,14 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
           })),
         }
       : null,
+    // Extra por método (solo con precio por tipo o tamaño): se suma al precio de la opción
+    extrasMetodo: conVariantes
+      ? Object.fromEntries(
+          METODOS_TALLER.filter((m) => form.metodos[m.id] && numeroPositivo(form.extrasMetodo?.[m.clavePrecio]) > 0).map(
+            (m) => [m.clavePrecio, numeroPositivo(form.extrasMetodo[m.clavePrecio])]
+          )
+        )
+      : null,
     horarios,
     turnos,
     estado: form.estado,
@@ -316,6 +332,13 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
         }
       : {
           sesiones: Math.max(1, Math.round(numeroPositivo(form.sesiones) || 1)),
+          // Días mínimos entre sesiones (solo con varias sesiones)
+          diasEntreSesiones:
+            Math.round(numeroPositivo(form.sesiones)) > 1
+              ? Array.from({ length: Math.round(numeroPositivo(form.sesiones)) - 1 }, (_, i) =>
+                  Math.min(365, Math.max(1, Math.round(numeroPositivo(form.diasEntreSesiones?.[i])) || 28))
+                )
+              : null,
           minPersonasGrupo: numeroPositivo(form.minPersonasGrupo)
             ? Math.round(numeroPositivo(form.minPersonasGrupo))
             : null,

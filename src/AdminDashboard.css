@@ -1,8 +1,6 @@
 /* Panel admin (AdminDashboard.jsx). Prefijo ad- para no chocar con otros estilos. */
 
 .ad-body {
-  background-color: #fdf8ee;
-  min-height: 100vh;
   padding: 30px;
   font-family: "Segoe UI", sans-serif;
 }
@@ -23,7 +21,7 @@
 
 .ad-titulo {
   margin: 0;
-  color: #2f2f2f;
+  color: #3f3128;
   font-size: 2rem;
 }
 
@@ -43,8 +41,8 @@
 .ad-card {
   display: block;
   box-sizing: border-box;
-  background-color: #fff8da;
-  border: 1px solid #f1e7c6;
+  background-color: #fff6d6;
+  border: 1px solid #eadfd2;
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
@@ -54,7 +52,7 @@
 
 .ad-card-label {
   margin: 0;
-  color: #7a6331;
+  color: #3f3128;
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -69,7 +67,7 @@
 
 .ad-card-nota {
   margin: 6px 0 0;
-  color: #7a6331;
+  color: #3f3128;
   font-size: 0.8rem;
   min-height: 1.2em;
 }
@@ -118,8 +116,8 @@
 }
 
 .ad-panel {
-  background-color: #fffdf7;
-  border: 1px solid #f0e5cf;
+  background-color: #fdfaf5;
+  border: 1px solid #eadfd2;
   border-radius: 22px;
   padding: 22px;
 }
@@ -131,7 +129,7 @@
 
 .ad-panel-titulo {
   margin: 0 0 18px;
-  color: #4b3a2a;
+  color: #3f3128;
   font-size: 1.25rem;
 }
 
@@ -144,9 +142,9 @@
 
 .ad-proxima {
   padding: 10px 16px;
-  background-color: #fff8da;
-  color: #3d3126;
-  border: 1px solid #f1e7c6;
+  background-color: #fff6d6;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
   border-radius: 14px;
   font-size: 1rem;
   cursor: pointer;
@@ -174,9 +172,9 @@
   gap: 12px;
   flex-wrap: wrap;
   padding: 12px 14px;
-  background-color: #fffaf0;
-  color: #3d3126;
-  border: 1px solid #eadfbe;
+  background-color: #fdfaf5;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
   border-radius: 12px;
   font-size: 0.95rem;
   text-align: left;
@@ -195,7 +193,7 @@
 
 .ad-seccion-titulo {
   margin: 0 0 10px;
-  color: #7a6331;
+  color: #3f3128;
   font-size: 0.9rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -215,9 +213,9 @@
   width: 100%;
   box-sizing: border-box;
   padding: 14px 16px;
-  background-color: #fffaf0;
-  color: #3d3126;
-  border: 1px solid #eadfbe;
+  background-color: #fdfaf5;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
   border-radius: 14px;
   font-size: 1rem;
   text-align: left;
@@ -267,6 +265,73 @@
     border-radius: 16px;
     padding: 10px;
     box-sizing: border-box;
+  }
+
+  .ad-header {
+    margin-bottom: 18px;
+  }
+
+  .ad-titulo {
+    font-size: 1.5rem;
+  }
+
+  .ad-subtitulo {
+    font-size: 0.9rem;
+  }
+
+  /* Casillas del resumen: dos por fila, compactas, con el dato como protagonista */
+  .ad-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .ad-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 96px;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+  }
+
+  .ad-card-label {
+    padding-right: 14px; /* deja sitio a la flecha de las casillas que abren una lista */
+    font-size: 0.78rem;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ad-card-valor {
+    margin: 8px 0 0;
+    font-size: 1.7rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .ad-card-nota {
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    min-height: 0;
+  }
+
+  .ad-card-nota:empty {
+    display: none;
+  }
+
+  /* Flecha: avisa de que la casilla se puede tocar */
+  .ad-card[href]::after {
+    content: "\203A";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: #b59a52;
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1;
   }
 }
 

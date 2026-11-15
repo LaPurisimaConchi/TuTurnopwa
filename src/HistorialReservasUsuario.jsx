@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Icono from "./components/Icono";
 import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
@@ -77,12 +78,12 @@ export default function HistorialReservasUsuario() {
   return (
     <PantallaConVolver>
       <div className="mt-8 px-4">
-        <h3 className="text-lg font-semibold text-[#3b3025] mb-4 text-center">
-          📌 Reservas activas
+        <h3 className="text-lg font-semibold text-tinta mb-4 text-center">
+          <Icono nombre="chincheta" className="mr-1.5" />Reservas activas
         </h3>
 
         {reservasFuturas.length === 0 ? (
-          <p className="text-center text-gray-500">No tienes reservas futuras.</p>
+          <p className="text-center text-tinta-suave">No tienes reservas futuras.</p>
         ) : (
           <ul className="space-y-4 mb-8">
             {reservasFuturas.map((reserva, idx) => (
@@ -91,12 +92,12 @@ export default function HistorialReservasUsuario() {
           </ul>
         )}
 
-        <h3 className="text-lg font-semibold text-[#3b3025] mb-4 text-center">
-          📜 Historial de reservas
+        <h3 className="text-lg font-semibold text-tinta mb-4 text-center">
+          <Icono nombre="historial" className="mr-1.5" />Historial de reservas
         </h3>
 
         {reservasPasadas.length === 0 ? (
-          <p className="text-center text-gray-500">No hay reservas anteriores.</p>
+          <p className="text-center text-tinta-suave">No hay reservas anteriores.</p>
         ) : (
           <ul className="space-y-4">
             {reservasPasadas.map((reserva, idx) => (

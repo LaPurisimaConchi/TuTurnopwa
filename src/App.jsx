@@ -94,6 +94,9 @@ import ReservaEspecialPintaTuPieza from "./ReservaEspecialPintaTuPieza";
 import ReservaPintaTuPieza from "./ReservaPintaTuPieza";
 import ReservaClaseSueltaContinuidad from "./ReservaClaseSueltaContinuidad";
 import ReservaGrupos from "./ReservaGrupos.jsx";
+import RegalarTaller from "./RegalarTaller.jsx";
+import PaginaGrupos from "./PaginaGrupos.jsx";
+import AdminPaginasEspeciales from "./AdminPaginasEspeciales.jsx";
 import UsarBonoTornoAlfareroEmpezarDesdeCero from "./UsarBonoTornoAlfareroEmpezarDesdeCero";
 import UsarBono from "./UsarBono";
 
@@ -294,6 +297,8 @@ function App() {
             path="/reserva-clase-suelta-continuidad"
             element={<RutaTaller claseId="clasesueltacontinuidad" tipo="reserva"><AccesoCompra><ReservaClaseSueltaContinuidad /></AccesoCompra></RutaTaller>}
           />
+          <Route path="/regalar-taller" element={<RegalarTaller />} />
+          <Route path="/grupos" element={<PaginaGrupos />} />
           <Route path="/reserva-grupos" element={<AccesoCompra permitirVisita><ReservaGrupos /></AccesoCompra>} />
 
           <Route
@@ -479,6 +484,14 @@ function App() {
             element={
               <RutaAdmin>
                 <AdminMigrarTalleres />
+              </RutaAdmin>
+            }
+          />
+          <Route
+            path="/admin-paginas-especiales"
+            element={
+              <RutaAdmin>
+                <AdminPaginasEspeciales />
               </RutaAdmin>
             }
           />

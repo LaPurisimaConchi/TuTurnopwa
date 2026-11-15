@@ -68,7 +68,7 @@ const HistorialTarjetasRegalo = () => {
 
 const styles = {
   container: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     padding: 20,
     fontFamily: "Segoe UI, sans-serif",
     maxWidth: 600,
@@ -77,7 +77,7 @@ const styles = {
   titulo: {
     textAlign: "center",
     fontSize: "1.5rem",
-    color: "#6b3700",
+    color: "#3f3128",
     marginBottom: 20,
   },
   vacio: {

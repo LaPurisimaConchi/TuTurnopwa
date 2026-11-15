@@ -412,8 +412,6 @@ const AdminTarjetasRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -438,7 +436,7 @@ const styles = {
   titulo: {
     margin: 0,
     textAlign: "center",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   tituloMobile: {
@@ -447,7 +445,7 @@ const styles = {
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
@@ -467,15 +465,15 @@ const styles = {
     gap: 10,
   },
   statCard: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
   },
   statLabel: {
     margin: 0,
-    color: "#7a6331",
+    color: "#3f3128",
     fontWeight: 600,
     fontSize: "0.95rem",
   },
@@ -489,8 +487,8 @@ const styles = {
     fontSize: "1.45rem",
   },
   filtrosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 18,
@@ -516,35 +514,35 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonSecundario: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     width: "100%",
   },
   resumen: {
     marginBottom: 14,
   },
   resumenTexto: {
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "0.96rem",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   tablaWrapper: {
@@ -554,20 +552,20 @@ const styles = {
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    backgroundColor: "#fffdf7",
+    backgroundColor: "#fdfaf5",
     overflow: "hidden",
   },
   th: {
     textAlign: "left",
     padding: 14,
-    backgroundColor: "#fff8da",
-    color: "#5b4a2d",
-    borderBottom: "1px solid #f0e5cf",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    borderBottom: "1px solid #eadfd2",
     fontSize: "0.95rem",
   },
   td: {
     padding: 14,
-    borderBottom: "1px solid #f3ead7",
+    borderBottom: "1px solid #f6efe6",
     color: "#333",
     fontSize: "0.95rem",
   },
@@ -581,8 +579,8 @@ const styles = {
   },
   cardMobile: {
     width: "100%",
-    border: "1px solid #f0e5cf",
-    backgroundColor: "#fffdf7",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fdfaf5",
     borderRadius: 18,
     padding: 14,
     textAlign: "left",
@@ -597,13 +595,13 @@ const styles = {
   },
   cardTitulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "1rem",
     fontWeight: 700,
   },
   cardFecha: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.9rem",
   },
   cardPrecio: {
@@ -621,7 +619,7 @@ cardGrid: {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     borderRadius: 12,
     padding: 10,
     border: "1px solid #f3e7c8",
@@ -630,7 +628,7 @@ cardGrid: {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     borderRadius: 12,
     padding: 10,
     border: "1px solid #f3e7c8",
@@ -638,7 +636,7 @@ cardGrid: {
   },
   cardLabel: {
     fontSize: "0.78rem",
-    color: "#7a6331",
+    color: "#3f3128",
     fontWeight: 700,
   },
   cardValue: {
@@ -651,9 +649,9 @@ cardGrid: {
     display: "inline-block",
     padding: "4px 10px",
     borderRadius: 999,
-    backgroundColor: "#fff8da",
-    border: "1px solid #eadfbe",
-    color: "#5b4a2d",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
+    color: "#3f3128",
     fontSize: "0.85rem",
     fontWeight: 600,
   },

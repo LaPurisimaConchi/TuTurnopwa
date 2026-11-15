@@ -6,20 +6,20 @@ export default function GenerarCodigoTarjetaRegalo() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-8 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-8 font-sans">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-6">
         <BotonVolver />
 
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-yellow-900 font-serif mb-2">
+          <h1 className="text-3xl font-bold text-tinta font-serif mb-2">
             Tarjeta regalo
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-tinta-suave">
             El código definitivo se genera automáticamente tras confirmar el pago.
           </p>
         </div>
 
-        <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-4 text-sm text-[#5c3c00] mb-5">
+        <div className="bg-crema border border-linea rounded-xl p-4 text-sm text-tinta mb-5">
           <p>
             Para ver el código real de la tarjeta regalo, vuelve a la confirmación
             del pago o consulta tu perfil.
@@ -29,9 +29,9 @@ export default function GenerarCodigoTarjetaRegalo() {
         <button
           onClick={() => navigate("/perfil")}
           className="w-full px-6 py-3 rounded-full text-white font-semibold
-          bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+          bg-terracota
           shadow-md hover:shadow-lg
-          hover:from-[#F4C542] hover:to-[#E5B92F]
+          hover:bg-terracota-oscuro
           transition-all duration-200"
         >
           Ir a mi perfil

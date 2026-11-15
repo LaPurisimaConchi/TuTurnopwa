@@ -112,17 +112,17 @@ export default function AdminMigrarTalleres() {
 
   const grupos = [...new Set(talleres.map((t) => t.grupo))];
   const boton =
-    "px-3 py-1.5 rounded-lg border border-[#eadfbe] bg-[#fffaf0] text-sm font-semibold hover:bg-[#fff1cf] disabled:opacity-50";
+    "px-3 py-1.5 rounded-lg border border-linea bg-crema text-sm font-semibold hover:bg-[#fff1cf] disabled:opacity-50";
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-6 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-6 font-sans">
       <div className="max-w-3xl mx-auto">
         <BotonVolver volverA="/admin-clases-nuevo" />
 
-        <h1 className="text-2xl md:text-3xl font-bold text-[#3d3126] font-serif">
+        <h1 className="text-2xl md:text-3xl font-bold text-tinta font-serif">
           Migrar talleres al panel
         </h1>
-        <p className="text-sm text-gray-700 mt-2 leading-relaxed">
+        <p className="text-sm text-tinta mt-2 leading-relaxed">
           Los talleres de siempre tienen su página hecha a mano. Al migrarlos pasan a
           gestionarse como los que creas desde el panel: se pueden{" "}
           <strong>editar, ocultar y borrar</strong>, y sus <strong>fotos se guardan en la
@@ -130,7 +130,7 @@ export default function AdminMigrarTalleres() {
           bonos y tarjetas regalo actuales.
         </p>
 
-        <div className="mt-3 bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00] space-y-1">
+        <div className="mt-3 bg-mostaza-suave border border-linea rounded-xl p-3 text-sm text-tinta space-y-1">
           <p>
             • Las direcciones de siempre siguen funcionando: pasan a mostrar la página
             nueva del taller.
@@ -151,13 +151,13 @@ export default function AdminMigrarTalleres() {
         )}
 
         {cargando ? (
-          <p className="text-center text-gray-500 py-12">Cargando talleres...</p>
+          <p className="text-center text-tinta-suave py-12">Cargando talleres...</p>
         ) : (
           <>
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                className="px-5 py-2.5 rounded-full text-white font-semibold bg-[#b36a4a] hover:bg-[#9e5c3f] shadow-md disabled:opacity-50"
+                className="px-5 py-2.5 rounded-full text-white font-semibold bg-terracota hover:bg-terracota-oscuro shadow-md disabled:opacity-50"
                 onClick={handleMigrarTodos}
                 disabled={!!ocupado || pendientes.length === 0}
               >
@@ -165,12 +165,12 @@ export default function AdminMigrarTalleres() {
                   ? `Migrar los ${pendientes.length} pendientes`
                   : "Todos los talleres están migrados"}
               </button>
-              {progreso && <span className="text-sm text-gray-600">{progreso}…</span>}
+              {progreso && <span className="text-sm text-tinta-suave">{progreso}…</span>}
             </div>
 
             {grupos.map((grupo) => (
               <section key={grupo} className="mt-6">
-                <h2 className="text-lg font-semibold text-[#3d3126] mb-2">
+                <h2 className="text-lg font-semibold text-tinta mb-2">
                   {tituloGrupo(grupo)}
                 </h2>
                 <ul className="space-y-2">
@@ -183,19 +183,19 @@ export default function AdminMigrarTalleres() {
                       return (
                         <li
                           key={taller.id}
-                          className="bg-white rounded-xl border border-[#eadfbe] p-3 shadow-sm"
+                          className="bg-white rounded-xl border border-linea p-3 shadow-sm"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="font-semibold text-[#3d3126]">
+                              <p className="font-semibold text-tinta">
                                 {taller.nombre}
                                 {taller.esBono && (
-                                  <span className="ml-2 text-xs font-normal text-gray-500">
+                                  <span className="ml-2 text-xs font-normal text-tinta-suave">
                                     bono
                                   </span>
                                 )}
                               </p>
-                              <p className="text-xs text-gray-500 mt-0.5">
+                              <p className="text-xs text-tinta-suave mt-0.5">
                                 {!taller.existe
                                   ? "No existe en la base de datos"
                                   : taller.migrado

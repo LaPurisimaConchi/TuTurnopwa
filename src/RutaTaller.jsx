@@ -35,7 +35,7 @@ export default function RutaTaller({ claseId, tipo = "pagina", children }) {
   }, [claseId]);
 
   if (estado === "cargando") {
-    return <p className="text-center text-gray-500 py-16">Cargando...</p>;
+    return <p className="text-center text-tinta-suave py-16">Cargando...</p>;
   }
 
   if (estado === "migrada") {
@@ -52,16 +52,16 @@ export default function RutaTaller({ claseId, tipo = "pagina", children }) {
     return (
       <PantallaConVolver>
         <div className="bg-white text-[#333] font-sans max-w-3xl w-full mx-auto shadow-md rounded-2xl p-8">
-          <h1 className="text-2xl font-bold text-[#3b3025] mb-4">
+          <h1 className="text-2xl font-bold text-tinta mb-4">
             Este taller ya no está disponible
           </h1>
-          <p className="text-sm text-gray-700 leading-relaxed mb-6">
+          <p className="text-sm text-tinta leading-relaxed mb-6">
             El taller que buscas se ha retirado. Puedes ver el resto desde la lista
             de talleres.
           </p>
           <Link
             to="/clases"
-            className="inline-block px-6 py-3 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold hover:bg-[#e8b932] transition"
+            className="inline-block px-6 py-3 rounded-full bg-terracota text-white font-semibold hover:bg-terracota-oscuro transition"
           >
             Ver talleres
           </Link>

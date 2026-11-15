@@ -95,13 +95,13 @@ export default function ResumenPagoTheClub() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fffef4] p-6">
+    <div className="min-h-screen bg-crema p-6">
       <div className="max-w-lg mx-auto bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-2xl font-serif text-[#5c3c00] mb-4 text-center">
+        <h2 className="text-2xl font-serif text-tinta mb-4 text-center">
           Resumen de tu reserva en The Club
         </h2>
 
-        <div className="text-gray-800 text-base space-y-2 mb-6">
+        <div className="text-tinta text-base space-y-2 mb-6">
           <p><strong>Clase:</strong> {datos.clase || "-"}</p>
           <p><strong>Fecha:</strong> {fechaDMA(datos.fecha) || "-"}</p>
           <p><strong>Turno:</strong> {datos.turno || "-"}</p>
@@ -116,7 +116,7 @@ export default function ResumenPagoTheClub() {
           </p>
         </div>
 
-        <label className="flex items-start mb-4 text-sm text-gray-700">
+        <label className="flex items-start mb-4 text-sm text-tinta">
           <input
             type="checkbox"
             className="mr-2 mt-1"

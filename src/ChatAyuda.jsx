@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import Icono from "./components/Icono";
 import BotonVolver from "./BotonVolver";
 import { faqData } from "./faqData";
 
@@ -499,7 +500,7 @@ const ChatAyuda = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f5f0] px-4 py-6">
+    <div className="px-4 py-6">
       <div className="mx-auto max-w-3xl">
         <div className="mb-4">
           <BotonVolver />
@@ -509,9 +510,7 @@ const ChatAyuda = () => {
           <div className="border-b border-[#efe7dc] bg-[#f7efe6] px-5 py-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#d8b08c] text-xl text-white">
-                  💬
-                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#d8b08c] text-xl text-white"><Icono nombre="chat" color="currentColor" /></div>
                 <div>
                   <h1 className="text-xl font-semibold text-[#5c3d2e]">
                     Soy Junquillo
@@ -525,7 +524,7 @@ const ChatAyuda = () => {
 
               <button
                 onClick={reiniciarChat}
-                className="rounded-full border border-[#dcc8b4] px-4 py-2 text-sm font-medium text-[#6b4f3f] transition hover:bg-[#fff8f2]"
+                className="rounded-full border border-[#dcc8b4] px-4 py-2 text-sm font-medium text-tinta-suave transition hover:bg-[#fff8f2]"
               >
                 Reiniciar chat
               </button>
@@ -542,7 +541,7 @@ const ChatAyuda = () => {
                   <button
                     key={sugerencia}
                     onClick={() => enviarMensaje(sugerencia)}
-                    className="rounded-full border border-[#e8d8c8] bg-white px-3 py-2 text-sm text-[#6b4f3f] transition hover:bg-[#fdf5ee]"
+                    className="rounded-full border border-[#e8d8c8] bg-white px-3 py-2 text-sm text-tinta-suave transition hover:bg-[#fdf5ee]"
                   >
                     {sugerencia}
                   </button>
@@ -577,7 +576,7 @@ const ChatAyuda = () => {
                     )}
 
                     {mensaje.tipo === "bot" && mensaje.preguntaRelacionada && (
-                      <p className="mb-2 text-sm font-semibold text-[#6b4f3f]">
+                      <p className="mb-2 text-sm font-semibold text-tinta-suave">
                         {mensaje.preguntaRelacionada}
                       </p>
                     )}
@@ -630,7 +629,7 @@ const ChatAyuda = () => {
             className="border-t border-[#efe7dc] bg-white px-4 py-4"
           >
             <div className="flex items-center gap-3 rounded-2xl border border-[#e7dbcf] bg-[#fcfaf7] px-4 py-3">
-              <span className="text-lg text-[#a68a73]">🔍</span>
+              <span className="text-lg text-[#a68a73]"><Icono nombre="buscar" /></span>
               <input
                 type="text"
                 value={input}
@@ -642,9 +641,7 @@ const ChatAyuda = () => {
                 type="submit"
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-[#d8b08c] text-white transition hover:opacity-90"
                 aria-label="Enviar mensaje"
-              >
-                ➤
-              </button>
+              ><Icono nombre="enviar" /></button>
             </div>
 
             <p className="mt-3 text-xs text-[#9b8574]">

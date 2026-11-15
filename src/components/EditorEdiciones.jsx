@@ -50,7 +50,7 @@ export default function EditorEdiciones({ ediciones, sesionesCurso, onChange }) 
   return (
     <div className="space-y-4">
       {ediciones.length === 0 && (
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-tinta-suave">
           Todavía no hay ediciones. Mientras no haya ninguna con fecha futura, el taller
           no se ve en la web.
         </p>
@@ -61,12 +61,12 @@ export default function EditorEdiciones({ ediciones, sesionesCurso, onChange }) 
         const pasada = primera && primera < hoy;
 
         return (
-          <div key={edicion.id} className="rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-4 space-y-3">
+          <div key={edicion.id} className="rounded-xl border border-linea bg-crema p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="font-bold text-sm text-[#3d3126]">
+              <p className="font-bold text-sm text-tinta">
                 Edición {e + 1}
                 {primera ? ` · empieza el ${fechaDMA(primera)}` : ""}
-                {pasada && <span className="ml-2 text-xs font-semibold text-gray-500">(ya empezó: no se puede reservar)</span>}
+                {pasada && <span className="ml-2 text-xs font-semibold text-tinta-suave">(ya empezó: no se puede reservar)</span>}
               </p>
               <button
                 type="button"
@@ -127,7 +127,7 @@ export default function EditorEdiciones({ ediciones, sesionesCurso, onChange }) 
       <button
         type="button"
         onClick={anadir}
-        className="px-4 py-2 rounded-full border border-dashed border-[#d6c89a] text-sm font-semibold text-[#5c3c00] hover:bg-[#fff6d6]"
+        className="px-4 py-2 rounded-full border border-dashed border-[#d6c89a] text-sm font-semibold text-tinta hover:bg-mostaza-suave"
       >
         + Añadir edición
       </button>
