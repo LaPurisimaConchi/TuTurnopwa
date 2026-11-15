@@ -374,17 +374,17 @@ notaHeaderMobile: {
   titulo: {
     textAlign: "center",
     margin: "0 0 20px 0",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     margin: "0 0 14px 0",
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -392,8 +392,8 @@ notaHeaderMobile: {
     gap: 8,
   },
   bloque: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -405,8 +405,8 @@ notaHeaderMobile: {
   reservaItem: {
     padding: 14,
     borderRadius: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     cursor: "pointer",
     transition: "0.2s",
   },
@@ -456,12 +456,12 @@ notaHeaderMobile: {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",
@@ -475,12 +475,12 @@ notaHeaderMobile: {
   },
   textoVacio: {
     margin: 0,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   mensaje: {
     textAlign: "center",
     padding: 40,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
 };
 

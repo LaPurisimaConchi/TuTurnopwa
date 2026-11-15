@@ -92,7 +92,7 @@ function AvisoReprogramacion({ reserva }) {
     reserva.turnoOriginal || reserva.ultimoTurnoAnterior || "";
 
   return (
-    <div className="mt-3 rounded-xl border border-[#ecd8a6] bg-[#fffaf0] px-3 py-3">
+    <div className="mt-3 rounded-xl border border-[#ecd8a6] bg-crema px-3 py-3">
       <div className="flex items-center gap-2 mb-2">
         <span className="inline-flex items-center rounded-full bg-[#f6e7b8] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#7a5a1f]">
           Reprogramada
@@ -316,18 +316,18 @@ export default function PerfilUsuario() {
 
   return (
     <PantallaConVolver volverA="/dondereservar">
-      <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-[#3b3025]">
+      <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-tinta">
         <div className="text-center mb-6">
           <h1 className="text-[2rem] font-serif font-bold text-[#6f3d22] mb-2">
             Tu perfil
           </h1>
-          <p className="text-sm text-[#7b6d62]">
+          <p className="text-sm text-tinta-suave">
            Consulta y gestiona tus reservas y datos de tu cuenta
           </p>
         </div>
 
         {esInvitado && (
-          <div className="bg-[#fff8df] border border-[#f1e7c6] rounded-2xl px-4 py-4 mb-5 text-sm text-[#6b4f3f]">
+          <div className="bg-mostaza-suave border border-linea rounded-2xl px-4 py-4 mb-5 text-sm text-tinta-suave">
             <p className="font-semibold mb-1">Estás usando la app como invitado</p>
             <p className="leading-relaxed mb-3">
               Crea una contraseña para guardar tus reservas y compras y poder
@@ -335,14 +335,14 @@ export default function PerfilUsuario() {
             </p>
             <button
               onClick={() => navigate("/registro")}
-              className="w-full bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold py-2.5 rounded-xl transition"
+              className="w-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold py-2.5 rounded-xl transition"
             >
               Crear mi cuenta
             </button>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-[#efe7db] px-4 py-4 shadow-sm mb-5">
+        <div className="bg-white rounded-2xl border border-arena px-4 py-4 shadow-sm mb-5">
   <p className="text-sm mb-2">
     <span className="font-semibold">Nombre:</span> {nombre || "—"}
   </p>
@@ -355,7 +355,7 @@ export default function PerfilUsuario() {
 
   <button
     onClick={() => navigate("/editar-perfil")}
-    className="w-full bg-[#f5f1ea] hover:bg-[#ebe4da] text-[#5f5247] font-semibold py-3 rounded-2xl transition"
+    className="w-full bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-3 rounded-2xl transition"
   >
     Editar perfil
   </button>
@@ -363,7 +363,7 @@ export default function PerfilUsuario() {
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <button
-            className="bg-[#f2c500] hover:bg-[#e4b800] text-[#3b3025] font-bold py-3 rounded-2xl text-sm shadow-md transition"
+            className="bg-mostaza hover:bg-mostaza-borde text-tinta font-bold py-3 rounded-2xl text-sm shadow-md transition"
             onClick={() => navigate("/dondereservar")}
           >
             Reservar
@@ -377,19 +377,19 @@ export default function PerfilUsuario() {
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#efe7db] px-4 py-4 shadow-sm mb-5">
+        <div className="bg-white rounded-2xl border border-arena px-4 py-4 shadow-sm mb-5">
           <h2 className="text-base font-semibold mb-3">Tu reserva</h2>
 
           {reservaActiva ? (
             <TarjetaReserva reserva={reservaActiva} />
           ) : (
-            <p className="text-sm text-[#7b6d62]">
+            <p className="text-sm text-tinta-suave">
               No tienes reservas activas.
             </p>
           )}
         </div>
 
-        <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
+        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
             Próximas reservas
           </summary>
@@ -412,14 +412,14 @@ export default function PerfilUsuario() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-[#7b6d62]">
+              <p className="text-sm text-tinta-suave">
                 No tienes más reservas futuras.
               </p>
             )}
           </div>
         </details>
 
-        <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
+        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
             Historial de reservas
           </summary>
@@ -445,14 +445,14 @@ export default function PerfilUsuario() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-[#7b6d62]">
+              <p className="text-sm text-tinta-suave">
                 Aún no tienes reservas anteriores.
               </p>
             )}
           </div>
         </details>
 
-        <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
+        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
             <Icono nombre="bono" className="mr-1.5" />Mis bonos
           </summary>
@@ -498,7 +498,7 @@ export default function PerfilUsuario() {
                       {estadoVisible === "Activo" && (
  <button
   onClick={() => navigate(`/usar-bono/${bono.bonoId}`)}
-  className="mt-3 w-full px-4 py-2 bg-[#f2c500] hover:bg-[#e4b800] text-[#3b3025] font-semibold rounded-xl transition"
+  className="mt-3 w-full px-4 py-2 bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold rounded-xl transition"
 >
   Reservar sesión con este bono
 </button>
@@ -509,14 +509,14 @@ export default function PerfilUsuario() {
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-[#7b6d62]">
+              <p className="text-sm text-tinta-suave">
                 Aún no tienes bonos comprados.
               </p>
             )}
           </div>
         </details>
 
-        <details className="mb-5 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
+        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
             <Icono nombre="regalo" className="mr-1.5" />Mis tarjetas regalo
           </summary>
@@ -551,7 +551,7 @@ export default function PerfilUsuario() {
   <a
     href="/tarjetas-regalo/postal regalo.pdf"
     download
-    className="w-full text-center bg-[#f5f1ea] hover:bg-[#ebe4da] text-[#5f5247] font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
+    className="w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
   >
     Descargar tarjeta clásica
   </a>
@@ -559,7 +559,7 @@ export default function PerfilUsuario() {
   <a
     href="/tarjetas-regalo/regalo papa noel.pdf"
     download
-    className="w-full text-center bg-[#f5f1ea] hover:bg-[#ebe4da] text-[#5f5247] font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
+    className="w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
   >
     Descargar tarjeta Navidad 1
   </a>
@@ -567,7 +567,7 @@ export default function PerfilUsuario() {
   <a
     href="/tarjetas-regalo/regalo reyes.pdf"
     download
-    className="w-full text-center bg-[#f5f1ea] hover:bg-[#ebe4da] text-[#5f5247] font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
+    className="w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
   >
     Descargar tarjeta Navidad 2
   </a>
@@ -576,7 +576,7 @@ export default function PerfilUsuario() {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-[#7b6d62]">
+              <p className="text-sm text-tinta-suave">
                 Aún no has comprado ninguna tarjeta regalo.
               </p>
             )}
@@ -588,7 +588,7 @@ export default function PerfilUsuario() {
     <Icono nombre="taller" className="mr-1.5" />Quiero recoger mi pieza
   </summary>
 
-  <div className="mt-3 text-sm text-[#3b3025] space-y-3">
+  <div className="mt-3 text-sm text-tinta space-y-3">
     <p>
       Tus piezas necesitan secado y cocción. Cuando estén listas, podrás consultarlas aquí.
     </p>
@@ -607,7 +607,7 @@ export default function PerfilUsuario() {
         href="https://drive.google.com/drive/folders/1Im70RbYcyCFs5pPLgq2ooHhowwtA8F0R"
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full bg-[#f2c500] hover:bg-[#e4b800] text-[#3b3025] font-semibold py-3 px-4 rounded-2xl text-center transition shadow-sm"
+        className="w-full bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold py-3 px-4 rounded-2xl text-center transition shadow-sm"
       >
         Elegir esmalte y subir foto
       </a>
@@ -616,7 +616,7 @@ export default function PerfilUsuario() {
         href="https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn"
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full bg-[#f5f1ea] hover:bg-[#ebe4da] text-[#5f5247] font-semibold py-3 px-4 rounded-2xl text-center transition border border-[#e7dccb]"
+        className="w-full bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-3 px-4 rounded-2xl text-center transition border border-[#e7dccb]"
       >
         Ver si mi pieza está lista
       </a>
@@ -645,7 +645,7 @@ export default function PerfilUsuario() {
   </div>
 </details>
 
-        <details className="mb-6 bg-white border border-[#efe7db] rounded-2xl p-4 shadow-sm">
+        <details className="mb-6 bg-white border border-arena rounded-2xl p-4 shadow-sm">
           <summary className="cursor-pointer font-semibold">
             <Icono nombre="ubicacion" className="mr-1.5" />Contacto
           </summary>
@@ -664,7 +664,7 @@ export default function PerfilUsuario() {
                   "_blank"
                 )
               }
-              className="w-full px-4 py-2 bg-[#f5f1ea] hover:bg-[#ebe4da] rounded-xl text-sm font-medium transition"
+              className="w-full px-4 py-2 bg-arena hover:bg-[#ebe4da] rounded-xl text-sm font-medium transition"
             >
               <Icono nombre="ubicacion" className="mr-1.5" />Cómo llegar
             </button>

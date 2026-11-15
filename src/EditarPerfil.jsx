@@ -115,8 +115,8 @@ export default function EditarPerfil() {
   if (cargando) {
     return (
       <PantallaConVolver volverA="/perfil">
-        <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-[#3b3025]">
-          <p className="text-sm text-[#7b6d62] text-center">Cargando perfil...</p>
+        <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-tinta">
+          <p className="text-sm text-tinta-suave text-center">Cargando perfil...</p>
         </div>
         <Footer />
       </PantallaConVolver>
@@ -125,19 +125,19 @@ export default function EditarPerfil() {
 
   return (
     <PantallaConVolver volverA="/perfil">
-      <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-[#3b3025]">
+      <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-tinta">
         <div className="text-center mb-6">
           <h1 className="text-[2rem] font-serif font-bold text-[#6f3d22] mb-2">
             Editar perfil
           </h1>
-          <p className="text-sm text-[#7b6d62]">
+          <p className="text-sm text-tinta-suave">
             Actualiza tus datos de contacto
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white rounded-2xl border border-[#efe7db] px-4 py-4 shadow-sm space-y-4"
+          className="bg-white rounded-2xl border border-arena px-4 py-4 shadow-sm space-y-4"
         >
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center">
@@ -157,7 +157,7 @@ export default function EditarPerfil() {
               type="text"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-[#b36a4a]"
+              className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-terracota"
               placeholder="Tu nombre"
               required
             />
@@ -169,7 +169,7 @@ export default function EditarPerfil() {
               type="tel"
               value={telefono}
               onChange={(e) => setTelefono(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-[#b36a4a]"
+              className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-terracota"
               placeholder="Tu teléfono"
               required
             />
@@ -183,7 +183,7 @@ export default function EditarPerfil() {
               type="email"
               value={email}
               readOnly
-              className="w-full border border-gray-200 bg-[#f8f6f2] text-[#7b6d62] rounded-xl px-3 py-3 text-base outline-none cursor-not-allowed"
+              className="w-full border border-gray-200 bg-[#f8f6f2] text-tinta-suave rounded-xl px-3 py-3 text-base outline-none cursor-not-allowed"
             />
             <p className="text-xs text-[#8e7f73] mt-1">
               El correo no se puede modificar desde aquí.
@@ -194,7 +194,7 @@ export default function EditarPerfil() {
             <button
               type="submit"
               disabled={guardando}
-              className="bg-[#b36a4a] hover:bg-[#9e5c3f] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 rounded-2xl transition"
+              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 rounded-2xl transition"
             >
               {guardando ? "Guardando..." : "Guardar cambios"}
             </button>
@@ -202,7 +202,7 @@ export default function EditarPerfil() {
             <button
               type="button"
               onClick={() => navigate("/perfil")}
-              className="bg-white border border-[#d8cfc2] text-[#5f5247] font-bold py-3 rounded-2xl hover:bg-[#f8f5f0] transition"
+              className="bg-white border border-[#d8cfc2] text-tinta-suave font-bold py-3 rounded-2xl hover:bg-[#f8f5f0] transition"
             >
               Cancelar
             </button>

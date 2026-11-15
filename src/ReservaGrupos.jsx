@@ -357,8 +357,8 @@ export default function ReservaGrupos() {
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
-        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+      <h1 className="text-center font-serif text-tinta mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
           Reserva para grupos
         </span>
         {taller && (
@@ -368,7 +368,7 @@ export default function ReservaGrupos() {
         )}
         {!taller && !cargandoTalleres && <span className="block text-2xl mt-1">Elige un taller</span>}
       </h1>
-      <p className="text-center text-sm text-gray-700 max-w-2xl mx-auto mb-5">
+      <p className="text-center text-sm text-tinta max-w-2xl mx-auto mb-5">
         Para grupos de <strong>{MIN_PERSONAS} o más personas</strong>. Antes de pagar, habla con el taller por
         WhatsApp para confirmar fecha y horario.
       </p>
@@ -385,7 +385,7 @@ export default function ReservaGrupos() {
           {/* Izquierda: qué y cuándo */}
           <div className="space-y-4">
             {!cargandoTalleres && !taller && (
-              <p className="rounded-lg border border-[#eadfbe] bg-[#fffaf0] px-3 py-2 text-sm text-gray-700">
+              <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
                 Elige primero un taller en su página y pulsa su botón de reserva para grupos.{" "}
                 <Link to="/portada" className="text-blue-700 underline">
                   Ver talleres
@@ -449,7 +449,7 @@ export default function ReservaGrupos() {
                 <button
                   type="button"
                   onClick={() => setPersonas(Math.max(MIN_PERSONAS, personasNum - 1))}
-                  className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100"
+                  className="text-xl font-bold px-3 py-1 rounded-lg bg-arena"
                 >
                   −
                 </button>
@@ -457,12 +457,12 @@ export default function ReservaGrupos() {
                 <button
                   type="button"
                   onClick={() => setPersonas(Math.min(MAX_PERSONAS, personasNum + 1))}
-                  className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100"
+                  className="text-xl font-bold px-3 py-1 rounded-lg bg-arena"
                 >
                   +
                 </button>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-tinta-suave mt-1">
                 Mínimo {MIN_PERSONAS} personas. Máximo {MAX_PERSONAS} plazas.
               </p>
             </div>
@@ -527,7 +527,7 @@ export default function ReservaGrupos() {
               />
             </div>
 
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Taller:</strong> {nombreTaller || "—"}
               </p>
@@ -543,7 +543,7 @@ export default function ReservaGrupos() {
             </div>
 
             <div className="bg-[#f7f7f7] border border-gray-200 rounded-xl p-3">
-              <p className="text-sm text-gray-700 mb-3">
+              <p className="text-sm text-tinta mb-3">
                 Antes de pagar, habla con Berto por WhatsApp para confirmar el taller, el horario
                 y cualquier detalle.
               </p>
@@ -555,7 +555,7 @@ export default function ReservaGrupos() {
               >
                 Hablar con Berto por WhatsApp
               </a>
-              <label className="flex items-start mt-3 text-sm text-gray-700">
+              <label className="flex items-start mt-3 text-sm text-tinta">
                 <input
                   type="checkbox"
                   className="mr-2 mt-1"

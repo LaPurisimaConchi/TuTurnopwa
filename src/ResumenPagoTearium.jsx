@@ -19,7 +19,7 @@ export default function ResumenPagoTearium() {
           <p>No hay datos de pago disponibles.</p>
           <button
             onClick={() => navigate("/")}
-            className="mt-4 bg-pink-400 text-white px-4 py-2 rounded"
+            className="mt-4 bg-terracota text-white px-4 py-2 rounded"
           >
             Volver al inicio
           </button>
@@ -156,9 +156,9 @@ export default function ResumenPagoTearium() {
   };
 
   return (
-    <div className="p-6 bg-[#fffef4] min-h-screen font-sans text-gray-800">
-      <div className="max-w-xl mx-auto bg-white shadow-md rounded-xl p-6 border border-yellow-200">
-        <h2 className="text-2xl font-bold text-yellow-800 mb-4 text-center font-serif">
+    <div className="p-6 bg-crema min-h-screen font-sans text-tinta">
+      <div className="max-w-xl mx-auto bg-white shadow-md rounded-xl p-6 border border-mostaza">
+        <h2 className="text-2xl font-bold text-tinta mb-4 text-center font-serif">
           Resumen de tu reserva
         </h2>
 
@@ -182,7 +182,7 @@ export default function ResumenPagoTearium() {
           )}
         </p>
 
-        <label className="flex items-start mb-4 text-sm text-gray-700">
+        <label className="flex items-start mb-4 text-sm text-tinta">
           <input
             type="checkbox"
             className="mr-2 mt-1"
@@ -197,7 +197,7 @@ export default function ResumenPagoTearium() {
           disabled={!aceptaPoliticas || cargando}
           className={`w-full py-2 px-4 rounded-lg font-semibold transition ${
             aceptaPoliticas && !cargando
-              ? "bg-yellow-500 hover:bg-yellow-600 text-white"
+              ? "bg-mostaza hover:bg-mostaza-borde text-white"
               : "bg-gray-400 text-white cursor-not-allowed"
           }`}
         >

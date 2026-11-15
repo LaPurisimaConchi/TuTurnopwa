@@ -12,9 +12,9 @@ import {
   guardarIdsRecomendados,
 } from "./paginasEspeciales";
 
-const seccion = "bg-white rounded-2xl border border-[#eadfbe] p-5 shadow-sm space-y-4";
+const seccion = "bg-white rounded-2xl border border-linea p-5 shadow-sm space-y-4";
 const botonMini =
-  "px-3 py-1.5 rounded-lg border border-[#eadfbe] bg-[#fffaf0] text-sm font-medium text-[#3d3126] hover:bg-[#f7eccc] disabled:opacity-40 disabled:cursor-not-allowed";
+  "px-3 py-1.5 rounded-lg border border-linea bg-crema text-sm font-medium text-tinta hover:bg-[#f7eccc] disabled:opacity-40 disabled:cursor-not-allowed";
 
 function Recomendados({ pagina, talleres }) {
   const [ids, setIds] = useState([]);
@@ -62,18 +62,18 @@ function Recomendados({ pagina, talleres }) {
   return (
     <section className={seccion}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-lg font-semibold text-[#3d3126]">{pagina.titulo}</h2>
+        <h2 className="text-lg font-semibold text-tinta">{pagina.titulo}</h2>
         <Link to={pagina.ruta} className="text-sm text-blue-700 underline">
           Ver página
         </Link>
       </div>
 
       {!cargado ? (
-        <p className="text-sm text-gray-600">Cargando...</p>
+        <p className="text-sm text-tinta-suave">Cargando...</p>
       ) : (
         <>
           {elegidos.length === 0 ? (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-tinta-suave">
               Todavía no hay recomendados: la página no muestra esa sección.
             </p>
           ) : (
@@ -81,9 +81,9 @@ function Recomendados({ pagina, talleres }) {
               {elegidos.map((id, i) => (
                 <li
                   key={id}
-                  className="flex items-center gap-2 rounded-xl border border-[#eadfbe] bg-[#fffaf0] px-3 py-2"
+                  className="flex items-center gap-2 rounded-xl border border-linea bg-crema px-3 py-2"
                 >
-                  <span className="flex-1 font-medium text-[#3d3126]">{porId.get(id).nombre}</span>
+                  <span className="flex-1 font-medium text-tinta">{porId.get(id).nombre}</span>
                   <button type="button" className={botonMini} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><Icono nombre="arriba" /></button>
                   <button type="button" className={botonMini} disabled={i === elegidos.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar"><Icono nombre="abajo" /></button>
                   <button
@@ -126,7 +126,7 @@ function Recomendados({ pagina, talleres }) {
               type="button"
               onClick={guardar}
               disabled={guardando}
-              className="px-6 py-2.5 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold hover:bg-[#e8b932] transition disabled:opacity-50"
+              className="px-6 py-2.5 rounded-full bg-terracota text-white font-semibold hover:bg-terracota-oscuro transition disabled:opacity-50"
             >
               {guardando ? "Guardando..." : "Guardar"}
             </button>
@@ -152,8 +152,8 @@ export default function AdminPaginasEspeciales() {
     <div className="space-y-5">
       <BotonVolver />
       <div>
-        <h1 className="text-2xl font-bold text-[#2f2f2f]">Páginas de regalo y grupos</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-tinta">Páginas de regalo y grupos</h1>
+        <p className="text-sm text-tinta-suave mt-1">
           Elige qué talleres recomiendas en cada página y en qué orden salen. Solo se muestran los
           talleres activos.
         </p>

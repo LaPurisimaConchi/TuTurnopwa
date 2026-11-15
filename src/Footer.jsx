@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
-    <footer className="bg-[#fffef4] text-center text-gray-600 text-sm py-6 px-4 border-t">
+    <footer className="bg-crema text-center text-tinta-suave text-sm py-6 px-4 border-t">
       <nav className="flex justify-center gap-4 flex-wrap text-xs">
         <Link to="/aviso-legal" className="hover:underline">
           Aviso legal

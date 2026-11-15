@@ -7,7 +7,7 @@ export default function PoliticaCancelacion() {
   const navigate = useNavigate();
 
   return (
-    <div className="text-gray-800 px-4 py-8 font-sans">
+    <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <img
           src="/img/logoPCsin.png"
@@ -17,12 +17,12 @@ export default function PoliticaCancelacion() {
 
         <BotonVolver />
 
-        <h1 className="text-2xl font-bold text-center text-orange-800 mb-8">
+        <h1 className="text-2xl font-bold text-center text-terracota-oscuro mb-8">
           Política de Reservas y Cancelaciones
         </h1>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             <Icono nombre="confirmado" className="mr-1.5" />Confirmación de Reserva
           </h2>
           <p>
@@ -33,7 +33,7 @@ export default function PoliticaCancelacion() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             <Icono nombre="repetir" className="mr-1.5" />Cambios, Cancelaciones y Cesiones
           </h2>
           <p>
@@ -62,7 +62,7 @@ export default function PoliticaCancelacion() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             <Icono nombre="estrella" className="mr-1.5" />Importancia de esta Política
           </h2>
           <p>
@@ -76,7 +76,7 @@ export default function PoliticaCancelacion() {
           </p>
         </section>
 
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-tinta-suave">
           ¿Tienes dudas? Contacta con nosotros directamente.
         </div>
       </div>

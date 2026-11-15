@@ -406,8 +406,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
-        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+      <h1 className="text-center font-serif text-tinta mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
           Reserva
         </span>
         <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
@@ -424,7 +424,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
         {/* Izquierda: qué es el bono y desde cuándo */}
         <div className="space-y-4">
-          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+          <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             <p>
               <strong>Bono mensual de {numeroClases} clases.</strong>
             </p>
@@ -441,7 +441,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           </div>
 
           {permiteCambioTorno && extraCambioTorno > 0 && (
-            <label className="flex items-start gap-2 text-sm text-[#5c3c00] bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3">
+            <label className="flex items-start gap-2 text-sm text-tinta bg-crema border border-linea rounded-xl p-3">
               <input
                 type="checkbox"
                 className="mt-1"
@@ -472,7 +472,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             clase={clase}
             producto="Esta clase"
           >
-            <div className="mt-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="mt-2 bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               Tu primera clase queda reservada en la fecha y el turno que elijas.
               Las demás las reservas desde tu perfil, en “Mis bonos”.
             </div>
@@ -497,7 +497,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           )}
 
           {!!turno && plazasListas && plazasQuedan > 0 && plazasQuedan <= 10 && (
-            <p className="text-sm text-amber-700 font-medium">
+            <p className="text-sm text-tinta font-medium">
               {plazasQuedan <= 5
                 ? `Quedan ${plazasQuedan} ${plazasQuedan === 1 ? "plaza disponible" : "plazas disponibles"}`
                 : "Quedan pocas plazas"}{" "}
@@ -511,7 +511,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </p>
           )}
 
-          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+          <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             {modalidad && (
               <p>
                 <strong>Modalidad:</strong> {modalidad}
@@ -528,7 +528,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           </div>
 
           {fechaInicio && (
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Precio total:</strong> {desdeTarjeta ? "0€" : `${precioTotal}€`}
               </p>

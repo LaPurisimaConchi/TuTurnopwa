@@ -7,7 +7,7 @@ export default function PoliticaPiezas() {
   const navigate = useNavigate();
 
   return (
-    <div className="text-gray-800 px-4 py-8 font-sans">
+    <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <img
           src="/img/logoPCsin.png"
@@ -16,7 +16,7 @@ export default function PoliticaPiezas() {
         />
 
         <BotonVolver />
-        <h1 className="text-2xl font-bold text-center text-orange-800 mb-8">
+        <h1 className="text-2xl font-bold text-center text-terracota-oscuro mb-8">
           Política sobre roturas de piezas
         </h1>
 
@@ -54,7 +54,7 @@ export default function PoliticaPiezas() {
           </p>
         </section>
 
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-tinta-suave">
           Gracias por tu comprensión y por formar parte de esta experiencia creativa.
         </div>
       </div>

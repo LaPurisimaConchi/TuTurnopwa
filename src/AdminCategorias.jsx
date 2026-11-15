@@ -20,10 +20,10 @@ import {
 } from "./categoriasTalleres";
 
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
-const label = "block font-bold text-sm mb-1 text-[#3d3126]";
-const seccion = "bg-white rounded-2xl border border-[#eadfbe] p-5 shadow-sm space-y-4";
+const label = "block font-bold text-sm mb-1 text-tinta";
+const seccion = "bg-white rounded-2xl border border-linea p-5 shadow-sm space-y-4";
 const botonMini =
-  "px-3 py-1.5 rounded-lg border border-[#eadfbe] bg-[#fffaf0] text-sm font-medium text-[#3d3126] hover:bg-[#f7eccc] disabled:opacity-40 disabled:cursor-not-allowed";
+  "px-3 py-1.5 rounded-lg border border-linea bg-crema text-sm font-medium text-tinta hover:bg-[#f7eccc] disabled:opacity-40 disabled:cursor-not-allowed";
 
 export default function AdminCategorias() {
   const [registros, setRegistros] = useState([]);
@@ -118,15 +118,15 @@ export default function AdminCategorias() {
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-6 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-6 font-sans">
       <div className="max-w-3xl mx-auto">
         <BotonVolver volverA="/admin-dashboard" />
 
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#3d3126] font-serif">
+          <h1 className="text-2xl md:text-3xl font-bold text-tinta font-serif">
             Categorías de talleres
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-tinta-suave mt-1">
             Agrupan los talleres en la portada y en la lista de talleres. Cada categoría
             nueva tiene su propia página, que aparece en cuanto tiene algún taller activo.
           </p>
@@ -145,7 +145,7 @@ export default function AdminCategorias() {
 
         <div className="space-y-5">
           <form onSubmit={handleCrear} className={seccion}>
-            <h2 className="text-lg font-semibold text-[#3d3126]">Nueva categoría</h2>
+            <h2 className="text-lg font-semibold text-tinta">Nueva categoría</h2>
 
             <div>
               <label htmlFor="cat-nombre" className={label}>Nombre</label>
@@ -161,7 +161,7 @@ export default function AdminCategorias() {
 
             <div>
               <label htmlFor="cat-descripcion" className={label}>
-                Descripción <span className="font-normal text-gray-500">(opcional)</span>
+                Descripción <span className="font-normal text-tinta-suave">(opcional)</span>
               </label>
               <textarea
                 id="cat-descripcion"
@@ -176,19 +176,19 @@ export default function AdminCategorias() {
             <button
               type="submit"
               disabled={ocupado}
-              className="px-6 py-2.5 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold hover:bg-[#e8b932] transition disabled:opacity-50"
+              className="px-6 py-2.5 rounded-full bg-terracota text-white font-semibold hover:bg-terracota-oscuro transition disabled:opacity-50"
             >
               Crear categoría
             </button>
           </form>
 
           <section className={seccion}>
-            <h2 className="text-lg font-semibold text-[#3d3126]">Tus categorías</h2>
+            <h2 className="text-lg font-semibold text-tinta">Tus categorías</h2>
 
             {cargando ? (
-              <p className="text-sm text-gray-600">Cargando...</p>
+              <p className="text-sm text-tinta-suave">Cargando...</p>
             ) : propias.length === 0 ? (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-tinta-suave">
                 Todavía no hay ninguna. Crea una arriba o migra las de siempre más abajo.
               </p>
             ) : (
@@ -198,7 +198,7 @@ export default function AdminCategorias() {
                   const enEdicion = editando?.id === c.id;
 
                   return (
-                    <li key={c.id} className="rounded-xl border border-[#eadfbe] bg-[#fffaf0] p-4">
+                    <li key={c.id} className="rounded-xl border border-linea bg-crema p-4">
                       {enEdicion ? (
                         <form onSubmit={handleGuardarEdicion} className="space-y-3">
                           <div>
@@ -225,7 +225,7 @@ export default function AdminCategorias() {
                             <button
                               type="submit"
                               disabled={ocupado}
-                              className="px-4 py-2 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold text-sm hover:bg-[#e8b932] disabled:opacity-50"
+                              className="px-4 py-2 rounded-full bg-terracota text-white font-semibold text-sm hover:bg-terracota-oscuro disabled:opacity-50"
                             >
                               Guardar
                             </button>
@@ -238,18 +238,18 @@ export default function AdminCategorias() {
                         <>
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="font-semibold text-[#3d3126]">
+                              <p className="font-semibold text-tinta">
                                 {c.titulo}
                                 {c.estado === "oculta" && (
-                                  <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                                  <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-tinta">
                                     Oculta
                                   </span>
                                 )}
                               </p>
                               {c.descripcion && (
-                                <p className="text-sm text-gray-600 mt-0.5">{c.descripcion}</p>
+                                <p className="text-sm text-tinta-suave mt-0.5">{c.descripcion}</p>
                               )}
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-tinta-suave mt-1">
                                 {total} {total === 1 ? "taller" : "talleres"} ·{" "}
                                 <Link to={c.ruta} className="text-blue-700 underline">
                                   Ver página
@@ -325,7 +325,7 @@ export default function AdminCategorias() {
               </ul>
             )}
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-tinta-suave">
               Ocultar una categoría quita su página y su botón de la lista de talleres; sus
               talleres siguen saliendo en «Todos» de la portada.
             </p>
@@ -333,8 +333,8 @@ export default function AdminCategorias() {
 
           {sinMigrar.length > 0 && (
             <section className={seccion}>
-              <h2 className="text-lg font-semibold text-[#3d3126]">Categorías de siempre</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-lg font-semibold text-tinta">Categorías de siempre</h2>
+              <p className="text-sm text-tinta-suave">
                 Vienen con la web. Al migrarlas al panel pasan a «Tus categorías» y se
                 gestionan como las nuevas: cambiar nombre y texto, ordenar, ocultar y borrar
                 (si están vacías). Los talleres y las reservas no cambian. La migración no
@@ -350,7 +350,7 @@ export default function AdminCategorias() {
                     `${sinMigrar.length === 1 ? "Categoría migrada" : "Categorías migradas"} al panel.`
                   )
                 }
-                className="px-5 py-2.5 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold text-sm hover:bg-[#e8b932] transition disabled:opacity-50"
+                className="px-5 py-2.5 rounded-full bg-terracota text-white font-semibold text-sm hover:bg-terracota-oscuro transition disabled:opacity-50"
               >
                 {sinMigrar.length === GRUPOS_TALLER.length
                   ? "Migrar las de siempre al panel"
@@ -364,11 +364,11 @@ export default function AdminCategorias() {
                   return (
                     <li
                       key={g.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#eadfbe] bg-[#fffaf0] px-4 py-3"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-linea bg-crema px-4 py-3"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-[#3d3126]">{g.titulo}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-semibold text-tinta">{g.titulo}</p>
+                        <p className="text-xs text-tinta-suave">
                           {total} {total === 1 ? "taller" : "talleres"}
                         </p>
                       </div>

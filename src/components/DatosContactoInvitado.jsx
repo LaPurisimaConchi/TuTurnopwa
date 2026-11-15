@@ -33,10 +33,10 @@ export default function DatosContactoInvitado({ onListo, onCancelar }) {
     >
       <div className="bg-white max-w-md w-full rounded-2xl shadow-xl p-6">
         <div className="text-center mb-5">
-          <h2 id="datos-contacto-titulo" className="text-2xl text-[#5c3c00] font-serif">
+          <h2 id="datos-contacto-titulo" className="text-2xl text-tinta font-serif">
             Tus datos de contacto
           </h2>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-tinta-suave mt-2">
             Los necesitamos para confirmar tu reserva y avisarte si hay cualquier
             cambio. No hace falta que te registres.
           </p>
@@ -47,14 +47,14 @@ export default function DatosContactoInvitado({ onListo, onCancelar }) {
         <button
           type="button"
           onClick={onCancelar}
-          className="w-full mt-3 text-sm text-gray-600 underline"
+          className="w-full mt-3 text-sm text-tinta-suave underline"
         >
           Volver a la reserva
         </button>
 
-        <div className="mt-5 pt-4 border-t border-[#f1e7c6] text-center text-sm text-gray-600">
+        <div className="mt-5 pt-4 border-t border-linea text-center text-sm text-tinta-suave">
           ¿Ya tienes cuenta?{" "}
-          <Link to="/login" state={volverAqui} className="text-[#b36a4a] font-semibold underline">
+          <Link to="/login" state={volverAqui} className="text-terracota font-semibold underline">
             Inicia sesión
           </Link>
         </div>

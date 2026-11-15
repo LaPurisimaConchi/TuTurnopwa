@@ -1284,11 +1284,11 @@ btnCancelarGrupoMobile: {
     textAlign: "center",
     fontSize: "2rem",
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 0,
   },
@@ -1302,8 +1302,8 @@ btnCancelarGrupoMobile: {
     padding: 20,
   },
   filtrosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 18,
@@ -1325,23 +1325,23 @@ btnCancelarGrupoMobile: {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonSecundario: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   pagoCompletado: {
   backgroundColor: "#eefaf0",
@@ -1382,8 +1382,8 @@ pagoFallido: {
   fontSize: "0.85rem",
 },
   btnCopiar: {
-  backgroundColor: "#f4c542",
-  color: "#5c3c00",
+  backgroundColor: "#b36a4a",
+  color: "#ffffff",
   border: "none",
   borderRadius: 20,
   padding: "8px 14px",
@@ -1394,7 +1394,7 @@ pagoFallido: {
 progresoWrapper: {
   width: "100%",
   height: 10,
-  backgroundColor: "#f0e5cf",
+  backgroundColor: "#eadfd2",
   borderRadius: 999,
   overflow: "hidden",
   marginTop: 8,
@@ -1403,14 +1403,14 @@ progresoWrapper: {
 
 progresoBarra: {
   height: "100%",
-  backgroundColor: "#f4c542",
+  backgroundColor: "#b36a4a",
   borderRadius: 999,
 },
 
 textoProgreso: {
   margin: "0 0 8px 0",
   fontSize: "0.85rem",
-  color: "#7a6331",
+  color: "#3f3128",
   fontWeight: 600,
 },
   gridResumen: {
@@ -1420,8 +1420,8 @@ textoProgreso: {
     marginBottom: 28,
   },
   cardResumen: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
@@ -1430,12 +1430,12 @@ textoProgreso: {
   marginTop: 10,
   padding: 10,
   borderTop: "1px solid #eee",
-  backgroundColor: "#fffaf0",
+  backgroundColor: "#fdfaf5",
   borderRadius: 10,
 },
   cardLabel: {
     margin: 0,
-    color: "#7a6331",
+    color: "#3f3128",
     fontWeight: 600,
     fontSize: "0.95rem",
   },
@@ -1451,8 +1451,8 @@ textoProgreso: {
     gap: 20,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 18,
     padding: 18,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
@@ -1472,12 +1472,12 @@ textoProgreso: {
   },
   cardTitulo: {
     margin: 0,
-    color: "#3d3126",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   cardSubtitulo: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.95rem",
   },
   fechaGrupo: {
@@ -1489,12 +1489,12 @@ textoProgreso: {
   botonCambiarFecha: {
     marginTop: 6,
     padding: "6px 10px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontSize: "0.85rem",
   },
   editarFechaGrupo: {
@@ -1515,12 +1515,12 @@ textoProgreso: {
     flexWrap: "wrap",
   },
   badgeEstado: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 999,
     padding: "6px 10px",
     fontSize: "0.85rem",
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontWeight: 600,
   },
   badgePago: {
@@ -1539,8 +1539,8 @@ textoProgreso: {
     marginBottom: 14,
   },
   infoBox: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 14,
     padding: 14,
     color: "#333",
@@ -1600,12 +1600,12 @@ textoProgreso: {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",

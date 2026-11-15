@@ -8,7 +8,7 @@ export default function CondicionesPago() {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-[#fffef4] min-h-screen text-gray-800 px-6 py-8">
+    <div className="bg-crema min-h-screen text-tinta px-6 py-8">
       {/* Logo arriba */}
       <div className="flex justify-center mb-6">
         <img
@@ -23,7 +23,7 @@ export default function CondicionesPago() {
 
       {/* Contenido */}
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-[#6b3700] mb-4">
+        <h1 className="text-2xl font-bold text-tinta mb-4">
           Condiciones del Servicio de Pago – TuTurnoApp
         </h1>
 

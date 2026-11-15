@@ -515,11 +515,11 @@ export default function ReservaCreaTuBrunchBowl() {
   const puedeElegirPlazas = puedeElegirTurno && !!turno && plazasDisponibles > 0;
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Reserva – {claseConfig?.nombre || "Crea tu Brunch Bowl"}
         </h1>
 
@@ -531,7 +531,7 @@ export default function ReservaCreaTuBrunchBowl() {
         )}
 
         {cargandoConfig ? (
-          <p className="text-center text-gray-500 py-8">
+          <p className="text-center text-tinta-suave py-8">
             Cargando configuración de la clase...
           </p>
         ) : !claseConfig ? (
@@ -583,7 +583,7 @@ export default function ReservaCreaTuBrunchBowl() {
                   id="metodo"
                   value={metodo}
                   onChange={(e) => handleMetodoChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                   required
                   disabled={!puedeElegirMetodo}
                 >
@@ -614,7 +614,7 @@ export default function ReservaCreaTuBrunchBowl() {
                     setTurno(e.target.value);
                     setPlazas(1);
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                   required
                   disabled={!puedeElegirTurno}
                 >
@@ -641,11 +641,11 @@ export default function ReservaCreaTuBrunchBowl() {
                 </p>
               )}
 
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-tinta-suave">
                 Máximo {maxTotales} plazas por día ({maxTorno} para torno).
               </div>
 
-              <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
+              <div className="text-sm text-tinta-suave bg-mostaza-suave border border-linea rounded-xl p-3">
   <strong>¿Sois 5 o más personas?</strong>
   <br />
   Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
@@ -661,7 +661,7 @@ export default function ReservaCreaTuBrunchBowl() {
                     type="button"
                     onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
                     disabled={!puedeElegirPlazas || !!plazasTarjeta}
-                    className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     −
                   </button>
@@ -676,13 +676,13 @@ export default function ReservaCreaTuBrunchBowl() {
                       setPlazas(Math.min(plazasDisponibles || 1, plazasNum + 1))
                     }
                     disabled={!puedeElegirPlazas || !!plazasTarjeta}
-                    className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     +
                   </button>
                 </div>
 
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinta-suave mt-1">
                   {!fecha
                     ? "Primero selecciona el día."
                     : !metodo
@@ -695,7 +695,7 @@ export default function ReservaCreaTuBrunchBowl() {
                 </p>
               </div>
 
-              <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+              <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 <p>
                   <strong>Método elegido:</strong> {nombreMetodo || "—"}
                 </p>
@@ -712,9 +712,9 @@ export default function ReservaCreaTuBrunchBowl() {
               <button
                 type="submit"
                 className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-                bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+                bg-terracota
                 shadow-md hover:shadow-lg
-                hover:from-[#F4C542] hover:to-[#E5B92F]
+                hover:bg-terracota-oscuro
                 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   !!fechaBloqueada ||

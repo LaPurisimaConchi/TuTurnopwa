@@ -83,20 +83,20 @@ export default function ComprarTarjetaRegalo() {
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-8 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-8 font-sans">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-6">
         <BotonVolver />
 
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-yellow-900 font-serif mb-2">
+          <h1 className="text-3xl font-bold text-tinta font-serif mb-2">
             Comprar tarjeta regalo
           </h1>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-tinta-suave">
             Elige el taller o experiencia que quieres regalar y para cuántas personas.
           </p>
         </div>
 
-        <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-4 mb-5 text-sm text-[#5c3c00]">
+        <div className="bg-crema border border-linea rounded-xl p-4 mb-5 text-sm text-tinta">
           <p className="mb-2">
             <strong>La tarjeta regalo será válida solo para la opción elegida.</strong>
           </p>
@@ -142,7 +142,7 @@ export default function ComprarTarjetaRegalo() {
                       type="button"
                       onClick={() => setPlazas(Math.max(1, plazas - 1))}
                       disabled={plazas <= 1}
-                      className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label="Una plaza menos"
                     >
                       −
@@ -158,19 +158,19 @@ export default function ComprarTarjetaRegalo() {
                         setPlazas(Math.min(MAX_PLAZAS_TARJETA_REGALO, plazas + 1))
                       }
                       disabled={plazas >= MAX_PLAZAS_TARJETA_REGALO}
-                      className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label="Una plaza más"
                     >
                       +
                     </button>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-tinta-suave mt-1">
                     Máximo {MAX_PLAZAS_TARJETA_REGALO} plazas por tarjeta. Para grupos
                     más grandes, usa las reservas para grupos.
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-tinta-suave">
                   Los bonos mensuales son personales: la tarjeta es para 1 persona.
                 </p>
               )}
@@ -178,7 +178,7 @@ export default function ComprarTarjetaRegalo() {
           )}
 
           {opcionSeleccionada && (
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-4 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-4 text-sm text-tinta">
               <p>
                 <strong>Regalo seleccionado:</strong> {opcionSeleccionada.clase}
               </p>
@@ -207,9 +207,9 @@ export default function ComprarTarjetaRegalo() {
             type="button"
             onClick={handleContinuar}
             className="w-full mt-2 px-6 py-3 rounded-full text-white font-semibold
-            bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+            bg-terracota
             shadow-md hover:shadow-lg
-            hover:from-[#F4C542] hover:to-[#E5B92F]
+            hover:bg-terracota-oscuro
             transition-all duration-200"
           >
             Continuar al pago

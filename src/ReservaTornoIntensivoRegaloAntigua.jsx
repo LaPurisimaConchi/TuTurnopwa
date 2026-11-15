@@ -87,17 +87,17 @@ export default function ReservaTornoIntensivoRegalo() {
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver volverA="/perfil" />
 
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Reserva – Torno intensivo individual (Tarjeta regalo)
         </h1>
 
         {!usuarioLogueado ? (
-          <div className="text-center bg-orange-100 text-orange-800 p-4 rounded-xl font-semibold text-base">
+          <div className="text-center bg-orange-100 text-terracota-oscuro p-4 rounded-xl font-semibold text-base">
             🔒 Inicia sesión para poder reservar esta clase.
           </div>
         ) : (
@@ -151,7 +151,7 @@ export default function ReservaTornoIntensivoRegalo() {
               </select>
             </div>
 
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-tinta-suave">
               Quedan {plazasDisponibles} plazas disponibles para torno.
             </div>
 

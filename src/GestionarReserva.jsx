@@ -39,11 +39,11 @@ async function llamarApi(cuerpo) {
 }
 
 const boton =
-  "inline-flex items-center justify-center min-h-[48px] rounded-xl px-6 font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b36a4a] focus-visible:ring-offset-2";
-const botonPrincipal = `${boton} bg-[#b36a4a] text-white hover:bg-[#9e5c3f] disabled:opacity-50 disabled:cursor-not-allowed`;
-const botonSecundario = `${boton} border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6]`;
+  "inline-flex items-center justify-center min-h-[48px] rounded-xl px-6 font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2";
+const botonPrincipal = `${boton} bg-terracota text-white hover:bg-terracota-oscuro disabled:opacity-50 disabled:cursor-not-allowed`;
+const botonSecundario = `${boton} border border-terracota text-terracota hover:bg-terracota-suave`;
 const campo =
-  "mt-1 w-full min-h-[48px] border border-gray-300 rounded-xl px-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-[#b36a4a] focus:border-[#b36a4a]";
+  "mt-1 w-full min-h-[48px] border border-gray-300 rounded-xl px-4 text-base bg-white focus:outline-none focus:ring-2 focus:ring-terracota focus:border-terracota";
 
 const PASOS = ["Tu reserva", "Nueva fecha", "Confirmar"];
 
@@ -63,13 +63,13 @@ function Pasos({ actual }) {
           >
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                hecho || activo ? "bg-[#b36a4a] text-white" : "bg-gray-200 text-gray-500"
+                hecho || activo ? "bg-terracota text-white" : "bg-gray-200 text-tinta-suave"
               }`}
             >
               {hecho ? <Icono nombre="check" /> : numero}
             </span>
             <span
-              className={`text-sm ${activo ? "font-semibold text-[#3f3128]" : "text-gray-500 hidden sm:inline"}`}
+              className={`text-sm ${activo ? "font-semibold text-tinta" : "text-tinta-suave hidden sm:inline"}`}
             >
               {nombre}
             </span>
@@ -83,7 +83,7 @@ function Pasos({ actual }) {
 
 function Tarjeta({ children, className = "" }) {
   return (
-    <section className={`bg-white rounded-2xl border border-[#eadfd2] shadow-sm p-5 ${className}`}>
+    <section className={`bg-white rounded-2xl border border-linea shadow-sm p-5 ${className}`}>
       {children}
     </section>
   );
@@ -94,7 +94,7 @@ function Aviso({ tipo = "error", children }) {
     tipo === "ok"
       ? "bg-green-50 border-green-300 text-green-900"
       : tipo === "info"
-      ? "bg-yellow-50 border-yellow-300 text-yellow-900"
+      ? "bg-mostaza-suave border-mostaza text-tinta"
       : "bg-red-50 border-red-300 text-red-800";
 
   return (
@@ -108,8 +108,8 @@ function Fila({ etiqueta, valor }) {
   if (!valor) return null;
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <dt className="text-gray-500">{etiqueta}</dt>
-      <dd className="font-medium text-gray-900 text-right">{valor}</dd>
+      <dt className="text-tinta-suave">{etiqueta}</dt>
+      <dd className="font-medium text-tinta text-right">{valor}</dd>
     </div>
   );
 }
@@ -117,7 +117,7 @@ function Fila({ etiqueta, valor }) {
 function ResumenReserva({ reserva, titulo }) {
   return (
     <Tarjeta>
-      <h2 className="font-bold text-[#7a4630] mb-2">{titulo}</h2>
+      <h2 className="font-bold text-tinta mb-2">{titulo}</h2>
       <dl className="divide-y divide-gray-100">
         <Fila etiqueta={reserva.tipo === "grupo" ? "Reserva de grupo" : "Taller"} valor={reserva.clase} />
         <Fila etiqueta={reserva.tipo === "grupo" ? "Grupo" : "Opción"} valor={reserva.metodo} />
@@ -254,8 +254,8 @@ export default function GestionarReserva() {
   return (
     <PageContainer>
       <div className="max-w-xl mx-auto">
-        <h1 className="text-2xl font-bold text-[#3f3128] mb-1">Cambiar la fecha de mi reserva</h1>
-        <p className="text-gray-600 text-sm mb-5">
+        <h1 className="text-2xl font-bold text-tinta mb-1">Cambiar la fecha de mi reserva</h1>
+        <p className="text-tinta-suave text-sm mb-5">
           Sin iniciar sesión: solo necesitas tu código de reserva y el email con el que reservaste.
         </p>
 
@@ -265,22 +265,22 @@ export default function GestionarReserva() {
               <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-3xl text-green-700">
                 <Icono nombre="check" tamano={32} />
               </div>
-              <h2 className="text-xl font-bold text-[#3f3128]">¡Fecha cambiada!</h2>
-              <p className="text-sm text-gray-600 mt-1">Te esperamos el nuevo día. Guarda estos datos.</p>
+              <h2 className="text-xl font-bold text-tinta">¡Fecha cambiada!</h2>
+              <p className="text-sm text-tinta-suave mt-1">Te esperamos el nuevo día. Guarda estos datos.</p>
             </Tarjeta>
 
             <Tarjeta>
-              <p className="text-sm text-gray-500 line-through">
+              <p className="text-sm text-tinta-suave line-through">
                 {formatearFecha(cambiada.antes.fecha)} · {cambiada.antes.turno}
               </p>
-              <p className="text-lg font-bold text-[#7a4630] mt-1">
+              <p className="text-lg font-bold text-tinta mt-1">
                 {formatearFecha(cambiada.despues.fecha)} · {cambiada.despues.turno}
               </p>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-tinta-suave mt-2">
                 {cambiada.despues.clase} · {cambiada.despues.plazas}{" "}
                 {cambiada.despues.plazas === 1 ? "plaza" : "plazas"}
               </p>
-              <p className="text-sm text-gray-500 mt-1">Código: {cambiada.despues.codigo}</p>
+              <p className="text-sm text-tinta-suave mt-1">Código: {cambiada.despues.codigo}</p>
             </Tarjeta>
 
             {cambiada.despues.tipo === "grupo" && (
@@ -298,7 +298,7 @@ export default function GestionarReserva() {
             {!datos && (
               <Tarjeta>
                 <form onSubmit={buscar} className="space-y-4">
-                  <label className="block text-sm font-medium text-gray-800">
+                  <label className="block text-sm font-medium text-tinta">
                     Código de reserva
                     <input
                       value={codigo}
@@ -310,12 +310,12 @@ export default function GestionarReserva() {
                       required
                       className={`${campo} font-mono tracking-widest uppercase`}
                     />
-                    <span className="block mt-1 text-xs font-normal text-gray-500">
+                    <span className="block mt-1 text-xs font-normal text-tinta-suave">
                       Lo ves al terminar de reservar, en la pantalla de confirmación.
                     </span>
                   </label>
 
-                  <label className="block text-sm font-medium text-gray-800">
+                  <label className="block text-sm font-medium text-tinta">
                     Email de la reserva
                     <input
                       type="email"
@@ -335,11 +335,11 @@ export default function GestionarReserva() {
                   </button>
                 </form>
 
-                <ul className="mt-4 space-y-1 text-xs text-gray-500">
+                <ul className="mt-4 space-y-1 text-xs text-tinta-suave">
                   <li>• Puedes cambiar la fecha una vez.</li>
                   <li>
                     • Se puede hasta 72 horas antes de la clase (
-                    <Link to="/politicacancelacion" className="underline text-[#b36a4a]">
+                    <Link to="/politicacancelacion" className="underline text-terracota">
                       política de cancelación
                     </Link>
                     ).
@@ -361,7 +361,7 @@ export default function GestionarReserva() {
                     type="button"
                     onClick={() => buscar(null, 0)}
                     disabled={cargando}
-                    className="text-sm underline text-[#b36a4a]"
+                    className="text-sm underline text-terracota"
                   >
                     <Icono nombre="izquierda" className="mr-1" />Elegir otra sesión
                   </button>
@@ -369,8 +369,8 @@ export default function GestionarReserva() {
 
                 {eligiendoSesion ? (
                   <Tarjeta>
-                    <h2 className="font-bold text-[#7a4630] mb-1">Tus sesiones</h2>
-                    <p className="text-xs text-gray-500 mb-3">
+                    <h2 className="font-bold text-tinta mb-1">Tus sesiones</h2>
+                    <p className="text-xs text-tinta-suave mb-3">
                       Esta reserva incluye {datos.sesiones.length} sesiones. Elige la que quieres cambiar: cada
                       una se cambia por separado, una vez, y respeta el tiempo mínimo
                       que hay entre sesiones.
@@ -378,12 +378,12 @@ export default function GestionarReserva() {
                     <ul className="space-y-3">
                       {datos.sesiones.map((s) => (
                         <li key={s.sesion} className="rounded-xl border border-gray-200 p-3">
-                          <p className="text-sm font-semibold text-[#3f3128]">Sesión {s.sesion}</p>
-                          <p className="text-sm text-gray-700">
+                          <p className="text-sm font-semibold text-tinta">Sesión {s.sesion}</p>
+                          <p className="text-sm text-tinta">
                             {formatearFecha(s.fecha)} · {s.turno}
                           </p>
                           {s.diasDesdeAnterior > 0 && (
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-tinta-suave">
                               Al menos {s.diasDesdeAnterior} días después de la sesión anterior
                             </p>
                           )}
@@ -397,7 +397,7 @@ export default function GestionarReserva() {
                               Cambiar esta sesión
                             </button>
                           ) : (
-                            <p className="mt-1 text-xs text-gray-500">{s.motivo}</p>
+                            <p className="mt-1 text-xs text-tinta-suave">{s.motivo}</p>
                           )}
                         </li>
                       ))}
@@ -407,7 +407,7 @@ export default function GestionarReserva() {
                         <Aviso>{error}</Aviso>
                       </div>
                     )}
-                    <p className="mt-3 text-xs text-gray-500">
+                    <p className="mt-3 text-xs text-tinta-suave">
                       <ContactoTaller texto="¿Necesitas otro cambio? Escríbenos" />
                     </p>
                   </Tarjeta>
@@ -428,8 +428,8 @@ export default function GestionarReserva() {
                 ) : esEdicion ? (
                   <>
                     <Tarjeta>
-                      <h2 className="font-bold text-[#7a4630] mb-1">Elige la nueva edición</h2>
-                      <p className="text-xs text-gray-500 mb-3">
+                      <h2 className="font-bold text-tinta mb-1">Elige la nueva edición</h2>
+                      <p className="text-xs text-tinta-suave mb-3">
                         Se cambian todas las sesiones de tu reserva. Estas ediciones tienen plazas para tu reserva.
                       </p>
                       <div className="grid gap-3">
@@ -444,12 +444,12 @@ export default function GestionarReserva() {
                             }}
                             className={`text-left rounded-xl border p-3 text-sm ${
                               edicionId === ed.id
-                                ? "border-[#b36a4a] bg-[#fff6ef]"
-                                : "border-gray-300 bg-white hover:border-[#b36a4a]"
+                                ? "border-terracota bg-terracota-suave"
+                                : "border-gray-300 bg-white hover:border-terracota"
                             }`}
                           >
                             <strong>Edición {i + 1}</strong>
-                            <ul className="mt-1 list-disc ml-5 text-gray-700">
+                            <ul className="mt-1 list-disc ml-5 text-tinta">
                               {ed.fechas.map((f) => (
                                 <li key={`${f.fecha}-${f.turno}`}>
                                   {formatearFecha(f.fecha)} · {f.turno}
@@ -462,12 +462,12 @@ export default function GestionarReserva() {
                     </Tarjeta>
 
                     {edicionElegida && (
-                      <Tarjeta className="border-[#b36a4a]">
-                        <h2 className="font-bold text-[#7a4630] mb-3">Resumen del cambio</h2>
-                        <p className="text-sm text-gray-500 line-through">
+                      <Tarjeta className="border-terracota">
+                        <h2 className="font-bold text-tinta mb-3">Resumen del cambio</h2>
+                        <p className="text-sm text-tinta-suave line-through">
                           Desde {formatearFecha(datos.reserva.fecha)}
                         </p>
-                        <p className="text-lg font-bold text-[#3f3128]">
+                        <p className="text-lg font-bold text-tinta">
                           Edición del {formatearFecha(edicionElegida.fechas[0].fecha)} al{" "}
                           {formatearFecha(edicionElegida.fechas[edicionElegida.fechas.length - 1].fecha)}
                         </p>
@@ -487,8 +487,8 @@ export default function GestionarReserva() {
                             Cambiar mi reserva
                           </button>
                         ) : (
-                          <div className="mt-4 rounded-xl bg-yellow-50 border border-yellow-300 p-4">
-                            <p className="text-sm text-yellow-900 font-medium">
+                          <div className="mt-4 rounded-xl bg-mostaza-suave border border-mostaza p-4">
+                            <p className="text-sm text-tinta font-medium">
                               Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?
                             </p>
                             <div className="mt-3 flex flex-col sm:flex-row gap-2">
@@ -517,8 +517,8 @@ export default function GestionarReserva() {
                 ) : (
                   <>
                     <Tarjeta>
-                      <h2 className="font-bold text-[#7a4630] mb-1">Elige la nueva fecha</h2>
-                      <p className="text-xs text-gray-500 mb-3">
+                      <h2 className="font-bold text-tinta mb-1">Elige la nueva fecha</h2>
+                      <p className="text-xs text-tinta-suave mb-3">
                         Los días con color tienen plazas para tu reserva. El resto aparece en gris.
                       </p>
                       <CalendarioReserva
@@ -530,7 +530,7 @@ export default function GestionarReserva() {
 
                       {turnosDelDia.length > 0 && (
                         <fieldset className="mt-4">
-                          <legend className="text-sm font-medium text-gray-800 mb-2">
+                          <legend className="text-sm font-medium text-tinta mb-2">
                             Turno del {formatearFecha(fecha).toLowerCase()}
                           </legend>
                           <div className="flex flex-wrap gap-2">
@@ -545,8 +545,8 @@ export default function GestionarReserva() {
                                 aria-pressed={turno === t.turno}
                                 className={`min-h-[48px] px-4 rounded-xl border text-sm font-semibold ${
                                   turno === t.turno
-                                    ? "bg-[#b36a4a] text-white border-[#b36a4a]"
-                                    : "bg-white text-gray-800 border-gray-300 hover:border-[#b36a4a]"
+                                    ? "bg-terracota text-white border-terracota"
+                                    : "bg-white text-tinta border-gray-300 hover:border-terracota"
                                 }`}
                               >
                                 {t.turno}
@@ -558,12 +558,12 @@ export default function GestionarReserva() {
                     </Tarjeta>
 
                     {fecha && turno && (
-                      <Tarjeta className="border-[#b36a4a]">
-                        <h2 className="font-bold text-[#7a4630] mb-3">Resumen del cambio</h2>
-                        <p className="text-sm text-gray-500 line-through">
+                      <Tarjeta className="border-terracota">
+                        <h2 className="font-bold text-tinta mb-3">Resumen del cambio</h2>
+                        <p className="text-sm text-tinta-suave line-through">
                           {formatearFecha(datos.reserva.fecha)} · {datos.reserva.turno}
                         </p>
-                        <p className="text-lg font-bold text-[#3f3128]">
+                        <p className="text-lg font-bold text-tinta">
                           {formatearFecha(fecha)} · {turno}
                         </p>
 
@@ -582,8 +582,8 @@ export default function GestionarReserva() {
                             Cambiar mi reserva
                           </button>
                         ) : (
-                          <div className="mt-4 rounded-xl bg-yellow-50 border border-yellow-300 p-4">
-                            <p className="text-sm text-yellow-900 font-medium">
+                          <div className="mt-4 rounded-xl bg-mostaza-suave border border-mostaza p-4">
+                            <p className="text-sm text-tinta font-medium">
                               Solo puedes cambiar la fecha una vez. ¿Confirmas el cambio?
                             </p>
                             <div className="mt-3 flex flex-col sm:flex-row gap-2">
@@ -614,7 +614,7 @@ export default function GestionarReserva() {
                 <button
                   type="button"
                   onClick={empezarDeNuevo}
-                  className="block mx-auto text-sm text-gray-500 underline hover:text-[#b36a4a]"
+                  className="block mx-auto text-sm text-tinta-suave underline hover:text-terracota"
                 >
                   No es mi reserva
                 </button>

@@ -552,7 +552,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     }
 
     if (diasEnRango.has(celda.fechaISO)) {
-      estilo = { ...estilo, boxShadow: "inset 0 0 0 2px #5c3c00" };
+      estilo = { ...estilo, boxShadow: "inset 0 0 0 2px #3f3128" };
     }
 
     if (hoy) {
@@ -617,7 +617,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             {r.esGrupo && r.nombreGrupo && <p style={styles.reservaGrupo}>Grupo: {r.nombreGrupo}</p>}
             {enProceso && (
               <p style={styles.reservaGrupoProceso}>
-                <Icono nombre="punto" tamano="0.7em" className="text-amber-500 mr-1" /> Pago individual en proceso · {r.plazasPagadas || 0} pagada
+                <Icono nombre="punto" tamano="0.7em" className="text-tinta mr-1" /> Pago individual en proceso · {r.plazasPagadas || 0} pagada
                 {(r.plazasPagadas || 0) !== 1 ? "s" : ""} / {r.plazasPendientes || 0} pendiente
                 {(r.plazasPendientes || 0) !== 1 ? "s" : ""}
               </p>
@@ -732,13 +732,13 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             onClick={alternarModoRango}
             style={{
               ...styles.botonHoy,
-              ...(modoRango ? { backgroundColor: "#5c3c00", color: "#fff" } : {}),
+              ...(modoRango ? { backgroundColor: "#3f3128", color: "#fff" } : {}),
             }}
           >
             {modoRango ? "Varios días: activado" : "Seleccionar varios días"}
           </button>
           {modoRango && (
-            <span style={{ fontSize: 13, color: "#5c3c00" }}>
+            <span style={{ fontSize: 13, color: "#3f3128" }}>
               {!rangoInicio
                 ? "Pulsa el primer día."
                 : !rangoFin
@@ -1031,7 +1031,7 @@ const styles = {
   },
   titulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   tituloMobile: {
@@ -1040,7 +1040,7 @@ const styles = {
   },
   subtitulo: {
     marginTop: 8,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   subtituloMobile: {
     fontSize: "0.95rem",
@@ -1052,8 +1052,8 @@ const styles = {
     alignItems: "center",
     gap: 16,
     flexWrap: "wrap",
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 16,
     marginBottom: 20,
@@ -1080,7 +1080,7 @@ const styles = {
   },
   mesTitulo: {
     margin: 0,
-    color: "#4b3a2a",
+    color: "#3f3128",
     textTransform: "capitalize",
     fontSize: "1.35rem",
   },
@@ -1091,11 +1091,11 @@ const styles = {
   botonMes: {
     padding: "10px 14px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fffaf0",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fdfaf5",
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonMesMobile: {
     width: 48,
@@ -1107,11 +1107,11 @@ const styles = {
   botonHoy: {
     padding: "8px 12px",
     borderRadius: 10,
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonHoyMobile: {
     width: "auto",
@@ -1120,12 +1120,12 @@ const styles = {
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   calendarioBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 22,
     padding: 18,
     marginBottom: 22,
@@ -1248,14 +1248,14 @@ const styles = {
     justifyContent: "space-between",
     gap: 10,
     padding: "10px 14px calc(10px + env(safe-area-inset-bottom))",
-    backgroundColor: "#fffdf7",
-    borderTop: "1px solid #e5d8b8",
+    backgroundColor: "#fdfaf5",
+    borderTop: "1px solid #eadfd2",
     boxShadow: "0 -4px 14px rgba(0,0,0,0.08)",
   },
   barraInferiorTexto: {
     fontSize: "0.9rem",
     fontWeight: 700,
-    color: "#4b3a2a",
+    color: "#3f3128",
     minWidth: 0,
   },
   barraInferiorBoton: {
@@ -1264,7 +1264,7 @@ const styles = {
     padding: "0 16px",
     borderRadius: 12,
     border: "none",
-    backgroundColor: "#5c3c00",
+    backgroundColor: "#3f3128",
     color: "#fff",
     fontWeight: 700,
     cursor: "pointer",
@@ -1281,7 +1281,7 @@ const styles = {
     width: "100%",
     maxHeight: "88vh",
     overflowY: "auto",
-    backgroundColor: "#fffdf7",
+    backgroundColor: "#fdfaf5",
     borderRadius: "20px 20px 0 0",
     padding: "14px 14px calc(18px + env(safe-area-inset-bottom))",
     transition: "transform 0.25s ease",
@@ -1294,7 +1294,7 @@ const styles = {
   },
   hojaTitulo: {
     fontWeight: 700,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.05rem",
   },
   diaCabecera: {
@@ -1339,11 +1339,11 @@ const styles = {
     background: "transparent",
     fontSize: 20,
     cursor: "pointer",
-    color: "#5c3c00",
+    color: "#3f3128",
   },
   detalleBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 22,
     padding: 20,
   },
@@ -1368,7 +1368,7 @@ const styles = {
   },
   detalleTitulo: {
     margin: 0,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.25rem",
     lineHeight: 1.25,
   },
@@ -1378,7 +1378,7 @@ const styles = {
   },
   detalleSubtitulo: {
     margin: "6px 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.92rem",
   },
   detalleSubtituloMobile: {
@@ -1389,10 +1389,10 @@ const styles = {
     padding: "10px 14px",
     borderRadius: 12,
     border: "1px solid #d8c89f",
-    backgroundColor: "#fff8da",
+    backgroundColor: "#fff6d6",
     cursor: "pointer",
     fontWeight: 700,
-    color: "#5b4a2d",
+    color: "#3f3128",
     whiteSpace: "nowrap",
   },
   botonIrReservasMobile: {
@@ -1400,7 +1400,7 @@ const styles = {
   },
   mensajeResumen: {
     margin: "0 0 14px 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.92rem",
   },
   listaReservas: {
@@ -1452,12 +1452,12 @@ const styles = {
 },
   reservaMeta: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.9rem",
   },
   reservaContacto: {
   margin: "6px 0 0 0",
-  color: "#5b4a2d",
+  color: "#3f3128",
   fontSize: "0.9rem",
   fontWeight: 600,
 },
@@ -1473,8 +1473,8 @@ const styles = {
     padding: "6px 12px",
     borderRadius: 10,
     border: "1px solid #d8c89f",
-    backgroundColor: "#fff8da",
-    color: "#5b4a2d",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
     fontWeight: 700,
     fontSize: "0.85rem",
     cursor: "pointer",
@@ -1489,7 +1489,7 @@ const styles = {
     textDecoration: "none",
   },
   mensajeDetalle: {
-    color: "#7a7a7a",
+    color: "#7a6858",
     margin: 0,
   },
   reservaFilaGrupoEnProceso: {

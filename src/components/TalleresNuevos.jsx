@@ -26,7 +26,7 @@ export default function TalleresNuevos({ grupo, titulo, textoBoton, onElegir, al
   return (
     <section className="mt-8">
       {titulo && (
-        <h2 className="mb-4 text-xl font-bold text-gray-800">{titulo}</h2>
+        <h2 className="mb-4 text-xl font-bold text-tinta">{titulo}</h2>
       )}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {talleres.map((taller) => (

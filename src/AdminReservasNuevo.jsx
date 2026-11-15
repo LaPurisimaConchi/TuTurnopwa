@@ -785,18 +785,18 @@ const styles = {
   titulo: {
     margin: 0,
     textAlign: "center",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
   filtrosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 18,
@@ -820,27 +820,27 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     width: "100%",
     minHeight: "44px",
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     boxSizing: "border-box",
     appearance: "auto",
   },
   botonSecundario: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     alignSelf: "flex-start",
   },
   btnWhatsApp: {
@@ -871,39 +871,39 @@ btnWhatsAppMini: {
     marginBottom: 14,
   },
   resumenTexto: {
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "0.96rem",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   tablaWrapper: {
     overflowX: "auto",
     borderRadius: 18,
-    border: "1px solid #f0e5cf",
-    backgroundColor: "#fffdf7",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fdfaf5",
   },
   table: {
     width: "100%",
     minWidth: "800px",
     borderCollapse: "collapse",
-    backgroundColor: "#fffdf7",
+    backgroundColor: "#fdfaf5",
     overflow: "hidden",
   },
   th: {
     textAlign: "left",
     padding: "14px 16px",
-    backgroundColor: "#fff8da",
-    color: "#5b4a2d",
-    borderBottom: "1px solid #f0e5cf",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    borderBottom: "1px solid #eadfd2",
     fontSize: "0.95rem",
     whiteSpace: "nowrap",
   },
  td: {
   padding: "12px 12px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.9rem",
   verticalAlign: "middle",
@@ -911,7 +911,7 @@ btnWhatsAppMini: {
 },
 tdFechaTurno: {
   padding: "12px 12px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.9rem",
   verticalAlign: "middle",
@@ -921,7 +921,7 @@ tdFechaTurno: {
   
     tdClase: {
   padding: "12px 14px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.92rem",
   verticalAlign: "middle",
@@ -932,7 +932,7 @@ tdFechaTurno: {
   
   tdCliente: {
   padding: "12px 14px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.92rem",
   verticalAlign: "middle",
@@ -942,7 +942,7 @@ tdFechaTurno: {
   
     tdMetodo: {
   padding: "12px 14px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.9rem",
   verticalAlign: "middle",
@@ -967,8 +967,8 @@ tdFechaTurno: {
   },
  
   cardMovil: {
-  backgroundColor: "#fffdf7",
-  border: "1px solid #f0e5cf",
+  backgroundColor: "#fdfaf5",
+  border: "1px solid #eadfd2",
   borderRadius: 18,
   padding: 12,
   cursor: "pointer",
@@ -992,7 +992,7 @@ tdFechaTurno: {
   cardFecha: {
     margin: 0,
     fontWeight: 700,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1rem",
   },
   cardTurno: {
@@ -1007,7 +1007,7 @@ tdFechaTurno: {
   },
   cardTitulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontWeight: 700,
     fontSize: "1rem",
   },
@@ -1028,9 +1028,9 @@ tdFechaTurno: {
     display: "inline-block",
     padding: "4px 10px",
     borderRadius: 999,
-    backgroundColor: "#fff8da",
-    border: "1px solid #eadfbe",
-    color: "#5b4a2d",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
+    color: "#3f3128",
     fontSize: "0.85rem",
     fontWeight: 600,
   },

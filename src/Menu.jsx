@@ -78,7 +78,7 @@ export default function Menu() {
 
   return (
     <div className="p-6 text-center">
-      <h1 className="text-2xl font-bold text-[#5c3c00] mb-6">Menú de Navegación</h1>
+      <h1 className="text-2xl font-bold text-tinta mb-6">Menú de Navegación</h1>
       <div className="grid gap-3 max-w-md mx-auto">
         {enlaces.map((item, index) => (
           <Link

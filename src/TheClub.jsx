@@ -7,7 +7,7 @@ export default function TheClub() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#fffef4] p-6">
+    <div className="min-h-screen bg-crema p-6">
       <div className="max-w-2xl mx-auto bg-white shadow-md rounded-2xl p-6">
         
         <BotonVolver />
@@ -18,23 +18,23 @@ export default function TheClub() {
           className="w-full h-60 object-cover rounded-xl mb-4"
         />
 
-        <h1 className="text-3xl font-serif text-yellow-900 font-bold mb-4 text-center">
+        <h1 className="text-3xl font-serif text-tinta font-bold mb-4 text-center">
           Pinta tu pieza en The Club 
         </h1>
 
-        <p className="text-gray-700 text-base mb-4">
+        <p className="text-tinta text-base mb-4">
           En The Club (Av. Fray Albino, 3 – Córdoba) podrás disfrutar de una
           experiencia relajante y creativa mientras pintas tu pieza de cerámica
           favorita. Tendrás a tu disposición todo el material necesario: pinceles,
           pinturas y varias piezas a elegir.
         </p>
-        <p className="text-gray-700 text-base mb-4">
+        <p className="text-tinta text-base mb-4">
           Además de dar rienda suelta a tu creatividad, podrás merendar, tomar café
           o té en un ambiente acogedor. La actividad tiene un coste de 25 € y
           requiere reserva previa.
         </p>
 
-        <div className="text-sm text-gray-600 mb-6">
+        <div className="text-sm text-tinta-suave mb-6">
           <strong>Días y horarios disponibles:</strong>
           <ul className="list-disc list-inside mt-2">
             <li>Martes a viernes</li>

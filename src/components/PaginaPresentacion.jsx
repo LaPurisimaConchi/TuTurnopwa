@@ -25,8 +25,8 @@ export default function PaginaPresentacion({
       {/* CABECERA */}
       <section className="grid md:grid-cols-2 gap-6 items-center">
         <div className="order-2 md:order-1 text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-gray-800">{titulo}</h1>
-          <p className="text-lg text-gray-700 mt-3">{entradilla}</p>
+          <h1 className="text-3xl md:text-4xl font-serif font-semibold text-tinta">{titulo}</h1>
+          <p className="text-lg text-tinta mt-3">{entradilla}</p>
         </div>
         <img
           src={imagenPrincipal}
@@ -37,7 +37,7 @@ export default function PaginaPresentacion({
 
       {/* DESCRIPCIÓN */}
       {descripcion.length > 0 && (
-        <section className="max-w-2xl mx-auto space-y-3 text-gray-700 text-center">
+        <section className="max-w-2xl mx-auto space-y-3 text-tinta text-center">
           {descripcion.map((p) => (
             <p key={p}>{p}</p>
           ))}
@@ -48,10 +48,10 @@ export default function PaginaPresentacion({
       {ventajas.length > 0 && (
         <section className="grid sm:grid-cols-3 gap-3">
           {ventajas.map((v) => (
-            <div key={v.titulo} className="rounded-2xl border border-[#eadfd2] bg-white p-4 text-center">
+            <div key={v.titulo} className="rounded-2xl border border-linea bg-white p-4 text-center">
               <p><Icono nombre={v.icono} tamano={30} /></p>
-              <p className="font-semibold text-[#3f3128] mt-1">{v.titulo}</p>
-              <p className="text-sm text-gray-600 mt-1">{v.texto}</p>
+              <p className="font-semibold text-tinta mt-1">{v.titulo}</p>
+              <p className="text-sm text-tinta-suave mt-1">{v.texto}</p>
             </div>
           ))}
         </section>
@@ -74,15 +74,15 @@ export default function PaginaPresentacion({
 
       {/* PASOS */}
       {pasos.length > 0 && (
-        <section className="rounded-2xl border border-[#eadfd2] bg-white p-5">
-          <h2 className="text-xl font-serif font-semibold text-[#3f3128] mb-3">Cómo funciona</h2>
+        <section className="rounded-2xl border border-linea bg-white p-5">
+          <h2 className="text-xl font-serif font-semibold text-tinta mb-3">Cómo funciona</h2>
           <ol className="space-y-3">
             {pasos.map((paso, i) => (
               <li key={paso} className="flex gap-3 items-start">
-                <span className="shrink-0 w-7 h-7 rounded-full bg-[#b36a4a] text-white text-sm font-bold flex items-center justify-center">
+                <span className="shrink-0 w-7 h-7 rounded-full bg-terracota text-white text-sm font-bold flex items-center justify-center">
                   {i + 1}
                 </span>
-                <span className="text-gray-700 pt-0.5">{paso}</span>
+                <span className="text-tinta pt-0.5">{paso}</span>
               </li>
             ))}
           </ol>
@@ -92,11 +92,11 @@ export default function PaginaPresentacion({
       {/* RECOMENDADOS */}
       {(cargando || talleres.length > 0) && (
         <section>
-          <h2 className="text-2xl font-serif font-semibold text-[#3f3128] text-center mb-4">
+          <h2 className="text-2xl font-serif font-semibold text-tinta text-center mb-4">
             {tituloRecomendados}
           </h2>
           {cargando ? (
-            <p className="text-center text-sm text-gray-600">Cargando...</p>
+            <p className="text-center text-sm text-tinta-suave">Cargando...</p>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
               {talleres.map((taller) => (

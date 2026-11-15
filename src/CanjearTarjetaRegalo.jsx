@@ -230,7 +230,7 @@ const CanjearTarjetaRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     minHeight: "100vh",
     padding: 20,
@@ -248,7 +248,7 @@ const styles = {
     textAlign: "center",
   },
   titulo: {
-    color: "#6b3700",
+    color: "#3f3128",
     fontSize: "1.3rem",
     marginBottom: 10,
   },
@@ -280,7 +280,7 @@ const styles = {
   mensaje: {
     marginTop: 20,
     fontSize: "0.95rem",
-    color: "#6b3700",
+    color: "#3f3128",
   },
 };
 

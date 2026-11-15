@@ -339,7 +339,7 @@ function obtenerUltimaReserva(reservasObj) {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     margin: 0,
     padding: 20,
@@ -363,7 +363,7 @@ const styles = {
   title: {
     fontSize: "1.6rem",
     marginBottom: 10,
-    color: "#6b3700",
+    color: "#3f3128",
   },
   text: {
     fontSize: "1rem",
@@ -376,8 +376,8 @@ const styles = {
     marginBottom: 16,
   },
   cardBox: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 18,
     marginBottom: 24,
@@ -385,17 +385,17 @@ const styles = {
   },
   label: {
     fontSize: "0.95rem",
-    color: "#5c3c00",
+    color: "#3f3128",
     marginBottom: 8,
     lineHeight: 1.5,
   },
   codigoBox: {
-    backgroundColor: "#f8f8f8",
+    backgroundColor: "#f6efe6",
     borderRadius: 12,
     padding: "12px 16px",
     fontSize: "1.15rem",
     fontWeight: "bold",
-    color: "#5c3c00",
+    color: "#3f3128",
     textAlign: "center",
     letterSpacing: "1px",
   },
@@ -419,8 +419,8 @@ descargaTexto: {
 
 botonDescarga: {
   display: "inline-block",
-  backgroundColor: "#f5f1ea",
-  color: "#5f5247",
+  backgroundColor: "#f6efe6",
+  color: "#7a6858",
   padding: "12px 20px",
   border: "1px solid #d1c7b8",
   borderRadius: "999px",
@@ -450,15 +450,15 @@ botonDescarga: {
     cursor: "pointer",
   },
   avisoInvitado: {
-    backgroundColor: "#fff8df",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
   },
   avisoInvitadoTexto: {
     fontSize: "0.92rem",
-    color: "#6b4f3f",
+    color: "#7a6858",
     lineHeight: 1.5,
     marginBottom: 12,
   },

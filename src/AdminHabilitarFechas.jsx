@@ -369,18 +369,18 @@ botonItemMobile: {
   titulo: {
     textAlign: "center",
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -400,23 +400,23 @@ botonItemMobile: {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonGuardar: {
     padding: "12px 16px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   avisoTurnos: {
   margin: "4px 0 0 0",
@@ -434,7 +434,7 @@ avisoEdicion: {
   subtituloBloque: {
     marginTop: 0,
     marginBottom: 14,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   lista: {
@@ -448,8 +448,8 @@ avisoEdicion: {
     gap: 16,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
   },
   fecha: {
     margin: 0,
@@ -463,7 +463,7 @@ avisoEdicion: {
   },
   turnos: {
     margin: "4px 0 0 0",
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontSize: "0.9rem",
     fontWeight: 600,
   },
@@ -475,12 +475,12 @@ avisoEdicion: {
   },
   botonModificar: {
     padding: "10px 12px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     flexShrink: 0,
   },
   botonEliminar: {
@@ -498,7 +498,7 @@ avisoEdicion: {
     alignItems: "center",
     gap: 8,
     fontSize: "0.95rem",
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   textoVacio: {
     color: "#777",

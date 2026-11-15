@@ -15,7 +15,7 @@ export default function AppLayout() {
   const usaContenedor = !sinContenedor.includes(location.pathname);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fffef4] font-sans">
+    <div className="min-h-screen flex flex-col bg-crema font-sans">
       <Header />
 
       <main className="flex-grow">

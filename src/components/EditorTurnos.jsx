@@ -36,11 +36,11 @@ export default function EditorTurnos({ value = "", onChange, id, textoVacio = "S
   const horaValida = desde && hasta && hasta > desde;
 
   const boton =
-    "px-2.5 py-1 rounded-full border border-dashed border-[#d6c89a] text-xs font-semibold text-[#5c3c00] hover:bg-[#fff6d6]";
+    "px-2.5 py-1 rounded-full border border-dashed border-[#d6c89a] text-xs font-semibold text-tinta hover:bg-mostaza-suave";
 
   return (
     <div id={id} className="flex flex-wrap items-center gap-2">
-      {turnos.length === 0 && <span className="text-sm text-gray-400">{textoVacio}</span>}
+      {turnos.length === 0 && <span className="text-sm text-tinta-suave">{textoVacio}</span>}
 
       {turnos.map((turno) => (
         <span
@@ -48,7 +48,7 @@ export default function EditorTurnos({ value = "", onChange, id, textoVacio = "S
           className={`inline-flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-full text-sm font-semibold border ${
             turnoInvalido(turno)
               ? "bg-red-50 border-red-300 text-red-700"
-              : "bg-[#fff6d6] border-[#F4C542] text-[#5c3c00]"
+              : "bg-mostaza-suave border-mostaza text-tinta"
           }`}
         >
           {bonito(turno)}
@@ -73,7 +73,7 @@ export default function EditorTurnos({ value = "", onChange, id, textoVacio = "S
       )}
 
       {anadiendo ? (
-        <span className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-[#eadfbe] bg-white px-2 py-1">
+        <span className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-linea bg-white px-2 py-1">
           <input
             type="time"
             value={desde}
@@ -96,14 +96,14 @@ export default function EditorTurnos({ value = "", onChange, id, textoVacio = "S
               anadir(`${desde}-${hasta}`);
               setAnadiendo(false);
             }}
-            className="px-2.5 py-1 rounded-full bg-[#5c3c00] text-white text-xs font-semibold disabled:opacity-40"
+            className="px-2.5 py-1 rounded-full bg-tinta text-white text-xs font-semibold disabled:opacity-40"
           >
             Añadir
           </button>
           <button
             type="button"
             onClick={() => setAnadiendo(false)}
-            className="px-2 py-1 text-xs text-gray-500"
+            className="px-2 py-1 text-xs text-tinta-suave"
           >
             Cancelar
           </button>

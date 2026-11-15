@@ -117,20 +117,20 @@ export default function ReservaTheClub() {
   };
 
   return (
-    <div className="p-6 bg-[#fffef4] min-h-screen font-sans text-gray-800">
+    <div className="p-6 bg-crema min-h-screen font-sans text-tinta">
       <BotonVolver />
 
       <h1 className="text-2xl font-bold text-center mb-2">
         Pinta tu pieza - The Club
       </h1>
-      <p className="text-center text-lg mb-6 text-gray-700">
+      <p className="text-center text-lg mb-6 text-tinta">
         Horarios: martes a viernes (17:00 - 19:00 y 19:00 - 21:00)
       </p>
 
       <div className="max-w-md mx-auto bg-white shadow-md rounded-xl p-4 space-y-4">
         <form onSubmit={handleReserva} className="space-y-4">
           <div>
-            <span className="text-gray-700 font-medium block mb-1">Elige la fecha:</span>
+            <span className="text-tinta font-medium block mb-1">Elige la fecha:</span>
             <DatePicker
               selected={fecha}
               onChange={(date) => {
@@ -150,7 +150,7 @@ export default function ReservaTheClub() {
           </div>
 
           <div>
-            <span className="text-gray-700 font-medium block mb-1">Elige el turno:</span>
+            <span className="text-tinta font-medium block mb-1">Elige el turno:</span>
             <select
               value={turno}
               onChange={(e) => setTurno(e.target.value)}
@@ -164,7 +164,7 @@ export default function ReservaTheClub() {
           </div>
 
           <div>
-            <span className="text-gray-700 font-medium block mb-1">Número de plazas:</span>
+            <span className="text-tinta font-medium block mb-1">Número de plazas:</span>
             <input
               type="number"
               value={plazas}

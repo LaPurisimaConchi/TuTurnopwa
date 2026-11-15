@@ -26,10 +26,10 @@ const IconoPanel = () => (
 );
 
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-[40px] rounded-full px-3 sm:px-4 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b36a4a] focus-visible:ring-offset-2";
-const suave = `${base} text-[#6b4f3f] hover:bg-[#f3ebe1]`;
-const contorno = `${base} border border-[#b36a4a] text-[#b36a4a] hover:bg-[#f9ece6]`;
-const relleno = `${base} bg-[#b36a4a] text-white hover:bg-[#9e5c3f]`;
+  "inline-flex items-center justify-center gap-2 min-h-[40px] rounded-full px-3 sm:px-4 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2";
+const suave = `${base} text-tinta-suave hover:bg-arena`;
+const contorno = `${base} border border-terracota text-terracota hover:bg-terracota-suave`;
+const relleno = `${base} bg-terracota text-white hover:bg-terracota-oscuro`;
 
 export default function Header() {
   const { pathname } = useLocation();
@@ -67,19 +67,19 @@ export default function Header() {
   const enGestion = pathname === "/gestionar-reserva";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#eadfd2] bg-[#fffef4]/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-linea bg-crema/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:px-6">
         <Link
           to="/portada"
           aria-label="La Purísima Conchi: ir al inicio"
-          className="flex min-w-0 items-center gap-2 rounded-full pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b36a4a] focus-visible:ring-offset-2"
+          className="flex min-w-0 items-center gap-2 rounded-full pr-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2"
         >
           <img
             src="/img/logoPCsin.png"
             alt=""
             className="h-9 w-9 shrink-0 object-contain"
           />
-          <span className="hidden truncate font-serif text-lg font-semibold text-[#3f3128] sm:block">
+          <span className="hidden truncate font-serif text-lg font-semibold text-tinta sm:block">
             La Purísima Conchi
           </span>
         </Link>
@@ -95,8 +95,8 @@ export default function Header() {
                   aria-current={enPanel ? "page" : undefined}
                   className={`${base} ${
                     enPanel
-                      ? "bg-[#3f3128] text-white"
-                      : "bg-[#f2c500] text-[#3b3025] hover:bg-[#e4b800]"
+                      ? "bg-tinta text-white"
+                      : "bg-mostaza text-tinta hover:bg-mostaza-borde"
                   }`}
                 >
                   <IconoPanel />
@@ -112,7 +112,7 @@ export default function Header() {
                 <Link
                   to="/gestionar-reserva"
                   aria-current={enGestion ? "page" : undefined}
-                  className={`${suave} ${enGestion ? "bg-[#f3ebe1]" : ""}`}
+                  className={`${suave} ${enGestion ? "bg-arena" : ""}`}
                 >
                   <span className="sm:hidden">Mi reserva</span>
                   <span className="hidden sm:inline">Gestionar reserva</span>
@@ -136,12 +136,12 @@ export default function Header() {
                 <Link
                   to="/perfil"
                   aria-current={enPerfil ? "page" : undefined}
-                  className={`${suave} ${enPerfil ? "bg-[#f3ebe1]" : ""}`}
+                  className={`${suave} ${enPerfil ? "bg-arena" : ""}`}
                 >
                   {inicial ? (
                     <span
                       aria-hidden="true"
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-[#b36a4a] text-xs font-bold text-white"
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-terracota text-xs font-bold text-white"
                     >
                       {inicial}
                     </span>

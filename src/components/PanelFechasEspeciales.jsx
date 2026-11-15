@@ -259,7 +259,7 @@ const estilos = {
     padding: 16,
     marginBottom: 16,
   },
-  titulo: { margin: "0 0 12px", fontSize: 16, color: "#5c3c00" },
+  titulo: { margin: "0 0 12px", fontSize: 16, color: "#3f3128" },
   pestanas: { display: "flex", gap: 8, marginBottom: 12 },
   pestana: {
     flex: 1,
@@ -270,7 +270,9 @@ const estilos = {
     cursor: "pointer",
     fontWeight: 600,
   },
-  pestanaActiva: { background: "#F4C542", borderColor: "#E5B92F" },
+  pestanaActiva: { background: "#b36a4a", borderColor: "#b36a4a",
+    color: "#ffffff",
+  },
   input: {
     width: "100%",
     boxSizing: "border-box",
@@ -288,7 +290,7 @@ const estilos = {
     padding: "10px 16px",
     borderRadius: 10,
     border: "none",
-    background: "#5c3c00",
+    background: "#3f3128",
     color: "#fff",
     fontWeight: 700,
     cursor: "pointer",

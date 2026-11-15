@@ -21,7 +21,7 @@
 
 .ad-titulo {
   margin: 0;
-  color: #2f2f2f;
+  color: #3f3128;
   font-size: 2rem;
 }
 
@@ -41,8 +41,8 @@
 .ad-card {
   display: block;
   box-sizing: border-box;
-  background-color: #fff8da;
-  border: 1px solid #f1e7c6;
+  background-color: #fff6d6;
+  border: 1px solid #eadfd2;
   border-radius: 20px;
   padding: 20px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
@@ -52,7 +52,7 @@
 
 .ad-card-label {
   margin: 0;
-  color: #7a6331;
+  color: #3f3128;
   font-weight: 600;
   font-size: 0.95rem;
 }
@@ -67,7 +67,7 @@
 
 .ad-card-nota {
   margin: 6px 0 0;
-  color: #7a6331;
+  color: #3f3128;
   font-size: 0.8rem;
   min-height: 1.2em;
 }
@@ -116,8 +116,8 @@
 }
 
 .ad-panel {
-  background-color: #fffdf7;
-  border: 1px solid #f0e5cf;
+  background-color: #fdfaf5;
+  border: 1px solid #eadfd2;
   border-radius: 22px;
   padding: 22px;
 }
@@ -129,7 +129,7 @@
 
 .ad-panel-titulo {
   margin: 0 0 18px;
-  color: #4b3a2a;
+  color: #3f3128;
   font-size: 1.25rem;
 }
 
@@ -142,9 +142,9 @@
 
 .ad-proxima {
   padding: 10px 16px;
-  background-color: #fff8da;
-  color: #3d3126;
-  border: 1px solid #f1e7c6;
+  background-color: #fff6d6;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
   border-radius: 14px;
   font-size: 1rem;
   cursor: pointer;
@@ -172,9 +172,9 @@
   gap: 12px;
   flex-wrap: wrap;
   padding: 12px 14px;
-  background-color: #fffaf0;
-  color: #3d3126;
-  border: 1px solid #eadfbe;
+  background-color: #fdfaf5;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
   border-radius: 12px;
   font-size: 0.95rem;
   text-align: left;
@@ -193,7 +193,7 @@
 
 .ad-seccion-titulo {
   margin: 0 0 10px;
-  color: #7a6331;
+  color: #3f3128;
   font-size: 0.9rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -213,9 +213,9 @@
   width: 100%;
   box-sizing: border-box;
   padding: 14px 16px;
-  background-color: #fffaf0;
-  color: #3d3126;
-  border: 1px solid #eadfbe;
+  background-color: #fdfaf5;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
   border-radius: 14px;
   font-size: 1rem;
   text-align: left;

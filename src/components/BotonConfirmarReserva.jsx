@@ -5,9 +5,8 @@ export default function BotonConfirmarReserva({ guardando, desdeTarjeta, deshabi
     <button
       type="submit"
       className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-      bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+      bg-terracota hover:bg-terracota-oscuro
       shadow-md hover:shadow-lg
-      hover:from-[#F4C542] hover:to-[#E5B92F]
       transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={guardando || deshabilitado}
     >

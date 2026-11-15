@@ -50,7 +50,7 @@ export function AccesoCompraTaller({ children }) {
   }, [claseId]);
 
   if (requiereCuenta === null) {
-    return <div className="text-center text-gray-500 py-16">Cargando...</div>;
+    return <div className="text-center text-tinta-suave py-16">Cargando...</div>;
   }
 
   return (
@@ -129,7 +129,7 @@ export default function AccesoCompra({
 
   if (estado === "cargando") {
     return (
-      <div className="text-center text-gray-500 py-16">Cargando...</div>
+      <div className="text-center text-tinta-suave py-16">Cargando...</div>
     );
   }
 
@@ -149,7 +149,7 @@ export default function AccesoCompra({
 
   if (estado === "cuenta") {
     return (
-      <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+      <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
         <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
           <BotonVolver />
 
@@ -159,10 +159,10 @@ export default function AccesoCompra({
               alt="La Purísima Conchi"
               className="w-20 mx-auto mb-3"
             />
-            <h1 className="text-2xl text-[#5c3c00] font-serif">
+            <h1 className="text-2xl text-tinta font-serif">
               Necesitas una cuenta
             </h1>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-tinta-suave mt-2">
               Las reservas de este producto se gestionan desde tu perfil, así
               que necesitas iniciar sesión o crear una cuenta para continuar.
             </p>
@@ -172,14 +172,14 @@ export default function AccesoCompra({
             <Link
               to="/login"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg border border-[#b36a4a] text-[#b36a4a] font-semibold text-sm hover:bg-[#f9ece6]"
+              className="whitespace-nowrap px-5 py-2 rounded-lg border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
             >
               Iniciar sesión
             </Link>
             <Link
               to="/registro"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold text-sm"
+              className="whitespace-nowrap px-5 py-2 rounded-lg bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
             >
               Crear cuenta
             </Link>
@@ -190,7 +190,7 @@ export default function AccesoCompra({
   }
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
@@ -200,10 +200,10 @@ export default function AccesoCompra({
             alt="La Purísima Conchi"
             className="w-20 mx-auto mb-3"
           />
-          <h1 className="text-2xl text-[#5c3c00] font-serif">
+          <h1 className="text-2xl text-tinta font-serif">
             Reserva sin registrarte
           </h1>
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-tinta-suave mt-2">
             Solo necesitamos tus datos de contacto para confirmar tu reserva o
             tu compra y avisarte si hay cualquier cambio.
           </p>
@@ -211,20 +211,20 @@ export default function AccesoCompra({
 
         <FormularioDatosContacto alEnviar={handleContinuar} />
 
-        <div className="mt-6 pt-5 border-t border-[#f1e7c6] text-center">
-          <p className="text-sm text-gray-600 mb-3">¿Ya tienes cuenta?</p>
+        <div className="mt-6 pt-5 border-t border-linea text-center">
+          <p className="text-sm text-tinta-suave mb-3">¿Ya tienes cuenta?</p>
           <div className="flex flex-wrap gap-3 justify-center">
             <Link
               to="/login"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg border border-[#b36a4a] text-[#b36a4a] font-semibold text-sm hover:bg-[#f9ece6]"
+              className="whitespace-nowrap px-5 py-2 rounded-lg border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
             >
               Iniciar sesión
             </Link>
             <Link
               to="/registro"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold text-sm"
+              className="whitespace-nowrap px-5 py-2 rounded-lg bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
             >
               Crear cuenta
             </Link>

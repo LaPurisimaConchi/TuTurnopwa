@@ -89,7 +89,7 @@ export default function SesionExtraReserva({
   useEffect(() => () => onListo?.(numero, false), [numero, onListo]);
 
   return (
-    <div className="rounded-xl border border-[#f1e7c6] bg-[#fffdf5] p-3 space-y-3">
+    <div className="rounded-xl border border-linea bg-crema p-3 space-y-3">
       <SelectorDiaReserva
         etiqueta={`Sesión ${numero}: elige el día (a partir del ${fechaDMA(desde)})`}
         value={fecha}

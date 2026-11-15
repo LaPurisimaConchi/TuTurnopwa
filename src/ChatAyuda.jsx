@@ -524,7 +524,7 @@ const ChatAyuda = () => {
 
               <button
                 onClick={reiniciarChat}
-                className="rounded-full border border-[#dcc8b4] px-4 py-2 text-sm font-medium text-[#6b4f3f] transition hover:bg-[#fff8f2]"
+                className="rounded-full border border-[#dcc8b4] px-4 py-2 text-sm font-medium text-tinta-suave transition hover:bg-[#fff8f2]"
               >
                 Reiniciar chat
               </button>
@@ -541,7 +541,7 @@ const ChatAyuda = () => {
                   <button
                     key={sugerencia}
                     onClick={() => enviarMensaje(sugerencia)}
-                    className="rounded-full border border-[#e8d8c8] bg-white px-3 py-2 text-sm text-[#6b4f3f] transition hover:bg-[#fdf5ee]"
+                    className="rounded-full border border-[#e8d8c8] bg-white px-3 py-2 text-sm text-tinta-suave transition hover:bg-[#fdf5ee]"
                   >
                     {sugerencia}
                   </button>
@@ -576,7 +576,7 @@ const ChatAyuda = () => {
                     )}
 
                     {mensaje.tipo === "bot" && mensaje.preguntaRelacionada && (
-                      <p className="mb-2 text-sm font-semibold text-[#6b4f3f]">
+                      <p className="mb-2 text-sm font-semibold text-tinta-suave">
                         {mensaje.preguntaRelacionada}
                       </p>
                     )}

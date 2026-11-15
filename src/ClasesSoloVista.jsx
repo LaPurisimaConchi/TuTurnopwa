@@ -8,7 +8,7 @@ export default function ClasesSoloVista() {
       id: 1,
       titulo: "Crear piezas desde cero",
       subtitulo: "Talleres para crear tu pieza desde cero, con opciones de 1 o 2 sesiones.",
-      color: "border-[#F4C542]",
+      color: "border-mostaza",
       imagen: "/img/vasijaedicionpremium.png",
       bloques: [
         {
@@ -91,7 +91,7 @@ export default function ClasesSoloVista() {
   ];
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-5 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-5 font-sans">
       <BotonVolver />
 
       <div className="max-w-6xl mx-auto">
@@ -103,10 +103,10 @@ export default function ClasesSoloVista() {
           />
 
           <div className="text-center md:text-left">
-            <h1 className="text-3xl md:text-4xl font-bold text-yellow-900 font-serif">
+            <h1 className="text-3xl md:text-4xl font-bold text-tinta font-serif">
               Talleres disponibles
             </h1>
-            <p className="text-gray-600 mt-2 text-sm md:text-base max-w-2xl">
+            <p className="text-tinta-suave mt-2 text-sm md:text-base max-w-2xl">
               Descubre todas las opciones del taller: experiencias
               disponibles, precios y modalidades.
             </p>
@@ -125,12 +125,12 @@ export default function ClasesSoloVista() {
                     <div className="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center text-sm font-bold bg-white">
                       {categoria.id}
                     </div>
-                    <h2 className="text-2xl font-bold text-gray-800">
+                    <h2 className="text-2xl font-bold text-tinta">
                       {categoria.titulo}
                     </h2>
                   </div>
 
-                  <p className="text-gray-600 mb-5 leading-relaxed">
+                  <p className="text-tinta-suave mb-5 leading-relaxed">
                     {categoria.subtitulo}
                   </p>
 
@@ -138,16 +138,16 @@ export default function ClasesSoloVista() {
                     {categoria.bloques.map((bloque, index) => (
                       <div
                         key={index}
-                        className="bg-[#fffaf0] border border-[#f1e7c6] rounded-2xl p-4"
+                        className="bg-crema border border-linea rounded-2xl p-4"
                       >
-                        <h3 className="text-lg font-semibold text-yellow-900 mb-3">
+                        <h3 className="text-lg font-semibold text-tinta mb-3">
                           {bloque.titulo}
                         </h3>
 
-                        <ul className="space-y-2 text-gray-700 text-sm md:text-base">
+                        <ul className="space-y-2 text-tinta text-sm md:text-base">
                           {bloque.items.map((item, i) => (
                             <li key={i} className="flex items-start gap-2">
-                              <span className="text-yellow-700 mt-1">•</span>
+                              <span className="text-tinta mt-1">•</span>
                               <span>{item}</span>
                             </li>
                           ))}
@@ -170,15 +170,15 @@ export default function ClasesSoloVista() {
         </div>
 
         <div className="mt-10 bg-[#fff8dc] border border-[#f1e0a6] rounded-3xl p-6 text-center shadow-sm">
-          <h3 className="text-xl font-bold text-yellow-900 mb-2">
+          <h3 className="text-xl font-bold text-tinta mb-2">
             ¿Te interesa algún taller?
           </h3>
-          <p className="text-gray-700 max-w-2xl mx-auto">
+          <p className="text-tinta max-w-2xl mx-auto">
             Puedes reservar tu plaza y elegir fecha sin necesidad de registrarte.
           </p>
           <Link
             to="/clases"
-            className="inline-block mt-4 bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-semibold px-6 py-2.5 rounded-lg"
+            className="inline-block mt-4 bg-terracota hover:bg-terracota-oscuro text-white font-semibold px-6 py-2.5 rounded-lg"
           >
             Reservar un taller
           </Link>

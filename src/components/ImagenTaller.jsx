@@ -40,7 +40,7 @@ export default function ImagenTaller({ src, alt = "", className = "", imgClassNa
   const sinImagen = !buscando && (!src || fallo);
 
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-[#f6efe6] ${className}`}>
+    <div className={`relative h-full w-full overflow-hidden bg-arena ${className}`}>
       {sinImagen ? (
         <div role="img" aria-label={alt ? `${alt}: sin imagen` : "Sin imagen"} className="flex h-full w-full flex-col items-center justify-center gap-1">
           <Jarron className="w-1/4 min-w-[28px] max-w-[90px]" />

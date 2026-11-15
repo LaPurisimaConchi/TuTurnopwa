@@ -58,7 +58,7 @@ export default function TallerDinamico() {
   if (cargando) {
     return (
       <PantallaConVolver>
-        <p className="text-center text-gray-500 py-16">Cargando taller...</p>
+        <p className="text-center text-tinta-suave py-16">Cargando taller...</p>
       </PantallaConVolver>
     );
   }
@@ -67,16 +67,16 @@ export default function TallerDinamico() {
     return (
       <PantallaConVolver>
         <div className="bg-white text-[#333] font-sans max-w-3xl w-full mx-auto shadow-md rounded-2xl overflow-hidden p-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#3b3025] mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-tinta mb-4">
             Este taller no está disponible ahora mismo
           </h1>
-          <p className="text-sm text-gray-700 leading-relaxed mb-6">
+          <p className="text-sm text-tinta leading-relaxed mb-6">
             Este taller está temporalmente oculto o pausado y no puede reservarse
             en este momento.
           </p>
           <button
             onClick={() => navigate("/clases")}
-            className="px-6 py-3 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold hover:bg-[#e8b932] transition"
+            className="px-6 py-3 rounded-full bg-terracota text-white font-semibold hover:bg-terracota-oscuro transition"
           >
             Volver a talleres
           </button>
@@ -168,7 +168,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             <button
               type="button"
               onClick={() => imagenActiva && setModalAbierto(true)}
-              className="w-full rounded-2xl overflow-hidden bg-[#f8f4ea] flex items-center justify-center aspect-[4/3] sm:aspect-[16/10] md:aspect-square"
+              className="w-full rounded-2xl overflow-hidden bg-crema flex items-center justify-center aspect-[4/3] sm:aspect-[16/10] md:aspect-square"
             >
               <img
                 src={imagenActiva || "/img/logoPCsin.png"}
@@ -189,7 +189,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     type="button"
                     onClick={() => setImagenActiva(img)}
                     className={`shrink-0 rounded-xl overflow-hidden border-2 w-16 h-16 sm:w-[72px] sm:h-[72px] ${
-                      imagenActiva === img ? "border-[#F4C542]" : "border-[#f1e7c6]"
+                      imagenActiva === img ? "border-terracota" : "border-linea"
                     }`}
                   >
                     <img
@@ -203,30 +203,30 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             )}
 
             {imagenActiva && (
-              <p className="text-xs text-gray-400 mt-1">Toca la foto para verla en grande</p>
+              <p className="text-xs text-tinta-suave mt-1">Toca la foto para verla en grande</p>
             )}
           </div>
 
           <div className="px-4 pb-6 pt-2 sm:px-6 md:pt-6 flex flex-col justify-start min-w-0">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#3b3025] mb-2 leading-tight break-words">
+            <h1 className="text-2xl md:text-3xl font-bold text-tinta mb-2 leading-tight break-words">
               {clase.nombre}
             </h1>
 
             {precioMostrado > 0 && (
               <p className="flex items-baseline gap-2 mb-1">
-                {esDesde && <span className="text-sm text-gray-500">Desde</span>}
-                <span className="text-2xl font-bold text-[#6b3700]">
+                {esDesde && <span className="text-sm text-tinta-suave">Desde</span>}
+                <span className="text-2xl font-bold text-tinta">
                   {formatearEuros(precioMostrado)}
                 </span>
-                <span className="text-sm text-gray-500">{esBono ? "" : "por persona"}</span>
+                <span className="text-sm text-tinta-suave">{esBono ? "" : "por persona"}</span>
               </p>
             )}
 
             {grupos.length > 0 && (
-              <div className="mt-3 mb-5 space-y-4 rounded-2xl bg-[#fffaf0] border border-[#f0e5cf] p-4">
+              <div className="mt-3 mb-5 space-y-4 rounded-2xl bg-crema border border-linea p-4">
                 {grupos.map((grupo) => (
                   <div key={grupo.clave} role="radiogroup" aria-label={grupo.etiqueta}>
-                    <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
                       {grupo.etiqueta}
                     </h2>
                     <div className="flex flex-wrap gap-2">
@@ -244,8 +244,8 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                             }
                             className={`px-4 py-2 rounded-xl border text-left transition ${
                               elegida
-                                ? "bg-[#F4C542] border-[#E5B92F] text-[#5c3c00] ring-2 ring-[#E5B92F]"
-                                : "bg-[#fff6d6] border-[#F4C542] text-[#5c3c00] hover:bg-[#F6D66A]"
+                                ? "bg-terracota border-terracota text-white ring-2 ring-terracota-suave"
+                                : "bg-mostaza-suave border-mostaza text-tinta hover:bg-mostaza/40"
                             }`}
                           >
                             <span className="block text-sm font-semibold">{opcion.nombre}</span>
@@ -261,7 +261,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     </div>
                   </div>
                 ))}
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-tinta-suave">
                   Lo que elijas llegará marcado a la reserva; allí también puedes cambiarlo.
                 </p>
               </div>
@@ -269,11 +269,11 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
 
             {esMonografico(clase) && edicionesAbiertas.length > 0 && (
               <div className="mb-4">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
                   Sesiones ({clase.sesionesCurso || edicionesAbiertas[0].fechas.length}{" "}
                   {Number(clase.sesionesCurso || edicionesAbiertas[0].fechas.length) === 1 ? "sesión" : "sesiones"})
                 </h2>
-                <ul className="text-sm text-gray-700 space-y-2">
+                <ul className="text-sm text-tinta space-y-2">
                   {edicionesAbiertas.map((edicion, i) => (
                     <li key={edicion.id}>
                       <strong>Edición {i + 1}:</strong>{" "}
@@ -283,7 +283,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-tinta-suave mt-2">
                   Se reserva la edición completa, con todas sus sesiones.
                 </p>
               </div>
@@ -291,17 +291,17 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
 
             {!esMonografico(clase) && horarios.length > 0 && (
               <div className="mb-4">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
                   Horarios
                 </h2>
-                <ul className="text-sm text-gray-700 space-y-1">
+                <ul className="text-sm text-tinta space-y-1">
                   {horarios.map((fila) => (
                     <li key={fila.dias}>
                       <strong>{fila.dias}:</strong> {fila.turnos}
                     </li>
                   ))}
                 </ul>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-tinta-suave mt-2">
                   Los días con plaza se ven en el calendario al reservar.
                 </p>
               </div>
@@ -317,12 +317,12 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 />
               </div>
               {faltaOpcion && (
-                <p className="text-xs text-gray-600 mb-3" role="status">
+                <p className="text-xs text-tinta-suave mb-3" role="status">
                   Elige una opción de «{grupoSinElegir.etiqueta}» para poder reservar.
                 </p>
               )}
               {exigeCuenta(clase) && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-tinta-suave mt-2">
                   {esBono
                     ? "Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil."
                     : "Para reservar este taller necesitas una cuenta."}
@@ -336,7 +336,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
-                className="w-full px-4 py-2 rounded-full border border-[#E5B92F] text-[#5c3c00] font-semibold text-sm hover:bg-[#fff6d6] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 rounded-full border border-mostaza-borde text-tinta font-semibold text-sm hover:bg-mostaza-suave transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icono nombre="usuarios" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>
@@ -348,26 +348,26 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 onClick={() =>
                   navigate(`/comprar-tarjeta-regalo?taller=${encodeURIComponent(claseId)}`)
                 }
-                className="w-full px-4 py-2 rounded-full border border-pink-300 text-pink-700 font-semibold text-sm hover:bg-pink-50 transition"
+                className="w-full px-4 py-2 rounded-full border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave transition"
               >
                 <Icono nombre="regalo" className="mr-1" />Regalar este taller
               </button>
             )}
             </div>
 
-            <div className="mb-5 min-w-0 border-t border-[#f0e5cf] pt-5">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+            <div className="mb-5 min-w-0 border-t border-linea pt-5">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
                 {esBono ? "Información del bono" : "Información del taller"}
               </h2>
 
               {clase.descripcionCorta && (
-                <p className="text-sm text-gray-700 mb-3 leading-relaxed break-words">
+                <p className="text-sm text-tinta mb-3 leading-relaxed break-words">
                   {clase.descripcionCorta}
                 </p>
               )}
 
               {clase.descripcionLarga && (
-                <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words whitespace-pre-line">
+                <p className="text-sm text-tinta mb-4 leading-relaxed break-words whitespace-pre-line">
                   {clase.descripcionLarga}
                 </p>
               )}
@@ -377,7 +377,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 const contenido = (
                   <>
                     {seccion.titulo && (
-                      <p className="text-sm text-gray-700 mb-2 font-semibold">
+                      <p className="text-sm text-tinta mb-2 font-semibold">
                         {seccion.titulo}:
                       </p>
                     )}
@@ -387,7 +387,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                         .map((parrafo, i) => (
                           <p
                             key={i}
-                            className={`text-sm text-gray-700 leading-relaxed break-words whitespace-pre-line ${
+                            className={`text-sm text-tinta leading-relaxed break-words whitespace-pre-line ${
                               seccion.destacada ? "italic mb-2 last:mb-0" : "mb-3"
                             }`}
                           >
@@ -395,7 +395,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                           </p>
                         ))}
                     {items.length > 0 && (
-                      <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+                      <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                         {items.map((item, i) => (
                           <li key={i}>• {item}</li>
                         ))}
@@ -407,7 +407,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 return seccion.destacada ? (
                   <div
                     key={indice}
-                    className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-4"
+                    className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-4"
                   >
                     {contenido}
                   </div>
@@ -418,10 +418,10 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
 
               {incluye.length > 0 && (
                 <>
-                  <p className="text-sm text-gray-700 mb-2 font-semibold">
+                  <p className="text-sm text-tinta mb-2 font-semibold">
                     Qué incluye:
                   </p>
-                  <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+                  <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                     {incluye.map((item, index) => (
                       <li key={index}>• {item}</li>
                     ))}
@@ -431,10 +431,10 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
 
               {!secciones.length && (clase.duracion || sesiones > 1) && (
                 <>
-                  <p className="text-sm text-gray-700 mb-2 font-semibold">
+                  <p className="text-sm text-tinta mb-2 font-semibold">
                     Duración:
                   </p>
-                  <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+                  <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                     {[sesiones > 1 ? `${sesiones} sesiones` : "", clase.duracion]
                       .filter(Boolean)
                       .join(" · ")}
@@ -444,12 +444,12 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             </div>
 
             {mostrarAvisos && (
-              <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-5">
-                <p className="text-sm text-gray-700 italic mb-2 leading-relaxed break-words">
+              <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-5">
+                <p className="text-sm text-tinta italic mb-2 leading-relaxed break-words">
                   <strong>Nota importante:</strong> {clase.notaImportante || NOTA_TARIFAS}
                 </p>
 
-                <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+                <p className="text-sm text-tinta italic leading-relaxed break-words">
                   <strong>Antes de reservar:</strong> por favor revisa nuestra
                   Política de Reservas. Al proceder con la reserva, confirmas que
                   has leído y aceptado los términos.
@@ -463,11 +463,11 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
       {/* Móvil: el precio y el botón de reservar siempre a mano, a todo el ancho de la
         pantalla. Es "sticky" dentro de la página, así que al llegar al final se queda
         sobre el pie y no lo tapa */}
-      <div className="md:hidden sticky bottom-0 z-30 -mb-6 mt-4 w-screen ml-[calc(50%-50vw)] flex items-center gap-3 border-t border-[#eadfd2] bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+      <div className="md:hidden sticky bottom-0 z-30 -mb-6 mt-4 w-screen ml-[calc(50%-50vw)] flex items-center gap-3 border-t border-linea bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
         {precioMostrado > 0 && (
           <div className="shrink-0 leading-tight">
-            <p className="text-[11px] text-gray-500">{esDesde ? "Desde" : "Precio"}</p>
-            <p className="text-lg font-bold text-[#6b3700]">{formatearEuros(precioMostrado)}</p>
+            <p className="text-[11px] text-tinta-suave">{esDesde ? "Desde" : "Precio"}</p>
+            <p className="text-lg font-bold text-tinta">{formatearEuros(precioMostrado)}</p>
           </div>
         )}
         <BotonReserva

@@ -7,7 +7,7 @@ export default function CondicionesUso() {
   const navigate = useNavigate();
 
   return (
-    <div className="text-gray-800 px-4 py-8 font-sans">
+    <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <img
           src="/img/logoPCsin.png"
@@ -17,12 +17,12 @@ export default function CondicionesUso() {
 
         <BotonVolver />
 
-        <h1 className="text-2xl font-bold text-center text-orange-800 mb-8">
+        <h1 className="text-2xl font-bold text-center text-terracota-oscuro mb-8">
           Condiciones de Uso
         </h1>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             1. Información General
           </h2>
           <p>
@@ -31,7 +31,7 @@ export default function CondicionesUso() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             2. Servicios Ofrecidos
           </h2>
           <p>
@@ -40,7 +40,7 @@ export default function CondicionesUso() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             3. Uso Adecuado
           </h2>
           <p>
@@ -49,16 +49,16 @@ export default function CondicionesUso() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             4. Política de Cancelaciones
           </h2>
           <p>
-            Consulta nuestra <a href="/politicacancelacion" className="text-orange-700 underline">Política de Reservas y Cancelaciones</a> para conocer los detalles relacionados con pagos, cancelaciones y cambios de fecha.
+            Consulta nuestra <a href="/politicacancelacion" className="text-terracota-oscuro underline">Política de Reservas y Cancelaciones</a> para conocer los detalles relacionados con pagos, cancelaciones y cambios de fecha.
           </p>
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             5. Propiedad Intelectual
           </h2>
           <p>
@@ -67,7 +67,7 @@ export default function CondicionesUso() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             6. Modificaciones
           </h2>
           <p>
@@ -76,7 +76,7 @@ export default function CondicionesUso() {
         </section>
 
         <section className="mb-6">
-          <h2 className="text-xl font-semibold text-orange-700 mb-2">
+          <h2 className="text-xl font-semibold text-terracota-oscuro mb-2">
             7. Legislación Aplicable
           </h2>
           <p>
@@ -84,7 +84,7 @@ export default function CondicionesUso() {
           </p>
         </section>
 
-        <div className="text-center text-sm text-gray-600">
+        <div className="text-center text-sm text-tinta-suave">
           ¿Tienes dudas legales? Escríbenos directamente y te ayudaremos.
         </div>
       </div>

@@ -37,17 +37,17 @@ export default function ReservaClasesOnline() {
   };
 
   return (
-    <div className="p-6 bg-[#fffef4] min-h-screen font-sans text-gray-800">
+    <div className="p-6 bg-crema min-h-screen font-sans text-tinta">
       <div className="max-w-md mx-auto bg-white shadow-md rounded-xl p-5">
         <BotonVolver />
         <h1 className="text-2xl font-bold text-center mb-2">Reserva – Clases Online</h1>
-        <p className="text-center text-gray-700 mb-5">
+        <p className="text-center text-tinta mb-5">
           Sesiones en directo impartidas por <strong>La Purísima Conchi</strong>
         </p>
 
         <div className="space-y-4">
           <div>
-            <span className="text-gray-700 font-medium block mb-1">Elige la fecha:</span>
+            <span className="text-tinta font-medium block mb-1">Elige la fecha:</span>
             <DatePicker
               selected={fecha}
               onChange={(d) => setFecha(d)}
@@ -62,7 +62,7 @@ export default function ReservaClasesOnline() {
           </div>
 
           <div>
-            <span className="text-gray-700 font-medium block mb-1">Elige el turno:</span>
+            <span className="text-tinta font-medium block mb-1">Elige el turno:</span>
             <select
               className="block w-full rounded border border-gray-300 p-2"
               value={turno}
@@ -76,7 +76,7 @@ export default function ReservaClasesOnline() {
           </div>
 
           <div>
-            <span className="text-gray-700 font-medium block mb-1">Número de plazas:</span>
+            <span className="text-tinta font-medium block mb-1">Número de plazas:</span>
             <input
               type="number"
               min="1"

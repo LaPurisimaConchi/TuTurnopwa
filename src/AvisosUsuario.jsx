@@ -39,7 +39,7 @@ export default function AvisosUsuario() {
         {avisos.map((aviso, index) => (
           <li key={index}>
             {aviso.mensaje || "Sin mensaje registrado"}{" "}
-            <span className="text-gray-500 text-xs">
+            <span className="text-tinta-suave text-xs">
               ({aviso.fecha ? new Date(aviso.fecha).toLocaleDateString("es-ES") : "Sin fecha"})
             </span>
           </li>

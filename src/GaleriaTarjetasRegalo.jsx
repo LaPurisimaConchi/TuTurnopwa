@@ -72,7 +72,7 @@ const GaleriaTarjetasRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     padding: 20,
     minHeight: "100vh",
@@ -80,7 +80,7 @@ const styles = {
   title: {
     textAlign: "center",
     fontFamily: "Georgia, serif",
-    color: "#6b3700",
+    color: "#3f3128",
     fontSize: "2rem",
     marginBottom: 30,
   },
@@ -110,7 +110,7 @@ const styles = {
   },
   tarjetaTitulo: {
     fontSize: "1.1rem",
-    color: "#3b3025",
+    color: "#3f3128",
     margin: "0 0 6px 0",
   },
   descripcion: {

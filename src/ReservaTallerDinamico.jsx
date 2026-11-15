@@ -71,7 +71,7 @@ export default function ReservaTallerDinamico() {
   if (cargando) {
     return (
       <PantallaReserva>
-        <p className="text-center text-gray-500 py-8">
+        <p className="text-center text-tinta-suave py-8">
           Cargando configuración del taller...
         </p>
       </PantallaReserva>
@@ -681,8 +681,8 @@ export function FormularioReserva({ claseId, clase }) {
 
   return (
     <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center font-serif text-[#5c3c00] mb-4">
-        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-[#b36a4a]">
+      <h1 className="text-center font-serif text-tinta mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
           Reserva
         </span>
         <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
@@ -707,7 +707,7 @@ export function FormularioReserva({ claseId, clase }) {
 
         <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
           {sesiones > 1 && (
-            <div className="md:col-span-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="md:col-span-2 bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Incluye {sesiones} sesiones.</strong>
               </p>
@@ -762,7 +762,7 @@ export function FormularioReserva({ claseId, clase }) {
                 id="variante"
                 value={varianteId}
                 onChange={(e) => handleVarianteChange(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                 required
                 disabled={!!varianteTarjeta}
               >
@@ -829,7 +829,7 @@ export function FormularioReserva({ claseId, clase }) {
                 id="metodo"
                 value={metodo}
                 onChange={(e) => handleMetodoChange(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                 required
                 disabled={!puedeElegirMetodo}
               >
@@ -876,7 +876,7 @@ export function FormularioReserva({ claseId, clase }) {
           />
 
           {puedeElegirTurno && !!turno && plazasListas && plazasDisponibles > 0 && plazasDisponibles <= 10 && (
-            <p className="text-sm text-amber-700 font-medium">
+            <p className="text-sm text-tinta font-medium">
               {plazasDisponibles <= 5
                 ? `Quedan ${plazasDisponibles} ${plazasDisponibles === 1 ? "plaza disponible" : "plazas disponibles"}`
                 : "Quedan pocas plazas"}
@@ -901,7 +901,7 @@ export function FormularioReserva({ claseId, clase }) {
           >
             <div className="overflow-hidden">
             <div
-              className="text-sm text-[#5c3c00] bg-[#fff6d6] border border-[#F4C542] rounded-xl p-3"
+              className="text-sm text-tinta bg-mostaza-suave border border-mostaza rounded-xl p-3"
             >
               <strong>
                 ¿Venís {plazasNum} personas? Os conviene reservar como grupo
@@ -915,7 +915,7 @@ export function FormularioReserva({ claseId, clase }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 tabIndex={mostrarSugerencia ? 0 : -1}
-                className="mt-2 w-full px-4 py-2 rounded-full bg-[#F4C542] text-[#5c3c00] font-semibold hover:bg-[#E5B92F] transition"
+                className="mt-2 w-full px-4 py-2 rounded-full bg-mostaza text-tinta font-semibold hover:bg-mostaza-borde transition"
               >
                 <Icono nombre="usuarios" className="mr-1" />Reservar para grupo
               </button>
@@ -934,7 +934,7 @@ export function FormularioReserva({ claseId, clase }) {
                 type="button"
                 onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
                 disabled={!puedeElegirPlazas || !!plazasTarjeta}
-                className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 −
               </button>
@@ -947,16 +947,16 @@ export function FormularioReserva({ claseId, clase }) {
                 type="button"
                 onClick={() => setPlazas(Math.min(plazasDisponibles || 1, plazasNum + 1))}
                 disabled={!puedeElegirPlazas || !!plazasTarjeta}
-                className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 +
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mt-1">{mensajePrevio}</p>
+            <p className="text-xs text-tinta-suave mt-1">{mensajePrevio}</p>
           </div>
 
-          <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+          <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             {conVariante && (
               <p>
                 <strong>{clase.variante?.etiqueta || "Opción"}:</strong>{" "}

@@ -28,11 +28,11 @@ const nombreMes = (anio, mes) =>
 
 const ESTILOS = {
   disponible:
-    "bg-[#fff6d6] border border-[#F4C542] text-[#5c3c00] font-semibold hover:bg-[#F6D66A] cursor-pointer",
+    "bg-mostaza-suave border border-mostaza text-tinta font-semibold hover:bg-mostaza/40 cursor-pointer",
   bloqueado: "bg-red-50 border border-red-200 text-red-400 line-through cursor-not-allowed",
   "solo-grupo":
     "bg-sky-50 border border-sky-300 text-sky-800 font-semibold hover:bg-sky-100 cursor-pointer",
-  "sin-taller": "bg-gray-50 text-gray-300 cursor-not-allowed",
+  "sin-taller": "bg-crema text-gray-300 cursor-not-allowed",
   fuera: "text-gray-300 cursor-not-allowed",
 };
 
@@ -80,11 +80,11 @@ export default function CalendarioReserva({
           onClick={() => moverMes(-1)}
           disabled={!puedeRetroceder}
           aria-label="Mes anterior"
-          className="w-9 h-9 rounded-full text-lg text-[#5c3c00] hover:bg-[#fff6d6] disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-9 h-9 rounded-full text-lg text-tinta hover:bg-mostaza-suave disabled:opacity-30 disabled:cursor-not-allowed"
         >
           ‹
         </button>
-        <p className="font-semibold text-[#5c3c00] first-letter:uppercase" aria-live="polite">
+        <p className="font-semibold text-tinta first-letter:uppercase" aria-live="polite">
           {nombreMes(anio, mes)}
         </p>
         <button
@@ -92,13 +92,13 @@ export default function CalendarioReserva({
           onClick={() => moverMes(1)}
           disabled={!puedeAvanzar}
           aria-label="Mes siguiente"
-          className="w-9 h-9 rounded-full text-lg text-[#5c3c00] hover:bg-[#fff6d6] disabled:opacity-30 disabled:cursor-not-allowed"
+          className="w-9 h-9 rounded-full text-lg text-tinta hover:bg-mostaza-suave disabled:opacity-30 disabled:cursor-not-allowed"
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-1">
+      <div className="grid grid-cols-7 gap-1 text-center text-xs text-tinta-suave mb-1">
         {DIAS_SEMANA.map((d) => (
           <span key={d}>{d}</span>
         ))}
@@ -116,7 +116,7 @@ export default function CalendarioReserva({
           const elegible = !fuera && (estado === "disponible" || estado === "solo-grupo");
 
           const clases = seleccionado
-            ? "bg-[#F4C542] border border-[#E5B92F] text-[#5c3c00] font-bold ring-2 ring-[#E5B92F]"
+            ? "bg-terracota border border-terracota text-white font-bold ring-2 ring-terracota-suave"
             : ESTILOS[fuera ? "fuera" : estado];
 
           const descripcion = fuera
@@ -146,9 +146,9 @@ export default function CalendarioReserva({
         })}
       </div>
 
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-gray-600">
+      <ul className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-tinta-suave">
         <li className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-[#fff6d6] border border-[#F4C542]" /> Disponible
+          <span className="w-3 h-3 rounded bg-mostaza-suave border border-mostaza" /> Disponible
         </li>
         {hayGrupo > 0 && (
           <li className="flex items-center gap-1.5">
@@ -157,13 +157,13 @@ export default function CalendarioReserva({
           </li>
         )}
         <li className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-[#F4C542] border border-[#E5B92F]" /> Elegido
+          <span className="w-3 h-3 rounded bg-terracota border border-terracota" /> Elegido
         </li>
         <li className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-red-50 border border-red-200" /> Cerrado
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-gray-100" /> No se imparte
+          <span className="w-3 h-3 rounded bg-arena" /> No se imparte
         </li>
       </ul>
     </div>

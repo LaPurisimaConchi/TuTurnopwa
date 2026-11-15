@@ -6,7 +6,7 @@ export default function Tearium() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#fffef4] p-6">
+    <div className="min-h-screen bg-crema p-6">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-6">
 
         <BotonVolver />
@@ -21,20 +21,20 @@ export default function Tearium() {
           Tearium
         </h1>
 
-        <p className="text-gray-700 text-base mb-4">
+        <p className="text-tinta text-base mb-4">
           Vive una experiencia única de pintura cerámica en <strong>Tearium</strong>, 
           un espacio acogedor pensado para que desconectes, disfrutes del arte y 
           compartas un rato relajante contigo mismo o con otras personas.
         </p>
 
-        <p className="text-gray-700 text-base mb-4">
+        <p className="text-tinta text-base mb-4">
           Ponemos a tu disposición pinceles, pinturas, piezas de cerámica y todo el material necesario.
           No necesitas experiencia previa. Podrás elegir si pintar una taza, un cuenco o dejarte llevar.
           Además, disfrutarás de un ambiente tranquilo, buena música
           y la opción de tomar algo si te apetece.
         </p>
 
-        <div className="text-sm text-gray-600 mb-6">
+        <div className="text-sm text-tinta-suave mb-6">
           <strong>Horarios:</strong>
           <ul className="list-disc list-inside mt-2">
             <li>

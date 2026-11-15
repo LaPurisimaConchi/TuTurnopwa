@@ -6,7 +6,7 @@ export default function ClasesOnlineInfo() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#fffef4] p-6">
+    <div className="min-h-screen bg-crema p-6">
       <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-6">
         <BotonVolver />
 
@@ -20,13 +20,13 @@ export default function ClasesOnlineInfo() {
           Clases Online – La Purísima Conchi
         </h1>
 
-        <p className="text-gray-700 mb-4">
+        <p className="text-tinta mb-4">
           Conéctate desde casa y aprende cerámica en sesiones online en directo 
           impartidas por <strong>La Purísima Conchi</strong>. Perfecto para iniciarte, 
           aprender técnicas de decoración y esmaltado, o disfrutar de un taller creativo sin moverte de casa.
         </p>
 
-        <div className="text-sm text-gray-700 mb-6">
+        <div className="text-sm text-tinta mb-6">
           <strong>¿Qué necesitas?</strong>
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>Ordenador o móvil con cámara y micrófono.</li>
@@ -35,7 +35,7 @@ export default function ClasesOnlineInfo() {
           </ul>
         </div>
 
-        <div className="text-sm text-gray-700 mb-6">
+        <div className="text-sm text-tinta mb-6">
           <strong>Formato</strong>
           <ul className="list-disc list-inside mt-2 space-y-1">
             <li>Sesiones grupales en directo (Zoom/Meet).</li>

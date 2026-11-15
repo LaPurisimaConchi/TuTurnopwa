@@ -63,7 +63,7 @@ const RedirigiendoPago = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fffef4",
+    backgroundColor: "#fdfaf5",
     fontFamily: "'Segoe UI', sans-serif",
     minHeight: "100vh",
     padding: "40px 20px",
@@ -83,7 +83,7 @@ const styles = {
   title: {
     fontSize: "1.4rem",
     marginBottom: "10px",
-    color: "#6b3700",
+    color: "#3f3128",
   },
   text: {
     fontSize: "1rem",

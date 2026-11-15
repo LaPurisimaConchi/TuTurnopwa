@@ -20,7 +20,7 @@ export default function BloqueoReserva({ children, permitirVisitante = false }) 
 
   if (cargando) {
     return (
-      <div className="text-center text-gray-500 py-10">
+      <div className="text-center text-tinta-suave py-10">
         Comprobando acceso...
       </div>
     );
@@ -28,7 +28,7 @@ export default function BloqueoReserva({ children, permitirVisitante = false }) 
 
   if (!usuarioLogueado && !permitirVisitante) {
     return (
-      <div className="text-center text-gray-700 bg-yellow-100 border border-yellow-300 rounded-xl p-6 max-w-xl mx-auto shadow">
+      <div className="text-center text-tinta bg-mostaza-suave border border-mostaza rounded-xl p-6 max-w-xl mx-auto shadow">
         <p className="text-lg font-semibold">
           <Icono nombre="candado" className="mr-1" />Inicia sesión para poder reservar esta clase.
         </p>
@@ -44,7 +44,7 @@ export default function BloqueoReserva({ children, permitirVisitante = false }) 
               hash: location.hash,
             },
           }}
-          className="inline-block mt-4 bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-bold px-5 py-2 rounded-lg"
+          className="inline-block mt-4 bg-terracota hover:bg-terracota-oscuro text-white font-bold px-5 py-2 rounded-lg"
         >
           Registrarse
         </Link>

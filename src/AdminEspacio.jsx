@@ -9,9 +9,9 @@ import { cargarConfigEspacio, guardarConfigEspacio } from "./configuracionEspaci
 import { DIAS } from "./utils/fichaTaller";
 
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
-const label = "block font-bold text-sm mb-1 text-[#3d3126]";
-const seccion = "bg-white rounded-2xl border border-[#eadfbe] p-5 shadow-sm space-y-4";
-const ayuda = "text-xs text-gray-500 mt-1";
+const label = "block font-bold text-sm mb-1 text-tinta";
+const seccion = "bg-white rounded-2xl border border-linea p-5 shadow-sm space-y-4";
+const ayuda = "text-xs text-tinta-suave mt-1";
 
 const aTexto = (config) => ({
   aforoTotal: String(config.aforoTotal),
@@ -96,13 +96,13 @@ export default function AdminEspacio() {
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen px-4 py-6 font-sans">
+    <div className="bg-crema min-h-screen px-4 py-6 font-sans">
       <div className="max-w-3xl mx-auto">
         <BotonVolver volverA="/admin-dashboard" />
 
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#3d3126] font-serif">Espacio</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-tinta font-serif">Espacio</h1>
+          <p className="text-sm text-tinta-suave mt-1">
             Límites de plazas y valores por defecto que se aplican a todos los talleres.
           </p>
         </div>
@@ -119,11 +119,11 @@ export default function AdminEspacio() {
         )}
 
         {!form ? (
-          <p className="text-gray-600">Cargando…</p>
+          <p className="text-tinta-suave">Cargando…</p>
         ) : (
           <form onSubmit={guardar} className="space-y-5">
             <section className={seccion}>
-              <h2 className="text-lg font-semibold text-[#3d3126]">Plazas</h2>
+              <h2 className="text-lg font-semibold text-tinta">Plazas</h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -197,8 +197,8 @@ export default function AdminEspacio() {
             </section>
 
             <section className={seccion}>
-              <h2 className="text-lg font-semibold text-[#3d3126]">Horarios por defecto</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-lg font-semibold text-tinta">Horarios por defecto</h2>
+              <p className="text-sm text-tinta-suave">
                 Se ponen solos al crear un taller nuevo. Los talleres que ya existen no
                 cambian.
               </p>
@@ -207,7 +207,7 @@ export default function AdminEspacio() {
                 {DIAS.map(([dia, nombreDia]) => (
                   <div
                     key={dia}
-                    className="grid grid-cols-1 sm:grid-cols-[88px_1fr] items-start gap-1.5 sm:gap-3 py-2 border-b border-[#f3ead7] last:border-0"
+                    className="grid grid-cols-1 sm:grid-cols-[88px_1fr] items-start gap-1.5 sm:gap-3 py-2 border-b border-arena last:border-0"
                   >
                     <label htmlFor={`esp-horario-${dia}`} className="text-sm font-semibold pt-1">
                       {nombreDia}
@@ -225,7 +225,7 @@ export default function AdminEspacio() {
             <button
               type="submit"
               disabled={guardando}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#E5B92F] text-[#3d3126] font-bold hover:bg-[#d3a825] disabled:opacity-60"
+              className="w-full sm:w-auto px-6 py-3 rounded-full bg-mostaza-borde text-tinta font-bold hover:bg-[#d3a825] disabled:opacity-60"
             >
               {guardando ? "Guardando…" : "Guardar ajustes"}
             </button>
