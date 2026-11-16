@@ -244,7 +244,7 @@ const ConfirmacionPago = () => {
 
               
               <button
-                onClick={() => navigate("/dondereservar")}
+                onClick={() => navigate("/portada")}
                 style={styles.botonPrincipal}
               >
                 Seguir reservando

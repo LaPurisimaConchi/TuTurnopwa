@@ -183,7 +183,6 @@ TuTurnopwa/
 │   │   ├── contarPlazasDia.js # Conteo de plazas ocupadas
 │   │   └── tarjetasRegalo.js
 │   ├── RutaAdmin.jsx         # Guard de rutas admin (emails hardcodeados)
-│   ├── DondeReservarV2.jsx   # Hub principal de reservas
 │   ├── Reserva*.jsx          # ~25 formularios de reserva (patrón repetido)
 │   ├── CreaTu*.jsx / PintaTu*.jsx  # Landings informativas de clases
 │   ├── Admin*.jsx            # Panel de administración
@@ -401,7 +400,6 @@ Procesa según `pedidosPendientes/{orderId}.tipo`:
 | Ruta | Descripción |
 |------|-------------|
 | `/portada` | Página de inicio |
-| `/dondereservar` | Hub de reservas |
 | `/login`, `/registro` | Autenticación |
 | `/perfil`, `/editar-perfil` | Perfil de usuario |
 | `/reserva-*` | Formularios de reserva por clase |
@@ -438,7 +436,7 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 | `/admin-habilitar-fechas` | `AdminHabilitarFechas` | Habilitar fechas |
 | `/admin-nuevo` | `AdminNuevo` | Resumen alternativo (legacy) |
 
-**Acceso admin:** tras login, usuarios admin ven enlace en `/dondereservar`. Emails autorizados definidos en `RutaAdmin.jsx` y duplicados en `DondeReservarV2.jsx`.
+**Acceso admin:** tras login, los usuarios admin ven el botón «Panel admin» en la cabecera (`Header.jsx`). Emails autorizados definidos en `utils/administradores.js`.
 
 ---
 
@@ -487,7 +485,7 @@ Al transferir el proyecto, el nuevo responsable necesitará acceso a:
 | **Vercel** | Despliegue, dominio, variables de entorno, functions |
 | **Redsys / banco** | TPV, clave secreta, FUC, terminal, URLs de notificación |
 | **Dominio** `lapurisimaconchi.com` | DNS del subdominio `app.` |
-| **Emails admin** | Hardcodeados en `RutaAdmin.jsx` y `DondeReservarV2.jsx` |
+| **Emails admin** | Definidos en `utils/administradores.js` |
 | **WhatsApp del taller** | Número de Berto usado en reservas de grupo |
 
 ### Service account Firebase
@@ -519,7 +517,7 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 ### Código y mantenimiento
 
 - **~25 archivos `Reserva*.jsx`** con lógica duplicada (~600–800 líneas cada uno). Un cambio transversal requiere tocar muchos archivos.
-- **Archivos legacy** en repo: `DondeReservar backup.jsx`, `ReservaPintarCeramicaAntiguo.jsx`, etc.
+- **Archivos legacy** en repo: `ReservaPintarCeramicaAntiguo.jsx`, etc.
 - **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (legacy en `HistorialTarjetasRegalo.jsx`).
 - **Estados inconsistentes** en capitalización (`Pendiente` vs `pendiente_pago_individual`).
 - **`functions/index.js`**: implementación Redsys alternativa, no usada en prod vía Vercel.
