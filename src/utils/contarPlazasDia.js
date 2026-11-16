@@ -1,7 +1,11 @@
 // src/utils/contarPlazasDia.js
+// /reservas solo lo leen los administradores (lleva datos personales): el resto
+// cuenta las plazas con /api/disponibilidad.
 import { ref, get, child } from "firebase/database";
-import { dbRealtime } from "../firebase";
+import { auth, dbRealtime } from "../firebase";
 import { esReservaValida, plazasPorMetodo } from "./plazasOcupadas";
+import { esAdministrador } from "./administradores";
+import { pedirApi } from "./apiDisponibilidad";
 
 function pareceReservaDirecta(obj) {
   if (!obj || typeof obj !== "object") return false;
@@ -23,6 +27,16 @@ function pareceReservaDirecta(obj) {
  */
 export async function contarPlazasPorMetodo(fechaStr, turnoStr = "") {
   try {
+    await auth.authStateReady();
+    if (!esAdministrador(auth.currentUser)) {
+      const { torno, modelado } = await pedirApi({
+        tipo: "plazas",
+        fecha: fechaStr,
+        ...(turnoStr ? { turno: turnoStr } : {}),
+      });
+      return { torno, modelado };
+    }
+
     const snapshot = await get(child(ref(dbRealtime), "reservas"));
     return plazasPorMetodo(snapshot, fechaStr, turnoStr);
   } catch (error) {

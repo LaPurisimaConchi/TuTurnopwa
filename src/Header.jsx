@@ -5,7 +5,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebase";
-import { esAdministrador } from "./utils/administradores";
+import { esEmailAdministrador } from "./utils/administradores";
 
 const icono = "w-5 h-5 shrink-0";
 
@@ -44,7 +44,8 @@ export default function Header() {
   const cargando = usuario === undefined;
   const hayUsuario = !!usuario;
   const esInvitado = hayUsuario && usuario.isAnonymous;
-  const admin = hayUsuario && !esInvitado && esAdministrador(usuario);
+  // Con el email aún sin verificar también se enseña: el panel le dice cómo verificarlo
+  const admin = hayUsuario && !esInvitado && esEmailAdministrador(usuario.email);
 
   const nombre = String(usuario?.displayName || "").trim().split(/\s+/)[0] || "";
   const inicial = (nombre || usuario?.email || "").charAt(0).toUpperCase();

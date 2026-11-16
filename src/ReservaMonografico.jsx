@@ -7,7 +7,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Icono from "./components/Icono";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, push, update } from "firebase/database";
+import { ref, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BloqueoReserva from "./BloqueoReserva";
 import PantallaReserva from "./components/PantallaReserva";
@@ -21,9 +21,8 @@ import { edicionesReservables } from "./utils/monografico";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { reservarEnServidor } from "./utils/reservaServidor";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
-import { pedirCorreoReserva } from "./utils/correoReserva";
 import { useConfigEspacio } from "./configuracionEspacio";
-import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 
 export default function ReservaMonografico({ claseId, clase }) {
   const navigate = useNavigate();
@@ -43,7 +42,6 @@ export default function ReservaMonografico({ claseId, clase }) {
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
   const codigoTarjeta = location.state?.codigoTarjeta || "";
-  const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
   const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
 
   const nombreClase = clase.nombre || "Taller monográfico";
@@ -146,7 +144,7 @@ export default function ReservaMonografico({ claseId, clase }) {
       alert("No se ha podido calcular el precio del taller.");
       return;
     }
-    if (desdeTarjeta && !tarjetaRegaloId) {
+    if (desdeTarjeta && !codigoTarjeta) {
       alert("No se ha encontrado la tarjeta regalo asociada.");
       return;
     }
@@ -157,10 +155,6 @@ export default function ReservaMonografico({ claseId, clase }) {
       if (!usuario) return;
     }
 
-    if (desdeTarjeta && !(await reclamarTarjetaRegalo(tarjetaRegaloId, usuario.uid))) {
-      alert(MENSAJE_TARJETA_USADA);
-      return;
-    }
     setGuardando(true);
 
     try {
@@ -226,51 +220,15 @@ export default function ReservaMonografico({ claseId, clase }) {
         orderId,
       };
 
+      // Con tarjeta regalo el servidor confirma todas las sesiones, marca la tarjeta
+      // usada y envía el correo
       if (desdeTarjeta) {
-        await Promise.all(
-          creadas.map((c) =>
-            update(ref(dbRealtime, c.ruta), { estado: "Confirmada", estadoPago: "pagado" })
-          )
-        );
-
-        await push(ref(dbRealtime, `usuarios/${usuario.uid}/listaReservas`), {
-          ...reserva,
-          estado: "Confirmada",
-          estadoPago: "pagado",
-          uid: usuario.uid,
-          edicionId: edicion.id,
-          fechasEdicion: edicion.fechas,
-          tarjetaRegaloId,
-          codigoTarjeta,
-          creadaDesde: "tarjeta_regalo",
-        });
-
-        const tarjetaGlobalRef = ref(dbRealtime, `tarjetasRegalo/${tarjetaRegaloId}`);
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const uidComprador = tarjetaGlobalSnap.exists() ? tarjetaGlobalSnap.val()?.uidComprador || "" : "";
-
-        const datosTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: usuario.uid,
-          usadoPorUID: usuario.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          reservaId: creadas[0]?.id || "",
-          fechaReserva: primera.fecha,
-          turnoReserva: primera.turno,
-          metodoReserva: "",
-          nombreTipoClaseReserva: "",
-        };
-
-        await update(tarjetaGlobalRef, datosTarjeta);
-        if (uidComprador) {
-          await update(ref(dbRealtime, `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`), datosTarjeta);
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
-
-        pedirCorreoReserva(orderId);
 
         navigate("/pago/exito", {
           state: {
@@ -297,7 +255,6 @@ export default function ReservaMonografico({ claseId, clase }) {
         },
       });
     } catch (err) {
-      if (desdeTarjeta) liberarTarjetaRegalo(tarjetaRegaloId, usuario.uid);
       console.error("Error al guardar la reserva:", err);
 
       if (err?.codigo) {

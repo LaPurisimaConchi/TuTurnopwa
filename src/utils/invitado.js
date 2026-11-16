@@ -3,7 +3,7 @@
 // y deja sus datos de contacto en usuarios/{uid}, igual que un usuario normal.
 // Así las reglas (auth != null), el webhook y el panel admin siguen funcionando.
 import { signInAnonymously, signOut, updateProfile } from "firebase/auth";
-import { ref, get, set, update } from "firebase/database";
+import { ref, get, update } from "firebase/database";
 import { auth, dbRealtime } from "../firebase";
 
 export const normalizarTelefono = (valor = "") =>
@@ -132,15 +132,11 @@ export async function continuarComoInvitado({ nombre, email, telefono }) {
   const usuarioRef = ref(dbRealtime, `usuarios/${user.uid}`);
   const existente = await get(usuarioRef);
 
-  if (existente.exists()) {
-    await update(usuarioRef, datos);
-  } else {
-    await set(usuarioRef, {
-      ...datos,
-      fechaRegistro: new Date().toISOString(),
-      reservas: 0,
-    });
-  }
+  // update y no set: las reglas dan permiso campo a campo en el perfil
+  await update(
+    usuarioRef,
+    existente.exists() ? datos : { ...datos, fechaRegistro: new Date().toISOString(), reservas: 0 }
+  );
 
   await updateProfile(user, { displayName: datos.nombre });
 

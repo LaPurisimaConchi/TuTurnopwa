@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
-import { ref, set, get, update, push } from "firebase/database";
+import { ref, set } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { simularPagoAdmin } from "./utils/pagoAdmin";
 
 import { fechaDMA } from "./utils/formatoFecha";
-import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
   return str
@@ -132,7 +132,6 @@ export default function ResumenPago() {
     orderId: orderIdFromState,
     payMethod: payMethodFromState,
     codigoTarjeta,
-    tarjetaRegaloId,
     sesiones: sesionesElegidas,
   } = state;
 
@@ -229,159 +228,6 @@ export default function ResumenPago() {
     await set(ref(dbRealtime, `pedidosPendientes/${orderId}`), pedido);
   }
 
-  async function guardarReservaEnPerfilUsuario(uid, reserva) {
-    const listaRef = ref(dbRealtime, `usuarios/${uid}/listaReservas`);
-    const listaSnap = await get(listaRef);
-
-    let yaExiste = false;
-
-    if (listaSnap.exists()) {
-      listaSnap.forEach((itemSnap) => {
-        const item = itemSnap.val();
-        if (item?.orderId === reserva.orderId) {
-          yaExiste = true;
-        }
-      });
-    }
-
-    if (!yaExiste) {
-      await push(listaRef, reserva);
-    }
-
-    const userRef = ref(dbRealtime, `usuarios/${uid}`);
-    const userSnap = await get(userRef);
-
-    if (userSnap.exists()) {
-      const datos = userSnap.val() || {};
-      const totalActual = Number(datos.reservas) || 0;
-      await update(userRef, {
-        reservas: totalActual + 1,
-      });
-    }
-  }
-
-  async function confirmarReservaConTarjeta(uid) {
-    const orderId = orderIdFromState;
-
-    if (!orderId) {
-      throw new Error("Falta el identificador de la reserva.");
-    }
-
-    const reservasRef = ref(dbRealtime, "reservas");
-    const snapshot = await get(reservasRef);
-
-    if (!snapshot.exists()) {
-      throw new Error("No se ha encontrado la reserva a confirmar.");
-    }
-
-    let encontrada = null;
-    const updates = {};
-
-    snapshot.forEach((nivel1Snap) => {
-      nivel1Snap.forEach((nivel2Snap) => {
-        nivel2Snap.forEach((nivel3Snap) => {
-          nivel3Snap.forEach((nivel4Snap) => {
-            const valorNivel4 = nivel4Snap.val();
-
-            // Caso anidado con push key final
-            if (valorNivel4 && typeof valorNivel4 === "object") {
-              Object.entries(valorNivel4).forEach(([childKey, childValue]) => {
-                if (childValue?.orderId === orderId) {
-                  const rutaBase = `reservas/${nivel1Snap.key}/${nivel2Snap.key}/${nivel3Snap.key}/${nivel4Snap.key}/${childKey}`;
-
-                  updates[`${rutaBase}/estadoPago`] = "pagado";
-                  updates[`${rutaBase}/estado`] = "Confirmada";
-                  updates[`${rutaBase}/procesado`] = true;
-                  updates[`${rutaBase}/desdeTarjeta`] = true;
-                  updates[`${rutaBase}/codigoTarjeta`] = codigoTarjeta || "";
-                  updates[`${rutaBase}/actualizadoEn`] = new Date().toISOString();
-
-                  encontrada = {
-                    ...childValue,
-                    uid,
-                    estadoPago: "pagado",
-                    estado: "Confirmada",
-                    procesado: true,
-                    desdeTarjeta: true,
-                    codigoTarjeta: codigoTarjeta || "",
-                    actualizadoEn: new Date().toISOString(),
-                  };
-                }
-              });
-            }
-
-            // Caso directo sin push extra
-            if (valorNivel4?.orderId === orderId) {
-              const rutaBase = `reservas/${nivel1Snap.key}/${nivel2Snap.key}/${nivel3Snap.key}/${nivel4Snap.key}`;
-
-              updates[`${rutaBase}/estadoPago`] = "pagado";
-              updates[`${rutaBase}/estado`] = "Confirmada";
-              updates[`${rutaBase}/procesado`] = true;
-              updates[`${rutaBase}/desdeTarjeta`] = true;
-              updates[`${rutaBase}/codigoTarjeta`] = codigoTarjeta || "";
-              updates[`${rutaBase}/actualizadoEn`] = new Date().toISOString();
-
-              encontrada = {
-                ...valorNivel4,
-                uid,
-                estadoPago: "pagado",
-                estado: "Confirmada",
-                procesado: true,
-                desdeTarjeta: true,
-                codigoTarjeta: codigoTarjeta || "",
-                actualizadoEn: new Date().toISOString(),
-              };
-            }
-          });
-        });
-      });
-    });
-
-    if (!encontrada) {
-      throw new Error("No se ha encontrado la reserva creada para esta tarjeta regalo.");
-    }
-
-    await update(ref(dbRealtime), updates);
-
-        if (tarjetaRegaloId) {
-      const ahora = new Date().toISOString();
-
-      const datosActualizacionTarjeta = {
-        usado: true,
-        fechaUso: ahora,
-        usadoPorUID: uid,
-        canjeado: true,
-        canjeadoPorUID: uid,
-        estadoCanje: "usada",
-        actualizadoEn: ahora,
-      };
-
-      await update(ref(dbRealtime, `tarjetasRegalo/${tarjetaRegaloId}`), datosActualizacionTarjeta);
-      await update(ref(dbRealtime, `usuarios/${uid}/tarjetasRegalo/${tarjetaRegaloId}`), datosActualizacionTarjeta);
-    }
-
-    await guardarReservaEnPerfilUsuario(uid, {
-      clase: encontrada.clase || clase || "",
-      claseId: encontrada.claseId || claseId || "",
-      fecha: encontrada.fecha || fecha || "",
-      turno: encontrada.turno || turno || "",
-      metodo: encontrada.metodo || metodo || "",
-      plazas: Number(encontrada.plazas || plazasNum || 1),
-      precio: 0,
-      precioUnitario: 0,
-      precioTotal: 0,
-      estado: "Confirmada",
-      estadoPago: "pagado",
-      orderId,
-      timestamp: encontrada.timestamp || new Date().toISOString(),
-      actualizadoEn: new Date().toISOString(),
-      desdeTarjeta: true,
-      codigoTarjeta: codigoTarjeta || "",
-      nombreTipoClase: encontrada.nombreTipoClase || subtipo || "",
-      tipoClase: encontrada.tipoClase || tipoPieza || "",
-    });
-  }
-
   async function handleConfirmarPago() {
     if (!aceptaPoliticas) return;
 
@@ -392,20 +238,21 @@ export default function ResumenPago() {
       return;
     }
 
+    // Con tarjeta regalo el servidor confirma la reserva pendiente de este pedido,
+    // marca la tarjeta usada y envía el correo
     if (desdeTarjeta || desdeTarjetaRegalo) {
-      if (tarjetaRegaloId && !(await reclamarTarjetaRegalo(tarjetaRegaloId, auth.currentUser.uid))) {
-        alert(MENSAJE_TARJETA_USADA);
+      if (!orderIdFromState || !codigoTarjeta) {
+        alert("Falta el identificador de la reserva o el código de la tarjeta regalo.");
         return;
       }
 
       try {
         setCargando(true);
-        await confirmarReservaConTarjeta(auth.currentUser.uid);
+        await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId: orderIdFromState });
         navigate("/pago/exito");
       } catch (error) {
-        liberarTarjetaRegalo(tarjetaRegaloId, auth.currentUser.uid);
         console.error("Error al confirmar la reserva con tarjeta regalo:", error);
-        alert(error?.message || "No se pudo confirmar la reserva con la tarjeta regalo.");
+        alert(mensajeErrorCanje(error));
       } finally {
         setCargando(false);
       }

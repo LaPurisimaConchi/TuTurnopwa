@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, push, update } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
-import { usarSesionDeBono } from "./utils/bonos";
+import { reservarConBono } from "./utils/canjeServidor";
 
 import { fechaDMA } from "./utils/formatoFecha";
 const normalizarTurnos = (turnosRaw) => {
@@ -80,16 +80,6 @@ function obtenerEstadoVisibleBono(bono) {
   return "Activo";
 }
 
-function obtenerReservasPathKey(claseId) {
-  const mapa = {
-    modelamano4clases: "ModelaAManoYDecoraTusPiezasFavoritas",
-    tornodesdecero4clases: "TornoAlfareroEmpezarDesdeCero",
-    tornodecoracion4clases: "TornoAlfareroYDecoracion",
-    tornoperfeccionamiento6clases: "TornoAlfareroPerfeccionaLoQueYaSabes",
-  };
-
-  return mapa[claseId] || claseId;
-}
 
 export default function UsarBono() {
   const navigate = useNavigate();
@@ -255,58 +245,11 @@ const turnosDisponibles = useMemo(() => {
     try {
       setGuardando(true);
 
-      const timestamp = new Date().toISOString();
-      const orderId = Date.now().toString().slice(-12);
-
-      const nombreClase = bono.clase || claseConfig?.nombre || "Bono";
-      const claseId = bono.claseId || "";
-      const turnoElegido = String(turno).replaceAll(" a ", "-").trim();
-      const modalidad = bono.modalidad || claseConfig?.modalidad || "";
-      const reservasPathKey =
-        claseConfig?.reservasPath || obtenerReservasPathKey(claseId);
-
-      const reserva = {
-        clase: nombreClase,
-        claseId,
+      // El servidor comprueba el bono y el aforo, crea la reserva y descuenta la clase
+      await reservarConBono({
+        bonoId,
         fecha: fechaSesion,
-        turno: turnoElegido,
-        modalidad,
-        metodo: modalidad,
-        precio: 0,
-        precioBase: 0,
-        precioTotal: 0,
-        plazas: 1,
-        desdeBono: true,
-        bonoId,
-        estado: "Confirmada",
-        estadoPago: "pagado",
-        orderId,
-        timestamp,
-      };
-
-      const generalRef = ref(
-        dbRealtime,
-        `reservas/${reservasPathKey}/${fechaSesion}/${turnoElegido}`
-      );
-      const nuevaReservaRef = push(generalRef);
-      await update(nuevaReservaRef, { uid: user.uid, ...reserva });
-
-      const reservaId = nuevaReservaRef.key || "";
-
-      await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
-        ...reserva,
-        uid: user.uid,
-        reservaId,
-      });
-
-      await usarSesionDeBono({
-        uid: user.uid,
-        bonoId,
-        fechaSesion,
-        turno: turnoElegido,
-        taller: nombreClase,
-        reservaId,
-        clase: nombreClase,
+        turno: String(turno).replaceAll(" a ", "-").trim(),
       });
 
       alert("Sesión reservada correctamente con tu bono.");

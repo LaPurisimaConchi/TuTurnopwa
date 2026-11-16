@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "migrar-categorias": "node scripts/migrar-categorias.mjs"
+    "migrar-categorias": "node scripts/migrar-categorias.mjs",
+    "probar-reglas": "npx firebase-tools emulators:exec --only database --project demo-reglas \"node scripts/probar-reglas.mjs\""
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

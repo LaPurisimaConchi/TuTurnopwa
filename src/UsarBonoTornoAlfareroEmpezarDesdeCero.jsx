@@ -1,18 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, push, update } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
-import {
-  validarUsoBono,
-  usarSesionDeBono,
-} from "./utils/bonos";
+import { validarUsoBono } from "./utils/bonos";
+import { reservarConBono } from "./utils/canjeServidor";
 
 import { fechaDMA } from "./utils/formatoFecha";
 const CLASE_ID = "tornodesdecero4clases";
-const RESERVAS_PATH_KEY = "TornoAlfareroEmpezarDesdeCero";
 
 const normalizarTurnos = (turnosRaw) => {
   if (!turnosRaw) return [];
@@ -219,55 +216,8 @@ export default function UsarBonoTornoAlfareroEmpezarDesdeCero() {
     try {
       setGuardando(true);
 
-      const orderId = Date.now().toString().slice(-12);
-      const timestamp = new Date().toISOString();
-
-      const reserva = {
-        clase: claseConfig?.nombre || "Torno alfarero empezar desde cero",
-        claseId: CLASE_ID,
-        fecha: fechaSesion,
-        turno,
-        metodo: bonoActivo?.modalidad || claseConfig?.modalidad || "torno",
-        modalidad: bonoActivo?.modalidad || claseConfig?.modalidad || "torno",
-        plazas: 1,
-        precio: 0,
-        precioUnitario: 0,
-        precioTotal: 0,
-        estado: "Confirmada",
-        estadoPago: "pagado",
-        procesado: true,
-        orderId,
-        uid: user.uid,
-        desdeBono: true,
-        bonoId: bonoActivo.bonoId,
-        timestamp,
-        actualizadoEn: timestamp,
-        nombreTipoClase: bonoActivo?.subtipo || "",
-        tipoClase: bonoActivo?.modalidad || "",
-      };
-
-      const generalRef = ref(
-        dbRealtime,
-        `reservas/${RESERVAS_PATH_KEY}/${fechaSesion}/${turno}`
-      );
-
-      const nuevaReservaRef = push(generalRef);
-      await update(nuevaReservaRef, reserva);
-
-      await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
-        ...reserva,
-        reservaId: nuevaReservaRef.key,
-      });
-
-      await usarSesionDeBono({
-        uid: user.uid,
-        bonoId: bonoActivo.bonoId,
-        fechaSesion,
-        turno,
-        taller: claseConfig?.nombre || "Torno alfarero empezar desde cero",
-        reservaId: nuevaReservaRef.key || "",
-        clase: claseConfig?.nombre || "Torno alfarero empezar desde cero",
-      });
+      // El servidor comprueba el bono y el aforo, crea la reserva y descuenta la clase
+      await reservarConBono({ bonoId: bonoActivo.bonoId, fecha: fechaSesion, turno });
 
       alert("Clase reservada correctamente con tu bono.");
       navigate("/perfil");

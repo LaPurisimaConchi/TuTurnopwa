@@ -7,14 +7,13 @@ import React, { useState, useEffect } from "react";
 import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, update, push } from "firebase/database";
+import { ref, update, push } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { crearBonoActivo, datosPrimeraSesionBono, usarSesionDeBono } from "./utils/bonos";
+import { datosPrimeraSesionBono } from "./utils/bonos";
 import { cargarFranja } from "./utils/disponibilidad";
 import { plazasLibresFranja } from "./utils/aforo";
 import { reservarEnServidor } from "./utils/reservaServidor";
 import { useConfigEspacio } from "./configuracionEspacio";
-import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
   estadoDiaTaller,
   useContextoReserva,
@@ -26,7 +25,7 @@ import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
-import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const sumarUnMes = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
   d.setMonth(d.getMonth() + 1);
@@ -165,14 +164,9 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       return;
     }
 
-    const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
-    if (desdeTarjeta && !tarjetaRegaloId) {
+    const codigoTarjeta = location.state?.codigoTarjeta || "";
+    if (desdeTarjeta && !codigoTarjeta) {
       alert("No se ha encontrado la tarjeta regalo asociada.");
-      return;
-    }
-
-    if (desdeTarjeta && !(await reclamarTarjetaRegalo(tarjetaRegaloId, user.uid))) {
-      alert(MENSAJE_TARJETA_USADA);
       return;
     }
 
@@ -182,11 +176,10 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
       const fechaFinMes = sumarUnMes(fechaInicio);
-      const codigoTarjeta = location.state?.codigoTarjeta || "";
 
       // Primera sesión del bono: se reserva con la compra, con la misma forma que
       // las que se reservan después desde el perfil (UsarBono). Pendiente hasta
-      // que se paga (no cuenta para las plazas); con tarjeta regalo, ya confirmada
+      // que se paga; con tarjeta regalo la confirma el servidor al canjearla
       const turnoElegido = String(turno).replaceAll(" a ", "-").trim();
       const reservaPrimeraSesion = {
         clase: nombreClase,
@@ -202,8 +195,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         desdeBono: true,
         bonoId: orderId,
         primeraSesionBono: true,
-        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estado: "Pendiente",
+        estadoPago: "pendiente",
         orderId,
         timestamp,
       };
@@ -224,7 +217,6 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         ]);
         reservaRef = ref(dbRealtime, creadas[0].ruta);
       } catch (errorServidor) {
-      if (desdeTarjeta) liberarTarjetaRegalo(tarjetaRegaloId, user.uid);
         if (!errorServidor.sinServidor) throw errorServidor;
         console.warn("Sin función de reserva en el servidor: se escribe directamente (solo desarrollo).");
         reservaRef = push(
@@ -268,92 +260,15 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         }),
       };
 
+      // Con tarjeta regalo el servidor confirma la primera sesión, crea el bono (con esa
+      // clase ya usada), marca la tarjeta usada y envía el correo
       if (desdeTarjeta) {
-        const bonosSnap = await get(ref(dbRealtime, `usuarios/${user.uid}/bonos`));
-        const bonoYaExiste = Object.values(bonosSnap.exists() ? bonosSnap.val() || {} : {}).some(
-          (bono) => bono?.tarjetaRegaloId === tarjetaRegaloId || bono?.orderId === orderId
-        );
-
-        if (!bonoYaExiste) {
-          await update(reservaRef, { uid: user.uid, ...reservaPrimeraSesion });
-
-          await crearBonoActivo({
-            uid: user.uid,
-            clase: nombreClase,
-            claseId,
-            tipoTaller: "bono_mensual",
-            subtipo,
-            numeroClases,
-            fechaInicio,
-            fechaFinMes,
-            fechaCaducidadBono: fechaFinMes,
-            turno,
-            orderId,
-            datosExtra: {
-              duracionClase,
-              modalidad,
-              ...(distribucionClases ? { distribucionClases } : {}),
-              ...(clase.incluyeDecoracion !== undefined ? { incluyeDecoracion } : {}),
-              ...(permiteCambioTorno
-                ? { incluyeCambioTorno: convertirTorno, extraCambioTorno: extraTorno }
-                : {}),
-              precioBase,
-              precioTotal,
-              tarjetaRegaloId,
-              codigoTarjeta,
-              creadaDesde: "tarjeta_regalo",
-            },
-          });
-
-          await usarSesionDeBono({
-            uid: user.uid,
-            bonoId: orderId,
-            fechaSesion: fechaInicio,
-            turno: turnoElegido,
-            taller: nombreClase,
-            reservaId,
-            clase: nombreClase,
-          });
-
-          await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
-            ...reservaPrimeraSesion,
-            uid: user.uid,
-            reservaId,
-          });
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId, bono: datosBono });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
-
-        const tarjetaGlobalRef = ref(dbRealtime, `tarjetasRegalo/${tarjetaRegaloId}`);
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const uidComprador = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()?.uidComprador || ""
-          : "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          fechaReserva: fechaInicio,
-          turnoReserva: turno,
-          subtipoReserva: subtipo,
-          numeroClasesReserva: numeroClases,
-          modalidadReserva: modalidad,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(dbRealtime, `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`),
-            datosActualizacionTarjeta
-          );
-        }
-
-        pedirCorreoReserva(orderId);
 
         navigate("/pago/exito", {
           state: {
