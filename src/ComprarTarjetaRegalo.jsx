@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getAuth } from "firebase/auth";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
@@ -114,10 +116,32 @@ export default function ComprarTarjetaRegalo() {
   const plazasNum = variasPlazas ? plazas : 1;
   const precioTotal = Number(opcionSeleccionada?.precio || 0) * plazasNum;
 
-  const handleContinuar = () => {
+  // Sin sesión se piden los datos de contacto en una ventana, igual que al
+  // reservar; la cuenta de invitado se abre al enviarlos
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
+
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
+
+  const handleContinuar = async () => {
     if (!opcionSeleccionada) {
       alert("Selecciona una opción válida para regalar.");
       return;
+    }
+
+    if (!getAuth().currentUser) {
+      const usuario = await pedirDatosInvitado();
+      if (!usuario) return;
     }
 
     navigate("/resumen-pago", {
@@ -358,6 +382,14 @@ export default function ComprarTarjetaRegalo() {
           </button>
         </div>
       </div>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          compra
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </div>
   );
 }

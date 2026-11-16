@@ -6,7 +6,8 @@ import { Link, useLocation } from "react-router-dom";
 import FormularioDatosContacto from "./FormularioDatosContacto";
 import { iniciarCompraInvitado } from "../utils/invitado";
 
-export default function DatosContactoInvitado({ onListo, onCancelar }) {
+// compra: para compras que no son una reserva (p. ej. tarjeta regalo)
+export default function DatosContactoInvitado({ onListo, onCancelar, compra = false }) {
   const location = useLocation();
 
   // Para volver a esta pantalla tras entrar o registrarse
@@ -37,7 +38,7 @@ export default function DatosContactoInvitado({ onListo, onCancelar }) {
             Tus datos de contacto
           </h2>
           <p className="text-sm text-tinta-suave mt-2">
-            Los necesitamos para confirmar tu reserva y avisarte si hay cualquier
+            Los necesitamos para confirmar tu {compra ? "compra" : "reserva"} y avisarte si hay cualquier
             cambio. No hace falta que te registres.
           </p>
         </div>
@@ -49,7 +50,7 @@ export default function DatosContactoInvitado({ onListo, onCancelar }) {
           onClick={onCancelar}
           className="w-full mt-3 text-sm text-tinta-suave underline"
         >
-          Volver a la reserva
+          {compra ? "Volver" : "Volver a la reserva"}
         </button>
 
         <div className="mt-5 pt-4 border-t border-linea text-center text-sm text-tinta-suave">
