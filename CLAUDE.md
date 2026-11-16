@@ -21,7 +21,7 @@ npm run migrar-categorias -- --project <proyecto> [--instance <bd>] [--dry-run] 
 
 ## Reglas de la base de datos
 
-La app abre sesiones anónimas para comprar sin cuenta, así que `auth != null` no protege nada: las reglas van por ruta.
+Van por ruta: nunca una regla general (`auth != null` o similar) en la raíz de una colección.
 - `usuarios/{uid}`: cada persona lee su nodo y escribe campo a campo (usa `update`, no `set`, sobre `usuarios/{uid}`), menos `bonos` y `tarjetasRegalo`, que solo escribe el servidor.
 - `reservas`, `reservasGrupos` y `pedidosPendientes`: el navegador solo **crea** nodos nuevos a su nombre, pendientes de pago y sin los campos que decide el servidor (`reservadaHasta`, `codigoReserva`, `cancelacionEstudio`…); no lee, no cambia ni borra. Leer reservas para contar plazas va por `api/disponibilidad.js` (`src/utils/disponibilidad.js` y `contarPlazasDia.js`: solo un admin lee la base de datos).
 - `tarjetasRegalo` y `codigosTarjetaRegalo`: solo servidor. Comprobar un código, canjear una tarjeta (confirma las reservas pendientes del pedido y crea el bono) y reservar con un bono van por `api/codigo-reserva.js` (`tipo` `tarjeta`, `canjear`, `usarBono`; lógica en `api/_canjeServidor.js`, llamadas en `src/utils/canjeServidor.js`).
