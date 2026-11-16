@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 import {
+  cargarGaleria,
+  cargarMiniatura,
+  imagenPorDefecto,
   cargarTalleres,
   filtrarOpcionesRegaloEstaticas,
   opcionesRegaloDinamicas,
@@ -21,6 +24,27 @@ export default function ComprarTarjetaRegalo() {
   const [plazas, setPlazas] = useState(1);
   // Todos los talleres (ocultos incluidos); null mientras se cargan
   const [talleres, setTalleres] = useState(null);
+
+  // Imagen principal del taller de origen: galería, miniatura o la de por defecto
+  const [imagenTaller, setImagenTaller] = useState("");
+
+  useEffect(() => {
+    if (!tallerPreseleccionado) return;
+    let activo = true;
+    const cargar = async () => {
+      const galeria = await cargarGaleria(tallerPreseleccionado).catch(() => []);
+      let src = galeria.find((img) => img.src)?.src || "";
+      if (!src) {
+        const mini = await cargarMiniatura(tallerPreseleccionado).catch(() => null);
+        src = (typeof mini === "string" ? mini : mini?.src) || "";
+      }
+      if (activo) setImagenTaller(src || imagenPorDefecto(tallerPreseleccionado));
+    };
+    cargar();
+    return () => {
+      activo = false;
+    };
+  }, [tallerPreseleccionado]);
 
   useEffect(() => {
     cargarTalleres({ incluirOcultos: true })
@@ -46,6 +70,18 @@ export default function ComprarTarjetaRegalo() {
     const opcion = opciones.find((op) => op.claseId === tallerPreseleccionado);
     if (opcion) setOpcionSeleccionadaId(opcion.id);
   }, [tallerPreseleccionado, opciones, opcionSeleccionadaId, talleres]);
+
+  // Opciones del taller de origen (varias si tiene tamaños o métodos con precio propio)
+  const opcionesDelTaller = useMemo(
+    () =>
+      tallerPreseleccionado
+        ? opciones.filter((op) => op.claseId === tallerPreseleccionado)
+        : [],
+    [opciones, tallerPreseleccionado]
+  );
+  // Mientras cargan los talleres no se sabe aún si viene de uno válido
+  const cargandoOrigen = !!tallerPreseleccionado && !talleres;
+  const modoTaller = opcionesDelTaller.length > 0;
 
   const opcionSeleccionada = opciones.find(
     (op) => op.id === opcionSeleccionadaId
@@ -110,6 +146,46 @@ export default function ComprarTarjetaRegalo() {
         </div>
 
         <div className="space-y-5">
+          {modoTaller ? (
+            <div className="rounded-2xl overflow-hidden border border-linea bg-crema">
+              {imagenTaller && (
+                <img
+                  src={imagenTaller}
+                  alt={opcionesDelTaller[0].clase}
+                  className="w-full h-56 sm:h-72 object-cover"
+                />
+              )}
+              <div className="p-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-tinta-suave mb-1">
+                  Regalas
+                </p>
+                <h2 className="text-2xl font-bold font-serif text-tinta">
+                  {opcionesDelTaller[0].clase}
+                </h2>
+
+                {opcionesDelTaller.length > 1 && (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {opcionesDelTaller.map((op) => (
+                      <button
+                        key={op.id}
+                        type="button"
+                        onClick={() => setOpcionSeleccionadaId(op.id)}
+                        className={`px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                          op.id === opcionSeleccionadaId
+                            ? "bg-terracota text-white border-terracota"
+                            : "border-terracota text-terracota hover:bg-terracota-suave"
+                        }`}
+                      >
+                        {op.subtipo || op.label} — {op.precio} €
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : cargandoOrigen ? (
+            <p className="text-center text-sm text-tinta-suave">Cargando…</p>
+          ) : (
           <div>
             <label className="block font-bold text-sm mb-2">
               Selecciona el taller o regalo
@@ -130,6 +206,7 @@ export default function ComprarTarjetaRegalo() {
               ))}
             </select>
           </div>
+          )}
 
           {opcionSeleccionada && (
             <div>
