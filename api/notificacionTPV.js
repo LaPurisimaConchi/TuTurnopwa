@@ -7,6 +7,7 @@ import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
 import { firmaRedsysValida } from "./_firmaRedsys.js";
+import { generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
 import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
@@ -186,18 +187,6 @@ async function asignarCodigoReserva(reserva) {
   }
 }
 
-function generarCodigoTarjetaRegalo() {
-  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let codigo = "REGALO-";
-
-  for (let i = 0; i < 6; i++) {
-    codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
-  }
-
-  return codigo;
-}
-
-// `soloGrupoId`: el grupo que apuntó el servidor ("" = ninguno); null en pedidos de antes
 async function marcarReservaGrupoComoPagada(orderId, timestamp, soloGrupoId = null) {
   const reservasGruposRef = adminDb.ref("reservasGrupos");
   const snapshot = await reservasGruposRef.get();
@@ -255,21 +244,8 @@ async function marcarReservaGrupoComoPagada(orderId, timestamp, soloGrupoId = nu
 
   return reservaEncontrada;
 }
-async function generarCodigoTarjetaRegaloUnico() {
-  let codigo = "";
-  let existe = true;
-
-  while (existe) {
-    codigo = generarCodigoTarjetaRegalo();
-    const snap = await adminDb.ref(`codigosTarjetaRegalo/${codigo}`).get();
-    existe = snap.exists();
-  }
-
-  return codigo;
-}
-
 async function guardarTarjetaRegaloPagada(orderId, pedido, timestamp) {
-  const codigo = await generarCodigoTarjetaRegaloUnico();
+  const codigo = await generarCodigoTarjetaRegaloUnico(adminDb);
 
   const tarjetaData = {
     id: orderId,

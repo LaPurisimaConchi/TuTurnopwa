@@ -5,6 +5,7 @@ import { asegurarCodigo } from "./_codigosReserva.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
 import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
+import { generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -133,13 +134,7 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
   const current = await tarjetaRef.get();
   if (current.exists()) return;
 
-  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code;
-  do {
-    code = `REGALO-${Array.from({ length: 6 }, () =>
-      characters.charAt(Math.floor(Math.random() * characters.length))
-    ).join("")}`;
-  } while ((await adminDb.ref(`codigosTarjetaRegalo/${code}`).get()).exists());
+  const code = await generarCodigoTarjetaRegaloUnico(adminDb);
 
   const tarjeta = {
     id: orderId,

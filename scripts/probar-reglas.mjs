@@ -133,6 +133,9 @@ await caso("escribir esperaFundamentalMini", false, pedir("PUT", "esperaFundamen
 await caso("leer notificaciones", false, pedir("GET", "notificaciones", ANON_A));
 await caso("editar un taller", false, pedir("PUT", "clases/Taller/nombre", ANON_A, "hack"));
 await caso("leer codigosReserva", false, pedir("GET", "codigosReserva", ANON_A));
+await caso("leer limitesTarjetaRegalo", false, pedir("GET", "limitesTarjetaRegalo", ANON_A));
+await caso("leer limitesDisponibilidad", false, pedir("GET", "limitesDisponibilidad", ANON_A));
+await caso("borrar su límite de intentos", false, pedir("DELETE", "limitesTarjetaRegalo/ip_x", ANON_A));
 
 console.log("— Cuenta normal (uidB)");
 await caso("leer /reservas", false, pedir("GET", "reservas", USER_B));
@@ -159,6 +162,7 @@ await caso("pago manual de grupo", true, pedir("PUT", "reservasGrupos/-G2/pagosI
 await caso("editar un taller", true, pedir("PUT", "clases/Taller/nombre", ADMIN, "Taller 2"));
 await caso("leer pedidosPendientes", true, pedir("GET", "pedidosPendientes", ADMIN));
 await caso("leer codigosReserva (solo servidor)", false, pedir("GET", "codigosReserva", ADMIN));
+await caso("leer limitesTarjetaRegalo (solo servidor)", false, pedir("GET", "limitesTarjetaRegalo", ADMIN));
 
 console.log(fallos ? `\n${fallos} caso(s) no cumplen lo esperado` : "\nTodas las reglas se comportan como se espera");
 process.exit(fallos ? 1 : 0);

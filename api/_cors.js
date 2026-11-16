@@ -11,10 +11,10 @@ export function applyCors(req, res) {
   ];
   const isAllowed = allowed.some((re) => re.test(origin));
 
-  // Si coincide, reflejamos el origen; si no, '*' (para pruebas sin credenciales)
-  const allowOrigin = isAllowed && origin ? origin : "*";
-
-  res.setHeader("Access-Control-Allow-Origin", allowOrigin);
+  // Solo se refleja un origen de la lista. La web y /api van en el mismo dominio
+  // (también en los Preview de Vercel y en local con el proxy de Vite), así que el
+  // navegador no necesita CORS; otra web no recibe permiso para leer las respuestas.
+  if (isAllowed && origin) res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Vary", "Origin");
 
   // Si el navegador envía Access-Control-Request-Headers, respóndelos tal cual.

@@ -12,9 +12,9 @@
 // Se lee y escribe con firebase-admin (ni /reservas ni los nodos de apoyo son
 // públicos) y todas las reglas se comprueban aquí, nunca en el navegador:
 // src/utils/cambioFecha.js.
-import { createHash } from "node:crypto";
 import { adminDb } from "./_firebaseAdmin.js";
 import { applyCors } from "./_cors.js";
+import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.js";
 import {
   ANTELACION_HORAS,
   MAX_CAMBIOS_CLIENTE,
@@ -55,25 +55,7 @@ const ORDER_ID = /^\d{4,20}$/; // reservas anteriores a los códigos
 // --- Límite de intentos -----------------------------------------------------
 // Sin él se podrían probar números de reserva (son correlativos) hasta acertar el
 // email. Se cuenta por IP y, aparte, los fallos por número de reserva.
-async function consumirIntento(clave, maximo, ventanaMs) {
-  const ahora = Date.now();
-  const resultado = await adminDb.ref(`limitesCambioFecha/${clave}`).transaction((actual) => {
-    if (!actual || ahora - Number(actual.desde || 0) > ventanaMs) {
-      return { n: 1, desde: ahora };
-    }
-    if (Number(actual.n || 0) >= maximo) return; // aborta: sin cambios
-    return { n: Number(actual.n || 0) + 1, desde: actual.desde };
-  });
-
-  return resultado.committed;
-}
-
-const hash = (texto) => createHash("sha256").update(String(texto)).digest("hex").slice(0, 32);
-
-const ipDe = (req) =>
-  String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "desconocida")
-    .split(",")[0]
-    .trim();
+const LIMITES = "limitesCambioFecha";
 
 // --- Localizar la reserva ---------------------------------------------------
 // Devuelve { tipo, codigo, ... } o null. Con código sale del índice; con un número
@@ -735,23 +717,18 @@ export default async function handler(req, res) {
       error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
     };
 
-    if (!(await consumirIntento(`ip_${hash(ipDe(req))}`, 30, 15 * 60_000))) {
+    if (!(await consumirIntento(adminDb, LIMITES, `ip_${hash(ipDe(req))}`, 30, 15 * 60_000))) {
       return res.status(429).json(demasiados);
     }
 
     // Quien falla muchas veces con un mismo código queda bloqueado un rato
     const claveFallos = `codigo_${hash(entrada)}`;
-    const fallos = await adminDb.ref(`limitesCambioFecha/${claveFallos}`).get();
-    if (
-      fallos.exists() &&
-      Number(fallos.val()?.n || 0) >= 6 &&
-      Date.now() - Number(fallos.val()?.desde || 0) < 60 * 60_000
-    ) {
+    if (await limiteAlcanzado(adminDb, LIMITES, claveFallos, 6, 60 * 60_000)) {
       return res.status(429).json(demasiados);
     }
 
     const noEncontrada = async () => {
-      await consumirIntento(claveFallos, Number.MAX_SAFE_INTEGER, 60 * 60_000);
+      await consumirIntento(adminDb, LIMITES, claveFallos, Number.MAX_SAFE_INTEGER, 60 * 60_000);
       return res.status(404).json({ ok: false, error: NO_ENCONTRADA });
     };
 
