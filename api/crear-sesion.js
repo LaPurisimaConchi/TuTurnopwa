@@ -1,7 +1,12 @@
 // api/crear-sesion.js
-// Firma el pago y manda al cliente al TPV de Redsys (HTML que se envía solo), o
-// devuelve los datos firmados en JSON con mode=json (ResumenPagoTearium).
+// Firma el pago de un pedido y manda al cliente al TPV de Redsys (HTML que se envía
+// solo), o devuelve los datos firmados en JSON con mode=json.
+// Solo firma pedidos que ha preparado el servidor (api/_pedidoServidor.js, tipo
+// "prepararPago" de api/codigo-reserva.js) y con su importe: lo que mande el
+// navegador (amountCents, amount) no cuenta.
+import { adminDb } from "./_firebaseAdmin.js";
 import { firmarRedsys } from "./_firmaRedsys.js";
+import { PEDIDO_PAGO } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -34,41 +39,53 @@ function origenDeVuelta(req, urlCliente) {
   return APP_BASE_URL;
 }
 
+// Si no se puede pagar: página sencilla (o JSON con mode=json). Los mensajes son fijos.
+function noSePuedePagar(res, status, mensaje, comoJson) {
+  if (comoJson) return res.status(status).json({ ok: false, error: mensaje });
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  return res.status(status).send(`<!doctype html><html lang="es"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No se ha podido iniciar el pago</title>
+<body style="font-family:sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;color:#333">
+  <h1 style="font-size:1.3rem">No se ha podido iniciar el pago</h1>
+  <p>${mensaje}</p>
+  <p><a href="/">Volver a la web</a></p>
+</body></html>`);
+}
+
 // ---------- handler ----------
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const isGet = req.method === "GET";
   const isPost = req.method === "POST";
   if (!isGet && !isPost) return res.status(405).end();
 
   const src = isGet ? (req.query || {}) : (req.body || {});
+  const comoJson = String(src.mode || "").toLowerCase() === "json";
 
   if (!FUC) return res.status(500).send("Falta REDSYS_FUC");
 
   try {
-    const { orderId, amountCents, amount, okUrl, mode } = src;
-
-    // ORDER: numérico 4–12 dígitos → dejamos 12 dígitos
-    let oid = String(orderId ?? Date.now()).replace(/\D/g, "");
-    if (oid.length < 4) oid = (Date.now() % 1e12).toString();
-    oid = oid.padStart(12, "0").slice(-12);
-
-    // Importe en céntimos (>=1)
-    let cents = null;
-
-    // Si ya viene en céntimos
-    if (amountCents != null) {
-      cents = String(parseInt(amountCents, 10));
+    const { okUrl } = src;
+    const oid = String(src.orderId || "");
+    if (!PEDIDO_PAGO.test(oid)) {
+      return noSePuedePagar(res, 400, "El número de pedido no es válido.", comoJson);
     }
 
-    // Si viene en euros
-    if (!cents && amount != null) {
-      const euros = String(amount).replace(",", ".");
-      cents = String(Math.round(Number(euros) * 100));
+    // El importe es el del pedido que preparó el servidor
+    const snap = await adminDb.ref(`pedidosPendientes/${oid}`).get();
+    const pedido = snap.exists() ? snap.val() || {} : null;
+    if (!pedido || pedido.importeServidor !== true) {
+      return noSePuedePagar(res, 409, "No se ha encontrado este pedido. Vuelve a hacer la reserva.", comoJson);
+    }
+    if (pedido.procesado === true || String(pedido.estadoPago || "") !== "pendiente") {
+      return noSePuedePagar(res, 409, "Este pedido ya está pagado o cerrado.", comoJson);
     }
 
-    if (!cents || !/^\d+$/.test(cents) || Number(cents) < 1) {
-      return res.status(400).send("amountCents/amount inválido");
+    const centimos = Math.round(Number(pedido.precioTotal) * 100);
+    if (!Number.isInteger(centimos) || centimos < 1) {
+      return noSePuedePagar(res, 409, "Este pedido no tiene importe.", comoJson);
     }
+    const cents = String(centimos);
 
     // URLs: las de vuelta, siempre de esta web; la de notificación, siempre la nuestra
     const origen = origenDeVuelta(req, okUrl);
@@ -98,7 +115,7 @@ export default function handler(req, res) {
     const Ds_Signature = firmarRedsys(Ds_MerchantParameters, dsJson.Ds_Merchant_Order);
 
     // --- Datos firmados en JSON (el navegador monta el formulario) ---
-    if ((mode || "").toString().toLowerCase() === "json") {
+    if (comoJson) {
       res.setHeader("Content-Type", "application/json; charset=utf-8");
       return res.status(200).json({
         action: TPV_URL,

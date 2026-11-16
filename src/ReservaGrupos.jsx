@@ -297,6 +297,8 @@ export default function ReservaGrupos() {
         clase: nombreTaller,
         claseId: "reserva-grupo",
         tallerId: taller.id,
+        // Variante o método elegido: con él calcula el servidor el precio (api/_pedidoServidor.js)
+        opcionTaller: opcion?.id || "",
         tipo: "grupo",
         fecha,
         turno: horario,
@@ -329,6 +331,7 @@ export default function ReservaGrupos() {
       navigate("/resumen-pago", {
         state: {
           tipo: "grupo",
+          grupoId: grupoRef.key,
           clase: nombreTaller,
           claseId: "reserva-grupo",
           precio: precioTotal,

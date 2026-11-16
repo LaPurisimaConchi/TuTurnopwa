@@ -23,9 +23,21 @@ function buscarReserva(nodo, orderId, ruta = "reservas") {
   return null;
 }
 
-export async function confirmarPrimeraSesionBono({ orderId, uid, paidAt, db = adminDb }) {
-  const snapshot = await db.ref("reservas").get();
-  const hallada = buscarReserva(snapshot.val(), String(orderId));
+// `rutas` (Set): las reservas que apuntó el servidor al preparar el pago; solo se
+// confirma la de ahí. Sin `rutas` (pedidos de antes) se busca por número de pedido.
+export async function confirmarPrimeraSesionBono({ orderId, uid, paidAt, rutas = null, db = adminDb }) {
+  let hallada = null;
+  if (rutas) {
+    const ruta = [...rutas][0];
+    const snap = ruta ? await db.ref(ruta).get() : null;
+    const reserva = snap?.exists() ? snap.val() : null;
+    if (reserva && String(reserva.orderId || "") === String(orderId) && reserva.desdeBono) {
+      hallada = { ruta, reserva };
+    }
+  } else {
+    const snapshot = await db.ref("reservas").get();
+    hallada = buscarReserva(snapshot.val(), String(orderId));
+  }
   if (!hallada) return null;
 
   const { ruta, reserva } = hallada;

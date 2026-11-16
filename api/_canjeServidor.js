@@ -71,7 +71,7 @@ async function buscarTarjeta(db, codigo) {
 
 // Todas las reservas de un pedido (un taller de varias sesiones o un monográfico
 // tienen una por sesión con el mismo orderId), con su ruta
-function reservasDelPedido(nodo, orderId, ruta = "reservas", halladas = []) {
+export function reservasDelPedido(nodo, orderId, ruta = "reservas", halladas = []) {
   if (!nodo || typeof nodo !== "object") return halladas;
 
   for (const [clave, valor] of Object.entries(nodo)) {

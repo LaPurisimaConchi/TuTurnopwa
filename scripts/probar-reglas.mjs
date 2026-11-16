@@ -111,7 +111,8 @@ await caso("crear grupo confirmado", false, pedir("PUT", "reservasGrupos/-G3", A
 await caso("pago individual en un grupo", false, pedir("PUT", "reservasGrupos/-G2/pagosIndividuales/p1", ANON_A, { estadoPago: "pagado" }));
 await caso("borrar /reservasGrupos", false, pedir("DELETE", "reservasGrupos", ANON_A));
 
-await caso("crear pedido pendiente", true, pedir("PUT", "pedidosPendientes/123412341234", ANON_A, { orderId: "123412341234", uid: "uidA", estadoPago: "pendiente", procesado: false, precioTotal: 45 }));
+// El pedido (con su importe) lo crea el servidor: api/_pedidoServidor.js
+await caso("crear pedido pendiente", false, pedir("PUT", "pedidosPendientes/123412341234", ANON_A, { orderId: "123412341234", uid: "uidA", estadoPago: "pendiente", procesado: false, precioTotal: 45 }));
 await caso("sobrescribir su pedido", false, pedir("PUT", "pedidosPendientes/123412341234", ANON_A, { orderId: "123412341234", uid: "uidA", estadoPago: "pendiente", procesado: false, precioTotal: 1 }));
 await caso("crear pedido a nombre de otro", false, pedir("PUT", "pedidosPendientes/123412341235", ANON_A, { orderId: "123412341235", uid: "uidB", estadoPago: "pendiente", procesado: false }));
 await caso("crear pedido ya pagado", false, pedir("PUT", "pedidosPendientes/123412341236", ANON_A, { orderId: "123412341236", uid: "uidA", estadoPago: "pagado", procesado: false }));

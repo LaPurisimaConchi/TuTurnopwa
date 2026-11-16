@@ -8,7 +8,8 @@ import { auth } from "../firebase";
 export const MENSAJE_TARJETA_USADA =
   "Esta tarjeta regalo ya se ha usado o hay un canje en curso. Si crees que es un error, escríbenos.";
 
-async function llamar(datos) {
+// Llama a api/codigo-reserva.js con la sesión actual (también la de invitado)
+export async function llamar(datos) {
   await auth.authStateReady();
   const usuario = auth.currentUser;
   if (!usuario) throw new Error("Necesitas una sesión para continuar");

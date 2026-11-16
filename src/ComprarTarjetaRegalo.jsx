@@ -148,6 +148,8 @@ export default function ComprarTarjetaRegalo() {
       state: {
         tipo: "tarjeta_regalo",
         desdeCompraTarjeta: true,
+        // El servidor calcula el importe a partir de esta opción (api/_pedidoServidor.js)
+        opcionId: opcionSeleccionada.id,
 
         clase: opcionSeleccionada.clase,
         claseId: opcionSeleccionada.claseId,

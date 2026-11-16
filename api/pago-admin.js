@@ -4,6 +4,7 @@ import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
+import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -181,11 +182,13 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
 
 async function confirmGroupReservation(orderId, pedido, paidAt) {
   const groupSnapshot = await adminDb.ref("reservasGrupos").get();
+  // Con pedido preparado por el servidor, solo su grupo
+  const soloGrupo = grupoDelPedido(pedido);
   const match = findReservationUpdates(
     groupSnapshot.val(),
     orderId,
     "reservasGrupos"
-  )[0];
+  ).find((c) => soloGrupo === null || c.path === `reservasGrupos/${soloGrupo}`);
   if (!match) {
     throw new Error("No se encontró la reserva de grupo que corresponde al pedido.");
   }
@@ -248,7 +251,7 @@ async function confirmOrder(orderId, pedido) {
     }
 
     // La primera sesión del bono se reservó con la compra
-    await confirmarPrimeraSesionBono({ orderId, uid: pedido.uid, paidAt });
+    await confirmarPrimeraSesionBono({ orderId, uid: pedido.uid, paidAt, rutas: rutasDelPedido(pedido) });
     await enviarCorreoReserva({
       tipo: "bono",
       reserva: { ...pedido.datosBono, precioTotal: pedido.precioTotal ?? pedido.datosBono.precioTotal },
@@ -257,7 +260,11 @@ async function confirmOrder(orderId, pedido) {
     });
   } else {
     const reservationSnapshot = await adminDb.ref("reservas").get();
-    const coincidencias = findReservationUpdates(reservationSnapshot.val(), orderId);
+    // Con pedido preparado por el servidor, solo las reservas que apuntó
+    const rutas = rutasDelPedido(pedido);
+    const coincidencias = findReservationUpdates(reservationSnapshot.val(), orderId).filter(
+      (c) => !rutas || rutas.has(c.path)
+    );
     const match = coincidencias[0];
     if (!match) throw new Error("No se encontró la reserva que corresponde al pedido.");
 

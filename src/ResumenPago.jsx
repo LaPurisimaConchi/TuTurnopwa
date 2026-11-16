@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
-import { ref, set } from "firebase/database";
-import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { simularPagoAdmin } from "./utils/pagoAdmin";
+import { irAlTPV, prepararPago } from "./utils/pagoServidor";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
@@ -111,28 +110,20 @@ export default function ResumenPago() {
     claseId,
     subtipo,
     datosBono,
-    tipoPieza,
-    tipoTaller,
-    rutaReserva,
-    requiereMetodo,
-    requiereTipoPieza,
     precio,
     precioUnitario: precioUnitarioState,
     fecha,
     fechaInicio,
-    fechaFinMes,
-    fechaCaducidadBono,
     turno,
     metodo,
     modalidad,
     plazas,
-    numeroClases,
-    duracionClase,
-    incluyeDecoracion,
     orderId: orderIdFromState,
-    payMethod: payMethodFromState,
     codigoTarjeta,
     sesiones: sesionesElegidas,
+    opcionId,
+    grupoId,
+    incluyeCambioTorno,
   } = state;
 
   const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
@@ -148,16 +139,13 @@ export default function ResumenPago() {
     return unitFromTable * plazasNum;
   }, [precio, unitFromTable, plazasNum]);
 
-  const showUnit = unitFromTable > 0 && plazasNum > 1;
+  // El importe lo calcula el servidor al preparar el pago; si no coincide con el de la
+  // pantalla, se enseña el suyo y se pide confirmar otra vez
+  const [precioServidor, setPrecioServidor] = useState(null);
+  const totalMostrado = precioServidor ?? totalEuros;
+  const unitMostrado = precioServidor != null ? precioServidor / plazasNum : unitFromTable;
 
-  const ORIGIN =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://app.lapurisimaconchi.com";
-
-  const URL_OK = new URL("/pago/exito", ORIGIN).toString();
-  const URL_KO = new URL("/pago/error", ORIGIN).toString();
-  const URL_NOTIFY = new URL("/api/notificacionTPV", ORIGIN).toString();
+  const showUnit = unitMostrado > 0 && plazasNum > 1;
 
   const [aceptaPoliticas, setAceptaPoliticas] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -171,62 +159,9 @@ export default function ResumenPago() {
     return oid;
   }
 
-  function irAPasarela({ precio, orderId, payMethod = "card" }) {
-    const amountCents = Math.max(1, Math.round(Number(precio) * 100));
-    const oid = makeOrderId(orderId);
-
-    const qs = new URLSearchParams({
-      orderId: oid,
-      amountCents: String(amountCents),
-      okUrl: URL_OK,
-      koUrl: URL_KO,
-      notifyUrl: URL_NOTIFY,
-      payMethod,
-    });
-
-    window.location.href = `/api/crear-sesion?${qs.toString()}`;
-  }
-
-  async function crearPedidoPendiente({ orderId, uid }) {
-    const pedido = {
-  orderId,
-  uid,
-  desdeTarjeta: !!desdeTarjeta,
-  desdeTarjetaRegalo: !!desdeTarjetaRegalo,
-  desdeCompraTarjeta: !!desdeCompraTarjeta,
-  tipo: tipo || "reserva",
-  esBono: tipo === "bono",
-  datosBono: datosBono || null,
-  clase: clase || "",
-  claseId: claseId || "",
-  tipoTaller: tipoTaller || "",
-  subtipo: subtipo || "",
-  tipoPieza: tipoPieza || "",
-  rutaReserva: rutaReserva || "",
-  requiereMetodo: !!requiereMetodo,
-  requiereTipoPieza: !!requiereTipoPieza,
-  precioTotal: totalEuros,
-  precioOriginal: precio || "",
-  fecha: fecha || "",
-  fechaInicio: fechaInicio || "",
-  fechaFinMes: fechaFinMes || "",
-  fechaCaducidadBono: fechaCaducidadBono || "",
-  turno: turno || "",
-  metodo: metodo || "",
-  modalidad: modalidad || "",
-  plazas: plazasNum,
-  precioUnitario: unitFromTable || 0,
-  numeroClases: numeroClases || 0,
-  duracionClase: duracionClase || "",
-  incluyeDecoracion: !!incluyeDecoracion,
-  payMethod: payMethodFromState || "card",
-  estadoPago: "pendiente",
-  procesado: false,
-  creadoEn: new Date().toISOString(),
-};
-
-    await set(ref(dbRealtime, `pedidosPendientes/${orderId}`), pedido);
-  }
+  // Número de pedido de una compra sin reserva previa (tarjeta regalo): el mismo
+  // aunque se pulse otra vez el botón
+  const [orderIdNuevo] = useState(() => makeOrderId(Date.now()));
 
   async function handleConfirmarPago() {
     if (!aceptaPoliticas) return;
@@ -259,7 +194,7 @@ export default function ResumenPago() {
       return;
     }
 
-    if (!(totalEuros > 0)) {
+    if (!(totalMostrado > 0)) {
       alert("No se ha podido calcular el precio.");
       return;
     }
@@ -267,12 +202,35 @@ export default function ResumenPago() {
     try {
       setCargando(true);
 
-      const orderId = orderIdFromState || makeOrderId(Date.now());
+      const orderId = orderIdFromState || orderIdNuevo;
 
-      await crearPedidoPendiente({
+      // El servidor crea el pedido con su importe (el único que se firma para el TPV)
+      const preparado = await prepararPago({
+        pedido: desdeCompraTarjeta
+          ? "tarjeta_regalo"
+          : tipo === "bono"
+          ? "bono"
+          : tipo === "grupo"
+          ? "grupo"
+          : "reserva",
         orderId,
-        uid: auth.currentUser.uid,
+        claseId: claseId || "",
+        opcionId: opcionId || "",
+        grupoId: grupoId || "",
+        plazas: plazasNum,
+        fechaInicio: fechaInicio || "",
+        turno: turno || "",
+        cambioTorno: (incluyeCambioTorno ?? datosBono?.incluyeCambioTorno) === true,
       });
+
+      const totalServidor = Number(preparado.precioTotal);
+      if (Math.abs(totalServidor - totalMostrado) > 0.004) {
+        setPrecioServidor(totalServidor);
+        alert(
+          `El precio de este pedido es ${totalServidor.toFixed(2)} €. Revísalo y vuelve a pulsar «Confirmar pago».`
+        );
+        return;
+      }
 
       if (await simularPagoAdmin(orderId)) {
         navigate("/pago/exito", {
@@ -281,13 +239,9 @@ export default function ResumenPago() {
         return;
       }
 
-      irAPasarela({
-        precio: totalEuros,
-        orderId,
-        payMethod: payMethodFromState || "card",
-      });
+      irAlTPV(orderId);
     } catch (error) {
-      console.error("Error al crear pedido pendiente:", error);
+      console.error("Error al preparar el pago:", error);
       alert(error?.message || "No se pudo preparar el pago.");
     } finally {
       setCargando(false);
@@ -347,14 +301,14 @@ export default function ResumenPago() {
 
         {showUnit && (
           <p className="mb-1">
-            <strong>Precio unitario:</strong> {unitFromTable.toFixed(2)} €
+            <strong>Precio unitario:</strong> {unitMostrado.toFixed(2)} €
           </p>
         )}
 
         <p className="mb-4">
           <strong>Precio total:</strong>{" "}
-          {desdeTarjeta || desdeTarjetaRegalo ? "0.00 €" : totalEuros > 0 ? (
-            `${totalEuros.toFixed(2)} €`
+          {desdeTarjeta || desdeTarjetaRegalo ? "0.00 €" : totalMostrado > 0 ? (
+            `${totalMostrado.toFixed(2)} €`
           ) : (
             <span className="text-red-600">— falta precio —</span>
           )}
@@ -399,12 +353,12 @@ export default function ResumenPago() {
           onClick={handleConfirmarPago}
           disabled={
             !aceptaPoliticas ||
-            (!(desdeTarjeta || desdeTarjetaRegalo) && !(totalEuros > 0)) ||
+            (!(desdeTarjeta || desdeTarjetaRegalo) && !(totalMostrado > 0)) ||
             cargando
           }
           className={`w-full py-2 px-4 rounded-xl font-bold mb-4 ${
             aceptaPoliticas &&
-            ((desdeTarjeta || desdeTarjetaRegalo) || totalEuros > 0) &&
+            ((desdeTarjeta || desdeTarjetaRegalo) || totalMostrado > 0) &&
             !cargando
               ? "bg-yellow-600 hover:bg-mostaza text-white"
               : "bg-gray-400 text-white cursor-not-allowed"

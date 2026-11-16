@@ -38,10 +38,7 @@
     },
     "pedidosPendientes": {
       ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
-      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
-      "$orderId": {
-        ".write": "auth != null && !data.exists() && $orderId.matches(/^[0-9]{4,20}$/) && newData.child('orderId').val() === $orderId && newData.child('uid').val() === auth.uid && newData.child('estadoPago').val() === 'pendiente' && newData.child('procesado').val() === false"
-      }
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"
     },
     "usuariosNotas": {
       ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
