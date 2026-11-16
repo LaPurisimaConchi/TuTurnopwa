@@ -28,15 +28,23 @@ Estado comprobado el 16-11-2026. Si pasa mucho tiempo, vuelve a revisar los punt
     por defecto son los del comercio.
   - `CORREO_COPIA_ADMIN` es opcional.
   - El dominio de `CORREO_REMITENTE` tiene que estar verificado en Resend.
-  - Sigue habiendo 12 funciones en `api/` (el límite de Vercel).
-- [ ] Si en el mismo pase entra la PR de la auditoría (firma de Redsys en `api/notificacionTPV.js`),
-  sigue también sus pasos y haz un pago de prueba después.
+  - En `api/` hay 8 funciones (el límite de Vercel es 12).
+- [ ] **`REDSYS_SECRET_KEY` de Production = la clave del TPV real** (la del comercio en el portal de
+  Redsys, no la pública de pruebas). Desde la #25 el aviso del TPV (`api/notificacionTPV.js`) exige
+  una firma válida: con otra clave, el pago se cobra pero no se confirma, y el pedido queda con
+  `firmaValida: false` y `firmaError`. Esto vale en cuanto Vercel publique el código, antes de tocar
+  las reglas.
 
 ## 2. Fusionar y desplegar las reglas (el mismo día, en este orden)
 
 El código nuevo funciona con las reglas antiguas, pero al revés no: con el código viejo, las
-reglas nuevas rompen la tarjeta regalo, los bonos, el recuento de plazas y el panel. Mientras
-no se desplieguen las reglas, la base de datos sigue con las reglas antiguas. No lo alargues.
+reglas nuevas rompen la tarjeta regalo, los bonos, el recuento de plazas, el panel y el pago
+(desde la #29 el navegador ya no puede crear `pedidosPendientes`: el pedido y su importe los crea
+el servidor). Mientras no se desplieguen las reglas, la base de datos sigue con las reglas
+antiguas, abiertas. No lo alargues.
+
+Quien tenga la web abierta desde antes del despliegue verá «No se ha podido iniciar el pago» hasta
+que recargue la página: mejor hacerlo en un momento con pocas compras.
 
 1. [ ] Fusionar en `main` y esperar a que Vercel termine el despliegue de producción.
 2. [ ] **Verificar el email de las dos cuentas admin** (`src/utils/administradores.js`). Sin email
@@ -52,7 +60,12 @@ no se desplieguen las reglas, la base de datos sigue con las reglas antiguas. No
    npx firebase-tools deploy --only database --project la-purisima-conchi
    ```
 5. [ ] Comprobación rápida en producción:
-   - compra de invitado hasta la pantalla de Redsys;
+   - compra de invitado hasta la pantalla de Redsys: el importe que enseña Redsys es el del taller;
+   - un pago real pequeño de punta a punta (por ejemplo, el taller más barato; luego se devuelve
+     desde el portal de Redsys y se cancela la reserva en el panel). En la consola,
+     `pedidosPendientes/{orderId}` tiene que tener `importeServidor: true`, `firmaValida: true` y
+     `procesado: true`, y la reserva tiene que quedar `Confirmada`. Si sale `firmaValida: false`,
+     revisa la `REDSYS_SECRET_KEY` (punto 1). Como mínimo, el pago simulado con una cuenta admin;
    - compra con cuenta;
    - canje de una tarjeta regalo y reserva con un bono (si hay alguno sin usar);
    - `/gestionar-reserva` con un código;
@@ -60,7 +73,9 @@ no se desplieguen las reglas, la base de datos sigue con las reglas antiguas. No
 
 **Volver atrás:** Firebase Console → Realtime Database → Reglas → pegar el contenido de
 `~/reglas-produccion-anteriores.json` → Publicar. Si las reglas viejas vuelven y el código nuevo
-sigue desplegado, la app funciona, pero con la protección de antes.
+sigue desplegado, la app funciona, pero con la protección de antes. Si lo que se deshace es el
+código (volver al despliegue anterior en Vercel), hay que volver también a las reglas anteriores:
+con las nuevas, el código viejo no puede cobrar.
 
 ## 3. Configuración y datos (después del despliegue)
 
@@ -77,6 +92,9 @@ sigue desplegado, la app funciona, pero con la protección de antes.
   ```
 - [ ] **Talleres de siempre** en `/admin-migrar-talleres` (reversible por taller). Recomendado: las
   pantallas `Reserva*` de siempre no se han podido probar en staging, porque allí están todos migrados.
+  Mientras no se migre, un taller de siempre se cobra con la ficha que tendría al migrarlo
+  (`fichaParaCobrar`): si una pantalla antigua enseña otro precio, `ResumenPago` avisa y cobra el del
+  servidor.
 - [ ] **Cron `limpiar-invitados`** (`vercel.json`, domingos a las 4:00). En producción borrará las
   sesiones de invitado antiguas sin nada asociado y las reservas pendientes con la plaza caducada.
   Para ver antes cuánto borraría: `GET /api/limpiar-invitados?dry=1` con la cabecera
