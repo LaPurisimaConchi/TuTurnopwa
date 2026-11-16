@@ -163,11 +163,10 @@ TuTurnopwa/
 │   ├── crear-sesion.js       # Crea sesión Redsys y redirige al TPV
 │   ├── notificacionTPV.js    # Webhook de confirmación de pago
 │   ├── pago-admin.js         # Confirma pagos simulados con autenticación admin
+│   ├── _firmaRedsys.js       # Firma HMAC_SHA256_V1 (sesión y aviso del TPV)
 │   ├── _firebaseAdmin.js     # Inicialización Admin SDK
 │   ├── _cors.js
-│   ├── ping.js
-│   ├── diag-tpv.js           # Diagnóstico (revisar si debe estar en prod)
-│   └── *-backup.js, *-viejo.js  # Versiones antiguas — NO usar en prod
+│   └── ping.js
 ├── docs/                     # Manuales de usuario/admin (HTML)
 ├── functions/                # Firebase Cloud Functions (legacy Redsys)
 ├── public/
@@ -375,7 +374,7 @@ Para los talleres de siempre sin migrar, `/admin-taller?id=…` solo cambia foto
 
 **Creación de sesión:** `GET /api/crear-sesion`
 
-Parámetros: `orderId`, `amountCents`, `payMethod`, `okUrl`, `koUrl`, `notifyUrl`
+Parámetros: `orderId`, `amountCents`, `okUrl` y, opcional, `mode=json` (devuelve los datos firmados en vez del HTML que redirige). Las URLs de vuelta son siempre `/pago/exito` y `/pago/error` de esta web: de `okUrl` solo se usa el dominio, y solo si es el mismo que recibe la petición (un Preview de Vercel); si no, `APP_BASE_URL`. La URL de notificación la fija el servidor.
 
 Redirige automáticamente al TPV de Redsys (`https://sis.redsys.es/sis/realizarPago`).
 
@@ -510,7 +509,7 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 ### Redsys (ver sección específica más abajo)
 
 - La integración funciona en producción con HMAC_SHA256_V1.
-- La validación de firma en el webhook tiene un comportamiento que el siguiente desarrollador debe revisar antes de modificar pagos (detalle en notas Redsys).
+- El webhook solo confirma pedidos con la firma de Redsys válida (detalle en notas Redsys).
 
 ### Reservas de grupo (ver sección específica)
 
@@ -520,7 +519,7 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 ### Código y mantenimiento
 
 - **~25 archivos `Reserva*.jsx`** con lógica duplicada (~600–800 líneas cada uno). Un cambio transversal requiere tocar muchos archivos.
-- **Archivos legacy** en repo: `*-backup.js`, `*-viejo.js`, `DondeReservar backup.jsx`, `ReservaPintarCeramicaAntiguo.jsx`, etc.
+- **Archivos legacy** en repo: `DondeReservar backup.jsx`, `ReservaPintarCeramicaAntiguo.jsx`, etc.
 - **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (legacy en `HistorialTarjetasRegalo.jsx`).
 - **Estados inconsistentes** en capitalización (`Pendiente` vs `pendiente_pago_individual`).
 - **`functions/index.js`**: implementación Redsys alternativa, no usada en prod vía Vercel.
@@ -539,23 +538,13 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 
 - `api/crear-sesion.js` — crea sesión, firma HMAC_SHA256_V1, redirect al TPV
 - `api/notificacionTPV.js` — webhook de notificación de pago
+- `api/_firmaRedsys.js` — la firma, compartida por los dos
 
 **Archivos que NO usar en producción:**
 
-- `api/crear-sesion-backup.js`, `api/crear-sesion-viejo.js`
-- `api/notificacionTPV_backup.js`
 - `functions/index.js` (Firebase Functions, entorno test)
 
-**Antes de modificar pagos, el desarrollador debe revisar:**
-
-En `api/notificacionTPV.js`, la condición que acepta un pago es:
-
-```js
-const aceptarPagoTemporalmente = paidOk && amountMatches;
-// signOk se calcula pero no es condición obligatoria de aceptación
-```
-
-La firma se registra en `firmaValida` y `firmaError`, pero un pago puede procesarse aunque `signOk` sea `false`. **Cualquier cambio en este archivo debe probarse con transacciones reales o de test en entorno aislado** y validar que la firma se exige correctamente antes de confirmar pedidos.
+**Firma del aviso:** `api/notificacionTPV.js` calcula la firma de Redsys (clave del pedido con 3DES a partir de `Ds_Order` y HMAC-SHA256 de `Ds_MerchantParameters`, comparada en base64 URL) y solo confirma el pedido si coincide, la respuesta es de pago (`Ds_Response` 0–99) y el importe es el del pedido. Si la firma no coincide responde 403, no confirma nada y deja `firmaValida: false`, `firmaError` y `avisoRechazadoEn` en `pedidosPendientes/{orderId}`: si aparecen en pedidos pagados de verdad, la `REDSYS_SECRET_KEY` de ese entorno no es la del TPV. **Cualquier cambio en la firma debe probarse antes en staging con el TPV de pruebas.**
 
 **FUC y terminal** están parcialmente hardcodeados en `crear-sesion.js`. Migrar a variables de entorno si se cambia de comercio o entorno.
 
@@ -585,14 +574,14 @@ Flujo resumido:
 Priorizadas por impacto, sin orden estricto:
 
 1. Versionar y endurecer `database.rules.json` + custom claims admin
-2. Revisar validación de firma Redsys en webhook (con tests en entorno test)
+2. Calcular en el servidor el importe que se cobra (pedido creado por la API a partir de `clases/`)
 3. Extraer componente/hook genérico de reserva para eliminar duplicación
 4. Añadir `.env.example` y migrar config Firebase a variables `VITE_*`
 5. Unificar estados (`Confirmada`/`confirmada`) y rutas `tarjetasRegalo`
 6. Transacciones RTDB en pagos de grupo individual
 7. Revisar bloqueo de aforo para grupos en pago parcial
 8. Completar PWA con service worker o documentar que no es offline
-9. Eliminar archivos legacy y APIs backup del repositorio
+9. Eliminar archivos legacy del repositorio
 10. Añadir tests mínimos en webhook y conteo de plazas
 11. Unificar panel admin (un solo dashboard, sidebar, enlazar historial)
 12. Centralizar lista de admins (env var o nodo RTDB protegido)

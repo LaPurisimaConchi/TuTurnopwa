@@ -1,36 +1,17 @@
 // api/notificacionTPV.js
-import crypto from "crypto";
+// Aviso de Redsys cuando se paga un pedido. Esta URL es pública: solo se confirma
+// un pedido si la firma del aviso es válida (api/_firmaRedsys.js).
 import { adminDb } from "./_firebaseAdmin.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
+import { firmaRedsysValida } from "./_firmaRedsys.js";
 
 export const config = { runtime: "nodejs" };
 
-function getSecretKey() {
-  const secret = (process.env.REDSYS_SECRET_KEY || "").trim();
-  if (!secret) throw new Error("Falta REDSYS_SECRET_KEY");
-  return Buffer.from(secret, "base64");
-}
-
-/** Firma Redsys HMAC_SHA256_V1 */
-function computeSignatureHmacSha256V1(dsMerchantParameters) {
-  const key = getSecretKey();
-  return crypto
-    .createHmac("sha256", key)
-    .update(dsMerchantParameters, "utf8")
-    .digest("base64");
-}
-
-function signaturesEqual(a, b) {
-  if (a == null || b == null || a.length !== b.length) return false;
-  try {
-    return crypto.timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
-  } catch {
-    return false;
-  }
-}
+// Número de pedido de Redsys: de 4 a 12 caracteres alfanuméricos (los nuestros, 12 dígitos)
+const PEDIDO_REDSYS = /^[0-9A-Za-z]{4,12}$/;
 
 function isPaidResponse(data) {
   const raw = data.Ds_Response ?? data.DS_RESPONSE;
@@ -429,13 +410,12 @@ export default async function handler(req, res) {
       decoded.DS_ORDER ||
       decoded.DS_MERCHANT_ORDER;
 
-    if (!order) {
-      console.warn("TPV notify: falta order");
+    if (!order || !PEDIDO_REDSYS.test(String(order))) {
+      console.warn("TPV notify: falta order o no es válido");
       return res.status(200).send("BAD");
     }
 
-    const expected = computeSignatureHmacSha256V1(Ds_MerchantParameters);
-    const signOk = signaturesEqual(expected, Ds_Signature);
+    const signOk = firmaRedsysValida(Ds_MerchantParameters, String(order), Ds_Signature);
 
     const paidOk = isPaidResponse(decoded);
     const amountCentsRedsys = getAmountCents(decoded);
@@ -463,19 +443,31 @@ export default async function handler(req, res) {
       return res.status(200).send("OK");
     }
 
+    // Sin firma válida el aviso no viene de Redsys (o la clave no es la del TPV):
+    // no se confirma nada. Solo se deja la marca para que el estudio lo vea.
+    if (!signOk) {
+      console.warn("TPV notify: firma no válida, aviso ignorado:", order);
+      await ref.update({
+        firmaValida: false,
+        firmaError: "Firma Redsys no válida: aviso ignorado",
+        avisoRechazadoEn: timestamp,
+      });
+      return res.status(403).send("BAD");
+    }
+
     const precioTotal = Number(pedido?.precioTotal ?? 0);
     const amountCentsPedido = Math.round(precioTotal * 100);
     const amountMatches =
       amountCentsRedsys !== null && amountCentsPedido === amountCentsRedsys;
 
-    const aceptarPagoTemporalmente = paidOk && amountMatches;
+    const aceptarPago = paidOk && amountMatches;
 
-if (aceptarPagoTemporalmente) {
+if (aceptarPago) {
    await ref.update({
   estadoPago: "pagado",
   procesado: false,
-  firmaValida: signOk,
-  firmaError: signOk ? "" : "Firma Redsys no validada, aceptado temporalmente por importe y respuesta correctos",
+  firmaValida: true,
+  firmaError: "",
   responseCode: String(decoded.Ds_Response ?? decoded.DS_RESPONSE ?? ""),
   amountCentsRedsys,
   amountCentsPedido,
@@ -731,8 +723,8 @@ return res.status(200).send("OK");
     await ref.update({
       estadoPago: "rechazado",
       procesado: false,
-      firmaValida: signOk,
-      firmaError: signOk ? "" : "Firma Redsys no validada",
+      firmaValida: true,
+      firmaError: "",
       responseCode: String(decoded.Ds_Response ?? decoded.DS_RESPONSE ?? ""),
       amountCentsRedsys,
       amountCentsPedido,
