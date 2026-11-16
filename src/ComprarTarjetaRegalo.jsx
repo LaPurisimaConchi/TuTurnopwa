@@ -87,6 +87,29 @@ export default function ComprarTarjetaRegalo() {
     (op) => op.id === opcionSeleccionadaId
   );
 
+  // Tipo y método se eligen por separado; cada pareja es una opción con su precio
+  const combinado = opcionesDelTaller.some((op) => op.metodo);
+  const tiposCombinados = combinado
+    ? [...new Map(opcionesDelTaller.map((op) => [op.tipoPieza, {
+        id: op.tipoPieza,
+        nombre: op.varianteNombre,
+        precio: op.precioVariante,
+      }])).values()]
+    : [];
+  const metodosCombinados = combinado
+    ? [...new Map(opcionesDelTaller.map((op) => [op.metodo, {
+        id: op.metodo,
+        nombre: op.metodoNombre,
+        extra: op.extraMetodo,
+      }])).values()]
+    : [];
+  const elegirCombinada = (cambio) => {
+    const tipoPieza = cambio.tipoPieza ?? opcionSeleccionada?.tipoPieza;
+    const metodo = cambio.metodo ?? opcionSeleccionada?.metodo;
+    const op = opcionesDelTaller.find((o) => o.tipoPieza === tipoPieza && o.metodo === metodo);
+    if (op) setOpcionSeleccionadaId(op.id);
+  };
+
   const variasPlazas = admiteVariasPlazas(opcionSeleccionada);
   const plazasNum = variasPlazas ? plazas : 1;
   const precioTotal = Number(opcionSeleccionada?.precio || 0) * plazasNum;
@@ -161,7 +184,49 @@ export default function ComprarTarjetaRegalo() {
                   {opcionesDelTaller[0].clase}
                 </h2>
 
-                {opcionesDelTaller.length > 1 && (
+                {combinado ? (
+                  <div className="mt-4 space-y-4 text-left">
+                    <div>
+                      <p className="font-bold text-sm mb-2 text-center">Tipo</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {tiposCombinados.map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => elegirCombinada({ tipoPieza: t.id })}
+                            className={`px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                              t.id === opcionSeleccionada?.tipoPieza
+                                ? "bg-terracota text-white border-terracota"
+                                : "border-terracota text-terracota hover:bg-terracota-suave"
+                            }`}
+                          >
+                            {t.nombre} — {t.precio} €
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm mb-2 text-center">Método</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {metodosCombinados.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => elegirCombinada({ metodo: m.id })}
+                            className={`px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                              m.id === opcionSeleccionada?.metodo
+                                ? "bg-terracota text-white border-terracota"
+                                : "border-terracota text-terracota hover:bg-terracota-suave"
+                            }`}
+                          >
+                            {m.nombre}
+                            {m.extra > 0 && ` +${m.extra} €`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : opcionesDelTaller.length > 1 && (
                   <div className="mt-4 flex flex-wrap justify-center gap-2">
                     {opcionesDelTaller.map((op) => (
                       <button
