@@ -1,7 +1,6 @@
 // src/utils/disponibilidadServidor.js
 // Respuesta de /api/disponibilidad, sin depender de ningún SDK: `leer(ruta)`
-// devuelve el snapshot de esa ruta. La usan la función de Vercel (firebase-admin)
-// y el servidor de desarrollo (SDK de cliente, ver vite.disponibilidadLocal.js).
+// devuelve el snapshot de esa ruta. La usa la función de Vercel (firebase-admin).
 //   tipo=contexto
 //   tipo=ocupacion[&ruta=<carpeta>]                        → fechas y turnos con reservas
 //   tipo=plazas&fecha=AAAA-MM-DD[&turno=…]                → torno / modelado

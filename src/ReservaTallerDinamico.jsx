@@ -14,7 +14,6 @@ import { cargarFranja, cargarOcupacion } from "./utils/disponibilidad";
 import { plazasLibresFranja } from "./utils/aforo";
 import { reservarEnServidor } from "./utils/reservaServidor";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
-import { pedirCorreoReserva } from "./utils/correoReserva";
 import {
   esTurnoConsulta,
   estadoDiaTaller,
@@ -41,7 +40,7 @@ import { esMonografico } from "./utils/monografico";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { useConfigEspacio } from "./configuracionEspacio";
-import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 
 export default function ReservaTallerDinamico() {
   const { claseId } = useParams();
@@ -133,7 +132,6 @@ export function FormularioReserva({ claseId, clase }) {
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
   const codigoTarjeta = location.state?.codigoTarjeta || "";
-  const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
   // Con tarjeta regalo se reservan juntas todas las plazas de la tarjeta
   const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
 
@@ -400,7 +398,7 @@ export function FormularioReserva({ claseId, clase }) {
       return;
     }
 
-    if (desdeTarjeta && !tarjetaRegaloId) {
+    if (desdeTarjeta && !codigoTarjeta) {
       alert("No se ha encontrado la tarjeta regalo asociada.");
       return;
     }
@@ -428,10 +426,6 @@ export function FormularioReserva({ claseId, clase }) {
       if (!usuario) return;
     }
 
-    if (desdeTarjeta && !(await reclamarTarjetaRegalo(tarjetaRegaloId, usuario.uid))) {
-      alert(MENSAJE_TARJETA_USADA);
-      return;
-    }
     setGuardando(true);
 
     try {
@@ -521,58 +515,15 @@ export function FormularioReserva({ claseId, clase }) {
           creadas.push({ ruta: nueva.toString().replace(/^.*?\/\/[^/]+\//, ""), id: nueva.key });
         }
       }
-      const nuevaReservaRef = ref(dbRealtime, creadas[0].ruta);
-
-      // Con tarjeta regalo la reserva (todas sus sesiones) se confirma al momento
+      // Con tarjeta regalo el servidor confirma la reserva (todas sus sesiones), marca
+      // la tarjeta usada y envía el correo
       if (desdeTarjeta) {
-        await Promise.all(
-          creadas.map((c) => update(ref(dbRealtime, c.ruta), { estado: "Confirmada", estadoPago: "pagado" }))
-        );
-      }
-
-      if (desdeTarjeta) {
-        await push(ref(dbRealtime, `usuarios/${usuario.uid}/listaReservas`), {
-          ...reserva,
-          estado: "Confirmada",
-          estadoPago: "pagado",
-          uid: usuario.uid,
-          tarjetaRegaloId,
-          codigoTarjeta,
-          creadaDesde: "tarjeta_regalo",
-        });
-
-        const tarjetaGlobalRef = ref(dbRealtime, `tarjetasRegalo/${tarjetaRegaloId}`);
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const uidComprador = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()?.uidComprador || ""
-          : "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: usuario.uid,
-          usadoPorUID: usuario.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          reservaId: nuevaReservaRef.key || "",
-          fechaReserva: fecha,
-          turnoReserva: turno,
-          metodoReserva: reserva.metodo,
-          nombreTipoClaseReserva: conVariante ? variante.nombre : nombreMetodo,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(dbRealtime, `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`),
-            datosActualizacionTarjeta
-          );
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
-
-        pedirCorreoReserva(orderId);
 
         navigate("/pago/exito", {
           state: {
@@ -614,7 +565,6 @@ export function FormularioReserva({ claseId, clase }) {
         },
       });
     } catch (err) {
-      if (desdeTarjeta) liberarTarjetaRegalo(tarjetaRegaloId, usuario.uid);
       console.error("Error al guardar la reserva:", err);
 
       // El servidor rechaza la reserva con un motivo claro (franja llena, día cerrado…)

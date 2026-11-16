@@ -4,6 +4,7 @@ import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
+import { consultarTarjetaRegalo } from "./utils/canjeServidor";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 
 const CanjearTarjetaRegalo = () => {
@@ -27,50 +28,8 @@ const CanjearTarjetaRegalo = () => {
     resolverDatos.current = null;
   };
 
- const buscarTarjetaPorCodigo = async (codigoBuscado) => {
-  const codigoNormalizado = codigoBuscado.trim().toUpperCase();
-
-  // 1) Intentar encontrarla por índice rápido
-  const indexRef = ref(dbRealtime, `codigosTarjetaRegalo/${codigoNormalizado}`);
-  const indexSnap = await get(indexRef);
-
-  if (indexSnap.exists()) {
-    const tarjetaId = String(indexSnap.val());
-    const tarjetaRef = ref(dbRealtime, `tarjetasRegalo/${tarjetaId}`);
-    const tarjetaSnap = await get(tarjetaRef);
-
-    if (tarjetaSnap.exists()) {
-      return {
-        id: tarjetaId,
-        ...tarjetaSnap.val(),
-      };
-    }
-  }
-
-  // 2) Respaldo para tarjetas antiguas sin índice
-  const tarjetasRef = ref(dbRealtime, "tarjetasRegalo");
-  const tarjetasSnap = await get(tarjetasRef);
-
-  if (!tarjetasSnap.exists()) return null;
-
-  let encontrada = null;
-
-  tarjetasSnap.forEach((itemSnap) => {
-    const tarjeta = itemSnap.val();
-
-    if (
-      tarjeta?.codigo &&
-      String(tarjeta.codigo).trim().toUpperCase() === codigoNormalizado
-    ) {
-      encontrada = {
-        id: itemSnap.key,
-        ...tarjeta,
-      };
-    }
-  });
-
-  return encontrada;
-};
+  // La tarjeta la busca el servidor: las reglas no dejan leer /tarjetasRegalo
+  const buscarTarjetaPorCodigo = (codigoBuscado) => consultarTarjetaRegalo(codigoBuscado);
 
   const obtenerOpcionRegalo = (tarjeta) => {
     if (!tarjeta) return null;
@@ -155,19 +114,19 @@ const CanjearTarjetaRegalo = () => {
         return;
       }
 
-      if (String(tarjeta.estadoPago || "").toLowerCase() !== "pagado") {
+      if (!tarjeta.pagada) {
         setMensaje("Esta tarjeta regalo aún no consta como pagada.");
         setValidando(false);
         return;
       }
 
-      if (tarjeta.usado) {
+      if (tarjeta.usada) {
         setMensaje("Este código ya ha sido usado.");
         setValidando(false);
         return;
       }
 
-      if (tarjeta.canjeadoPorUID && tarjeta.canjeadoPorUID !== user.uid) {
+      if (tarjeta.deOtraPersona) {
         setMensaje("Este código ya ha sido canjeado por otro usuario.");
         setValidando(false);
         return;

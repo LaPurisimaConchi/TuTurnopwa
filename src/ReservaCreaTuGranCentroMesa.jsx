@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, update, push } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { cargarContextoReserva } from "./utils/disponibilidad";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BloqueoReserva from "./BloqueoReserva";
@@ -11,7 +12,7 @@ import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
-import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const CLASE_ID = "creatugrancentrodemesa";
 const RESERVAS_PATH_KEY = "CreaTuGranCentroMesa";
 
@@ -189,13 +190,9 @@ export default function ReservaCreaTuGranCentroMesa() {
   useEffect(() => {
   const cargarReservasGrupos = async () => {
     try {
-      const snap = await get(ref(dbRealtime, "reservasGrupos"));
-
-      if (snap.exists()) {
-        setReservasGrupos(snap.val() || {});
-      } else {
-        setReservasGrupos({});
-      }
+      // Solo los grupos que abren turno, sin datos personales (api/disponibilidad.js)
+      const { reservasGrupos: grupos } = await cargarContextoReserva();
+      setReservasGrupos(grupos || {});
     } catch (error) {
       console.error("Error al cargar reservas de grupos:", error);
       setReservasGrupos({});
@@ -395,11 +392,6 @@ export default function ReservaCreaTuGranCentroMesa() {
       return;
     }
 
-    if (desdeTarjeta && !(await reclamarTarjetaRegalo(location.state.tarjetaRegaloId, user.uid))) {
-      alert(MENSAJE_TARJETA_USADA);
-      return;
-    }
-
     try {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
@@ -416,8 +408,8 @@ export default function ReservaCreaTuGranCentroMesa() {
         precio: precioTotal,
         precioUnitario,
         precioTotal,
-        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estado: "Pendiente",
+        estadoPago: "pendiente",
         orderId,
         timestamp,
       };
@@ -431,56 +423,15 @@ export default function ReservaCreaTuGranCentroMesa() {
       await update(nuevaReservaRef, { uid: user.uid, ...reserva });
 
       if (desdeTarjeta) {
-        const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
         const codigoTarjeta = location.state?.codigoTarjeta || "";
 
-        await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
-          ...reserva,
-          uid: user.uid,
-          tarjetaRegaloId,
-          codigoTarjeta,
-          creadaDesde: "tarjeta_regalo",
-        });
-
-        const tarjetaGlobalRef = ref(
-          dbRealtime,
-          `tarjetasRegalo/${tarjetaRegaloId}`
-        );
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const tarjetaGlobal = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()
-          : null;
-        const uidComprador = tarjetaGlobal?.uidComprador || "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          reservaId: nuevaReservaRef.key || "",
-          fechaReserva: fecha,
-          turnoReserva: turno,
-          metodoReserva: metodo,
-          nombreTipoClaseReserva: nombreMetodo,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(
-              dbRealtime,
-              `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`
-            ),
-            datosActualizacionTarjeta
-          );
+        // El servidor confirma la reserva, marca la tarjeta usada y envía el correo
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
-
-        await actualizarContadorReservas(user.uid);
 
         navigate("/pago/exito", {
           state: {
@@ -521,7 +472,6 @@ export default function ReservaCreaTuGranCentroMesa() {
         },
       });
     } catch (err) {
-      if (desdeTarjeta) liberarTarjetaRegalo(location.state.tarjetaRegaloId, user.uid);
       console.error("Error al guardar la reserva:", err);
       alert("No se pudo guardar la reserva.");
     }

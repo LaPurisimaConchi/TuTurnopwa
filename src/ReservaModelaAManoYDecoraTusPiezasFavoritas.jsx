@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, update } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { cargarContextoReserva } from "./utils/disponibilidad";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
-import { crearBonoActivo } from "./utils/bonos";
 
 import { fechaDMA } from "./utils/formatoFecha";
-import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const CLASE_ID = "modelamano4clases";
 const RESERVAS_PATH_KEY = "ModelaAManoYDecoraTusPiezasFavoritas";
 
@@ -165,13 +165,9 @@ export default function ReservaModelaAManoYDecoraTusPiezasFavoritas() {
   useEffect(() => {
   const cargarReservasGrupos = async () => {
     try {
-      const snap = await get(ref(dbRealtime, "reservasGrupos"));
-
-      if (snap.exists()) {
-        setReservasGrupos(snap.val() || {});
-      } else {
-        setReservasGrupos({});
-      }
+      // Solo los grupos que abren turno, sin datos personales (api/disponibilidad.js)
+      const { reservasGrupos: grupos } = await cargarContextoReserva();
+      setReservasGrupos(grupos || {});
     } catch (error) {
       console.error("Error al cargar reservas de grupos:", error);
       setReservasGrupos({});
@@ -310,11 +306,6 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
       return;
     }
 
-    if (desdeTarjeta && !(await reclamarTarjetaRegalo(location.state.tarjetaRegaloId, user.uid))) {
-      alert(MENSAJE_TARJETA_USADA);
-      return;
-    }
-
     try {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
@@ -337,7 +328,7 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
         precioBase,
         precioTotal,
         estadoBono: "activo",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estadoPago: "pendiente",
         orderId,
         creadoEn: timestamp,
         actualizadoEn: timestamp,
@@ -345,93 +336,14 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
       };
 
       if (desdeTarjeta) {
-        const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
         const codigoTarjeta = location.state?.codigoTarjeta || "";
 
-        const bonosRef = ref(dbRealtime, `usuarios/${user.uid}/bonos`);
-        const bonosSnap = await get(bonosRef);
-
-        let bonoYaExiste = false;
-
-        if (bonosSnap.exists()) {
-          const bonos = bonosSnap.val() || {};
-
-          for (const bono of Object.values(bonos)) {
-            if (
-              bono?.tarjetaRegaloId === tarjetaRegaloId ||
-              bono?.orderId === orderId
-            ) {
-              bonoYaExiste = true;
-              break;
-            }
-          }
-        }
-
-        if (!bonoYaExiste) {
-          await crearBonoActivo({
-            uid: user.uid,
-            clase:
-              claseConfig?.nombre || "Modela a mano y decora tus piezas favoritas",
-            claseId: CLASE_ID,
-            tipoTaller: "bono_mensual",
-            subtipo,
-            numeroClases,
-            fechaInicio,
-            fechaFinMes: sumarUnMes(fechaInicio),
-            fechaCaducidadBono: sumarUnMesCaducidad(fechaInicio),
-            turno,
-            orderId,
-            datosExtra: {
-              duracionClase,
-              modalidad,
-              precioBase,
-              precioTotal,
-              incluyeCambioTorno: convertirTorno,
-              extraCambioTorno: extraTorno,
-              tarjetaRegaloId,
-              codigoTarjeta,
-              creadaDesde: "tarjeta_regalo",
-            },
-          });
-        }
-
-        const tarjetaGlobalRef = ref(
-          dbRealtime,
-          `tarjetasRegalo/${tarjetaRegaloId}`
-        );
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const tarjetaGlobal = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()
-          : null;
-        const uidComprador = tarjetaGlobal?.uidComprador || "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          fechaReserva: fechaInicio,
-          turnoReserva: turno,
-          subtipoReserva: subtipo,
-          numeroClasesReserva: numeroClases,
-          incluyeCambioTornoReserva: convertirTorno,
-          extraCambioTornoReserva: extraTorno,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(
-              dbRealtime,
-              `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`
-            ),
-            datosActualizacionTarjeta
-          );
+        // El servidor crea el bono, marca la tarjeta usada y envía el correo
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId, bono: datosBono });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
 
         navigate("/pago/exito", {
@@ -483,7 +395,6 @@ const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
         },
       });
     } catch (err) {
-      if (desdeTarjeta) liberarTarjetaRegalo(location.state.tarjetaRegaloId, user.uid);
       console.error("Error al guardar la reserva del bono:", err);
       alert("No se pudo guardar la reserva.");
     }

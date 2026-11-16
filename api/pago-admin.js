@@ -1,5 +1,5 @@
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
-import { ADMIN_EMAILS } from "../src/utils/administradores.js";
+import { esTokenAdministrador } from "../src/utils/administradores.js";
 import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
@@ -333,7 +333,7 @@ export default async function handler(req, res) {
     if (!match) return res.status(401).send("Autenticación requerida.");
 
     const decodedToken = await adminAuth.verifyIdToken(match[1]);
-    if (!ADMIN_EMAILS.includes(String(decodedToken.email || "").toLowerCase())) {
+    if (!esTokenAdministrador(decodedToken)) {
       return res.status(403).send("Solo los administradores pueden simular pagos.");
     }
 

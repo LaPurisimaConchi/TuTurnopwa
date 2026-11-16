@@ -68,7 +68,6 @@ import EspecialPintaTuPieza from "./EspecialPintaTuPieza";
 import PintaTuPieza from "./PintaTuPieza";
 import ComprarTarjetaRegalo from "./ComprarTarjetaRegalo";
 import GenerarCodigoTarjetaRegalo from "./GenerarCodigoTarjetaRegalo";
-import ReservaConTarjetaRegalo from "./ReservaConTarjetaRegalo";
 import ClaseSueltaContinuidad from "./ClaseSueltaContinuidad";
 import CreaTuPiezaFavoritaRegalo from "./CreaTuPiezaFavoritaRegalo.jsx";
 
@@ -215,7 +214,7 @@ function App() {
             path="/generar-codigo-tarjeta-regalo"
             element={<GenerarCodigoTarjetaRegalo />}
           />
-          <Route path="/reserva-con-tarjeta-regalo" element={<AccesoCompra><ReservaConTarjetaRegalo /></AccesoCompra>} />
+          <Route path="/reserva-con-tarjeta-regalo" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
           <Route
             path="/talleres/clase-suelta-continuidad"
             element={<RutaTaller claseId="clasesueltacontinuidad"><ClaseSueltaContinuidad /></RutaTaller>}

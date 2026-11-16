@@ -4,16 +4,20 @@
 // segundos y los grupos con pago individual no pasan por él al reservar).
 //
 // POST Authorization: Bearer <idToken de Firebase>
-//      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }  |  { tipo: "correo", orderId }
+//      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }
 //      { tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar? }
 //      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
+//      { tipo: "tarjeta", codigo }  |  { tipo: "canjear", codigo, orderId, bono? }
+//      { tipo: "usarBono", bonoId, fecha, turno }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
-// "correo" pide el correo de confirmación de una reserva o un bono ya confirmados con
-// tarjeta regalo (se confirman en el navegador, sin pasar por el aviso del TPV). Vive
-// aquí y no en una función propia porque Vercel limita a 12 funciones por proyecto.
 // "cancelacion" (solo admins) deja recuperable una reserva que cancela el estudio y envía
 // el correo de aviso (api/_cancelacionReserva.js).
 // "reservar" crea la reserva pendiente comprobando el aforo real (api/_reservarServidor.js).
+// "tarjeta", "canjear" y "usarBono" (api/_canjeServidor.js): comprobar un código de tarjeta
+// regalo, confirmar con ella las reservas pendientes de un pedido (y crear el bono, y
+// enviar el correo de confirmación) y reservar una clase de un bono. Las reglas de la
+// base de datos no dejan al navegador escribir tarjetas ni bonos.
+// Todo vive aquí y no en funciones propias porque Vercel limita a 12 funciones por proyecto.
 //
 // Solo responde al dueño de la reserva (uid del token = uid de la reserva).
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
@@ -25,10 +29,10 @@ import {
   formatearCodigo,
 } from "./_codigosReserva.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
-import { enviarCorreoReserva } from "./_correoReserva.js";
 import { reservarConAforo } from "./_reservarServidor.js";
 import { registrarCancelacion } from "./_cancelacionReserva.js";
-import { ADMIN_EMAILS } from "../src/utils/administradores.js";
+import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
+import { esTokenAdministrador } from "../src/utils/administradores.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -46,19 +50,43 @@ export default async function handler(req, res) {
     const token = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return res.status(401).json({ ok: false, error: "Autenticación requerida" });
 
-    const { uid, email } = await adminAuth.verifyIdToken(token);
+    const decodificado = await adminAuth.verifyIdToken(token);
+    const { uid } = decodificado;
     const cuerpo = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
 
     // Solo el panel: prepara una reserva cancelada por el estudio para que el cliente
     // pueda volver a reservar con su código, y le avisa por correo si se pide
     if (cuerpo.tipo === "cancelacion") {
-      if (!ADMIN_EMAILS.includes(String(email || "").toLowerCase())) {
+      if (!esTokenAdministrador(decodificado)) {
         return res.status(403).json({ ok: false, error: "Solo los administradores" });
       }
       const { status, ...resto } = await registrarCancelacion(adminDb, {
         ruta: cuerpo.ruta,
         enviarCorreo: cuerpo.enviarCorreo === true,
         permitirReprogramar: cuerpo.permitirReprogramar !== false,
+      });
+      return res.status(status).json(resto);
+    }
+
+    if (cuerpo.tipo === "tarjeta") {
+      const { status, ...resto } = await consultarTarjeta(adminDb, uid, cuerpo.codigo);
+      return res.status(status).json(resto);
+    }
+
+    if (cuerpo.tipo === "canjear") {
+      const { status, ...resto } = await canjearTarjeta(adminDb, uid, {
+        codigo: cuerpo.codigo,
+        orderId: cuerpo.orderId,
+        bono: cuerpo.bono,
+      });
+      return res.status(status).json(resto);
+    }
+
+    if (cuerpo.tipo === "usarBono") {
+      const { status, ...resto } = await usarBono(adminDb, uid, {
+        bonoId: cuerpo.bonoId,
+        fecha: cuerpo.fecha,
+        turno: cuerpo.turno,
       });
       return res.status(status).json(resto);
     }
@@ -134,45 +162,6 @@ export default async function handler(req, res) {
       }
 
       return res.status(404).json({ ok: false, error: "Reserva no encontrada" });
-    }
-
-    if (cuerpo.tipo === "correo") {
-      const orderId = String(cuerpo.orderId || "");
-      if (!/^\d{4,20}$/.test(orderId)) {
-        return res.status(400).json({ ok: false, error: "Reserva no válida" });
-      }
-
-      let reserva = null;
-      let tipoCorreo = "reserva";
-
-      // Un bono canjeado con tarjeta regalo lleva su primera sesión con el mismo
-      // pedido: se avisa del bono, no de una reserva suelta
-      const bonoSnap = await adminDb.ref(`usuarios/${uid}/bonos/${orderId}`).get();
-      const bono = bonoSnap.exists() ? bonoSnap.val() : null;
-      if (bono?.creadaDesde === "tarjeta_regalo" && bono.estadoPago === "pagado") {
-        reserva = { ...bono, desdeTarjeta: true };
-        tipoCorreo = "bono";
-      }
-
-      // Si no, una reserva de esta persona, ya confirmada y pagada con tarjeta regalo
-      if (!reserva) {
-        const lista = await adminDb.ref(`usuarios/${uid}/listaReservas`).get();
-        lista.forEach((item) => {
-          const valor = item.val();
-          if (
-            valor?.orderId === orderId &&
-            valor.desdeTarjeta === true &&
-            valor.estado === "Confirmada" &&
-            valor.estadoPago === "pagado"
-          ) {
-            reserva = valor;
-          }
-        });
-      }
-      if (!reserva) return res.status(404).json({ ok: false, error: "Reserva no encontrada" });
-
-      const enviado = await enviarCorreoReserva({ reserva, uid, orderId, tipo: tipoCorreo });
-      return res.status(200).json({ ok: true, enviado });
     }
 
     return res.status(400).json({ ok: false, error: "Tipo no válido" });

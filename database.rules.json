@@ -1,102 +1,115 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "usuarios": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "usuariosNotas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$campo": {
+          ".write": "auth != null && auth.uid === $uid && $campo !== 'bonos' && $campo !== 'tarjetasRegalo'"
+        }
+      }
     },
     "reservas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "reservasGrupos": {
-      ".read": "auth != null",
-      ".write": "auth != null",
-
-      "$grupoId": {
-        ".read": "auth != null || data.child('modoPago').val() === 'individual'",
-
-        "pagosIndividuales": {
-          "$pagoId": {
-            ".write": "auth != null || root.child('reservasGrupos').child($grupoId).child('modoPago').val() === 'individual'"
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      "$taller": {
+        "$fecha": {
+          "$turno": {
+            "$hijo": {
+              ".write": "auth != null && $hijo.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('orderId').isString() && newData.child('procesado').val() !== true && !newData.child('reservadaHasta').exists() && !newData.child('creadaEnMs').exists() && !newData.child('sobreaforo').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists() && !newData.child('cancelacionEstudio').exists() && !newData.child('recuperableHasta').exists() && !newData.child('recuperada').exists() && !newData.child('permitirReprogramar').exists() && !newData.child('tarjetaRegaloId').exists() && !newData.child('codigoTarjeta').exists()",
+              "$reservaId": {
+                ".write": "auth != null && !$hijo.beginsWith('-') && $reservaId.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('orderId').isString() && newData.child('procesado').val() !== true && !newData.child('reservadaHasta').exists() && !newData.child('creadaEnMs').exists() && !newData.child('sobreaforo').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists() && !newData.child('cancelacionEstudio').exists() && !newData.child('recuperableHasta').exists() && !newData.child('recuperada').exists() && !newData.child('permitirReprogramar').exists() && !newData.child('tarjetaRegaloId').exists() && !newData.child('codigoTarjeta').exists()"
+              }
+            }
           }
         }
       }
     },
+    "reservasGrupos": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      "$grupoId": {
+        ".read": "auth != null && data.child('uid').val() === auth.uid",
+        ".write": "auth != null && $grupoId.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('modoPago').val() === 'completo' && newData.child('orderId').isString() && !newData.child('pagosIndividuales').exists() && !newData.child('reservadaHasta').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists()"
+      }
+    },
+    "pedidosPendientes": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      "$orderId": {
+        ".write": "auth != null && !data.exists() && $orderId.matches(/^[0-9]{4,20}$/) && newData.child('orderId').val() === $orderId && newData.child('uid').val() === auth.uid && newData.child('estadoPago').val() === 'pendiente' && newData.child('procesado').val() === false"
+      }
+    },
+    "usuariosNotas": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
     "reservasNotas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "clasesNotas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "bloqueosFechas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "fechasHabilitadas": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "notificaciones": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "solicitudesEliminacion": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "solicitudesCambiosClases": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "esperaFundamentalMini": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "tarjetasRegalo": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "tarjetas_regalo": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "codigosTarjetaRegalo": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "bloqueosFechas": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    },
+    "fechasHabilitadas": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "clases": {
       ".read": true,
-      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "paginasEspeciales": {
       ".read": true,
-      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "configuracionEspacio": {
       ".read": true,
-      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "imagenesClases": {
       ".read": true,
-      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
     },
     "categoriasTalleres": {
       ".read": true,
-      ".write": "auth != null && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
-    },
-    "tarjetas_regalo": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "tarjetasRegalo": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "codigosTarjetaRegalo": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "solicitudesEliminacion": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "solicitudesCambiosClases": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "esperaFundamentalMini": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "pedidosPendientes": {
-      "$orderId": {
-        ".read": "auth != null",
-        ".write": "auth != null || newData.child('tipo').val() === 'pago_grupo_individual'"
-      }
-    },
-    ".read": false,
-    ".write": false
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com')"
+    }
   }
 }

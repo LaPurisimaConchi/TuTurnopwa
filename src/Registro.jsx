@@ -6,7 +6,7 @@ import {
   linkWithCredential,
   updateProfile,
 } from "firebase/auth";
-import { ref, set, update } from "firebase/database";
+import { ref, update } from "firebase/database";
 import { auth, dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { leerDatosContacto } from "./utils/invitado";
@@ -97,14 +97,15 @@ export default function Registro() {
         fechaRegistro: new Date().toISOString(),
       });
     } else {
-      await set(ref(dbRealtime, `usuarios/${uid}`), {
+      // update y no set: las reglas dan permiso campo a campo (bonos y tarjetas
+      // regalo solo los escribe el servidor)
+      await update(ref(dbRealtime, `usuarios/${uid}`), {
         uid,
         nombre: nombreLimpio,
         telefono: telefonoLimpio,
         email: emailLimpio,
         fechaRegistro: new Date().toISOString(),
         reservas: 0,
-        bonos: {},
       });
     }
 
