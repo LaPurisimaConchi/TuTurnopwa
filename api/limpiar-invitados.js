@@ -7,10 +7,14 @@
 // Lo lanza el cron de Vercel (vercel.json) con  Authorization: Bearer CRON_SECRET.
 // GET ?dry=1 solo cuenta lo que borraría, sin borrar nada.
 //
+// También borra los contadores de los límites de intentos (api/_limiteIntentos.js)
+// que empezaron hace más de un día: ya no limitan nada.
+//
 // Antes de eso borra las reservas pendientes de pago cuya plaza guardada caducó hace
 // más de DIAS_PENDIENTES días (reservadaHasta, ver api/_reservarServidor.js): ya no
 // cuentan para el aforo y, si no se borraran, mantendrían vivos a sus invitados.
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
+import { limpiarLimites } from "./_limiteIntentos.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -96,6 +100,8 @@ export default async function handler(req, res) {
       await adminDb.ref().update(borradas);
     }
 
+    const limitesBorrados = await limpiarLimites(adminDb, Date.now() - 24 * 60 * 60 * 1000, { soloContar });
+
     const [referenciados, notasSnap] = await Promise.all([
       uidsReferenciados(),
       adminDb.ref("usuariosNotas").get(),
@@ -147,6 +153,7 @@ export default async function handler(req, res) {
       dry: soloContar,
       revisados,
       pendientesCaducadasBorradas: caducadas.length,
+      limitesBorrados,
       invitadosBorrados: aBorrar.length,
     });
   } catch (error) {

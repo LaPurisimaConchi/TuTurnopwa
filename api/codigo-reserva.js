@@ -37,8 +37,32 @@ import { registrarCancelacion } from "./_cancelacionReserva.js";
 import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
 import { esTokenAdministrador } from "../src/utils/administradores.js";
 import { prepararPago } from "./_pedidoServidor.js";
+import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.js";
 
 export const config = { runtime: "nodejs" };
+
+// Comprobar o canjear códigos de tarjeta regalo tiene límite: sin él se podrían probar
+// códigos hasta acertar uno. Por IP, 30 intentos cada 15 minutos y 8 códigos que no
+// existen por hora.
+const LIMITES_TARJETA = "limitesTarjetaRegalo";
+const DEMASIADOS = { ok: false, error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.", codigo: "demasiados_intentos" };
+
+async function conLimiteDeTarjeta(req, res, comprobar) {
+  const ip = hash(ipDe(req));
+  const claveFallos = `fallos_${ip}`;
+  if (
+    !(await consumirIntento(adminDb, LIMITES_TARJETA, `ip_${ip}`, 30, 15 * 60_000)) ||
+    (await limiteAlcanzado(adminDb, LIMITES_TARJETA, claveFallos, 8, 60 * 60_000))
+  ) {
+    return res.status(429).json(DEMASIADOS);
+  }
+
+  const { status, ...resto } = await comprobar();
+  if (status === 404 && resto.codigo === "no_existe") {
+    await consumirIntento(adminDb, LIMITES_TARJETA, claveFallos, Number.MAX_SAFE_INTEGER, 60 * 60_000);
+  }
+  return res.status(status).json(resto);
+}
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
@@ -73,17 +97,17 @@ export default async function handler(req, res) {
     }
 
     if (cuerpo.tipo === "tarjeta") {
-      const { status, ...resto } = await consultarTarjeta(adminDb, uid, cuerpo.codigo);
-      return res.status(status).json(resto);
+      return conLimiteDeTarjeta(req, res, () => consultarTarjeta(adminDb, uid, cuerpo.codigo));
     }
 
     if (cuerpo.tipo === "canjear") {
-      const { status, ...resto } = await canjearTarjeta(adminDb, uid, {
-        codigo: cuerpo.codigo,
-        orderId: cuerpo.orderId,
-        bono: cuerpo.bono,
-      });
-      return res.status(status).json(resto);
+      return conLimiteDeTarjeta(req, res, () =>
+        canjearTarjeta(adminDb, uid, {
+          codigo: cuerpo.codigo,
+          orderId: cuerpo.orderId,
+          bono: cuerpo.bono,
+        })
+      );
     }
 
     if (cuerpo.tipo === "usarBono") {

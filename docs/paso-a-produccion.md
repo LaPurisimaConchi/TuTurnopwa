@@ -96,9 +96,20 @@ con las nuevas, el código viejo no puede cobrar.
   (`fichaParaCobrar`): si una pantalla antigua enseña otro precio, `ResumenPago` avisa y cobra el del
   servidor.
 - [ ] **Cron `limpiar-invitados`** (`vercel.json`, domingos a las 4:00). En producción borrará las
-  sesiones de invitado antiguas sin nada asociado y las reservas pendientes con la plaza caducada.
+  sesiones de invitado antiguas sin nada asociado, las reservas pendientes con la plaza caducada y
+  los contadores de los límites de intentos con más de un día (`limitesCambioFecha`,
+  `limitesTarjetaRegalo`, `limitesDisponibilidad`).
   Para ver antes cuánto borraría: `GET /api/limpiar-invitados?dry=1` con la cabecera
   `Authorization: Bearer <CRON_SECRET>`.
+- [ ] **Cloud Functions antiguas de Redsys.** El repositorio ya no tiene `functions/` (una
+  integración antigua sin terminar: `crearSesionTPV` y `notificacionTPV`), pero borrar el código no
+  quita una función ya desplegada. Si esto lista alguna, bórrala desde la consola de Firebase:
+  ```bash
+  npx firebase-tools functions:list --project la-purisima-conchi
+  ```
+- [ ] **Que la web no se enseñe dentro de otra.** `vercel.json` solo deja incrustarla en
+  `lapurisimaconchi.com` y sus subdominios (`frame-ancestors`). Si alguna otra web la muestra en un
+  `iframe`, añade su dominio ahí.
 
 **No hace falta migrar** reservas, usuarios, bonos ni tarjetas regalo:
 - los códigos de reserva se crean al pedirlos (también con un número de pedido antiguo);

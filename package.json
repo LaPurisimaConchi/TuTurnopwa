@@ -13,14 +13,13 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
-    "crypto-js": "^4.2.0",
     "date-fns": "^4.1.0",
-    "firebase": "^11.6.1",
-    "firebase-admin": "^13.7.0",
+    "firebase": "^11.10.0",
+    "firebase-admin": "^13.10.0",
     "react": "^19.1.0",
     "react-datepicker": "^8.3.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.5.3"
+    "react-router-dom": "^7.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

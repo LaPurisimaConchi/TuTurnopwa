@@ -145,10 +145,6 @@ Configurar en el panel de Vercel → Project → Settings → Environment Variab
 | `TERMINAL = "001"` | `api/crear-sesion.js` | — |
 | `CURRENCY = "978"` | `api/crear-sesion.js` | EUR |
 
-### Firebase Cloud Functions (`functions/`)
-
-Existe una implementación **legacy/alternativa** de Redsys en `functions/index.js` que usa `functions.config().redsys.*`. **No es el camino activo de producción** (producción usa Vercel `api/`).
-
 ### Archivos de entorno de referencia
 
 No existe `.env.example` en el repositorio. Crear uno al configurar un nuevo entorno.
@@ -168,7 +164,6 @@ TuTurnopwa/
 │   ├── _cors.js
 │   └── ping.js
 ├── docs/                     # Manuales de usuario/admin (HTML)
-├── functions/                # Firebase Cloud Functions (legacy Redsys)
 ├── public/
 │   ├── manifest.json         # PWA manifest
 │   └── img/                  # Assets estáticos (iconos, imágenes)
@@ -192,8 +187,8 @@ TuTurnopwa/
 │   └── ...
 ├── index.html
 ├── vite.config.js
-├── vercel.json               # Rewrites SPA + CORS en /api
-├── firebase.json             # Solo Cloud Functions (sin reglas RTDB)
+├── vercel.json               # Rewrites SPA, cron y cabeceras de seguridad
+├── firebase.json             # Reglas RTDB (database.rules.json)
 ├── tailwind.config.js
 └── package.json
 ```
@@ -461,7 +456,8 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 5. Configurar variables de entorno (sección anterior).
 6. El archivo `vercel.json` define:
    - Rewrites SPA: todas las rutas → `/` (excepto `/api/*`)
-   - CORS en `/api/*`
+   - Cabeceras de seguridad en todas las rutas: `Content-Security-Policy` (solo `frame-ancestors`, `base-uri` y `object-src`: no limita scripts ni estilos), `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`. HSTS lo pone Vercel.
+   - CORS: no hay `Access-Control-Allow-Origin: *`. La web y `/api` van en el mismo dominio; `api/_cors.js` solo da permiso a los orígenes de su lista.
 
 **Dominio de producción:** `app.lapurisimaconchi.com`
 
@@ -470,7 +466,7 @@ Las URLs de retorno Redsys (`okUrl`, `koUrl`) apuntan a ese dominio en varios co
 ### Firebase
 
 - Proyecto: `la-purisima-conchi` (`.firebaserc`)
-- `firebase.json` solo despliega Cloud Functions; **no despliega reglas RTDB ni hosting**
+- `firebase.json` solo despliega las reglas RTDB (`database.rules.json`); no hay Cloud Functions ni hosting
 - Reglas de base de datos: gestionar manualmente en [Firebase Console](https://console.firebase.google.com)
 
 ---
@@ -515,6 +511,8 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 - **Reglas RTDB no versionadas** en el repositorio. Exportar desde consola y añadir al repo.
 - **Admin autorizado por lista de emails en frontend** (`RutaAdmin.jsx`). Ocultar rutas no impide acceso directo al SDK si las reglas RTDB son permisivas. Valorar custom claims de Firebase.
 - **`/api/crear-sesion`** no autentica al usuario; el importe proviene del pedido que preparó el servidor (`prepararPago`), nunca del navegador.
+- **`/api/disponibilidad`** (pública, sin sesión): guarda 5 segundos en la propia función cada lectura de la base de datos, así que cambiar los parámetros de la URL no obliga a leer otra vez todas las reservas, y limita a 120 consultas por minuto y por IP (nodo `limitesDisponibilidad`). El cron semanal (`api/limpiar-invitados.js`) borra los contadores de los límites con más de un día.
+- **Códigos de tarjeta regalo:** `REGALO-` y 10 caracteres de `crypto` (`api/_codigosTarjeta.js`); los antiguos de 6 siguen valiendo. Comprobar o canjear un código tiene límite por IP (`api/_limiteIntentos.js`, nodo `limitesTarjetaRegalo`, solo servidor): 30 intentos cada 15 minutos y 8 códigos inexistentes por hora.
 
 ### Redsys (ver sección específica más abajo)
 
@@ -529,10 +527,9 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 ### Código y mantenimiento
 
 - **~25 archivos `Reserva*.jsx`** con lógica duplicada (~600–800 líneas cada uno). Un cambio transversal requiere tocar muchos archivos.
-- **Archivos legacy** en repo: `ReservaPintarCeramicaAntiguo.jsx`, etc.
+- **Archivos legacy** en repo: pantallas de siempre (`Reserva*.jsx`), Tearium y The Club.
 - **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (legacy en `HistorialTarjetasRegalo.jsx`).
 - **Estados inconsistentes** en capitalización (`Pendiente` vs `pendiente_pago_individual`).
-- **`functions/index.js`**: implementación Redsys alternativa, no usada en prod vía Vercel.
 
 ### PWA
 
@@ -549,10 +546,6 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 - `api/crear-sesion.js` — crea sesión, firma HMAC_SHA256_V1, redirect al TPV
 - `api/notificacionTPV.js` — webhook de notificación de pago
 - `api/_firmaRedsys.js` — la firma, compartida por los dos
-
-**Archivos que NO usar en producción:**
-
-- `functions/index.js` (Firebase Functions, entorno test)
 
 **Firma del aviso:** `api/notificacionTPV.js` calcula la firma de Redsys (clave del pedido con 3DES a partir de `Ds_Order` y HMAC-SHA256 de `Ds_MerchantParameters`, comparada en base64 URL) y solo confirma el pedido si coincide, la respuesta es de pago (`Ds_Response` 0–99) y el importe es el del pedido. Si la firma no coincide responde 403, no confirma nada y deja `firmaValida: false`, `firmaError` y `avisoRechazadoEn` en `pedidosPendientes/{orderId}`: si aparecen en pedidos pagados de verdad, la `REDSYS_SECRET_KEY` de ese entorno no es la del TPV. **Cualquier cambio en la firma debe probarse antes en staging con el TPV de pruebas.**
 
@@ -609,7 +602,6 @@ Priorizadas por impacto, sin orden estricto:
 | Reglas Firebase (consola) | Seguridad de toda la app | Exportar backup antes de cambiar |
 | `pedidosPendientes/` schema | Webhook depende de la estructura | No renombrar campos sin actualizar webhook |
 | URLs hardcodeadas `app.lapurisimaconchi.com` | Redirects Redsys | Buscar en proyecto antes de cambiar dominio |
-| `functions/` vs `api/` | Dos implementaciones Redsys | Producción usa **`api/` en Vercel**, no Cloud Functions |
 
 ### Checklist antes de desplegar cambios sensibles
 
