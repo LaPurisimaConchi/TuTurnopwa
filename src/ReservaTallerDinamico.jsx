@@ -41,6 +41,7 @@ import { esMonografico } from "./utils/monografico";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { useConfigEspacio } from "./configuracionEspacio";
+import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
 
 export default function ReservaTallerDinamico() {
   const { claseId } = useParams();
@@ -183,7 +184,11 @@ export function FormularioReserva({ claseId, clase }) {
   }, [desdeTarjeta, conVariante, variantes, location.state]);
 
   const metodoTarjeta = useMemo(() => {
-    if (!desdeTarjeta || conVariante) return "";
+    if (!desdeTarjeta) return "";
+    // Tarjeta con método ya elegido (y pagado su extra) junto a la variante
+    if (conVariante) {
+      return metodos.find((m) => m.id === location.state?.metodo)?.id || "";
+    }
     const subtipo = String(location.state?.subtipo || "").trim().toLowerCase();
     return metodos.find((m) => m.nombre.toLowerCase() === subtipo)?.id || "";
   }, [desdeTarjeta, conVariante, location.state, metodos]);
@@ -423,6 +428,10 @@ export function FormularioReserva({ claseId, clase }) {
       if (!usuario) return;
     }
 
+    if (desdeTarjeta && !(await reclamarTarjetaRegalo(tarjetaRegaloId, usuario.uid))) {
+      alert(MENSAJE_TARJETA_USADA);
+      return;
+    }
     setGuardando(true);
 
     try {
@@ -605,6 +614,7 @@ export function FormularioReserva({ claseId, clase }) {
         },
       });
     } catch (err) {
+      if (desdeTarjeta) liberarTarjetaRegalo(tarjetaRegaloId, usuario.uid);
       console.error("Error al guardar la reserva:", err);
 
       // El servidor rechaza la reserva con un motivo claro (franja llena, día cerrado…)

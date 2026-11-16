@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import BotonVolver from "./BotonVolver";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 
 const CanjearTarjetaRegalo = () => {
@@ -11,6 +11,21 @@ const CanjearTarjetaRegalo = () => {
   const [mensaje, setMensaje] = useState("");
   const [validando, setValidando] = useState(false);
   const navigate = useNavigate();
+
+  // Sin sesión se piden los datos de contacto al validar (leer la tarjeta exige
+  // sesión); la cuenta de invitado se abre al enviarlos
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
 
  const buscarTarjetaPorCodigo = async (codigoBuscado) => {
   const codigoNormalizado = codigoBuscado.trim().toUpperCase();
@@ -114,7 +129,7 @@ const CanjearTarjetaRegalo = () => {
     setValidando(true);
 
     const auth = getAuth();
-    const user = auth.currentUser;
+    let user = auth.currentUser;
     const code = codigo.trim();
 
     if (!code) {
@@ -124,9 +139,11 @@ const CanjearTarjetaRegalo = () => {
     }
 
     if (!user) {
-      setMensaje("Debes identificarte para canjear tu tarjeta.");
-      setValidando(false);
-      return;
+      user = await pedirDatosInvitado();
+      if (!user) {
+        setValidando(false);
+        return;
+      }
     }
 
     try {
@@ -179,6 +196,7 @@ const CanjearTarjetaRegalo = () => {
           claseId: tarjeta.claseId || opcionRegalo.claseId,
           subtipo: tarjeta.subtipo || opcionRegalo.subtipo || "",
           tipoPieza: tarjeta.tipoPieza || opcionRegalo.tipoPieza || "",
+          metodo: tarjeta.metodo || "",
           tipoTaller: tarjeta.tipoTaller || opcionRegalo.tipoTaller || "",
           precio: tarjeta.precioTotal || opcionRegalo.precio || 0,
           precioTotal: tarjeta.precioTotal || opcionRegalo.precio || 0,
@@ -199,9 +217,6 @@ const CanjearTarjetaRegalo = () => {
   return (
     <div style={styles.body}>
       <div style={styles.container}>
-        <BotonVolver />
-
-        <h2 style={styles.titulo}>Canjear tarjeta regalo</h2>
         <p style={styles.descripcion}>
           Introduce el código de tu tarjeta para acceder a tu taller.
         </p>
@@ -224,27 +239,27 @@ const CanjearTarjetaRegalo = () => {
 
         {mensaje && <div style={styles.mensaje}>{mensaje}</div>}
       </div>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          compra
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </div>
   );
 };
 
 const styles = {
   body: {
-    backgroundColor: "#fdfaf5",
-    fontFamily: "'Segoe UI', sans-serif",
-    minHeight: "100vh",
-    padding: 20,
     display: "flex",
     justifyContent: "center",
-    alignItems: "center",
   },
   container: {
-    backgroundColor: "white",
-    padding: 24,
-    borderRadius: 16,
+    padding: "8px 0",
     maxWidth: 420,
     width: "100%",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
     textAlign: "center",
   },
   titulo: {

@@ -11,6 +11,7 @@ import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
 const CLASE_ID = "setsake";
 const RESERVAS_PATH_KEY = "CreaTuSetSake";
 
@@ -418,6 +419,11 @@ export default function ReservaCreaTuSetSake() {
       return;
     }
 
+    if (desdeTarjeta && !(await reclamarTarjetaRegalo(location.state.tarjetaRegaloId, user.uid))) {
+      alert(MENSAJE_TARJETA_USADA);
+      return;
+    }
+
     try {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
@@ -545,6 +551,7 @@ export default function ReservaCreaTuSetSake() {
         },
       });
     } catch (err) {
+      if (desdeTarjeta) liberarTarjetaRegalo(location.state.tarjetaRegaloId, user.uid);
       console.error("Error al guardar la reserva:", err);
       alert("No se pudo guardar la reserva.");
     }

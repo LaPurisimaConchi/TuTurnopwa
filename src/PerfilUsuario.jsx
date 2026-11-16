@@ -414,7 +414,7 @@ export default function PerfilUsuario() {
 
           <button
             className="bg-white border border-[#e6a6cf] text-[#b84c85] font-bold py-3 rounded-2xl text-sm shadow-sm transition hover:bg-[#fdf2f8]"
-            onClick={() => navigate("/canjear-tarjeta")}
+            onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
           >
             Canjear tarjeta regalo
           </button>

@@ -102,7 +102,6 @@ import UsarBono from "./UsarBono";
 
 
 // Tarjetas regalo
-import CanjearTarjetaRegalo from "./CanjearTarjetaRegalo";
 
 // Ubicaciones externas
 import TheClub from "./TheClub.jsx";
@@ -309,11 +308,9 @@ function App() {
             path="/creapiezafavorita-solo"
             element={<CreaTuPiezaFavoritaRegalo />}
           />
-          <Route path="/canjear-tarjeta" element={<AccesoCompra><CanjearTarjetaRegalo /></AccesoCompra>} />
-          <Route
-            path="/canjear-tarjeta-regalo"
-            element={<AccesoCompra><CanjearTarjetaRegalo /></AccesoCompra>}
-          />
+          {/* Canjear tarjeta regalo vive en una pestaña de /gestionar-reserva */}
+          <Route path="/canjear-tarjeta" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
+          <Route path="/canjear-tarjeta-regalo" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
           
 
           <Route path="/resumen-pago" element={<AccesoCompra><ResumenPago /></AccesoCompra>} />

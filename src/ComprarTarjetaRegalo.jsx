@@ -1,8 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { getAuth } from "firebase/auth";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 import {
+  cargarGaleria,
+  cargarMiniatura,
+  imagenPorDefecto,
   cargarTalleres,
   filtrarOpcionesRegaloEstaticas,
   opcionesRegaloDinamicas,
@@ -22,6 +27,27 @@ export default function ComprarTarjetaRegalo() {
   // Todos los talleres (ocultos incluidos); null mientras se cargan
   const [talleres, setTalleres] = useState(null);
 
+  // Imagen principal del taller de origen: galería, miniatura o la de por defecto
+  const [imagenTaller, setImagenTaller] = useState("");
+
+  useEffect(() => {
+    if (!tallerPreseleccionado) return;
+    let activo = true;
+    const cargar = async () => {
+      const galeria = await cargarGaleria(tallerPreseleccionado).catch(() => []);
+      let src = galeria.find((img) => img.src)?.src || "";
+      if (!src) {
+        const mini = await cargarMiniatura(tallerPreseleccionado).catch(() => null);
+        src = (typeof mini === "string" ? mini : mini?.src) || "";
+      }
+      if (activo) setImagenTaller(src || imagenPorDefecto(tallerPreseleccionado));
+    };
+    cargar();
+    return () => {
+      activo = false;
+    };
+  }, [tallerPreseleccionado]);
+
   useEffect(() => {
     cargarTalleres({ incluirOcultos: true })
       .then(setTalleres)
@@ -40,23 +66,82 @@ export default function ComprarTarjetaRegalo() {
 
   // Desde la página de un taller: "Regalar este taller"
   useEffect(() => {
-    if (!tallerPreseleccionado || opcionSeleccionadaId) return;
+    // Esperar a que carguen los talleres: antes solo están las opciones estáticas,
+    // y el id que se fijara ahí desaparece al llegar las dinámicas
+    if (!tallerPreseleccionado || opcionSeleccionadaId || !talleres) return;
     const opcion = opciones.find((op) => op.claseId === tallerPreseleccionado);
     if (opcion) setOpcionSeleccionadaId(opcion.id);
-  }, [tallerPreseleccionado, opciones, opcionSeleccionadaId]);
+  }, [tallerPreseleccionado, opciones, opcionSeleccionadaId, talleres]);
+
+  // Opciones del taller de origen (varias si tiene tamaños o métodos con precio propio)
+  const opcionesDelTaller = useMemo(
+    () =>
+      tallerPreseleccionado
+        ? opciones.filter((op) => op.claseId === tallerPreseleccionado)
+        : [],
+    [opciones, tallerPreseleccionado]
+  );
+  // Mientras cargan los talleres no se sabe aún si viene de uno válido
+  const cargandoOrigen = !!tallerPreseleccionado && !talleres;
+  const modoTaller = opcionesDelTaller.length > 0;
 
   const opcionSeleccionada = opciones.find(
     (op) => op.id === opcionSeleccionadaId
   );
 
+  // Tipo y método se eligen por separado; cada pareja es una opción con su precio
+  const combinado = opcionesDelTaller.some((op) => op.metodo);
+  const tiposCombinados = combinado
+    ? [...new Map(opcionesDelTaller.map((op) => [op.tipoPieza, {
+        id: op.tipoPieza,
+        nombre: op.varianteNombre,
+        precio: op.precioVariante,
+      }])).values()]
+    : [];
+  const metodosCombinados = combinado
+    ? [...new Map(opcionesDelTaller.map((op) => [op.metodo, {
+        id: op.metodo,
+        nombre: op.metodoNombre,
+        extra: op.extraMetodo,
+      }])).values()]
+    : [];
+  const elegirCombinada = (cambio) => {
+    const tipoPieza = cambio.tipoPieza ?? opcionSeleccionada?.tipoPieza;
+    const metodo = cambio.metodo ?? opcionSeleccionada?.metodo;
+    const op = opcionesDelTaller.find((o) => o.tipoPieza === tipoPieza && o.metodo === metodo);
+    if (op) setOpcionSeleccionadaId(op.id);
+  };
+
   const variasPlazas = admiteVariasPlazas(opcionSeleccionada);
   const plazasNum = variasPlazas ? plazas : 1;
   const precioTotal = Number(opcionSeleccionada?.precio || 0) * plazasNum;
 
-  const handleContinuar = () => {
+  // Sin sesión se piden los datos de contacto en una ventana, igual que al
+  // reservar; la cuenta de invitado se abre al enviarlos
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
+
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
+
+  const handleContinuar = async () => {
     if (!opcionSeleccionada) {
       alert("Selecciona una opción válida para regalar.");
       return;
+    }
+
+    if (!getAuth().currentUser) {
+      const usuario = await pedirDatosInvitado();
+      if (!usuario) return;
     }
 
     navigate("/resumen-pago", {
@@ -68,6 +153,7 @@ export default function ComprarTarjetaRegalo() {
         claseId: opcionSeleccionada.claseId,
         subtipo: opcionSeleccionada.subtipo || "",
         tipoPieza: opcionSeleccionada.tipoPieza || "",
+        metodo: opcionSeleccionada.metodo || "",
         tipoTaller: opcionSeleccionada.tipoTaller || "",
         rutaReserva: opcionSeleccionada.rutaReserva || "",
         requiereMetodo: opcionSeleccionada.requiereMetodo || false,
@@ -91,9 +177,6 @@ export default function ComprarTarjetaRegalo() {
           <h1 className="text-3xl font-bold text-tinta font-serif mb-2">
             Comprar tarjeta regalo
           </h1>
-          <p className="text-sm text-tinta-suave">
-            Elige el taller o experiencia que quieres regalar y para cuántas personas.
-          </p>
         </div>
 
         <div className="bg-crema border border-linea rounded-xl p-4 mb-5 text-sm text-tinta">
@@ -108,6 +191,88 @@ export default function ComprarTarjetaRegalo() {
         </div>
 
         <div className="space-y-5">
+          {modoTaller ? (
+            <div className="rounded-2xl overflow-hidden border border-linea bg-crema">
+              {imagenTaller && (
+                <img
+                  src={imagenTaller}
+                  alt={opcionesDelTaller[0].clase}
+                  className="w-full h-56 sm:h-72 object-cover"
+                />
+              )}
+              <div className="p-4 text-center">
+                <p className="text-xs uppercase tracking-wide text-tinta-suave mb-1">
+                  Regalas
+                </p>
+                <h2 className="text-2xl font-bold font-serif text-tinta">
+                  {opcionesDelTaller[0].clase}
+                </h2>
+
+                {combinado ? (
+                  <div className="mt-4 space-y-4 text-left">
+                    <div>
+                      <p className="font-bold text-sm mb-2 text-center">Tipo</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {tiposCombinados.map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => elegirCombinada({ tipoPieza: t.id })}
+                            className={`px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                              t.id === opcionSeleccionada?.tipoPieza
+                                ? "bg-terracota text-white border-terracota"
+                                : "border-terracota text-terracota hover:bg-terracota-suave"
+                            }`}
+                          >
+                            {t.nombre} — {t.precio} €
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm mb-2 text-center">Método</p>
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {metodosCombinados.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => elegirCombinada({ metodo: m.id })}
+                            className={`px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                              m.id === opcionSeleccionada?.metodo
+                                ? "bg-terracota text-white border-terracota"
+                                : "border-terracota text-terracota hover:bg-terracota-suave"
+                            }`}
+                          >
+                            {m.nombre}
+                            {m.extra > 0 && ` +${m.extra} €`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ) : opcionesDelTaller.length > 1 && (
+                  <div className="mt-4 flex flex-wrap justify-center gap-2">
+                    {opcionesDelTaller.map((op) => (
+                      <button
+                        key={op.id}
+                        type="button"
+                        onClick={() => setOpcionSeleccionadaId(op.id)}
+                        className={`px-4 py-2 rounded-full border text-sm font-semibold transition ${
+                          op.id === opcionSeleccionadaId
+                            ? "bg-terracota text-white border-terracota"
+                            : "border-terracota text-terracota hover:bg-terracota-suave"
+                        }`}
+                      >
+                        {op.subtipo || op.label} — {op.precio} €
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : cargandoOrigen ? (
+            <p className="text-center text-sm text-tinta-suave">Cargando…</p>
+          ) : (
           <div>
             <label className="block font-bold text-sm mb-2">
               Selecciona el taller o regalo
@@ -128,6 +293,7 @@ export default function ComprarTarjetaRegalo() {
               ))}
             </select>
           </div>
+          )}
 
           {opcionSeleccionada && (
             <div>
@@ -216,6 +382,14 @@ export default function ComprarTarjetaRegalo() {
           </button>
         </div>
       </div>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          compra
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </div>
   );
 }

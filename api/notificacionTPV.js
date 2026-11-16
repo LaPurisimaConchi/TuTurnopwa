@@ -295,6 +295,8 @@ async function guardarTarjetaRegaloPagada(orderId, pedido, timestamp) {
     clase: pedido.clase || "Tarjeta regalo",
     claseId: pedido.claseId || "",
     subtipo: pedido.subtipo || "",
+    tipoPieza: pedido.tipoPieza || "",
+    metodo: pedido.metodo || "",
     precioTotal: Number(pedido.precioTotal ?? 0),
     precioOriginal: Number(pedido.precioOriginal ?? 0),
     plazas: Number(pedido.plazas ?? 1),

@@ -122,7 +122,8 @@ function contenidoPorTipo(tipo, datos) {
         ["Importe", importe],
         codigoReserva,
       ],
-      nota: "Quien reciba la tarjeta solo tiene que canjear el código de la tarjeta en la app para reservar su plaza.",
+      nota: "Quien reciba la tarjeta solo tiene que canjear el código de la tarjeta en «Gestionar reserva» (pestaña «Canjear tarjeta regalo») para reservar su plaza.",
+      enlace: { ruta: "/gestionar-reserva?tab=tarjeta", texto: "Canjear tarjeta regalo" },
     };
   }
 
