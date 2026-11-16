@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 
 const CanjearTarjetaRegalo = () => {
@@ -10,6 +11,21 @@ const CanjearTarjetaRegalo = () => {
   const [mensaje, setMensaje] = useState("");
   const [validando, setValidando] = useState(false);
   const navigate = useNavigate();
+
+  // Sin sesión se piden los datos de contacto al validar (leer la tarjeta exige
+  // sesión); la cuenta de invitado se abre al enviarlos
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
 
  const buscarTarjetaPorCodigo = async (codigoBuscado) => {
   const codigoNormalizado = codigoBuscado.trim().toUpperCase();
@@ -113,7 +129,7 @@ const CanjearTarjetaRegalo = () => {
     setValidando(true);
 
     const auth = getAuth();
-    const user = auth.currentUser;
+    let user = auth.currentUser;
     const code = codigo.trim();
 
     if (!code) {
@@ -123,9 +139,11 @@ const CanjearTarjetaRegalo = () => {
     }
 
     if (!user) {
-      setMensaje("Debes identificarte para canjear tu tarjeta.");
-      setValidando(false);
-      return;
+      user = await pedirDatosInvitado();
+      if (!user) {
+        setValidando(false);
+        return;
+      }
     }
 
     try {
@@ -221,6 +239,14 @@ const CanjearTarjetaRegalo = () => {
 
         {mensaje && <div style={styles.mensaje}>{mensaje}</div>}
       </div>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          compra
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </div>
   );
 };

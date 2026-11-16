@@ -5,7 +5,6 @@
 // activa va en ?tab=tarjeta; sin ella, «Cambiar fecha».
 import { useSearchParams } from "react-router-dom";
 import PageContainer from "./PageContainer";
-import AccesoCompra from "./AccesoCompra";
 import CambiarFechaReserva from "./CambiarFechaReserva";
 import CanjearTarjetaRegalo from "./CanjearTarjetaRegalo";
 
@@ -53,10 +52,7 @@ export default function GestionarReserva() {
           {activa === "reserva" ? (
             <CambiarFechaReserva />
           ) : (
-            // Canjear pide sesión (también vale la de invitado): solo se pide aquí
-            <AccesoCompra>
-              <CanjearTarjetaRegalo />
-            </AccesoCompra>
+            <CanjearTarjetaRegalo />
           )}
         </div>
       </div>
