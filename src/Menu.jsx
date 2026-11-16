@@ -36,7 +36,6 @@ export default function Menu() {
     { texto: "Reserva Karma", ruta: "/reservakarma" },
 
     // Tarjetas regalo
-    { texto: "Galería Tarjetas Regalo", ruta: "/tarjeta-regalo" },
     { texto: "Funcionamiento Tarjeta Regalo", ruta: "/tarjeta-regalo/funciona" },
     { texto: "Detalle 2 Clases", ruta: "/tarjeta-regalo/2clases" },
     { texto: "Detalle 4 Clases", ruta: "/tarjeta-regalo/4clases" },
@@ -71,7 +70,6 @@ export default function Menu() {
     { texto: "Notificaciones", ruta: "/admin/notificaciones" },
 
     // Otros
-    { texto: "¿Dónde reservar?", ruta: "/dondereservar" },
     { texto: "The Club", ruta: "/theclub" },
     { texto: "Tearium y Karma", ruta: "/teariumkarma" },
   ];

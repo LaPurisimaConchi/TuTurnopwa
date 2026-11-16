@@ -358,7 +358,7 @@ export default function PerfilUsuario() {
   };
 
   return (
-    <PantallaConVolver volverA="/dondereservar">
+    <PantallaConVolver volverA="/portada">
       <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-tinta">
         <div className="text-center mb-6">
           <h1 className="text-[2rem] font-serif font-bold text-[#6f3d22] mb-2">
@@ -407,7 +407,7 @@ export default function PerfilUsuario() {
         <div className="grid grid-cols-2 gap-3 mb-5">
           <button
             className="bg-mostaza hover:bg-mostaza-borde text-tinta font-bold py-3 rounded-2xl text-sm shadow-md transition"
-            onClick={() => navigate("/dondereservar")}
+            onClick={() => navigate("/portada")}
           >
             Reservar
           </button>

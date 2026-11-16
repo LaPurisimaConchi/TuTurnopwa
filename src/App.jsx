@@ -38,7 +38,6 @@ import ClasesSoloVista from "./ClasesSoloVista.jsx";
 import TalleresCrearPiezas from "./TalleresCrearPiezas";
 import TalleresCursosBonos from "./TalleresCursosBonos";
 import TalleresPintaDecora from "./TalleresPintaDecora";
-import TarjetaRegalo from "./TarjetaRegalo";
 import TalleresOtros from "./TalleresOtros";
 import TalleresCategoria from "./TalleresCategoria";
 
@@ -137,7 +136,6 @@ import AdminCategorias from "./AdminCategorias";
 import AdminEspacio from "./AdminEspacio";
 import AdminOrdenarClases from "./AdminOrdenarClases";
 
-import DondeReservarV2 from "./DondeReservarV2.jsx";
 import ChatAyuda from "./ChatAyuda.jsx";
 
 function App() {
@@ -155,7 +153,6 @@ function App() {
           <Route path="/menu" element={<Menu />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
           <Route path="/editar-perfil" element={<EditarPerfil />} />
-          <Route path="/dondereservar" element={<DondeReservarV2 />} />
 
           <Route path="/politica-piezas" element={<PoliticaPiezas />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
@@ -172,7 +169,7 @@ function App() {
           <Route path="/talleres/pinta-decora" element={<RutaCategoria categoriaId="pinta_decora"><TalleresPintaDecora /></RutaCategoria>} />
           <Route path="/talleres/otros" element={<RutaCategoria categoriaId="otros"><TalleresOtros /></RutaCategoria>} />
           <Route path="/categoria/:categoriaId" element={<TalleresCategoria />} />
-          <Route path="/tarjeta-regalo" element={<TarjetaRegalo />} />
+          <Route path="/tarjeta-regalo" element={<Navigate to="/regalar-taller" replace />} />
           <Route path="/taller/:claseId" element={<TallerDinamico />} />
           <Route
             path="/reservar/:claseId"

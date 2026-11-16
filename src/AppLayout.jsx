@@ -7,7 +7,7 @@ import PageContainer from "./PageContainer";
 
 export default function AppLayout() {
   const location = useLocation();
-  const ocultarFooterEn = ["/perfil", "/dondereservar"];
+  const ocultarFooterEn = ["/perfil"];
 
   // ✅ Rutas que NO deben ir dentro de PageContainer (portada y el calendario del
   // admin, que necesita todo el ancho de la pantalla)
