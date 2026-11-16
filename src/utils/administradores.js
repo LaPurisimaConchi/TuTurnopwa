@@ -4,6 +4,7 @@
 export const ADMIN_EMAILS = [
   "lapurisimaconchioficial@gmail.com",
   "kymuweb@gmail.com",
+  "panabuntu@gmail.com",
 ];
 
 export const esEmailAdministrador = (email) =>

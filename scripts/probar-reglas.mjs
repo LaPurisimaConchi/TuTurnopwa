@@ -19,6 +19,8 @@ const ANON_A = token({ sub: "uidA", user_id: "uidA", firebase: { sign_in_provide
 const USER_B = token({ sub: "uidB", user_id: "uidB", email: "b@example.com", email_verified: true, firebase: { sign_in_provider: "password" } });
 const ADMIN_SIN = token({ sub: "uidAdm", user_id: "uidAdm", email: "lapurisimaconchioficial@gmail.com", email_verified: false, firebase: { sign_in_provider: "password" } });
 const ADMIN = token({ sub: "uidAdm", user_id: "uidAdm", email: "lapurisimaconchioficial@gmail.com", email_verified: true, firebase: { sign_in_provider: "password" } });
+const ADMIN_PANABUNTU_SIN = token({ sub: "uidPan", user_id: "uidPan", email: "panabuntu@gmail.com", email_verified: false, firebase: { sign_in_provider: "password" } });
+const ADMIN_PANABUNTU = token({ sub: "uidPan", user_id: "uidPan", email: "panabuntu@gmail.com", email_verified: true, firebase: { sign_in_provider: "password" } });
 
 async function pedir(metodo, ruta, quien, cuerpo) {
   // El ID token va en ?auth= (la cabecera Bearer es la de las credenciales de servicio)
@@ -138,6 +140,11 @@ await caso("leer bonos de otro", false, pedir("GET", "usuarios/uidA/bonos", USER
 console.log("— Admin con el email sin verificar");
 await caso("leer /reservas", false, pedir("GET", "reservas", ADMIN_SIN));
 await caso("editar un taller", false, pedir("PUT", "clases/Taller/nombre", ADMIN_SIN, "x"));
+
+console.log("— Admin nuevo (panabuntu@gmail.com)");
+await caso("sin verificar no lee /reservas", false, pedir("GET", "reservas", ADMIN_PANABUNTU_SIN));
+await caso("verificado lee /reservas", true, pedir("GET", "reservas", ADMIN_PANABUNTU));
+await caso("verificado edita un taller", true, pedir("PUT", "clases/Taller/nombre", ADMIN_PANABUNTU, "Taller 3"));
 
 console.log("— Admin verificado");
 await caso("leer /reservas", true, pedir("GET", "reservas", ADMIN));
