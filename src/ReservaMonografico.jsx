@@ -23,6 +23,7 @@ import { reservarEnServidor } from "./utils/reservaServidor";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { pedirCorreoReserva } from "./utils/correoReserva";
 import { useConfigEspacio } from "./configuracionEspacio";
+import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
 
 export default function ReservaMonografico({ claseId, clase }) {
   const navigate = useNavigate();
@@ -156,6 +157,10 @@ export default function ReservaMonografico({ claseId, clase }) {
       if (!usuario) return;
     }
 
+    if (desdeTarjeta && !(await reclamarTarjetaRegalo(tarjetaRegaloId, usuario.uid))) {
+      alert(MENSAJE_TARJETA_USADA);
+      return;
+    }
     setGuardando(true);
 
     try {
@@ -292,6 +297,7 @@ export default function ReservaMonografico({ claseId, clase }) {
         },
       });
     } catch (err) {
+      if (desdeTarjeta) liberarTarjetaRegalo(tarjetaRegaloId, usuario.uid);
       console.error("Error al guardar la reserva:", err);
 
       if (err?.codigo) {

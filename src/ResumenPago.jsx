@@ -7,6 +7,7 @@ import BotonVolver from "./BotonVolver";
 import { simularPagoAdmin } from "./utils/pagoAdmin";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
   return str
@@ -392,11 +393,17 @@ export default function ResumenPago() {
     }
 
     if (desdeTarjeta || desdeTarjetaRegalo) {
+      if (tarjetaRegaloId && !(await reclamarTarjetaRegalo(tarjetaRegaloId, auth.currentUser.uid))) {
+        alert(MENSAJE_TARJETA_USADA);
+        return;
+      }
+
       try {
         setCargando(true);
         await confirmarReservaConTarjeta(auth.currentUser.uid);
         navigate("/pago/exito");
       } catch (error) {
+        liberarTarjetaRegalo(tarjetaRegaloId, auth.currentUser.uid);
         console.error("Error al confirmar la reserva con tarjeta regalo:", error);
         alert(error?.message || "No se pudo confirmar la reserva con la tarjeta regalo.");
       } finally {

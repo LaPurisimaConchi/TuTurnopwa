@@ -26,6 +26,7 @@ import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { reclamarTarjetaRegalo, liberarTarjetaRegalo, MENSAJE_TARJETA_USADA } from "./utils/reclamarTarjetaRegalo";
 const sumarUnMes = (fechaISO) => {
   const d = new Date(`${fechaISO}T12:00:00`);
   d.setMonth(d.getMonth() + 1);
@@ -170,6 +171,11 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       return;
     }
 
+    if (desdeTarjeta && !(await reclamarTarjetaRegalo(tarjetaRegaloId, user.uid))) {
+      alert(MENSAJE_TARJETA_USADA);
+      return;
+    }
+
     setGuardando(true);
 
     try {
@@ -218,6 +224,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         ]);
         reservaRef = ref(dbRealtime, creadas[0].ruta);
       } catch (errorServidor) {
+      if (desdeTarjeta) liberarTarjetaRegalo(tarjetaRegaloId, user.uid);
         if (!errorServidor.sinServidor) throw errorServidor;
         console.warn("Sin función de reserva en el servidor: se escribe directamente (solo desarrollo).");
         reservaRef = push(
