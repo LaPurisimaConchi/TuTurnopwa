@@ -40,10 +40,12 @@ export default function ComprarTarjetaRegalo() {
 
   // Desde la página de un taller: "Regalar este taller"
   useEffect(() => {
-    if (!tallerPreseleccionado || opcionSeleccionadaId) return;
+    // Esperar a que carguen los talleres: antes solo están las opciones estáticas,
+    // y el id que se fijara ahí desaparece al llegar las dinámicas
+    if (!tallerPreseleccionado || opcionSeleccionadaId || !talleres) return;
     const opcion = opciones.find((op) => op.claseId === tallerPreseleccionado);
     if (opcion) setOpcionSeleccionadaId(opcion.id);
-  }, [tallerPreseleccionado, opciones, opcionSeleccionadaId]);
+  }, [tallerPreseleccionado, opciones, opcionSeleccionadaId, talleres]);
 
   const opcionSeleccionada = opciones.find(
     (op) => op.id === opcionSeleccionadaId
