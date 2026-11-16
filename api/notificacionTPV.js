@@ -7,6 +7,7 @@ import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
 import { firmaRedsysValida } from "./_firmaRedsys.js";
+import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -25,7 +26,9 @@ function getAmountCents(data) {
   return Number.isFinite(cents) ? cents : null;
 }
 
-async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
+// `rutas` (Set): solo esas reservas, las que apuntó el servidor al preparar el pago;
+// null en pedidos de antes (todas las del número de pedido)
+async function marcarReservaComoPagadaPorOrderId(orderId, timestamp, rutas = null) {
   const reservasRef = adminDb.ref("reservas");
   const snapshot = await reservasRef.get();
 
@@ -112,8 +115,8 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
           // Caso 1: reserva directa dentro del turno
           if (pareceReservaDirecta(childVal)) {
-            if (childVal.orderId === orderId) {
-              const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}`;
+            const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}`;
+            if (childVal.orderId === orderId && (!rutas || rutas.has(rutaBase))) {
               prepararActualizacion(
                 childVal,
                 rutaBase,
@@ -129,9 +132,9 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
           // Caso 2: estructura con método -> reservaId
           childSnap.forEach((reservaSnap) => {
             const reserva = reservaSnap.val();
+            const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}/${reservaSnap.key}`;
 
-            if (reserva?.orderId === orderId) {
-              const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}/${reservaSnap.key}`;
+            if (reserva?.orderId === orderId && (!rutas || rutas.has(rutaBase))) {
               prepararActualizacion(
                 reserva,
                 rutaBase,
@@ -194,7 +197,8 @@ function generarCodigoTarjetaRegalo() {
   return codigo;
 }
 
-async function marcarReservaGrupoComoPagada(orderId, timestamp) {
+// `soloGrupoId`: el grupo que apuntó el servidor ("" = ninguno); null en pedidos de antes
+async function marcarReservaGrupoComoPagada(orderId, timestamp, soloGrupoId = null) {
   const reservasGruposRef = adminDb.ref("reservasGrupos");
   const snapshot = await reservasGruposRef.get();
 
@@ -208,7 +212,7 @@ async function marcarReservaGrupoComoPagada(orderId, timestamp) {
 
     if (!grupo || typeof grupo !== "object") return;
 
-    if (grupo.orderId === orderId) {
+    if (grupo.orderId === orderId && (soloGrupoId === null || grupoSnap.key === soloGrupoId)) {
       const rutaBase = `reservasGrupos/${grupoSnap.key}`;
 
       updates[`${rutaBase}/estadoPago`] = "pagado";
@@ -630,6 +634,7 @@ if (pedido?.tipo === "pago_grupo_individual") {
             orderId: order,
             uid: pedido.uid,
             paidAt: timestamp,
+            rutas: rutasDelPedido(pedido),
           });
 
           console.log("Primera sesión del bono:", {
@@ -652,10 +657,14 @@ if (pedido?.tipo === "pago_grupo_individual") {
 
         return res.status(200).send("OK");
       }
-      let reservaActualizada = await marcarReservaComoPagadaPorOrderId(order, timestamp);
+      let reservaActualizada = await marcarReservaComoPagadaPorOrderId(
+        order,
+        timestamp,
+        rutasDelPedido(pedido)
+      );
 
-if (!reservaActualizada) {
-  reservaActualizada = await marcarReservaGrupoComoPagada(order, timestamp);
+if (!reservaActualizada && grupoDelPedido(pedido) !== "") {
+  reservaActualizada = await marcarReservaGrupoComoPagada(order, timestamp, grupoDelPedido(pedido));
 }
 
      if (reservaActualizada) {

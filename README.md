@@ -265,8 +265,9 @@ Añadir una clase nueva implica crear ambos archivos, registrar rutas en `App.js
 Usuario logueado → Reserva*.jsx → validación plazas/bloqueos
   → push en reservas/{clase}/{fecha}/{turno}/{metodo}/{id}
      (estado: Pendiente, estadoPago: pendiente)
-  → /resumen-pago → pedidosPendientes/{orderId}
-  → /api/crear-sesion → redirect Redsys
+  → /resumen-pago → /api/codigo-reserva (tipo prepararPago): el servidor crea
+     pedidosPendientes/{orderId} con el importe calculado de la ficha (clases/{id})
+  → /api/crear-sesion?orderId → firma ese importe → redirect Redsys
   → webhook /api/notificacionTPV
   → estado: Confirmada, estadoPago: pagado
   → copia en usuarios/{uid}/listaReservas
@@ -373,9 +374,20 @@ Para los talleres de siempre sin migrar, `/admin-taller?id=…` solo cambia foto
 
 **Creación de sesión:** `GET /api/crear-sesion`
 
-Parámetros: `orderId`, `amountCents`, `okUrl` y, opcional, `mode=json` (devuelve los datos firmados en vez del HTML que redirige). Las URLs de vuelta son siempre `/pago/exito` y `/pago/error` de esta web: de `okUrl` solo se usa el dominio, y solo si es el mismo que recibe la petición (un Preview de Vercel); si no, `APP_BASE_URL`. La URL de notificación la fija el servidor.
+Parámetros: `orderId` (12 dígitos), `okUrl` y, opcional, `mode=json` (devuelve los datos firmados en vez del HTML que redirige). Solo firma pedidos que ha preparado el servidor (`importeServidor: true`, pendientes) y con su `precioTotal`; lo que mande el navegador como importe (`amountCents`, `amount`) no cuenta. Las URLs de vuelta son siempre `/pago/exito` y `/pago/error` de esta web: de `okUrl` solo se usa el dominio, y solo si es el mismo que recibe la petición (un Preview de Vercel); si no, `APP_BASE_URL`. La URL de notificación la fija el servidor.
 
 Redirige automáticamente al TPV de Redsys (`https://sis.redsys.es/sis/realizarPago`).
+
+**Importe y pedido:** `ResumenPago.jsx` llama a `POST /api/codigo-reserva` con `tipo: "prepararPago"` (`src/utils/pagoServidor.js` → `api/_pedidoServidor.js`), y el servidor crea `pedidosPendientes/{orderId}` con el importe calculado a partir de la ficha del taller (`src/utils/precioPedido.js`; un taller de siempre sin migrar se cobra con la ficha que tendría al migrarlo, `fichaParaCobrar` en `src/migracion/parcheTalleres.js`):
+
+| `pedido` | Qué se cobra |
+|----------|--------------|
+| `reserva` | Las reservas pendientes del pedido (una, o una por sesión en talleres de varias sesiones y monográficos): precio por persona de la ficha × plazas. Las apunta en `reservasPedido`: al pagar solo se confirman esas. |
+| `bono` | Precio del bono (más el cambio a torno si la ficha lo permite). El bono que se crea al pagar (`datosBono`) lo construye el servidor. |
+| `grupo` | La reserva de grupo del pedido (`grupoId`): precio por persona de la opción elegida (`opcionTaller`) × personas. |
+| `tarjeta_regalo` | La opción de `/comprar-tarjeta-regalo` (`opcionId`) × plazas. |
+
+Si el importe no coincide con el que enseñaba la pantalla, `ResumenPago` enseña el del servidor y pide confirmar otra vez. El navegador no puede escribir en `pedidosPendientes` (reglas).
 
 **Webhook:** `POST /api/notificacionTPV`
 
@@ -502,7 +514,7 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 
 - **Reglas RTDB no versionadas** en el repositorio. Exportar desde consola y añadir al repo.
 - **Admin autorizado por lista de emails en frontend** (`RutaAdmin.jsx`). Ocultar rutas no impide acceso directo al SDK si las reglas RTDB son permisivas. Valorar custom claims de Firebase.
-- **`/api/crear-sesion`** no autentica al usuario; el importe proviene del pedido pendiente en RTDB.
+- **`/api/crear-sesion`** no autentica al usuario; el importe proviene del pedido que preparó el servidor (`prepararPago`), nunca del navegador.
 
 ### Redsys (ver sección específica más abajo)
 
@@ -572,14 +584,13 @@ Flujo resumido:
 Priorizadas por impacto, sin orden estricto:
 
 1. Versionar y endurecer `database.rules.json` + custom claims admin
-2. Calcular en el servidor el importe que se cobra (pedido creado por la API a partir de `clases/`)
-3. Extraer componente/hook genérico de reserva para eliminar duplicación
-4. Añadir `.env.example` y migrar config Firebase a variables `VITE_*`
-5. Unificar estados (`Confirmada`/`confirmada`) y rutas `tarjetasRegalo`
-6. Transacciones RTDB en pagos de grupo individual
-7. Revisar bloqueo de aforo para grupos en pago parcial
-8. Completar PWA con service worker o documentar que no es offline
-9. Eliminar archivos legacy del repositorio
+2. Extraer componente/hook genérico de reserva para eliminar duplicación
+3. Añadir `.env.example` y migrar config Firebase a variables `VITE_*`
+4. Unificar estados (`Confirmada`/`confirmada`) y rutas `tarjetasRegalo`
+5. Transacciones RTDB en pagos de grupo individual
+6. Revisar bloqueo de aforo para grupos en pago parcial
+7. Completar PWA con service worker o documentar que no es offline
+8. Eliminar archivos legacy del repositorio (Tearium y The Club ya no pueden cobrar: escriben el pedido desde el navegador)
 10. Añadir tests mínimos en webhook y conteo de plazas
 11. Unificar panel admin (un solo dashboard, sidebar, enlazar historial)
 12. Centralizar lista de admins (env var o nodo RTDB protegido)

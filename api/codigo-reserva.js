@@ -9,6 +9,7 @@
 //      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
 //      { tipo: "tarjeta", codigo }  |  { tipo: "canjear", codigo, orderId, bono? }
 //      { tipo: "usarBono", bonoId, fecha, turno }
+//      { tipo: "prepararPago", pedido: "reserva"|"bono"|"grupo"|"tarjeta_regalo", orderId, … }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
 // "cancelacion" (solo admins) deja recuperable una reserva que cancela el estudio y envía
 // el correo de aviso (api/_cancelacionReserva.js).
@@ -17,6 +18,8 @@
 // regalo, confirmar con ella las reservas pendientes de un pedido (y crear el bono, y
 // enviar el correo de confirmación) y reservar una clase de un bono. Las reglas de la
 // base de datos no dejan al navegador escribir tarjetas ni bonos.
+// "prepararPago" crea el pedido con el importe calculado en el servidor, el único que
+// firma api/crear-sesion.js (api/_pedidoServidor.js).
 // Todo vive aquí y no en funciones propias porque Vercel limita a 12 funciones por proyecto.
 //
 // Solo responde al dueño de la reserva (uid del token = uid de la reserva).
@@ -33,6 +36,7 @@ import { reservarConAforo } from "./_reservarServidor.js";
 import { registrarCancelacion } from "./_cancelacionReserva.js";
 import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
 import { esTokenAdministrador } from "../src/utils/administradores.js";
+import { prepararPago } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -88,6 +92,11 @@ export default async function handler(req, res) {
         fecha: cuerpo.fecha,
         turno: cuerpo.turno,
       });
+      return res.status(status).json(resto);
+    }
+
+    if (cuerpo.tipo === "prepararPago") {
+      const { status, ...resto } = await prepararPago(adminDb, uid, cuerpo);
       return res.status(status).json(resto);
     }
 
