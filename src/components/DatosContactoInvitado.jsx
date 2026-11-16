@@ -2,7 +2,7 @@
 // Ventana que pide los datos de contacto justo antes de guardar una reserva o
 // compra sin cuenta. La sesión de invitado se abre aquí, al enviarlos, y no
 // antes: quien solo mira fechas y plazas no deja ninguna cuenta anónima.
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import FormularioDatosContacto from "./FormularioDatosContacto";
 import { iniciarCompraInvitado } from "../utils/invitado";
@@ -25,6 +25,19 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
   // propia en el historial, que se retira al cerrar por otra vía
   const entradaPuesta = useRef(false);
   const cerrando = useRef(false);
+  // Fundido de entrada y salida: el padre desmonta el diálogo, así que la salida
+  // se espera aquí antes de avisarle
+  const [visible, setVisible] = useState(false);
+  const DURACION = 200;
+  const desvanecer = () => {
+    setVisible(false);
+    return new Promise((resolve) => setTimeout(resolve, DURACION));
+  };
+  useEffect(() => {
+    const id = setTimeout(() => setVisible(true), 20);
+    return () => clearTimeout(id);
+  }, []);
+
   const cancelarRef = useRef(onCancelar);
   cancelarRef.current = onCancelar;
 
@@ -37,7 +50,7 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
     const alVolver = () => {
       if (cerrando.current) return;
       entradaPuesta.current = false;
-      cancelarRef.current();
+      desvanecer().then(() => cancelarRef.current());
     };
     window.addEventListener("popstate", alVolver);
     return () => window.removeEventListener("popstate", alVolver);
@@ -54,24 +67,28 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
     });
 
   const cerrar = async () => {
-    await retirarEntrada();
+    await Promise.all([retirarEntrada(), desvanecer()]);
     onCancelar();
   };
 
   const alEnviar = async (datos) => {
     const user = await iniciarCompraInvitado(datos);
-    await retirarEntrada();
+    await Promise.all([retirarEntrada(), desvanecer()]);
     onListo(user);
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4 py-8 overflow-y-auto"
+      className={`fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4 py-8 overflow-y-auto transition-opacity duration-200 ${
+        visible ? "opacity-100" : "opacity-0"
+      }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="datos-contacto-titulo"
     >
-      <div className="relative bg-white max-w-md w-full rounded-2xl shadow-xl p-6">
+      <div className={`relative bg-white max-w-md w-full rounded-2xl shadow-xl p-6 transition-transform duration-200 ${
+          visible ? "scale-100" : "scale-95"
+        }`}>
         <button
           type="button"
           onClick={cerrar}
