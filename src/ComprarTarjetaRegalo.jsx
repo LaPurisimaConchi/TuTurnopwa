@@ -106,6 +106,7 @@ export default function ComprarTarjetaRegalo() {
         claseId: opcionSeleccionada.claseId,
         subtipo: opcionSeleccionada.subtipo || "",
         tipoPieza: opcionSeleccionada.tipoPieza || "",
+        metodo: opcionSeleccionada.metodo || "",
         tipoTaller: opcionSeleccionada.tipoTaller || "",
         rutaReserva: opcionSeleccionada.rutaReserva || "",
         requiereMetodo: opcionSeleccionada.requiereMetodo || false,

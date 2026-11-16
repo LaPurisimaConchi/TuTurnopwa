@@ -179,6 +179,7 @@ const CanjearTarjetaRegalo = () => {
           claseId: tarjeta.claseId || opcionRegalo.claseId,
           subtipo: tarjeta.subtipo || opcionRegalo.subtipo || "",
           tipoPieza: tarjeta.tipoPieza || opcionRegalo.tipoPieza || "",
+          metodo: tarjeta.metodo || "",
           tipoTaller: tarjeta.tipoTaller || opcionRegalo.tipoTaller || "",
           precio: tarjeta.precioTotal || opcionRegalo.precio || 0,
           precioTotal: tarjeta.precioTotal || opcionRegalo.precio || 0,

@@ -420,6 +420,27 @@ export function opcionesRegaloDinamicas(talleres = []) {
       };
 
       if (variantes.length) {
+        // Si algún método suma un extra al precio, una opción por cada tipo + método
+        const metodosConExtra = metodos.some((m) => m.extra > 0);
+        if (metodosConExtra) {
+          variantes.forEach((v) => {
+            metodos.forEach((m) => {
+              opciones.push({
+                ...base,
+                id: `taller-${t.id}-${v.id}-${m.clavePrecio}`,
+                label: `${t.nombre} — ${v.nombre} — ${m.nombre} — ${formatearEuros(v.precio + m.extra)}`,
+                subtipo: `${v.nombre} · ${m.nombre}`,
+                tipoPieza: v.id,
+                metodo: m.id,
+                precio: v.precio + m.extra,
+                requiereMetodo: false,
+                requiereTipoPieza: true,
+              });
+            });
+          });
+          return;
+        }
+
         variantes.forEach((v) => {
           opciones.push({
             ...base,

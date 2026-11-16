@@ -183,7 +183,11 @@ export function FormularioReserva({ claseId, clase }) {
   }, [desdeTarjeta, conVariante, variantes, location.state]);
 
   const metodoTarjeta = useMemo(() => {
-    if (!desdeTarjeta || conVariante) return "";
+    if (!desdeTarjeta) return "";
+    // Tarjeta con método ya elegido (y pagado su extra) junto a la variante
+    if (conVariante) {
+      return metodos.find((m) => m.id === location.state?.metodo)?.id || "";
+    }
     const subtipo = String(location.state?.subtipo || "").trim().toLowerCase();
     return metodos.find((m) => m.nombre.toLowerCase() === subtipo)?.id || "";
   }, [desdeTarjeta, conVariante, location.state, metodos]);
