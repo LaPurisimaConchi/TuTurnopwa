@@ -2,6 +2,7 @@
 // Ventana que pide los datos de contacto justo antes de guardar una reserva o
 // compra sin cuenta. La sesión de invitado se abre aquí, al enviarlos, y no
 // antes: quien solo mira fechas y plazas no deja ninguna cuenta anónima.
+import { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import FormularioDatosContacto from "./FormularioDatosContacto";
 import { iniciarCompraInvitado } from "../utils/invitado";
@@ -20,8 +21,46 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
     },
   };
 
+  // El botón «atrás» del navegador cierra la ventana: se abre con una entrada
+  // propia en el historial, que se retira al cerrar por otra vía
+  const entradaPuesta = useRef(false);
+  const cerrando = useRef(false);
+  const cancelarRef = useRef(onCancelar);
+  cancelarRef.current = onCancelar;
+
+  useEffect(() => {
+    if (!window.history.state?.dialogoContacto) {
+      window.history.pushState({ ...window.history.state, dialogoContacto: true }, "");
+    }
+    entradaPuesta.current = true;
+
+    const alVolver = () => {
+      if (cerrando.current) return;
+      entradaPuesta.current = false;
+      cancelarRef.current();
+    };
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+  }, []);
+
+  // Retira la entrada del historial (si sigue puesta) antes de cerrar o continuar
+  const retirarEntrada = () =>
+    new Promise((resolve) => {
+      if (!entradaPuesta.current) return resolve();
+      cerrando.current = true;
+      entradaPuesta.current = false;
+      window.addEventListener("popstate", () => resolve(), { once: true });
+      window.history.back();
+    });
+
+  const cerrar = async () => {
+    await retirarEntrada();
+    onCancelar();
+  };
+
   const alEnviar = async (datos) => {
     const user = await iniciarCompraInvitado(datos);
+    await retirarEntrada();
     onListo(user);
   };
 
@@ -32,8 +71,16 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
       aria-modal="true"
       aria-labelledby="datos-contacto-titulo"
     >
-      <div className="bg-white max-w-md w-full rounded-2xl shadow-xl p-6">
-        <h2 id="datos-contacto-titulo" className="text-2xl text-tinta font-serif text-center mb-5">
+      <div className="relative bg-white max-w-md w-full rounded-2xl shadow-xl p-6">
+        <button
+          type="button"
+          onClick={cerrar}
+          aria-label="Cerrar"
+          className="absolute top-3 right-3 w-9 h-9 flex items-center justify-center rounded-full text-2xl leading-none text-tinta-suave hover:bg-arena transition"
+        >
+          ×
+        </button>
+        <h2 id="datos-contacto-titulo" className="text-2xl text-tinta font-serif text-center mb-5 px-8">
           ¿Cómo quieres continuar?
         </h2>
 
@@ -69,7 +116,7 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
 
         <button
           type="button"
-          onClick={onCancelar}
+          onClick={cerrar}
           className="w-full mt-4 text-sm text-tinta-suave underline"
         >
           {compra ? "Volver" : "Volver a la reserva"}
