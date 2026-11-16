@@ -80,7 +80,7 @@ export default function TarjetaRegalo() {
 
         <button
           className="mt-4 px-6 py-2.5 rounded-full text-white font-semibold bg-terracota shadow-md hover:shadow-lg hover:bg-terracota-oscuro transition-all duration-200"
-          onClick={() => navigate("/canjear-tarjeta-regalo")}
+          onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
         >
           Canjear código
         </button>

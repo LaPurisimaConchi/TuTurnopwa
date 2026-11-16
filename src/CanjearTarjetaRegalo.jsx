@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import BotonVolver from "./BotonVolver";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 
 const CanjearTarjetaRegalo = () => {
@@ -200,9 +199,6 @@ const CanjearTarjetaRegalo = () => {
   return (
     <div style={styles.body}>
       <div style={styles.container}>
-        <BotonVolver />
-
-        <h2 style={styles.titulo}>Canjear tarjeta regalo</h2>
         <p style={styles.descripcion}>
           Introduce el código de tu tarjeta para acceder a tu taller.
         </p>
@@ -231,21 +227,13 @@ const CanjearTarjetaRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdfaf5",
-    fontFamily: "'Segoe UI', sans-serif",
-    minHeight: "100vh",
-    padding: 20,
     display: "flex",
     justifyContent: "center",
-    alignItems: "center",
   },
   container: {
-    backgroundColor: "white",
-    padding: 24,
-    borderRadius: 16,
+    padding: "8px 0",
     maxWidth: 420,
     width: "100%",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
     textAlign: "center",
   },
   titulo: {
