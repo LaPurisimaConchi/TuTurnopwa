@@ -129,9 +129,6 @@ export default function ComprarTarjetaRegalo() {
           <h1 className="text-3xl font-bold text-tinta font-serif mb-2">
             Comprar tarjeta regalo
           </h1>
-          <p className="text-sm text-tinta-suave">
-            Elige el taller o experiencia que quieres regalar y para cuántas personas.
-          </p>
         </div>
 
         <div className="bg-crema border border-linea rounded-xl p-4 mb-5 text-sm text-tinta">
