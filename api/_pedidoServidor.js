@@ -296,7 +296,7 @@ async function pedidoDeGrupo(db, uid, orderId, cuerpo) {
     return fallo(400, "Número de personas no válido.");
   }
 
-  const unidad = precioGrupoPorPersona(ficha, grupo.opcionTaller);
+  const unidad = precioGrupoPorPersona(ficha, grupo.opcionTaller, grupo.metodoTaller);
   if (!(unidad > 0)) return fallo(409, "No se ha podido calcular el precio del grupo.", { codigo: "sin_precio" });
   const total = redondear(unidad * plazas);
   const ruta = `reservasGrupos/${grupoId}`;

@@ -57,10 +57,15 @@ export function precioBono(clase = {}, { cambioTorno = false } = {}) {
 // Precio por persona de una reserva de grupo (ReservaGrupos): por variante o por
 // método si el taller los tiene; si no, su precio o el más bajo de la ficha.
 // `opcionId` es la variante o el método elegido.
-export function precioGrupoPorPersona(clase = {}, opcionId = "") {
+export function precioGrupoPorPersona(clase = {}, opcionId = "", metodoId = "") {
   const opcion = texto(opcionId);
   const variantes = variantesDelTaller(clase);
-  if (variantes.length) return variantes.find((v) => v.id === opcion)?.precio || 0;
+  if (variantes.length) {
+    const precio = variantes.find((v) => v.id === opcion)?.precio || 0;
+    // Con tipo o tamaño, el método elegido puede sumar un extra
+    const extra = metodosDelTaller(clase).find((m) => m.id === texto(metodoId))?.extra || 0;
+    return precio > 0 ? precio + extra : 0;
+  }
 
   const metodos = metodosDelTaller(clase).filter((m) => m.precio > 0);
   if (metodos.length) return metodos.find((m) => m.id === opcion)?.precio || 0;

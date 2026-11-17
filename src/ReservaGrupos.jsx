@@ -174,7 +174,7 @@ export default function ReservaGrupos() {
   const precioUnitario = !taller
     ? 0
     : opciones.lista.length
-    ? opcion?.precio || 0
+    ? (opcion?.precio || 0) + (opciones.clave === "variante" ? metodo?.extra || 0 : 0)
     : Number(taller.precio) || taller.precioDesde || 0;
 
   const personasNum = Number(personas) || 0;
@@ -418,6 +418,7 @@ export default function ReservaGrupos() {
                 {metodo && (
                   <p>
                     <strong>Método:</strong> {metodo.nombre}
+                    {metodo.extra > 0 && ` (+${formatearEuros(metodo.extra)})`}
                   </p>
                 )}
                 <p className="text-xs text-tinta-suave">
