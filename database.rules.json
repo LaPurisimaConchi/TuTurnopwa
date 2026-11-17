@@ -8,7 +8,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$campo": {
-          ".write": "auth != null && auth.uid === $uid && $campo !== 'bonos' && $campo !== 'tarjetasRegalo'"
+          ".write": "auth != null && auth.uid === $uid && $campo !== 'bonos' && $campo !== 'tarjetasRegalo' && $campo !== 'cuentaAnterior'"
         }
       }
     },
@@ -19,9 +19,9 @@
         "$fecha": {
           "$turno": {
             "$hijo": {
-              ".write": "auth != null && $hijo.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('orderId').isString() && newData.child('procesado').val() !== true && !newData.child('reservadaHasta').exists() && !newData.child('creadaEnMs').exists() && !newData.child('sobreaforo').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists() && !newData.child('cancelacionEstudio').exists() && !newData.child('recuperableHasta').exists() && !newData.child('recuperada').exists() && !newData.child('permitirReprogramar').exists() && !newData.child('tarjetaRegaloId').exists() && !newData.child('codigoTarjeta').exists()",
+              ".write": "auth != null && (auth.token.email_verified === true || auth.token.firebase.sign_in_provider === 'anonymous' || root.child('usuarios').child(auth.uid).child('cuentaAnterior').val() === true) && $hijo.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('orderId').isString() && newData.child('procesado').val() !== true && !newData.child('reservadaHasta').exists() && !newData.child('creadaEnMs').exists() && !newData.child('sobreaforo').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists() && !newData.child('cancelacionEstudio').exists() && !newData.child('recuperableHasta').exists() && !newData.child('recuperada').exists() && !newData.child('permitirReprogramar').exists() && !newData.child('tarjetaRegaloId').exists() && !newData.child('codigoTarjeta').exists()",
               "$reservaId": {
-                ".write": "auth != null && !$hijo.beginsWith('-') && $reservaId.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('orderId').isString() && newData.child('procesado').val() !== true && !newData.child('reservadaHasta').exists() && !newData.child('creadaEnMs').exists() && !newData.child('sobreaforo').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists() && !newData.child('cancelacionEstudio').exists() && !newData.child('recuperableHasta').exists() && !newData.child('recuperada').exists() && !newData.child('permitirReprogramar').exists() && !newData.child('tarjetaRegaloId').exists() && !newData.child('codigoTarjeta').exists()"
+                ".write": "auth != null && (auth.token.email_verified === true || auth.token.firebase.sign_in_provider === 'anonymous' || root.child('usuarios').child(auth.uid).child('cuentaAnterior').val() === true) && !$hijo.beginsWith('-') && $reservaId.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('orderId').isString() && newData.child('procesado').val() !== true && !newData.child('reservadaHasta').exists() && !newData.child('creadaEnMs').exists() && !newData.child('sobreaforo').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists() && !newData.child('cancelacionEstudio').exists() && !newData.child('recuperableHasta').exists() && !newData.child('recuperada').exists() && !newData.child('permitirReprogramar').exists() && !newData.child('tarjetaRegaloId').exists() && !newData.child('codigoTarjeta').exists()"
               }
             }
           }
@@ -32,8 +32,8 @@
       ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
       ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
       "$grupoId": {
-        ".read": "auth != null && data.child('uid').val() === auth.uid",
-        ".write": "auth != null && $grupoId.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('modoPago').val() === 'completo' && newData.child('orderId').isString() && !newData.child('pagosIndividuales').exists() && !newData.child('reservadaHasta').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists()"
+        ".read": "auth != null && (auth.token.email_verified === true || auth.token.firebase.sign_in_provider === 'anonymous' || root.child('usuarios').child(auth.uid).child('cuentaAnterior').val() === true) && data.child('uid').val() === auth.uid",
+        ".write": "auth != null && (auth.token.email_verified === true || auth.token.firebase.sign_in_provider === 'anonymous' || root.child('usuarios').child(auth.uid).child('cuentaAnterior').val() === true) && $grupoId.beginsWith('-') && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('estado').val() === 'Pendiente' && newData.child('estadoPago').val() === 'pendiente' && newData.child('modoPago').val() === 'completo' && newData.child('orderId').isString() && !newData.child('pagosIndividuales').exists() && !newData.child('reservadaHasta').exists() && !newData.child('codigoReserva').exists() && !newData.child('pagoAdmin').exists()"
       }
     },
     "pedidosPendientes": {

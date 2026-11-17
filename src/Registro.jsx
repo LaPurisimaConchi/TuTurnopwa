@@ -8,6 +8,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { ref, update } from "firebase/database";
+import { flujoAuth } from "./utils/guardiaVerificacion";
 import { mensajeErrorAuth } from "./utils/erroresAuth";
 import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth, dbRealtime } from "./firebase";
@@ -77,6 +78,7 @@ export default function Registro() {
   }
 
   setCargando(true);
+  flujoAuth.ocupado += 1;
   try {
     // Si compró como invitado, la sesión anónima se convierte en su cuenta:
     // mismo uid, así conserva reservas, bonos y tarjetas regalo
@@ -102,7 +104,6 @@ export default function Registro() {
         telefono: telefonoLimpio,
         email: emailLimpio,
         invitado: false,
-        requiereVerificacion: true,
         fechaRegistro: new Date().toISOString(),
       });
     } else {
@@ -114,7 +115,6 @@ export default function Registro() {
         telefono: telefonoLimpio,
         email: emailLimpio,
         fechaRegistro: new Date().toISOString(),
-        requiereVerificacion: true,
         reservas: 0,
       });
     }
@@ -136,6 +136,7 @@ export default function Registro() {
       mensajeErrorAuth(error, "No hemos podido crear tu cuenta. Revisa los datos e inténtalo de nuevo.")
     );
   } finally {
+    flujoAuth.ocupado -= 1;
     setCargando(false);
   }
 };

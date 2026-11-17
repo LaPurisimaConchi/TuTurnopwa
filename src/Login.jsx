@@ -5,10 +5,10 @@ import {
   sendPasswordResetEmail,
   signOut,
 } from "firebase/auth";
-import { ref, get } from "firebase/database";
+import { cuentaSinConfirmar, flujoAuth } from "./utils/guardiaVerificacion";
 import { mensajeErrorAuth } from "./utils/erroresAuth";
 import { enviarVerificacionEmail } from "./utils/verificarEmail";
-import { auth, dbRealtime } from "./firebase";
+import { auth } from "./firebase";
 import PantallaConVolver from "./PantallaConVolver";
 
 export default function Login() {
@@ -34,6 +34,7 @@ export default function Login() {
     setMensaje("");
     setSinVerificar(false);
     setCargando(true);
+    flujoAuth.ocupado += 1;
 
     try {
       const { user } = await signInWithEmailAndPassword(
@@ -41,19 +42,14 @@ export default function Login() {
         email.trim().toLowerCase(),
         password
       );
-      // Las cuentas creadas con confirmación de correo no entran hasta confirmarlo;
-      // las anteriores (sin la marca) siguen entrando como siempre
-      if (!user.emailVerified) {
-        await user.reload();
-      }
-      if (!auth.currentUser.emailVerified) {
-        const marca = await get(ref(dbRealtime, `usuarios/${user.uid}/requiereVerificacion`));
-        if (marca.val() === true) {
-          await signOut(auth);
-          setSinVerificar(true);
-          setError("Confirma tu correo para entrar. Te enviamos un enlace al registrarte.");
-          return;
-        }
+      // Las cuentas nuevas no entran hasta confirmar el correo; las anteriores
+      // (con cuentaAnterior) y los administradores verificados entran como siempre
+      if (!user.emailVerified) await user.reload();
+      if (await cuentaSinConfirmar(auth.currentUser)) {
+        await signOut(auth);
+        setSinVerificar(true);
+        setError("Confirma tu correo para entrar. Te enviamos un enlace al registrarte.");
+        return;
       }
       navigate(destino || "/portada", {
         replace: true,
@@ -64,6 +60,7 @@ export default function Login() {
         "No se ha podido iniciar sesión. Revisa el correo y la contraseña."
       );
     } finally {
+      flujoAuth.ocupado -= 1;
       setCargando(false);
     }
   };
@@ -71,6 +68,7 @@ export default function Login() {
   const reenviarVerificacion = async () => {
     setError("");
     setMensaje("");
+    flujoAuth.ocupado += 1;
     try {
       const { user } = await signInWithEmailAndPassword(
         auth,
@@ -82,6 +80,8 @@ export default function Login() {
       setMensaje("Te hemos reenviado el correo de confirmación.");
     } catch (error) {
       setError(mensajeErrorAuth(error, "No se ha podido reenviar el correo. Espera unos minutos e inténtalo de nuevo."));
+    } finally {
+      flujoAuth.ocupado -= 1;
     }
   };
 

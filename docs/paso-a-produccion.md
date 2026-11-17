@@ -6,6 +6,22 @@ Firebase Auth y datos. Proyecto de producción: `la-purisima-conchi` (pasa siemp
 
 Estado comprobado el 16-11-2026. Si pasa mucho tiempo, vuelve a revisar los puntos 1 y 2.
 
+## 0. Confirmación de correo (hacerlo ANTES de fusionar y de desplegar reglas)
+
+Las cuentas nuevas con email y contraseña solo operan con el correo confirmado; las existentes no.
+Para distinguirlas, las existentes llevan `usuarios/{uid}/cuentaAnterior: true` (solo lo escribe el
+servidor). **Si fusionas sin marcarlas, todos los usuarios actuales quedan bloqueados** (la web los
+desconecta y las reglas les niegan reservar).
+
+- [ ] Marcar las cuentas existentes (primero sin `--aplicar` para ver cuántas son; `--hasta` = momento justo antes de fusionar):
+  ```bash
+  FIREBASE_ADMIN_PROJECT_ID=… FIREBASE_ADMIN_CLIENT_EMAIL=… FIREBASE_ADMIN_PRIVATE_KEY=… FIREBASE_DATABASE_URL=… \
+    node scripts/marcar-cuentas-anteriores.mjs --hasta <fecha ISO> --aplicar
+  ```
+- [ ] Authentication → Configuración → Dominios autorizados: el dominio de producción (para que el enlace del correo vuelva a `/login`).
+- [ ] `RESEND_API_KEY` y `CORREO_REMITENTE` en Production (el correo de confirmación usa los mismos que el de reserva).
+- [ ] Repetir el script justo antes de fusionar si se han registrado cuentas desde entonces (se puede repetir sin riesgo).
+
 ## 1. Antes de fusionar
 
 - [ ] **Proveedor Anónimo** activado en Firebase Console → Authentication → Sign-in method.
