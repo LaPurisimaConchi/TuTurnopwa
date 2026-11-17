@@ -201,7 +201,7 @@ const botonSecundario =
 const botonContorno =
   "w-full text-center border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-2.5 px-4 rounded-full transition text-sm";
 
-function Chip({ tono = "neutro", children }) {
+function Chip({ tono = "neutro", className = "", children }) {
   const tonos = {
     verde: "bg-[#e0f0dc] text-[#2f6b2f]",
     ambar: "bg-[#fdebc8] text-[#8a5a00]",
@@ -209,7 +209,7 @@ function Chip({ tono = "neutro", children }) {
     neutro: "bg-arena text-tinta-suave",
   };
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tonos[tono]}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tonos[tono]} ${className}`}>
       {children}
     </span>
   );
@@ -230,14 +230,14 @@ export function SesionPorReservar({ sesion: p, hoy, onReservar }) {
   const yaSePuede = !p.fechaDisponible || !hoy || hoy >= p.fechaDisponible;
   return (
     <li className={tarjetaItem}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold">{p.clase}</p>
           <p className="text-tinta-suave">
             Sesión {p.numeroSesion || 2} · la anterior: {fechaDMA(p.fechaSesionAnterior) || "—"}
           </p>
         </div>
-        <Chip tono={yaSePuede ? "verde" : "ambar"}>
+        <Chip tono={yaSePuede ? "verde" : "ambar"} className="shrink-0">
           {yaSePuede ? "Ya puedes reservarla" : "Aún no disponible"}
         </Chip>
       </div>
@@ -245,8 +245,7 @@ export function SesionPorReservar({ sesion: p, hoy, onReservar }) {
       {!yaSePuede && (
         <p className="mt-2 text-xs text-tinta-suave">
           Todavía no se puede reservar: estará disponible a partir del{" "}
-          <strong>{fechaDMA(p.fechaDisponible)}</strong>. Antes, contacta con el taller para confirmar que tu
-          pieza está lista.
+          <strong>{fechaDMA(p.fechaDisponible)}</strong>.
         </p>
       )}
 
@@ -585,7 +584,7 @@ export default function PerfilUsuario() {
                 {sesionesPend.length > 0 && (
                   <div>
                     <TituloSeccion>Sesiones por reservar</TituloSeccion>
-                    <ul className="grid gap-2 lg:grid-cols-2">
+                    <ul className="grid gap-2">
                       {sesionesPend.map((p) => (
                         <SesionPorReservar
                           key={p.orderId}
@@ -601,7 +600,7 @@ export default function PerfilUsuario() {
                 <div>
                   <TituloSeccion>Próximas reservas</TituloSeccion>
                   {reservasActivas.length > 0 ? (
-                    <ul className="grid gap-2 lg:grid-cols-2">
+                    <ul className="grid gap-2">
                       {reservasActivas.map((r, i) => (
                         <FilaReserva key={i} reserva={r} />
                       ))}
@@ -620,7 +619,7 @@ export default function PerfilUsuario() {
                     </TituloSeccion>
                   </summary>
                   {reservasPasadas.length > 0 ? (
-                    <ul className="grid gap-2 lg:grid-cols-2">
+                    <ul className="grid gap-2">
                       {reservasPasadas.map((r, i) => (
                         <FilaReserva key={i} reserva={r} historial />
                       ))}
