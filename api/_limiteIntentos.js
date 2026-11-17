@@ -28,7 +28,7 @@ export async function limiteAlcanzado(db, nodo, clave, maximo, ventanaMs) {
 }
 
 // Nodos de contadores; el cron semanal (api/limpiar-invitados.js) borra los viejos
-export const NODOS_LIMITES = ["limitesCambioFecha", "limitesTarjetaRegalo", "limitesDisponibilidad"];
+export const NODOS_LIMITES = ["limitesCambioFecha", "limitesTarjetaRegalo", "limitesDisponibilidad", "limitesVerificacionEmail"];
 
 // Borra los contadores que empezaron antes de `antesDeMs` (ya no limitan nada: las
 // ventanas son de minutos u horas). Devuelve cuántos son; con soloContar no borra.

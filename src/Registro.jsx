@@ -4,9 +4,11 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   linkWithCredential,
+  signOut,
   updateProfile,
 } from "firebase/auth";
 import { ref, update } from "firebase/database";
+import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth, dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { leerDatosContacto } from "./utils/invitado";
@@ -20,6 +22,7 @@ export default function Registro() {
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
+  const [emailEnviado, setEmailEnviado] = useState("");
   const esInvitado = !!auth.currentUser?.isAnonymous;
 
   // Un invitado que crea su cuenta ya dejó sus datos al reservar
@@ -94,6 +97,7 @@ export default function Registro() {
         telefono: telefonoLimpio,
         email: emailLimpio,
         invitado: false,
+        requiereVerificacion: true,
         fechaRegistro: new Date().toISOString(),
       });
     } else {
@@ -105,12 +109,15 @@ export default function Registro() {
         telefono: telefonoLimpio,
         email: emailLimpio,
         fechaRegistro: new Date().toISOString(),
+        requiereVerificacion: true,
         reservas: 0,
       });
     }
 
-    const destino = location.state?.from;
-    navigate(destino || "/perfil", { replace: true, state: destino?.state });
+    // La cuenta nueva no se usa hasta confirmar el correo (las anteriores no lo necesitan)
+    await enviarVerificacionEmail(userCredential.user);
+    await signOut(auth);
+    setEmailEnviado(emailLimpio);
   } catch (error) {
     if (
       error?.code === "auth/email-already-in-use" ||
@@ -122,6 +129,31 @@ export default function Registro() {
     setError("Error al registrar: " + error.message);
   }
 };
+
+  if (emailEnviado) {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 text-[#333]">
+        <img src="/img/logoPCsin.png" alt="Logo La Purísima Conchi" className="w-40 mb-6" />
+        <div className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md text-center">
+          <h1 className="text-2xl font-serif text-[#5c2e00] mb-3">Confirma tu correo</h1>
+          <p className="text-sm mb-2">
+            Te hemos enviado un enlace a <strong>{emailEnviado}</strong>. Ábrelo para
+            activar tu cuenta y después inicia sesión.
+          </p>
+          <p className="text-xs text-tinta-suave mb-5">
+            Si no lo ves, revisa la carpeta de spam o correo no deseado.
+          </p>
+          <button
+            type="button"
+            className="w-full py-2 px-4 rounded-full font-semibold text-white bg-terracota hover:bg-terracota-oscuro"
+            onClick={() => navigate("/login", { replace: true, state: location.state })}
+          >
+            Ir a iniciar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center px-4 text-[#333]">

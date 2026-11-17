@@ -3,8 +3,11 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  signOut,
 } from "firebase/auth";
-import { auth } from "./firebase";
+import { ref, get } from "firebase/database";
+import { enviarVerificacionEmail } from "./utils/verificarEmail";
+import { auth, dbRealtime } from "./firebase";
 import PantallaConVolver from "./PantallaConVolver";
 
 export default function Login() {
@@ -22,19 +25,35 @@ export default function Login() {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [sinVerificar, setSinVerificar] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setMensaje("");
+    setSinVerificar(false);
     setCargando(true);
 
     try {
-      await signInWithEmailAndPassword(
+      const { user } = await signInWithEmailAndPassword(
         auth,
         email.trim().toLowerCase(),
         password
       );
+      // Las cuentas creadas con confirmación de correo no entran hasta confirmarlo;
+      // las anteriores (sin la marca) siguen entrando como siempre
+      if (!user.emailVerified) {
+        await user.reload();
+      }
+      if (!auth.currentUser.emailVerified) {
+        const marca = await get(ref(dbRealtime, `usuarios/${user.uid}/requiereVerificacion`));
+        if (marca.val() === true) {
+          await signOut(auth);
+          setSinVerificar(true);
+          setError("Confirma tu correo para entrar. Te enviamos un enlace al registrarte.");
+          return;
+        }
+      }
       navigate(destino || "/portada", {
         replace: true,
         state: destino?.state,
@@ -45,6 +64,23 @@ export default function Login() {
       );
     } finally {
       setCargando(false);
+    }
+  };
+
+  const reenviarVerificacion = async () => {
+    setError("");
+    setMensaje("");
+    try {
+      const { user } = await signInWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+      );
+      await enviarVerificacionEmail(user);
+      await signOut(auth);
+      setMensaje("Te hemos reenviado el correo de confirmación.");
+    } catch (error) {
+      setError("No se ha podido reenviar el correo. Espera unos minutos e inténtalo de nuevo.");
     }
   };
 
@@ -100,6 +136,15 @@ export default function Login() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center">
                 {error}
+                {sinVerificar && (
+                  <button
+                    type="button"
+                    onClick={reenviarVerificacion}
+                    className="block mx-auto mt-2 font-semibold underline"
+                  >
+                    Reenviar correo de confirmación
+                  </button>
+                )}
               </div>
             )}
 
