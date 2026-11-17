@@ -5,9 +5,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 import {
-  cargarGaleria,
-  cargarMiniatura,
-  imagenPorDefecto,
   cargarTalleres,
   filtrarOpcionesRegaloEstaticas,
   metodosDelTaller,
@@ -30,27 +27,6 @@ export default function ComprarTarjetaRegalo() {
   const [plazas, setPlazas] = useState(1);
   // Todos los talleres (ocultos incluidos); null mientras se cargan
   const [talleres, setTalleres] = useState(null);
-
-  // Imagen principal del taller de origen: galería, miniatura o la de por defecto
-  const [imagenTaller, setImagenTaller] = useState("");
-
-  useEffect(() => {
-    if (!tallerPreseleccionado) return;
-    let activo = true;
-    const cargar = async () => {
-      const galeria = await cargarGaleria(tallerPreseleccionado).catch(() => []);
-      let src = galeria.find((img) => img.src)?.src || "";
-      if (!src) {
-        const mini = await cargarMiniatura(tallerPreseleccionado).catch(() => null);
-        src = (typeof mini === "string" ? mini : mini?.src) || "";
-      }
-      if (activo) setImagenTaller(src || imagenPorDefecto(tallerPreseleccionado));
-    };
-    cargar();
-    return () => {
-      activo = false;
-    };
-  }, [tallerPreseleccionado]);
 
   useEffect(() => {
     cargarTalleres({ incluirOcultos: true })
@@ -193,13 +169,6 @@ export default function ComprarTarjetaRegalo() {
         <div className="space-y-5">
           {modoTaller ? (
             <div className="rounded-2xl overflow-hidden border border-linea bg-crema">
-              {imagenTaller && (
-                <img
-                  src={imagenTaller}
-                  alt={opcionesDelTaller[0].clase}
-                  className="w-full h-56 sm:h-72 object-cover"
-                />
-              )}
               <div className="p-4 text-center">
                 <p className="text-xs uppercase tracking-wide text-tinta-suave mb-1">
                   Regalas
