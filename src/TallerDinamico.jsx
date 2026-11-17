@@ -359,10 +359,18 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="relative overflow-hidden w-full px-4 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-white/70 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-5 before:bg-white/15 before:pointer-events-none"
+                className="relative overflow-hidden w-full pl-11 pr-3 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-white/70 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-5 before:w-4 before:bg-[#f7d6e6] before:border-x before:border-[#e9a9c8] before:pointer-events-none"
                 style={{ backgroundImage: PATRON_REGALO }}
               >
-                <span className="relative"><Icono nombre="regalo" color="currentColor" className="mr-1" />Regalar este taller</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 28 20"
+                  className="absolute left-[13px] top-1/2 -translate-y-1/2 w-7 h-5 pointer-events-none"
+                >
+                  <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#f7d6e6" stroke="#d98ab4" strokeWidth="1" strokeLinejoin="round" />
+                  <rect x="11.500" y="7.500" width="5" height="5" rx="1.500" fill="#fff" stroke="#d98ab4" strokeWidth="1" />
+                </svg>
+                <span className="relative whitespace-nowrap">Regalar este taller</span>
               </button>
             )}
             </div>
