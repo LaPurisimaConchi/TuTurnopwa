@@ -25,6 +25,7 @@ export default function Registro() {
   const [error, setError] = useState("");
   const [emailEnviado, setEmailEnviado] = useState("");
   const [correoFallido, setCorreoFallido] = useState(false);
+  const [cargando, setCargando] = useState(false);
   const esInvitado = !!auth.currentUser?.isAnonymous;
 
   // Un invitado que crea su cuenta ya dejó sus datos al reservar
@@ -47,6 +48,7 @@ export default function Registro() {
 
  const handleRegistro = async (e) => {
   e.preventDefault();
+  if (cargando) return;
   setError("");
 
   const nombreLimpio = nombre.trim();
@@ -74,6 +76,7 @@ export default function Registro() {
     return;
   }
 
+  setCargando(true);
   try {
     // Si compró como invitado, la sesión anónima se convierte en su cuenta:
     // mismo uid, así conserva reservas, bonos y tarjetas regalo
@@ -132,6 +135,8 @@ export default function Registro() {
     setError(
       mensajeErrorAuth(error, "No hemos podido crear tu cuenta. Revisa los datos e inténtalo de nuevo.")
     );
+  } finally {
+    setCargando(false);
   }
 };
 
@@ -277,9 +282,10 @@ export default function Registro() {
 
         <button
           type="submit"
-          className="bg-terracota hover:bg-terracota-oscuro text-white font-bold text-lg py-3 rounded-full"
+          disabled={cargando}
+          className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-full"
         >
-          Registrarse
+          {cargando ? "Creando tu cuenta..." : "Registrarse"}
         </button>
 
         <div className="text-sm text-center mt-2">
