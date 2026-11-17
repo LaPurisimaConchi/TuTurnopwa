@@ -8,6 +8,7 @@
 //      { tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar? }
 //      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
 //      { tipo: "tarjeta", codigo }  |  { tipo: "canjear", codigo, orderId, bono? }
+//      { tipo: "restablecerContrasena", email }  (sin sesión: correo de «has olvidado tu contraseña»)
 //      { tipo: "verificarEmail" }  (correo para confirmar el email de la cuenta)
 //      { tipo: "usarBono", bonoId, fecha, turno }
 //      { tipo: "sesionesPendientes" }  |  { tipo: "siguienteSesion", orderId, fecha, turno }
@@ -40,7 +41,7 @@ import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js"
 import { reservarSiguienteSesion, sesionesPendientes } from "./_sesionesServidor.js";
 import { esTokenAdministrador } from "../src/utils/administradores.js";
 import { cuentaActiva } from "./_cuentaActiva.js";
-import { enviarCorreoVerificacion } from "./_correoVerificacion.js";
+import { enviarCorreoRestablecer, enviarCorreoVerificacion } from "./_correoVerificacion.js";
 import { prepararPago } from "./_pedidoServidor.js";
 import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.js";
 
@@ -69,6 +70,14 @@ async function conLimiteDeTarjeta(req, res, comprobar) {
   return res.status(status).json(resto);
 }
 
+// Web desde la que se llama (https://dominio). El enlace del correo de confirmación vuelve
+// a ella; sale de la cabecera Host, que fija Vercel según el dominio, no del cuerpo.
+function origenDeLaWeb(req) {
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+  if (!/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return "";
+  return `${/^(localhost|127\.0\.0\.1)(:|$)/i.test(host) ? "http" : "https"}://${host}`;
+}
+
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
 
@@ -80,6 +89,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    // «¿Has olvidado tu contraseña?»: sin sesión (quien lo pide no puede entrar)
+    const cuerpoPublico = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
+    if (cuerpoPublico.tipo === "restablecerContrasena") {
+      const { status, ...resto } = await enviarCorreoRestablecer(cuerpoPublico.email, {
+        origen: origenDeLaWeb(req),
+        ip: ipDe(req),
+      });
+      return res.status(status).json(resto);
+    }
+
     const token = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return res.status(401).json({ ok: false, error: "Autenticación requerida" });
 
@@ -104,7 +123,7 @@ export default async function handler(req, res) {
     // Correo de confirmación del email de la cuenta (registro y reenvío desde el login):
     // es lo único que puede hacer una cuenta nueva sin confirmar
     if (cuerpo.tipo === "verificarEmail") {
-      const { status, ...resto } = await enviarCorreoVerificacion(uid);
+      const { status, ...resto } = await enviarCorreoVerificacion(uid, { origen: origenDeLaWeb(req) });
       return res.status(status).json(resto);
     }
 
