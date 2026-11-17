@@ -55,10 +55,10 @@ const SECCIONES_ACCESOS = [
 ];
 
 const TARJETAS = [
-  { campo: "reservasTotales", etiqueta: "Reservas totales", to: "/admin-reservas-nuevo" },
-  { campo: "clasesActivas", etiqueta: "Clases activas", to: "/admin-clases" },
-  { campo: "usuariosTotales", etiqueta: "Usuarios", to: "/admin-usuarios-nuevo" },
-  { campo: "ingresosEstimados", etiqueta: "Ingresos estimados", formato: formatearEuros },
+  { campo: "reservasTotales", etiqueta: "Reservas totales", icono: "reservas", tono: "terracota", to: "/admin-reservas-nuevo" },
+  { campo: "clasesActivas", etiqueta: "Clases activas", icono: "taller", tono: "verde", to: "/admin-clases" },
+  { campo: "usuariosTotales", etiqueta: "Usuarios", icono: "usuarios", tono: "azul", to: "/admin-usuarios-nuevo" },
+  { campo: "ingresosEstimados", etiqueta: "Ingresos estimados", icono: "euro", tono: "mostaza", formato: formatearEuros },
 ];
 
 const AdminDashboard = () => {
@@ -136,10 +136,15 @@ const AdminDashboard = () => {
         )}
 
         <div className="pa-grid" aria-busy={cargando}>
-          {TARJETAS.map(({ campo, etiqueta, to, formato }) => {
+          {TARJETAS.map(({ campo, etiqueta, icono, tono, to, formato }) => {
             const contenido = (
               <>
-                <p className="pa-card-label">{etiqueta}</p>
+                <div className="pa-card-cabecera">
+                  <span aria-hidden="true" className={`pa-card-icono pa-card-icono--${tono}`}>
+                    <Icono nombre={icono} tamano={24} />
+                  </span>
+                  <p className="pa-card-label">{etiqueta}</p>
+                </div>
                 <p className="pa-card-valor">{valor(campo, formato)}</p>
                 {campo === "reservasTotales" && (
                   <p className="pa-card-nota">

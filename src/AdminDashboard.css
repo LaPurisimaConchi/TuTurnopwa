@@ -39,37 +39,85 @@
 }
 
 .pa-card {
-  display: block;
+  position: relative;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
-  background-color: #fff6d6;
+  min-height: 132px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #fffaf0 0%, #fff6d6 100%);
   border: 1px solid #eadfd2;
   border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(63, 49, 40, 0.06);
   color: inherit;
   text-decoration: none;
 }
 
+.pa-card-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pa-card-icono {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(63, 49, 40, 0.12);
+}
+
+.pa-card-icono--terracota { background: #f6e1d6; }
+.pa-card-icono--verde { background: #dcefe2; }
+.pa-card-icono--azul { background: #dce9f3; }
+.pa-card-icono--mostaza { background: #fbecc2; }
+
 .pa-card-label {
   margin: 0;
+  padding-right: 14px;
   color: #3f3128;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.95rem;
+  line-height: 1.2;
 }
 
 .pa-card-valor {
-  margin: 12px 0 0;
-  color: #333;
-  font-size: 2rem;
-  font-weight: bold;
+  margin: auto 0 0;
+  padding-top: 12px;
+  color: #3f3128;
+  font-size: 2.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
   min-height: 1.2em;
 }
 
 .pa-card-nota {
   margin: 6px 0 0;
-  color: #3f3128;
+  color: #7a6a5c;
   font-size: 0.8rem;
   min-height: 1.2em;
+}
+
+.pa-card-nota:empty {
+  display: none;
+}
+
+/* Flecha: avisa de que la casilla se puede tocar */
+.pa-card[href]::after {
+  content: "\203A";
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: #b59a52;
+  font-size: 1.4rem;
+  font-weight: bold;
+  line-height: 1;
 }
 
 .pa-skeleton {
@@ -290,17 +338,27 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 96px;
+    min-height: 120px;
     padding: 14px 14px 12px;
     border-radius: 16px;
   }
 
+  .pa-card-cabecera {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pa-card-icono {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
   .pa-card-label {
     padding-right: 14px; /* deja sitio a la flecha de las casillas que abren una lista */
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     line-height: 1.25;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
   }
 
   .pa-card-valor {
