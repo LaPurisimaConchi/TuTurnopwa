@@ -324,7 +324,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 </p>
               )}
               {exigeCuenta(clase) && (
-                <p className="text-xs text-tinta-suave mt-2">
+                <p className="text-xs text-tinta-suave mt-2 mb-4">
                   {esBono
                     ? "Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil."
                     : "Para reservar este taller necesitas una cuenta."}

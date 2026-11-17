@@ -128,6 +128,13 @@ export default function Login() {
             <p className="text-sm sm:text-base text-[#7a6a58] text-center mt-2">
               Accede a tu cuenta para gestionar tus reservas.
             </p>
+
+            {location.state?.requiereCuenta && (
+              <p className="mt-3 rounded-xl border border-linea bg-crema px-4 py-3 text-sm text-tinta text-center">
+                Para continuar necesitas una cuenta: las reservas de este producto se gestionan desde
+                tu perfil. Inicia sesión o crea una cuenta.
+              </p>
+            )}
           </div>
 
           <form
@@ -224,17 +231,35 @@ export default function Login() {
               </button>
             </div>
 
-            <div className="text-sm text-center mt-1">
-              ¿No tienes cuenta?{" "}
+            {!location.state?.requiereCuenta && (
+              <div className="text-sm text-center mt-1">
+                ¿No tienes cuenta?{" "}
+                <button
+                  type="button"
+                  className="text-blue-700 font-bold"
+                  onClick={() => navigate("/registro", { state: location.state })}
+                >
+                  Regístrate aquí
+                </button>
+              </div>
+            )}
+          </form>
+
+          {location.state?.requiereCuenta && (
+            <div className="mt-4 w-full rounded-2xl border-2 border-terracota bg-terracota-suave p-4 sm:p-5 text-center">
+              <p className="font-serif text-lg font-bold text-tinta">¿Todavía no tienes cuenta?</p>
+              <p className="text-sm text-tinta-suave mt-1 mb-3">
+                Créala en un minuto y vuelve directamente a tu reserva.
+              </p>
               <button
                 type="button"
-                className="text-blue-700 font-bold"
                 onClick={() => navigate("/registro", { state: location.state })}
+                className="w-full rounded-full bg-terracota px-6 py-3 font-semibold text-white shadow-md transition hover:bg-terracota-oscuro"
               >
-                Regístrate aquí
+                Crear cuenta
               </button>
             </div>
-          </form>
+          )}
         </div>
       </div>
     </PantallaConVolver>

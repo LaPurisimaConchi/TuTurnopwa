@@ -4,12 +4,13 @@
 // con cuenta. La pantalla de dentro se monta ya con sesión, para que pueda
 // leer fechas bloqueadas, plazas, etc. (las reglas piden auth != null).
 // - requiereCuenta (bonos y talleres que se gestionan desde el perfil): no se
-//   ofrece la compra de invitado, hace falta iniciar sesión o crear cuenta.
+//   ofrece la compra de invitado; se lleva directamente a iniciar sesión, donde
+//   también se ofrece crear una cuenta.
 // - permitirVisita: la pantalla se monta sin sesión y es ella la que pide los
 //   datos al guardar (DatosContactoInvitado); lee la disponibilidad de
 //   /api/disponibilidad. Así mirar fechas no crea ninguna cuenta anónima.
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useParams } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, dbRealtime } from "./firebase";
@@ -147,46 +148,10 @@ export default function AccesoCompra({
     },
   };
 
+  // Producto que exige cuenta: se va directo a iniciar sesión (que ofrece crear una
+  // cuenta) y se vuelve aquí al entrar
   if (estado === "cuenta") {
-    return (
-      <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
-        <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
-          <BotonVolver />
-
-          <div className="text-center mb-5">
-            <img
-              src="/img/logoPCsin.png"
-              alt="La Purísima Conchi"
-              className="w-20 mx-auto mb-3"
-            />
-            <h1 className="text-2xl text-tinta font-serif">
-              Necesitas una cuenta
-            </h1>
-            <p className="text-sm text-tinta-suave mt-2">
-              Las reservas de este producto se gestionan desde tu perfil, así
-              que necesitas iniciar sesión o crear una cuenta para continuar.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3 justify-center">
-            <Link
-              to="/login"
-              state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-full border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              to="/registro"
-              state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
-            >
-              Crear cuenta
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
+    return <Navigate to="/login" state={{ ...volverAqui, requiereCuenta: true }} replace />;
   }
 
   return (
