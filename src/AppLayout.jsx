@@ -4,6 +4,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import Footer from "./Footer";
 import Header from "./Header";
 import PageContainer from "./PageContainer";
+import BotonWhatsApp from "./components/BotonWhatsApp";
 
 export default function AppLayout() {
   const location = useLocation();
@@ -31,6 +32,9 @@ export default function AppLayout() {
 
       {/* Footer visible en portada y en el resto, excepto donde lo ocultas */}
       {(!ocultarFooterEn.includes(location.pathname)) && <Footer />}
+
+      {/* Botón flotante de WhatsApp: en todas las páginas menos el panel de admin */}
+      {!location.pathname.startsWith("/admin") && <BotonWhatsApp />}
     </div>
   );
 }
