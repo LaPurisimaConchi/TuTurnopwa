@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import { auth, dbRealtime } from "./firebase";
 import { ref, get } from "firebase/database";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import Footer from "./Footer";
+import BarraDeslizable from "./components/BarraDeslizable";
 import PantallaConVolver from "./PantallaConVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
@@ -273,24 +274,6 @@ export default function PerfilUsuario() {
   const [bonos, setBonos] = useState([]);
   const [esInvitado, setEsInvitado] = useState(false);
   const [pestana, setPestana] = useState("reservas");
-  // Avisa de que las pestañas se pueden deslizar: hay más a la izquierda o a la derecha
-  const barraPestanas = useRef(null);
-  const [masIzquierda, setMasIzquierda] = useState(false);
-  const [masDerecha, setMasDerecha] = useState(false);
-
-  const medirPestanas = () => {
-    const el = barraPestanas.current;
-    if (!el) return;
-    setMasIzquierda(el.scrollLeft > 4);
-    setMasDerecha(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  };
-
-  useEffect(() => {
-    medirPestanas();
-    window.addEventListener("resize", medirPestanas);
-    return () => window.removeEventListener("resize", medirPestanas);
-  });
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -511,14 +494,7 @@ export default function PerfilUsuario() {
 
           {/* Derecha: contenido por pestañas */}
           <section className="min-w-0">
-            <div className="relative mb-4">
-              <div
-                ref={barraPestanas}
-                onScroll={medirPestanas}
-                role="tablist"
-                className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1"
-                style={{ scrollbarWidth: "none" }}
-              >
+            <BarraDeslizable role="tablist" claseExterior="mb-4" className="gap-2 -mx-1 px-1">
                 {pestanas.map((t) => (
                   <button
                     key={t.id}
@@ -539,25 +515,7 @@ export default function PerfilUsuario() {
                     {t.cuenta > 0 ? ` (${t.cuenta})` : ""}
                   </button>
                 ))}
-              </div>
-
-              {masIzquierda && (
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent flex items-center"
-                >
-                  <span className="text-xl font-bold text-terracota leading-none pb-1">‹</span>
-                </div>
-              )}
-              {masDerecha && (
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white via-white/90 to-transparent flex items-center justify-end"
-                >
-                  <span className="text-xl font-bold text-terracota leading-none pb-1">›</span>
-                </div>
-              )}
-            </div>
+            </BarraDeslizable>
 
             {pestana === "reservas" && (
               <div className="space-y-5">
