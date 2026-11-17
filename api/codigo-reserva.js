@@ -10,6 +10,7 @@
 //      { tipo: "tarjeta", codigo }  |  { tipo: "canjear", codigo, orderId, bono? }
 //      { tipo: "verificarEmail" }  (correo para confirmar el email de la cuenta)
 //      { tipo: "usarBono", bonoId, fecha, turno }
+//      { tipo: "sesionesPendientes" }  |  { tipo: "siguienteSesion", orderId, fecha, turno }
 //      { tipo: "prepararPago", pedido: "reserva"|"bono"|"grupo"|"tarjeta_regalo", orderId, … }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
 // "cancelacion" (solo admins) deja recuperable una reserva que cancela el estudio y envía
@@ -36,6 +37,7 @@ import { esReservaValida } from "../src/utils/plazasOcupadas.js";
 import { reservarConAforo } from "./_reservarServidor.js";
 import { registrarCancelacion } from "./_cancelacionReserva.js";
 import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
+import { reservarSiguienteSesion, sesionesPendientes } from "./_sesionesServidor.js";
 import { esTokenAdministrador } from "../src/utils/administradores.js";
 import { cuentaActiva } from "./_cuentaActiva.js";
 import { enviarCorreoVerificacion } from "./_correoVerificacion.js";
@@ -131,6 +133,21 @@ export default async function handler(req, res) {
     if (cuerpo.tipo === "usarBono") {
       const { status, ...resto } = await usarBono(adminDb, uid, {
         bonoId: cuerpo.bonoId,
+        fecha: cuerpo.fecha,
+        turno: cuerpo.turno,
+      });
+      return res.status(status).json(resto);
+    }
+
+    // Taller de varias sesiones reservado solo con la primera: lista y reserva las siguientes
+    if (cuerpo.tipo === "sesionesPendientes") {
+      const { status, ...resto } = await sesionesPendientes(adminDb, uid);
+      return res.status(status).json(resto);
+    }
+
+    if (cuerpo.tipo === "siguienteSesion") {
+      const { status, ...resto } = await reservarSiguienteSesion(adminDb, uid, {
+        orderId: cuerpo.orderId,
         fecha: cuerpo.fecha,
         turno: cuerpo.turno,
       });
