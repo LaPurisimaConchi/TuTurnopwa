@@ -17,6 +17,9 @@ const token = (claims) => `${b64({ alg: "none", typ: "JWT" })}.${b64({
 
 const ANON_A = token({ sub: "uidA", user_id: "uidA", firebase: { sign_in_provider: "anonymous" } });
 const USER_B = token({ sub: "uidB", user_id: "uidB", email: "b@example.com", email_verified: true, firebase: { sign_in_provider: "password" } });
+const NUEVA_SIN = token({ sub: "uidN", user_id: "uidN", email: "n@example.com", email_verified: false, firebase: { sign_in_provider: "password" } });
+const NUEVA_OK = token({ sub: "uidN", user_id: "uidN", email: "n@example.com", email_verified: true, firebase: { sign_in_provider: "password" } });
+const ANTERIOR_SIN = token({ sub: "uidV", user_id: "uidV", email: "v@example.com", email_verified: false, firebase: { sign_in_provider: "password" } });
 const ADMIN_SIN = token({ sub: "uidAdm", user_id: "uidAdm", email: "lapurisimaconchioficial@gmail.com", email_verified: false, firebase: { sign_in_provider: "password" } });
 const ADMIN = token({ sub: "uidAdm", user_id: "uidAdm", email: "lapurisimaconchioficial@gmail.com", email_verified: true, firebase: { sign_in_provider: "password" } });
 const ADMIN_PANABUNTU_SIN = token({ sub: "uidPan", user_id: "uidPan", email: "panabuntu@gmail.com", email_verified: false, firebase: { sign_in_provider: "password" } });
@@ -53,7 +56,7 @@ await pedir("PUT", "", "owner", {
     "-Existente": pendiente("uidA", { estado: "Confirmada", estadoPago: "pagado" }),
     torno: { "-ExistenteTorno": pendiente("uidB") },
   } } } },
-  usuarios: { uidA: { nombre: "A", bonos: { b1: { clasesRestantes: 1 } } }, uidB: { nombre: "B" } },
+  usuarios: { uidV: { nombre: "V", cuentaAnterior: true }, uidN: { nombre: "N" }, uidA: { nombre: "A", bonos: { b1: { clasesRestantes: 1 } } }, uidB: { nombre: "B" } },
   reservasGrupos: { "-G2": { uid: "uidB", estado: "Pendiente" } },
   tarjetasRegalo: { "794082140983": { codigo: "REGALO-X", usado: false } },
   codigosTarjetaRegalo: { "REGALO-X": "794082140983" },
@@ -163,6 +166,21 @@ await caso("editar un taller", true, pedir("PUT", "clases/Taller/nombre", ADMIN,
 await caso("leer pedidosPendientes", true, pedir("GET", "pedidosPendientes", ADMIN));
 await caso("leer codigosReserva (solo servidor)", false, pedir("GET", "codigosReserva", ADMIN));
 await caso("leer limitesTarjetaRegalo (solo servidor)", false, pedir("GET", "limitesTarjetaRegalo", ADMIN));
+
+console.log("— Cuenta nueva sin confirmar el correo (uidN)");
+await caso("leer su perfil", true, pedir("GET", "usuarios/uidN", NUEVA_SIN));
+await caso("guardar su perfil", true, pedir("PATCH", "usuarios/uidN", NUEVA_SIN, { nombre: "N2", telefono: "600" }));
+await caso("ponerse cuentaAnterior", false, pedir("PUT", "usuarios/uidN/cuentaAnterior", NUEVA_SIN, true));
+await caso("crear reserva pendiente", false, pedir("PUT", `${F}/-NuevaN`, NUEVA_SIN, pendiente("uidN")));
+await caso("crear grupo pendiente", false, pedir("PUT", "reservasGrupos/-GN", NUEVA_SIN, { uid: "uidN", estado: "Pendiente", estadoPago: "pendiente", modoPago: "completo", orderId: "1", plazas: 6 }));
+
+console.log("— Cuenta nueva con el correo confirmado");
+await caso("crear reserva pendiente", true, pedir("PUT", `${F}/-NuevaN2`, NUEVA_OK, pendiente("uidN")));
+await caso("ponerse cuentaAnterior", false, pedir("PUT", "usuarios/uidN/cuentaAnterior", NUEVA_OK, true));
+
+console.log("— Cuenta anterior sin verificar (uidV, con cuentaAnterior)");
+await caso("crear reserva pendiente", true, pedir("PUT", `${F}/-AnteriorV`, ANTERIOR_SIN, pendiente("uidV")));
+await caso("quitarse cuentaAnterior", false, pedir("DELETE", "usuarios/uidV/cuentaAnterior", ANTERIOR_SIN));
 
 console.log(fallos ? `\n${fallos} caso(s) no cumplen lo esperado` : "\nTodas las reglas se comportan como se espera");
 process.exit(fallos ? 1 : 0);

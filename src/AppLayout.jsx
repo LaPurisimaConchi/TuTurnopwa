@@ -5,9 +5,11 @@ import Footer from "./Footer";
 import Header from "./Header";
 import PageContainer from "./PageContainer";
 import BotonWhatsApp from "./components/BotonWhatsApp";
+import { useGuardiaVerificacion } from "./utils/guardiaVerificacion";
 
 export default function AppLayout() {
   const location = useLocation();
+  useGuardiaVerificacion();
   const ocultarFooterEn = ["/perfil"];
 
   // ✅ Rutas que NO deben ir dentro de PageContainer (portada y el calendario del

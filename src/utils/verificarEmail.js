@@ -6,7 +6,11 @@ import { llamar } from "./canjeServidor";
 
 export async function enviarVerificacionEmail(usuario) {
   try {
-    await llamar({ tipo: "verificarEmail" });
+    // Sin respuesta en 12 s se pasa al correo de Firebase en vez de dejar la pantalla colgada
+    await Promise.race([
+      llamar({ tipo: "verificarEmail" }),
+      new Promise((_, rechazar) => setTimeout(() => rechazar(new Error("Tiempo agotado")), 12000)),
+    ]);
   } catch (error) {
     console.warn("Verificación por correo propio fallida, uso el de Firebase:", error);
     await sendEmailVerification(usuario);
