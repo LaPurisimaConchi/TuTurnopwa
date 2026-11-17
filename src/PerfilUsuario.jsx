@@ -6,6 +6,7 @@ import { ref, get } from "firebase/database";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import Footer from "./Footer";
 import BarraDeslizable from "./components/BarraDeslizable";
+import { sesionesPendientes as cargarSesionesPendientes } from "./utils/canjeServidor";
 import PantallaConVolver from "./PantallaConVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
@@ -223,6 +224,44 @@ function TituloSeccion({ children, aside }) {
   );
 }
 
+// Siguiente sesión de un taller de varias sesiones: se ve siempre; el botón se activa
+// cuando llega la fecha a partir de la que se puede reservar
+export function SesionPorReservar({ sesion: p, hoy, onReservar }) {
+  const yaSePuede = !p.fechaDisponible || !hoy || hoy >= p.fechaDisponible;
+  return (
+    <li className={tarjetaItem}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{p.clase}</p>
+          <p className="text-tinta-suave">
+            Sesión {p.numeroSesion || 2} · la anterior: {fechaDMA(p.fechaSesionAnterior) || "—"}
+          </p>
+        </div>
+        <Chip tono={yaSePuede ? "verde" : "ambar"}>
+          {yaSePuede ? "Ya puedes reservarla" : "Aún no disponible"}
+        </Chip>
+      </div>
+
+      {!yaSePuede && (
+        <p className="mt-2 text-xs text-tinta-suave">
+          Todavía no se puede reservar: estará disponible a partir del{" "}
+          <strong>{fechaDMA(p.fechaDisponible)}</strong>. Antes, contacta con el taller para confirmar que tu
+          pieza está lista.
+        </p>
+      )}
+
+      <button
+        type="button"
+        disabled={!yaSePuede}
+        onClick={onReservar}
+        className="mt-3 w-full px-4 py-2.5 bg-terracota hover:bg-terracota-oscuro text-white font-semibold rounded-full transition text-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-terracota"
+      >
+        Reservar sesión {p.numeroSesion || 2}
+      </button>
+    </li>
+  );
+}
+
 // Una reserva en las listas: fecha destacada, taller y turno
 function FilaReserva({ reserva, historial = false }) {
   const cancelada = esReservaCancelada(reserva);
@@ -274,6 +313,9 @@ export default function PerfilUsuario() {
   const [bonos, setBonos] = useState([]);
   const [esInvitado, setEsInvitado] = useState(false);
   const [pestana, setPestana] = useState("reservas");
+  // Talleres de varias sesiones reservados solo con la primera: sesiones por reservar
+  const [sesionesPend, setSesionesPend] = useState([]);
+  const [hoyServidor, setHoyServidor] = useState("");
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -381,6 +423,16 @@ export default function PerfilUsuario() {
           setBonos(listaBonos);
         } else {
           setBonos([]);
+        }
+
+        // Las siguientes sesiones de talleres de varias sesiones (si falla, no se muestran)
+        try {
+          const pendientes = await cargarSesionesPendientes();
+          setSesionesPend(pendientes.sesiones || []);
+          setHoyServidor(pendientes.hoy || "");
+        } catch (errorSesiones) {
+          console.error("No se pudieron cargar las sesiones pendientes:", errorSesiones);
+          setSesionesPend([]);
         }
       } else {
         navigate("/login", { state: { from: { pathname: "/perfil" } }, replace: true });
@@ -527,6 +579,22 @@ export default function PerfilUsuario() {
                     <button onClick={() => navigate("/portada")} className={`${botonContorno} mt-3 sm:w-auto`}>
                       Reservar un taller
                     </button>
+                  </div>
+                )}
+
+                {sesionesPend.length > 0 && (
+                  <div>
+                    <TituloSeccion>Sesiones por reservar</TituloSeccion>
+                    <ul className="grid gap-2 lg:grid-cols-2">
+                      {sesionesPend.map((p) => (
+                        <SesionPorReservar
+                          key={p.orderId}
+                          sesion={p}
+                          hoy={hoyServidor}
+                          onReservar={() => navigate(`/reservar-siguiente-sesion/${p.orderId}`)}
+                        />
+                      ))}
+                    </ul>
                   </div>
                 )}
 
