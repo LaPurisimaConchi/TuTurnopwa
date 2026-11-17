@@ -15,8 +15,7 @@ desconecta y las reglas les niegan reservar).
 
 - [ ] Marcar las cuentas existentes (primero sin `--aplicar` para ver cuántas son; `--hasta` = momento justo antes de fusionar):
   ```bash
-  FIREBASE_ADMIN_PROJECT_ID=… FIREBASE_ADMIN_CLIENT_EMAIL=… FIREBASE_ADMIN_PRIVATE_KEY=… FIREBASE_DATABASE_URL=… \
-    node scripts/marcar-cuentas-anteriores.mjs --hasta <fecha ISO> --aplicar
+  node scripts/marcar-cuentas-anteriores.mjs --project la-purisima-conchi --hasta <fecha ISO> --aplicar
   ```
 - [ ] Authentication → Configuración → Dominios autorizados: el dominio de producción (para que el enlace del correo vuelva a `/login`).
 - [ ] `RESEND_API_KEY` y `CORREO_REMITENTE` en Production (el correo de confirmación usa los mismos que el de reserva).

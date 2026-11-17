@@ -6,65 +6,90 @@
 //
 // Hay que ejecutarlo ANTES de desplegar las reglas nuevas y de fusionar en producción.
 //
-// Uso (credenciales de administrador en las variables de entorno, como en Vercel):
-//   FIREBASE_ADMIN_PROJECT_ID=… FIREBASE_ADMIN_CLIENT_EMAIL=… FIREBASE_ADMIN_PRIVATE_KEY=… \
-//   FIREBASE_DATABASE_URL=… \
-//   node scripts/marcar-cuentas-anteriores.mjs --hasta 2026-11-17T00:00:00Z [--aplicar]
+// Uso:
+//   node scripts/marcar-cuentas-anteriores.mjs --project <proyecto> --hasta <fecha ISO> [--instance <bd>] [--aplicar]
 //
-//   --hasta    fecha (ISO): solo se marcan las cuentas creadas antes de ella (obligatorio)
-//   --aplicar  escribe; sin él solo cuenta lo que haría
-// Se puede repetir sin riesgo. No toca las cuentas anónimas ni las ya marcadas.
-import admin from "firebase-admin";
+//   --project   proyecto de Firebase (obligatorio, para no tocar uno por error)
+//   --hasta     solo se marcan las cuentas creadas antes de esta fecha (obligatorio),
+//               p. ej. 2026-11-17T00:00:00Z
+//   --instance  base de datos, si no es la de por defecto del proyecto
+//   --aplicar   escribe; sin él solo cuenta lo que haría
+//
+// Usa tu sesión de Firebase CLI (npx firebase-tools login): no hacen falta claves de
+// administrador. Solo añade el campo cuentaAnterior a usuarios/{uid}; no toca nada más.
+// Se puede repetir sin riesgo. No marca las cuentas anónimas.
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const args = process.argv.slice(2);
 const valorDe = (n) => {
   const i = args.indexOf(n);
   return i >= 0 ? args[i + 1] : undefined;
 };
+const salir = (mensaje) => {
+  console.error(mensaje);
+  process.exit(1);
+};
+
+const proyecto = valorDe("--project");
+const instancia = valorDe("--instance");
 const hasta = new Date(valorDe("--hasta") || "");
 const aplicar = args.includes("--aplicar");
 
-if (Number.isNaN(hasta.getTime())) {
-  console.error("Falta --hasta con una fecha ISO. Ejemplo: --hasta 2026-11-17T00:00:00Z");
-  process.exit(1);
+if (!proyecto || proyecto.startsWith("--") || Number.isNaN(hasta.getTime())) {
+  salir(
+    "Faltan datos.\nUso: node scripts/marcar-cuentas-anteriores.mjs --project <proyecto> --hasta <fecha ISO> [--instance <bd>] [--aplicar]"
+  );
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_ADMIN_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
-    privateKey: String(process.env.FIREBASE_ADMIN_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-  }),
-  databaseURL: process.env.FIREBASE_DATABASE_URL,
-});
-
-const db = admin.database();
-const aMarcar = [];
-let total = 0;
-let token;
-do {
-  const lote = await admin.auth().listUsers(1000, token);
-  for (const u of lote.users) {
-    total += 1;
-    const conEmail = u.providerData.some((p) => p.providerId === "password");
-    if (conEmail && new Date(u.metadata.creationTime) < hasta) aMarcar.push(u.uid);
+function firebase(...argumentos) {
+  try {
+    return execFileSync("npx", ["--yes", "firebase-tools", ...argumentos, "--project", proyecto], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    return salir(`Firebase CLI ha fallado:\n${`${error.stdout || ""}${error.stderr || ""}`.trim() || error.message}`);
   }
-  token = lote.pageToken;
-} while (token);
+}
 
-console.log(`${total} cuentas en total; ${aMarcar.length} con email creadas antes de ${hasta.toISOString()}.`);
+// La exportación lleva hashes de contraseña: va a una carpeta temporal y se borra siempre
+const carpeta = mkdtempSync(join(tmpdir(), "cuentas-"));
+let usuarios;
+try {
+  const archivo = join(carpeta, "usuarios.json");
+  firebase("auth:export", archivo, "--format=json");
+  usuarios = JSON.parse(readFileSync(archivo, "utf8")).users || [];
+} finally {
+  rmSync(carpeta, { recursive: true, force: true });
+}
+
+const aMarcar = usuarios
+  .filter(
+    (u) =>
+      (u.providerUserInfo || []).some((p) => p.providerId === "password") &&
+      new Date(Number(u.createdAt)) < hasta
+  )
+  .map((u) => u.localId);
+
+console.log(
+  `${usuarios.length} cuentas en ${proyecto}; ${aMarcar.length} con email creadas antes de ${hasta.toISOString()}.`
+);
 
 if (!aplicar) {
   console.log("Simulacro: no se ha escrito nada. Añade --aplicar para marcarlas.");
   process.exit(0);
 }
 
-for (let i = 0; i < aMarcar.length; i += 400) {
-  const cambios = {};
-  aMarcar.slice(i, i + 400).forEach((uid) => {
-    cambios[`usuarios/${uid}/cuentaAnterior`] = true;
-  });
-  await db.ref().update(cambios);
+// Claves con "/" = rutas: se añade solo cuentaAnterior, sin reemplazar el perfil
+const cambios = Object.fromEntries(aMarcar.map((uid) => [`${uid}/cuentaAnterior`, true]));
+const archivoCambios = join(mkdtempSync(join(tmpdir(), "cambios-")), "cambios.json");
+try {
+  writeFileSync(archivoCambios, JSON.stringify(cambios));
+  firebase("database:update", "/usuarios", archivoCambios, "--force", ...(instancia ? ["--instance", instancia] : []));
+} finally {
+  rmSync(join(archivoCambios, ".."), { recursive: true, force: true });
 }
 console.log(`Marcadas ${aMarcar.length} cuentas.`);
-process.exit(0);
