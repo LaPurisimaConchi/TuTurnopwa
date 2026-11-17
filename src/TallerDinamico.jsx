@@ -352,7 +352,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="w-full px-4 py-2.5 rounded-full bg-tinta text-white hover:bg-black font-bold text-sm shadow-sm transition"
+                className="w-full px-4 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition"
               >
                 <Icono nombre="regalo" className="mr-1" />Regalar este taller
               </button>
