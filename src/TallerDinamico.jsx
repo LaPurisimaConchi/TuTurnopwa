@@ -28,6 +28,10 @@ const NOTA_TARIFAS =
 const PATRON_REGALO =
   'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'36\' height=\'36\'%3E%3Cg fill=\'none\' stroke=\'white\' stroke-opacity=\'.28\' stroke-width=\'1.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Crect x=\'5\' y=\'9\' width=\'10\' height=\'8\'/%3E%3Cpath d=\'M5 12h10M10 9v8M10 9c-3-4-6-1-3 0M10 9c3-4 6-1 3 0\'/%3E%3C/g%3E%3Ccircle cx=\'27\' cy=\'25\' r=\'1.6\' fill=\'white\' fill-opacity=\'.28\'/%3E%3Cpath d=\'M27 6l1 2 2 1-2 1-1 2-1-2-2-1 2-1z\' fill=\'white\' fill-opacity=\'.28\'/%3E%3C/svg%3E")';
 
+// Patrón de personas y destellos (tinta translúcida) para el botón de grupo
+const PATRON_GRUPO =
+  'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'36\'%3E%3Cg fill=\'none\' stroke=\'%233f3128\' stroke-opacity=\'.22\' stroke-width=\'1.2\' stroke-linecap=\'round\'%3E%3Ccircle cx=\'9\' cy=\'11\' r=\'2.6\'/%3E%3Cpath d=\'M4 20c0-4 2.2-5.5 5-5.5s5 1.5 5 5.5\'/%3E%3Ccircle cx=\'20\' cy=\'9\' r=\'2.6\'/%3E%3Cpath d=\'M15 18c0-4 2.2-5.5 5-5.5s5 1.5 5 5.5\'/%3E%3C/g%3E%3Ccircle cx=\'31\' cy=\'27\' r=\'1.6\' fill=\'%233f3128\' fill-opacity=\'.22\'/%3E%3Cpath d=\'M32 8l1 2 2 1-2 1-1 2-1-2-2-1 2-1z\' fill=\'%233f3128\' fill-opacity=\'.22\'/%3E%3C/svg%3E")';
+
 export default function TallerDinamico() {
   const { claseId } = useParams();
   const navigate = useNavigate();
@@ -340,9 +344,10 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
-                className="w-full px-4 py-2.5 rounded-full bg-mostaza text-tinta hover:bg-mostaza-borde font-bold text-sm shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative w-full px-4 py-2.5 rounded-full bg-mostaza text-tinta hover:bg-mostaza-borde font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-tinta/40 -outline-offset-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundImage: PATRON_GRUPO }}
               >
-                <Icono nombre="usuarios" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
+                <Icono nombre="usuarios" color="currentColor" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>
             )}
 
