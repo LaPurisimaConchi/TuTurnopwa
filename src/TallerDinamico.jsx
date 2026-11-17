@@ -162,7 +162,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   }`;
 
   return (
-    <PantallaConVolver recortar={false}>
+    <PantallaConVolver recortar={false} className="px-0 pt-0 pb-6 -mt-5 sm:mt-0 sm:px-4 sm:py-6">
       <div className="bg-white text-[#333] font-sans max-w-5xl w-full mx-auto shadow-md rounded-3xl overflow-clip">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
           {/* En escritorio la foto se queda a la vista mientras se lee el resto */}
