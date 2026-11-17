@@ -730,7 +730,7 @@ listaClases.push({
                       navigate(`/admin-reservas-nuevo?clase=${clase.id}`);
                     }}
                   >
-                    Ver reservas
+                    <Icono nombre="reservas" color="currentColor" className="mr-1.5" />Ver reservas
                   </button>
 
                   <button
@@ -740,7 +740,7 @@ listaClases.push({
                       navigate(`/admin-taller?id=${clase.id}`);
                     }}
                   >
-                    {clase.dinamica ? "Editar ficha y fotos" : "Fotos y portada"}
+                    <Icono nombre="camara" color="currentColor" className="mr-1.5" />{clase.dinamica ? "Editar ficha y fotos" : "Fotos y portada"}
                   </button>
 
                   {(clase.dinamica || TALLERES_FIJOS[clase.id]?.ruta) && (
@@ -753,7 +753,7 @@ listaClases.push({
                         );
                       }}
                     >
-                      Ver ficha pública
+                      <Icono nombre="ojo" color="currentColor" className="mr-1.5" />Ver ficha pública
                     </button>
                   )}
 
@@ -769,7 +769,7 @@ listaClases.push({
                         iniciarEdicionPrecios(clase);
                       }}
                     >
-                      Editar precios
+                      <Icono nombre="euro" color="currentColor" className="mr-1.5" />Editar precios
                     </button>
                   ) : (
                     <div
@@ -823,7 +823,7 @@ listaClases.push({
                         iniciarEdicionPlazas(clase);
                       }}
                     >
-                      Editar plazas
+                      <Icono nombre="usuarios" color="currentColor" className="mr-1.5" />Editar plazas
                     </button>
                   ) : (
                     <div
@@ -877,7 +877,7 @@ listaClases.push({
                         iniciarEdicionHorarios(clase);
                       }}
                     >
-                      Editar horarios
+                      <Icono nombre="calendario" color="currentColor" className="mr-1.5" />Editar horarios
                     </button>
                   ) : (
                     <div
