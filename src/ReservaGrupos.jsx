@@ -10,7 +10,6 @@ import { ref, get, push, set } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import {
   cargarTalleres,
-  formatearEuros,
   MAX_PERSONAS_GRUPO,
   metodosDelTaller,
   variantesDelTaller,
@@ -408,26 +407,10 @@ export default function ReservaGrupos() {
               </p>
             )}
 
-            {taller && (opcion || metodo) && (
-              <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
-                {opcion && (
-                  <p>
-                    <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {formatearEuros(opcion.precio)}
-                  </p>
-                )}
-                {metodo && (
-                  <p>
-                    <strong>Método:</strong> {metodo.nombre}
-                    {metodo.extra > 0 && ` (+${formatearEuros(metodo.extra)})`}
-                  </p>
-                )}
-                <p className="text-xs text-tinta-suave">
-                  Elegido en la página del taller.{" "}
-                  <Link to={`/taller/${taller.id}`} className="text-blue-700 underline">
-                    Cambiar
-                  </Link>
-                </p>
-              </div>
+            {taller && opcion && opciones.clave === "variante" && (
+              <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
+                <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {opcion.precio}€
+              </p>
             )}
 
             <SelectorDiaReserva
@@ -447,6 +430,14 @@ export default function ReservaGrupos() {
 
           {/* Derecha: turno, personas, datos, resumen y pago */}
           <div className="space-y-4">
+            {taller && metodo && (
+              <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
+                <strong>Método:</strong> {metodo.nombre}
+                {opciones.clave === "metodo" && metodo.precio > 0 ? ` — ${metodo.precio}€` : ""}
+                {opciones.clave === "variante" && metodo.extra > 0 ? ` (+${metodo.extra}€)` : ""}
+              </p>
+            )}
+
             <SelectorTurnoReserva
               etiqueta="Selecciona el turno:"
               value={horario}
@@ -458,7 +449,7 @@ export default function ReservaGrupos() {
 
             <div>
               <label className="block font-bold text-sm mb-2">
-                Número de personas <span className="text-red-600">*</span>
+                ¿Cuántas personas venís? <span className="text-red-600">*</span>
               </label>
               <div className="flex items-center justify-between border border-gray-300 rounded-xl px-3 py-2">
                 <button
@@ -543,14 +534,18 @@ export default function ReservaGrupos() {
             </div>
 
             <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
+              {opcion && opciones.clave === "variante" && (
+                <p>
+                  <strong>{opciones.etiqueta}:</strong> {opcion.nombre}
+                </p>
+              )}
+              {metodo && (
+                <p>
+                  <strong>Método elegido:</strong> {metodo.nombre}
+                </p>
+              )}
               <p>
-                <strong>Taller:</strong> {nombreTaller || "—"}
-              </p>
-              <p>
-                <strong>Turno:</strong> {horario || "—"}
-              </p>
-              <p>
-                <strong>Precio por persona:</strong> {precioUnitario > 0 ? `${precioUnitario}€` : "—"}
+                <strong>Precio unitario:</strong> {precioUnitario > 0 ? `${precioUnitario}€` : "—"}
               </p>
               <p>
                 <strong>Precio total:</strong> {precioTotal > 0 ? `${precioTotal}€` : "—"}
