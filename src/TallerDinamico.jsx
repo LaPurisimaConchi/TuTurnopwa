@@ -365,7 +365,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 28 20"
-                  className="absolute left-[14px] top-1/2 -translate-y-1/2 -rotate-[28deg] w-9 h-7 pointer-events-none"
+                  className="absolute left-[14px] top-1/2 -translate-y-1/2 w-9 h-7 pointer-events-none"
                 >
                   <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#e63946" stroke="#fff" strokeWidth="1.300" strokeLinejoin="round" />
                   <path d="M14 10l-6 8M14 10l6 8" stroke="#fff" strokeWidth="3.200" strokeLinecap="round" />
