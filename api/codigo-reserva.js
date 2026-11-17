@@ -8,6 +8,7 @@
 //      { tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar? }
 //      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
 //      { tipo: "tarjeta", codigo }  |  { tipo: "canjear", codigo, orderId, bono? }
+//      { tipo: "verificarEmail" }  (correo para confirmar el email de la cuenta)
 //      { tipo: "usarBono", bonoId, fecha, turno }
 //      { tipo: "prepararPago", pedido: "reserva"|"bono"|"grupo"|"tarjeta_regalo", orderId, … }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
@@ -36,6 +37,8 @@ import { reservarConAforo } from "./_reservarServidor.js";
 import { registrarCancelacion } from "./_cancelacionReserva.js";
 import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
 import { esTokenAdministrador } from "../src/utils/administradores.js";
+import { cuentaActiva } from "./_cuentaActiva.js";
+import { enviarCorreoVerificacion } from "./_correoVerificacion.js";
 import { prepararPago } from "./_pedidoServidor.js";
 import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.js";
 
@@ -94,6 +97,21 @@ export default async function handler(req, res) {
         permitirReprogramar: cuerpo.permitirReprogramar !== false,
       });
       return res.status(status).json(resto);
+    }
+
+    // Correo de confirmación del email de la cuenta (registro y reenvío desde el login):
+    // es lo único que puede hacer una cuenta nueva sin confirmar
+    if (cuerpo.tipo === "verificarEmail") {
+      const { status, ...resto } = await enviarCorreoVerificacion(uid);
+      return res.status(status).json(resto);
+    }
+
+    if (!(await cuentaActiva(decodificado))) {
+      return res.status(403).json({
+        ok: false,
+        error: "Confirma tu correo para continuar.",
+        codigo: "email_sin_verificar",
+      });
     }
 
     if (cuerpo.tipo === "tarjeta") {

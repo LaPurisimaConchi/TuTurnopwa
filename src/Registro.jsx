@@ -4,9 +4,13 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   linkWithCredential,
+  signOut,
   updateProfile,
 } from "firebase/auth";
 import { ref, update } from "firebase/database";
+import { flujoAuth } from "./utils/guardiaVerificacion";
+import { mensajeErrorAuth } from "./utils/erroresAuth";
+import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth, dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { leerDatosContacto } from "./utils/invitado";
@@ -20,6 +24,9 @@ export default function Registro() {
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
+  const [emailEnviado, setEmailEnviado] = useState("");
+  const [correoFallido, setCorreoFallido] = useState(false);
+  const [cargando, setCargando] = useState(false);
   const esInvitado = !!auth.currentUser?.isAnonymous;
 
   // Un invitado que crea su cuenta ya dejó sus datos al reservar
@@ -42,6 +49,7 @@ export default function Registro() {
 
  const handleRegistro = async (e) => {
   e.preventDefault();
+  if (cargando) return;
   setError("");
 
   const nombreLimpio = nombre.trim();
@@ -69,6 +77,8 @@ export default function Registro() {
     return;
   }
 
+  setCargando(true);
+  flujoAuth.ocupado += 1;
   try {
     // Si compró como invitado, la sesión anónima se convierte en su cuenta:
     // mismo uid, así conserva reservas, bonos y tarjetas regalo
@@ -109,19 +119,60 @@ export default function Registro() {
       });
     }
 
-    const destino = location.state?.from;
-    navigate(destino || "/perfil", { replace: true, state: destino?.state });
-  } catch (error) {
-    if (
-      error?.code === "auth/email-already-in-use" ||
-      error?.code === "auth/credential-already-in-use"
-    ) {
-      setError("Ya existe una cuenta con ese email. Inicia sesión.");
-      return;
+    // La cuenta nueva no se usa hasta confirmar el correo (las anteriores no lo necesitan)
+    // Si el envío falla (p. ej. auth/too-many-requests) la cuenta ya existe: no se
+    // muestra error de registro, y desde el login se puede reenviar el correo
+    try {
+      await enviarVerificacionEmail(userCredential.user);
+    } catch (errorCorreo) {
+      console.error("No se pudo enviar el correo de confirmación:", errorCorreo);
+      setCorreoFallido(true);
     }
-    setError("Error al registrar: " + error.message);
+    await signOut(auth);
+    setEmailEnviado(emailLimpio);
+  } catch (error) {
+    console.error("Error al registrar:", error);
+    setError(
+      mensajeErrorAuth(error, "No hemos podido crear tu cuenta. Revisa los datos e inténtalo de nuevo.")
+    );
+  } finally {
+    flujoAuth.ocupado -= 1;
+    setCargando(false);
   }
 };
+
+  if (emailEnviado) {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 text-[#333]">
+        <img src="/img/logoPCsin.png" alt="Logo La Purísima Conchi" className="w-40 mb-6" />
+        <div className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md text-center">
+          <h1 className="text-2xl font-serif text-[#5c2e00] mb-3">Confirma tu correo</h1>
+          {correoFallido ? (
+            <p className="text-sm mb-2">
+              Tu cuenta con <strong>{emailEnviado}</strong> está creada, pero no hemos podido
+              enviar el correo ahora mismo. Espera unos minutos, inicia sesión y pulsa
+              «Reenviar correo de confirmación».
+            </p>
+          ) : (
+          <p className="text-sm mb-2">
+            Te hemos enviado un enlace a <strong>{emailEnviado}</strong>. Ábrelo para
+            activar tu cuenta y después inicia sesión.
+          </p>
+          )}
+          <p className="text-xs text-tinta-suave mb-5">
+            Si no lo ves, revisa la carpeta de spam o correo no deseado.
+          </p>
+          <button
+            type="button"
+            className="w-full py-2 px-4 rounded-full font-semibold text-white bg-terracota hover:bg-terracota-oscuro"
+            onClick={() => navigate("/login", { replace: true, state: location.state })}
+          >
+            Ir a iniciar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center px-4 text-[#333]">
@@ -147,7 +198,12 @@ export default function Registro() {
         className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md flex flex-col gap-4"
       >
         {error && (
-          <div className="text-red-600 text-sm text-center">{error}</div>
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center"
+          >
+            {error}
+          </div>
         )}
 
         <div>
@@ -227,9 +283,10 @@ export default function Registro() {
 
         <button
           type="submit"
-          className="bg-terracota hover:bg-terracota-oscuro text-white font-bold text-lg py-3 rounded-full"
+          disabled={cargando}
+          className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-full"
         >
-          Registrarse
+          {cargando ? "Creando tu cuenta..." : "Registrarse"}
         </button>
 
         <div className="text-sm text-center mt-2">

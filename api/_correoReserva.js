@@ -10,12 +10,12 @@
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { asegurarCodigo, formatearCodigo } from "./_codigosReserva.js";
 
-const REMITENTE_POR_DEFECTO = "La Purísima Conchi <onboarding@resend.dev>";
+export const REMITENTE_POR_DEFECTO = "La Purísima Conchi <onboarding@resend.dev>";
 
-const COLOR_MARCA = "#c2410c";
-const EMAIL_ESTUDIO = "lapurisimaconchioficial@gmail.com";
+export const COLOR_MARCA = "#c2410c";
+export const EMAIL_ESTUDIO = "lapurisimaconchioficial@gmail.com";
 
-function urlBase() {
+export function urlBase() {
   const manual = String(process.env.CORREO_URL_BASE || "").trim();
   const vercel =
     process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || "";
@@ -23,7 +23,7 @@ function urlBase() {
   return base.replace(/\/+$/, "");
 }
 
-const escapar = (valor) =>
+export const escapar = (valor) =>
   String(valor ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
