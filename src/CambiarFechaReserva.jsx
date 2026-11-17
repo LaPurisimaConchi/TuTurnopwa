@@ -39,7 +39,7 @@ async function llamarApi(cuerpo) {
 }
 
 const boton =
-  "inline-flex items-center justify-center min-h-[48px] rounded-xl px-6 font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2";
+  "inline-flex items-center justify-center min-h-[48px] rounded-full px-6 font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2";
 const botonPrincipal = `${boton} bg-terracota text-white hover:bg-terracota-oscuro disabled:opacity-50 disabled:cursor-not-allowed`;
 const botonSecundario = `${boton} border border-terracota text-terracota hover:bg-terracota-suave`;
 const campo =

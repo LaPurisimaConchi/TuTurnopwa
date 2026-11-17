@@ -198,7 +198,7 @@ const CanjearTarjetaRegalo = () => {
           <button
             type="submit"
             disabled={validando}
-            className="inline-flex items-center justify-center w-full min-h-[48px] rounded-xl px-6 font-bold bg-terracota text-white hover:bg-terracota-oscuro transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2"
+            className="inline-flex items-center justify-center w-full min-h-[48px] rounded-full px-6 font-bold bg-terracota text-white hover:bg-terracota-oscuro transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2"
           >
             {validando ? "Validando…" : "Validar código"}
           </button>

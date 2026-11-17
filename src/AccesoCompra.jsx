@@ -172,14 +172,14 @@ export default function AccesoCompra({
             <Link
               to="/login"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
+              className="whitespace-nowrap px-5 py-2 rounded-full border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
             >
               Iniciar sesión
             </Link>
             <Link
               to="/registro"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
+              className="whitespace-nowrap px-5 py-2 rounded-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
             >
               Crear cuenta
             </Link>
@@ -217,14 +217,14 @@ export default function AccesoCompra({
             <Link
               to="/login"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
+              className="whitespace-nowrap px-5 py-2 rounded-full border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave"
             >
               Iniciar sesión
             </Link>
             <Link
               to="/registro"
               state={volverAqui}
-              className="whitespace-nowrap px-5 py-2 rounded-lg bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
+              className="whitespace-nowrap px-5 py-2 rounded-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold text-sm"
             >
               Crear cuenta
             </Link>

@@ -60,7 +60,7 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "", 
         <button
           type="button"
           onClick={copiar}
-          className="px-3 py-1 rounded-lg border border-terracota text-terracota hover:bg-terracota hover:text-white"
+          className="px-3 py-1 rounded-full border border-terracota text-terracota hover:bg-terracota hover:text-white"
         >
           {copiado ? "¡Copiado!" : "Copiar"}
         </button>

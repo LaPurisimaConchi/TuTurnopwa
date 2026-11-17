@@ -378,7 +378,7 @@ export default function PerfilUsuario() {
             </p>
             <button
               onClick={() => navigate("/registro")}
-              className="w-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold py-2.5 rounded-xl transition"
+              className="w-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold py-2.5 rounded-full transition"
             >
               Crear mi cuenta
             </button>
@@ -406,7 +406,7 @@ export default function PerfilUsuario() {
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <button
-            className="bg-mostaza hover:bg-mostaza-borde text-tinta font-bold py-3 rounded-2xl text-sm shadow-md transition"
+            className="bg-mostaza hover:bg-mostaza-borde text-tinta font-bold py-3 rounded-full text-sm shadow-md transition"
             onClick={() => navigate("/portada")}
           >
             Reservar
@@ -541,7 +541,7 @@ export default function PerfilUsuario() {
                       {estadoVisible === "Activo" && (
  <button
   onClick={() => navigate(`/usar-bono/${bono.bonoId}`)}
-  className="mt-3 w-full px-4 py-2 bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold rounded-xl transition"
+  className="mt-3 w-full px-4 py-2 bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold rounded-full transition"
 >
   Reservar sesión con este bono
 </button>
@@ -650,7 +650,7 @@ export default function PerfilUsuario() {
         href="https://drive.google.com/drive/folders/1Im70RbYcyCFs5pPLgq2ooHhowwtA8F0R"
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold py-3 px-4 rounded-2xl text-center transition shadow-sm"
+        className="w-full bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold py-3 px-4 rounded-full text-center transition shadow-sm"
       >
         Elegir esmalte y subir foto
       </a>

@@ -194,7 +194,7 @@ export default function EditarPerfil() {
             <button
               type="submit"
               disabled={guardando}
-              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 rounded-2xl transition"
+              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 rounded-full transition"
             >
               {guardando ? "Guardando..." : "Guardar cambios"}
             </button>

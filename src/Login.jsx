@@ -163,7 +163,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={cargando}
-              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 rounded-xl transition"
+              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 rounded-full transition"
             >
               {cargando ? "Entrando..." : "Entrar"}
             </button>
