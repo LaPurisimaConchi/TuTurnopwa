@@ -31,7 +31,6 @@ import GestionarReserva from "./GestionarReserva";
 
 // Clases y secciones principales
 import Clases from "./Clases.jsx";
-import ClasesSoloVista from "./ClasesSoloVista.jsx";
 import TalleresCrearPiezas from "./TalleresCrearPiezas";
 import TalleresCursosBonos from "./TalleresCursosBonos";
 import TalleresPintaDecora from "./TalleresPintaDecora";
@@ -45,7 +44,6 @@ import ReservaTallerDinamico from "./ReservaTallerDinamico";
 // Clases
 import CreaTuBrunchBowl from "./CreaTuBrunchBowl.jsx";
 import CreaTuPiezaFavorita from "./CreaTuPiezaFavorita";
-import PintarCeramica from "./PintarCeramica.jsx";
 import CreaTuCuencoRamen from "./CreaTuCuencoRamen.jsx";
 import CreaTuBandejaHogar from "./CreaTuBandejaHogar.jsx";
 import CreaTuTazaFavorita from "./CreaTuTazaFavorita.jsx";
@@ -63,9 +61,7 @@ import TornoAlfareroPerfeccionaLoQueYaSabes from "./TornoAlfareroPerfeccionaLoQu
 import EspecialPintaTuPieza from "./EspecialPintaTuPieza";
 import PintaTuPieza from "./PintaTuPieza";
 import ComprarTarjetaRegalo from "./ComprarTarjetaRegalo";
-import GenerarCodigoTarjetaRegalo from "./GenerarCodigoTarjetaRegalo";
 import ClaseSueltaContinuidad from "./ClaseSueltaContinuidad";
-import CreaTuPiezaFavoritaRegalo from "./CreaTuPiezaFavoritaRegalo.jsx";
 
 
 // Reservas normales
@@ -92,18 +88,9 @@ import ReservaGrupos from "./ReservaGrupos.jsx";
 import RegalarTaller from "./RegalarTaller.jsx";
 import PaginaGrupos from "./PaginaGrupos.jsx";
 import AdminPaginasEspeciales from "./AdminPaginasEspeciales.jsx";
-import UsarBonoTornoAlfareroEmpezarDesdeCero from "./UsarBonoTornoAlfareroEmpezarDesdeCero";
 import UsarBono from "./UsarBono";
 
-
-// Tarjetas regalo
-
-// Clases online
-import ClasesOnlineInfo from "./ClasesOnlineInfo.jsx";
-import ReservaClasesOnline from "./ReservaClasesOnline.jsx";
-
 // Nuevo Admin
-import AdminNuevo from "./AdminNuevo";
 import AdminReservasNuevo from "./AdminReservasNuevo";
 import AdminDashboard from "./AdminDashboard";
 import AdminClasesNuevo from "./AdminClasesNuevo";
@@ -127,8 +114,6 @@ import AdminCategorias from "./AdminCategorias";
 import AdminEspacio from "./AdminEspacio";
 import AdminOrdenarClases from "./AdminOrdenarClases";
 
-import ChatAyuda from "./ChatAyuda.jsx";
-
 function App() {
   return (
     <BrowserRouter>
@@ -136,7 +121,6 @@ function App() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/portada" replace />} />
-          <Route path="/ayuda" element={<ChatAyuda />} />
 
           <Route path="/portada" element={<Portada />} />
           <Route path="/login" element={<Login />} />
@@ -153,7 +137,6 @@ function App() {
           <Route path="/condiciones-pago" element={<CondicionesPago />} />
 
           <Route path="/clases" element={<Clases />} />
-          <Route path="/clases-solo" element={<ClasesSoloVista />} />
           <Route path="/talleres/cursos-bonos" element={<RutaCategoria categoriaId="cursos_bonos"><TalleresCursosBonos /></RutaCategoria>} />
           <Route path="/talleres/crear-piezas" element={<RutaCategoria categoriaId="crear_piezas"><TalleresCrearPiezas /></RutaCategoria>} />
           <Route path="/talleres/pinta-decora" element={<RutaCategoria categoriaId="pinta_decora"><TalleresPintaDecora /></RutaCategoria>} />
@@ -170,7 +153,6 @@ function App() {
           
           <Route path="/crea-tu-brunch-bowl" element={<RutaTaller claseId="creatubrunchbowl"><CreaTuBrunchBowl /></RutaTaller>} />
           <Route path="/crea-tu-pieza-favorita-desde-cero" element={<RutaTaller claseId="creatupiezafavorita"><CreaTuPiezaFavorita /></RutaTaller>} />
-          <Route path="/pintar-ceramica" element={<PintarCeramica />} />
           <Route path="/crea-tu-cuenco-ramen" element={<RutaTaller claseId="creatucuencoramen"><CreaTuCuencoRamen /></RutaTaller>} />
           <Route path="/crea-tu-bandeja-hogar" element={<RutaTaller claseId="creatubandejahogar"><CreaTuBandejaHogar /></RutaTaller>} />
           <Route path="/crea-tu-taza-favorita" element={<RutaTaller claseId="creatutazafavorita"><CreaTuTazaFavorita /></RutaTaller>} />
@@ -197,10 +179,6 @@ function App() {
           <Route path="/especial-pinta-tu-pieza" element={<RutaTaller claseId="especialpintatupieza"><EspecialPintaTuPieza /></RutaTaller>} />
           <Route path="/pinta-tu-pieza" element={<RutaTaller claseId="pintatupieza"><PintaTuPieza /></RutaTaller>} />
           <Route path="/comprar-tarjeta-regalo" element={<ComprarTarjetaRegalo />} />
-          <Route
-            path="/generar-codigo-tarjeta-regalo"
-            element={<GenerarCodigoTarjetaRegalo />}
-          />
           <Route path="/reserva-con-tarjeta-regalo" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
           <Route
             path="/talleres/clase-suelta-continuidad"
@@ -208,10 +186,6 @@ function App() {
           />
 
           <Route path="/usar-bono/:bonoId" element={<AccesoCompra requiereCuenta><UsarBono /></AccesoCompra>} />
-          <Route
-            path="/usar-bono-torno-alfarero-empezar-desde-cero"
-            element={<AccesoCompra requiereCuenta><UsarBonoTornoAlfareroEmpezarDesdeCero /></AccesoCompra>}
-          />
           <Route
             path="/reserva-crea-tu-pieza-favorita"
             element={<RutaTaller claseId="creatupiezafavorita" tipo="reserva"><AccesoCompra><ReservaCreaTuPiezaFavorita /></AccesoCompra></RutaTaller>}
@@ -286,14 +260,6 @@ function App() {
           <Route path="/grupos" element={<PaginaGrupos />} />
           <Route path="/reserva-grupos" element={<AccesoCompra permitirVisita><ReservaGrupos /></AccesoCompra>} />
 
-          <Route
-            path="/tarjeta-regalo-solo/creapiezafavorita"
-            element={<CreaTuPiezaFavoritaRegalo />}
-          />
-          <Route
-            path="/creapiezafavorita-solo"
-            element={<CreaTuPiezaFavoritaRegalo />}
-          />
           {/* Canjear tarjeta regalo vive en una pestaña de /gestionar-reserva */}
           <Route path="/canjear-tarjeta" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
           <Route path="/canjear-tarjeta-regalo" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
@@ -303,9 +269,6 @@ function App() {
           <Route path="/pago-fallido" element={<PagoFallido />} />
           <Route path="/pago/exito" element={<ConfirmacionPago />} />
           <Route path="/pago/error" element={<PagoFallido />} />
-
-          <Route path="/clases-online" element={<ClasesOnlineInfo />} />
-          <Route path="/reserva-online" element={<AccesoCompra><ReservaClasesOnline /></AccesoCompra>} />
 
           <Route
             path="/admin-detalle-bono"
@@ -320,14 +283,6 @@ function App() {
             element={
               <RutaAdmin>
                 <AdminReservasGrupos />
-              </RutaAdmin>
-            }
-          />
-          <Route
-            path="/admin-nuevo"
-            element={
-              <RutaAdmin>
-                <AdminNuevo />
               </RutaAdmin>
             }
           />

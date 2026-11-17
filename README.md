@@ -183,7 +183,6 @@ TuTurnopwa/
 │   ├── Admin*.jsx            # Panel de administración
 │   ├── ResumenPago.jsx       # Resumen previo a Redsys
 │   ├── PagoGrupoIndividual.jsx
-│   ├── faqData.js            # Motor FAQ del chat de ayuda
 │   └── ...
 ├── index.html
 ├── vite.config.js
@@ -416,8 +415,6 @@ Procesa según `pedidosPendientes/{orderId}.tipo`:
 | `/pago-grupo/:grupoId` | Pago individual de plaza en grupo |
 | `/comprar-tarjeta-regalo`, `/canjear-tarjeta` | Tarjetas regalo |
 | `/usar-bono/:bonoId` | Consumir sesión de bono |
-| `/ayuda` | Chat de ayuda (FAQ) |
-| `/clases-online`, `/reserva-online` | Clases online |
 
 ### Admin
 
@@ -441,7 +438,6 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 | `/admin-detalle-tarjeta-regalo` | `AdminDetalleTarjetaRegaloNuevo` | Detalle tarjeta |
 | `/admin-bloqueos-fechas` | `AdminBloqueosFechas` | Bloquear fechas |
 | `/admin-habilitar-fechas` | `AdminHabilitarFechas` | Habilitar fechas |
-| `/admin-nuevo` | `AdminNuevo` | Resumen alternativo (legacy) |
 
 **Acceso admin:** tras login, los usuarios admin ven el botón «Panel admin» en la cabecera (`Header.jsx`). Emails autorizados definidos en `utils/administradores.js`.
 
@@ -528,7 +524,7 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 
 - **~25 archivos `Reserva*.jsx`** con lógica duplicada (~600–800 líneas cada uno). Un cambio transversal requiere tocar muchos archivos.
 - **Archivos legacy** en repo: pantallas de siempre (`Reserva*.jsx`).
-- **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (legacy en `HistorialTarjetasRegalo.jsx`).
+- **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (nodo antiguo: ya no lo usa el código, solo queda su regla).
 - **Estados inconsistentes** en capitalización (`Pendiente` vs `pendiente_pago_individual`).
 
 ### PWA
@@ -619,7 +615,6 @@ Priorizadas por impacto, sin orden estricto:
 |---------|-----------|
 | Manual de usuario | `docs/Manual_La_Purisima_Conchi.html` |
 | Manual admin (premium) | `docs/Manual_La_Purisima_Conchi_Premium.html` |
-| FAQ del chat | `src/faqData.js` |
 | Router completo | `src/App.jsx` |
 
 ---
