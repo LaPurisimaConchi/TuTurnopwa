@@ -17,7 +17,6 @@ import {
   precioDesde,
   variantesDelTaller,
 } from "./catalogoTalleres";
-import { useConfigEspacio } from "./configuracionEspacio";
 import { edicionesReservables, esMonografico } from "./utils/monografico";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 
@@ -98,7 +97,6 @@ export default function TallerDinamico() {
 
 // La página del taller, ya con sus datos cargados
 export function VistaTaller({ claseId, clase, imagenes = [] }) {
-  const { config: configEspacio } = useConfigEspacio();
   const navigate = useNavigate();
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] || "");
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -347,7 +345,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 className="relative w-full px-4 py-2.5 rounded-full bg-mostaza text-tinta hover:bg-mostaza-borde font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-tinta/40 -outline-offset-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundImage: PATRON_GRUPO }}
               >
-                <Icono nombre="usuarios" color="currentColor" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
+                <Icono nombre="usuarios" color="currentColor" className="mr-1" />Reservar para grupo
               </button>
             )}
 
