@@ -115,8 +115,8 @@ export default function Header() {
                   aria-current={enGestion ? "page" : undefined}
                   className={`${suave} ${enGestion ? "bg-arena" : ""}`}
                 >
-                  <span className="sm:hidden">Mi reserva</span>
-                  <span className="hidden sm:inline">Gestionar reserva</span>
+                  <span className="sm:hidden">Reserva / regalo</span>
+                  <span className="hidden sm:inline">Gestionar reserva o tarjeta regalo</span>
                 </Link>
               )}
 
