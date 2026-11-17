@@ -1,8 +1,7 @@
 // src/AdminCategorias.jsx
 // Categorías de talleres. Las que crea el admin, y las de siempre una vez migradas
 // al panel, se pueden renombrar, ordenar, ocultar y borrar (si están vacías).
-import React, { useCallback, useEffect, useState } from "react";
-import Icono from "./components/Icono";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { GRUPOS_TALLER, cargarTalleres } from "./catalogoTalleres";
@@ -13,9 +12,9 @@ import {
   cargarRegistrosCategorias,
   crearCategoria,
   estadoDeSiempre,
-  intercambiarOrden,
   mensajeErrorCategoria,
   migrarCategoriasDeSiempre,
+  ordenarCategorias,
   unirCategorias,
 } from "./categoriasTalleres";
 
@@ -35,6 +34,13 @@ export default function AdminCategorias() {
 
   const [nueva, setNueva] = useState({ titulo: "", descripcion: "" });
   const [editando, setEditando] = useState(null); // { id, titulo, descripcion }
+  // Arrastrar y soltar: la categoría que se arrastra y el orden provisional (se
+  // reordena en vivo mientras se arrastra, dejando el hueco donde caerá)
+  const [arrastrando, setArrastrando] = useState(null);
+  const [ordenProvisional, setOrdenProvisional] = useState(null);
+  const soltado = useRef(false);
+  const elementos = useRef({}); // id -> <li>, para animar el movimiento
+  const posiciones = useRef({}); // id -> posición vertical antes del último cambio
 
   const cargar = useCallback(async () => {
     try {
@@ -59,7 +65,10 @@ export default function AdminCategorias() {
   const numTalleres = (id) => talleres.filter((t) => t.grupo === id).length;
 
   // Las que se gestionan desde el panel: las nuevas y las de siempre ya migradas
-  const propias = unirCategorias(registros).filter((c) => c.propia);
+  const propiasGuardadas = unirCategorias(registros).filter((c) => c.propia);
+  const propias = ordenProvisional
+    ? ordenProvisional.map((id) => propiasGuardadas.find((c) => c.id === id)).filter(Boolean)
+    : propiasGuardadas;
   const sinMigrar = GRUPOS_TALLER.filter((g) => estadoDeSiempre(g.id, registros) === "sinMigrar");
 
   // Ejecuta una acción, muestra el resultado y recarga la lista
@@ -111,11 +120,59 @@ export default function AdminCategorias() {
     ejecutar(() => borrarCategoria(categoria.id), "Categoría borrada.");
   };
 
-  const mover = (indice, desplazamiento) => {
-    const otra = propias[indice + desplazamiento];
-    if (!otra) return;
-    ejecutar(() => intercambiarOrden(propias[indice], otra));
+  // Al pasar por encima de otra categoría, la arrastrada ocupa su sitio (si el
+  // puntero ya ha pasado la mitad de la tarjeta, para que no salte de un lado a otro)
+  const arrastrarSobre = (e, destinoId) => {
+    if (!arrastrando || arrastrando === destinoId) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+
+    const ids = propias.map((c) => c.id);
+    const desde = ids.indexOf(arrastrando);
+    const hasta = ids.indexOf(destinoId);
+    const caja = e.currentTarget.getBoundingClientRect();
+    const mitad = caja.top + caja.height / 2;
+    if ((desde < hasta && e.clientY < mitad) || (desde > hasta && e.clientY > mitad)) return;
+
+    ids.splice(desde, 1);
+    ids.splice(hasta, 0, arrastrando);
+    setOrdenProvisional(ids);
   };
+
+  const soltar = async () => {
+    soltado.current = true;
+    setArrastrando(null);
+
+    const ids = propias.map((c) => c.id);
+    const guardado = propiasGuardadas.map((c) => c.id);
+    if (ids.join() === guardado.join()) {
+      setOrdenProvisional(null);
+      return;
+    }
+
+    await ejecutar(() => ordenarCategorias(ids.map((id) => propiasGuardadas.find((c) => c.id === id))));
+    setOrdenProvisional(null);
+  };
+
+  // Animación: cada tarjeta se desliza desde donde estaba hasta su nuevo sitio
+  const claveOrden = propias.map((c) => c.id).join();
+  useLayoutEffect(() => {
+    const nuevas = {};
+    Object.entries(elementos.current).forEach(([id, el]) => {
+      if (!el) return;
+      nuevas[id] = el.getBoundingClientRect().top;
+      const antes = posiciones.current[id];
+      if (antes === undefined || antes === nuevas[id]) return;
+
+      el.style.transition = "none";
+      el.style.transform = `translateY(${antes - nuevas[id]}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = "transform 200ms ease";
+        el.style.transform = "";
+      });
+    });
+    posiciones.current = nuevas;
+  }, [claveOrden]);
 
   return (
     <div className="bg-crema min-h-screen px-4 py-6 font-sans">
@@ -192,13 +249,44 @@ export default function AdminCategorias() {
                 Todavía no hay ninguna. Crea una arriba o migra las de siempre más abajo.
               </p>
             ) : (
-              <ul className="space-y-3">
-                {propias.map((c, indice) => {
+              <ul
+                className="space-y-3"
+                onDragOver={(e) => arrastrando && e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  soltar();
+                }}
+              >
+                {propias.map((c) => {
                   const total = numTalleres(c.id);
                   const enEdicion = editando?.id === c.id;
 
                   return (
-                    <li key={c.id} className="rounded-xl border border-linea bg-crema p-4">
+                    <li
+                      key={c.id}
+                      ref={(el) => {
+                        elementos.current[c.id] = el;
+                      }}
+                      draggable={!enEdicion && !ocupado}
+                      onDragStart={(e) => {
+                        soltado.current = false;
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", c.id);
+                        // El navegador hace la "foto" que se arrastra antes de que
+                        // la tarjeta se convierta en hueco
+                        setTimeout(() => setArrastrando(c.id), 0);
+                      }}
+                      onDragOver={(e) => arrastrarSobre(e, c.id)}
+                      onDragEnd={() => {
+                        setArrastrando(null);
+                        if (!soltado.current) setOrdenProvisional(null);
+                      }}
+                      className={`rounded-xl border p-4 ${
+                        arrastrando === c.id
+                          ? "border-dashed border-terracota bg-terracota-suave/50 [&>*]:invisible"
+                          : "border-linea bg-crema"
+                      }`}
+                    >
                       {enEdicion ? (
                         <form onSubmit={handleGuardarEdicion} className="space-y-3">
                           <div>
@@ -257,21 +345,14 @@ export default function AdminCategorias() {
                               </p>
                             </div>
 
-                            <div className="flex gap-1">
-                              <button
-                                type="button"
-                                className={botonMini}
-                                onClick={() => mover(indice, -1)}
-                                disabled={ocupado || indice === 0}
-                                aria-label={`Subir ${c.titulo}`}
-                              ><Icono nombre="arriba" /></button>
-                              <button
-                                type="button"
-                                className={botonMini}
-                                onClick={() => mover(indice, 1)}
-                                disabled={ocupado || indice === propias.length - 1}
-                                aria-label={`Bajar ${c.titulo}`}
-                              ><Icono nombre="abajo" /></button>
+                            <div className="flex items-center gap-1">
+                              <span
+                                className="flex h-8 w-8 cursor-grab items-center justify-center rounded-lg text-xl leading-none text-tinta-suave select-none active:cursor-grabbing"
+                                title="Arrastra para cambiar el orden"
+                                aria-hidden="true"
+                              >
+                                ⠿
+                              </span>
                             </div>
                           </div>
 
@@ -323,6 +404,12 @@ export default function AdminCategorias() {
                   );
                 })}
               </ul>
+            )}
+
+            {propias.length > 1 && (
+              <p className="text-xs text-tinta-suave">
+                Arrastra una categoría por el asa ⠿ para cambiar su orden (en el móvil, mantén pulsado y arrastra).
+              </p>
             )}
 
             <p className="text-xs text-tinta-suave">
