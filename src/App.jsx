@@ -29,8 +29,6 @@ import ResumenPago from "./ResumenPago.jsx";
 import ConfirmacionPago from "./ConfirmacionPago.jsx";
 import PagoFallido from "./PagoFallido.jsx";
 import GestionarReserva from "./GestionarReserva";
-import ResumenPagoTheClub from "./ResumenPagoTheClub.jsx";
-import ResumenPagoTearium from "./ResumenPagoTearium.jsx";
 
 // Clases y secciones principales
 import Clases from "./Clases.jsx";
@@ -100,12 +98,6 @@ import UsarBono from "./UsarBono";
 
 
 // Tarjetas regalo
-
-// Ubicaciones externas
-import TheClub from "./TheClub.jsx";
-import TeariumInfo from "./TeariumInfo.jsx";
-import ReservaTheClub from "./ReservaTheClub.jsx";
-import ReservaTearium from "./ReservaTearium.jsx";
 
 // Clases online
 import ClasesOnlineInfo from "./ClasesOnlineInfo.jsx";
@@ -310,15 +302,9 @@ function App() {
           
 
           <Route path="/resumen-pago" element={<AccesoCompra><ResumenPago /></AccesoCompra>} />
-          <Route path="/resumenpagotheclub" element={<AccesoCompra><ResumenPagoTheClub /></AccesoCompra>} />
-          <Route path="/resumenpagotearium" element={<AccesoCompra><ResumenPagoTearium /></AccesoCompra>} />
           <Route path="/pago-fallido" element={<PagoFallido />} />
           <Route path="/pago/exito" element={<ConfirmacionPago />} />
           <Route path="/pago/error" element={<PagoFallido />} />
-          <Route path="/theclub" element={<TheClub />} />
-          <Route path="/teariumInfo" element={<TeariumInfo />} />
-          <Route path="/reservatheclub" element={<AccesoCompra><ReservaTheClub /></AccesoCompra>} />
-          <Route path="/reservatearium" element={<AccesoCompra><ReservaTearium /></AccesoCompra>} />
 
           <Route path="/clases-online" element={<ClasesOnlineInfo />} />
           <Route path="/reserva-online" element={<AccesoCompra><ReservaClasesOnline /></AccesoCompra>} />

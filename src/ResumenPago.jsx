@@ -50,8 +50,6 @@ const PINTA = new Set([
     "crea tu pieza favorita",
     "crea tu pieza favorita desde cero",
   ]);
-  const TEARIUM = new Set(["tearum", "tea rium", "tearium"]);
-  const THE_CLUB = new Set(["the club"]);
   const BONO2 = new Set([
     "bono 2 clases",
     "2 clases 4h/mes",
@@ -83,8 +81,6 @@ const PINTA = new Set([
   if (ESPECIAL_PINTA.has(c)) return 35;
 if (PINTA.has(c)) return 25;
   if (CREA_PIEZA.has(c)) return 45;
-  if (TEARIUM.has(c)) return 25;
-  if (THE_CLUB.has(c)) return 25;
   if (BONO2.has(c)) return 70;
 
   if (BONO4.has(c)) {

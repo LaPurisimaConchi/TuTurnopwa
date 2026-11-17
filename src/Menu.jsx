@@ -31,9 +31,6 @@ export default function Menu() {
     { texto: "Reserva Exprés Continuo", ruta: "/reserva-exprescontinuo" },
     { texto: "Reserva Bono 2 Clases", ruta: "/reserva-bono-2-clases" },
     { texto: "Reserva Bono 4 Clases", ruta: "/reserva-bono-4-clases" },
-    { texto: "Reserva The Club", ruta: "/reservatheclub" },
-    { texto: "Reserva Tearium", ruta: "/reservatearium" },
-    { texto: "Reserva Karma", ruta: "/reservakarma" },
 
     // Tarjetas regalo
     { texto: "Funcionamiento Tarjeta Regalo", ruta: "/tarjeta-regalo/funciona" },
@@ -47,9 +44,6 @@ export default function Menu() {
 
     // Pago
     { texto: "Resumen pago", ruta: "/resumen-pago" },
-    { texto: "Resumen pago The Club", ruta: "/resumenpagotheclub" },
-    { texto: "Resumen pago Tearium", ruta: "/resumenpagotearium" },
-    { texto: "Resumen pago Karma", ruta: "/resumenpagokarma" },
     { texto: "Formulario Redsys", ruta: "/pago-redsys" },
     { texto: "Pago fallido", ruta: "/pago-fallido" },
 
@@ -68,10 +62,6 @@ export default function Menu() {
     { texto: "Historial de reservas", ruta: "/admin/historial/reservas" },
     { texto: "Historial de bonos", ruta: "/admin/historial/bonos" },
     { texto: "Notificaciones", ruta: "/admin/notificaciones" },
-
-    // Otros
-    { texto: "The Club", ruta: "/theclub" },
-    { texto: "Tearium y Karma", ruta: "/teariumkarma" },
   ];
 
   return (

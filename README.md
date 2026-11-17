@@ -269,7 +269,7 @@ Usuario logueado → Reserva*.jsx → validación plazas/bloqueos
   → /pago/exito
 ```
 
-**Pago de prueba para administradores:** al confirmar un pago desde los resúmenes de pago (incluidos The Club y Tearium) o desde el pago individual de grupo, una cuenta autorizada evita Redsys y confirma el pedido mediante `POST /api/pago-admin`. El servidor verifica el token de Firebase, el email administrador y que el pedido pertenezca a esa cuenta antes de actualizar los registros. La lista de emails autorizados se comparte desde `src/utils/administradores.js`. Las cuentas normales continúan usando Redsys.
+**Pago de prueba para administradores:** al confirmar un pago desde los resúmenes de pago o desde el pago individual de grupo, una cuenta autorizada evita Redsys y confirma el pedido mediante `POST /api/pago-admin`. El servidor verifica el token de Firebase, el email administrador y que el pedido pertenezca a esa cuenta antes de actualizar los registros. La lista de emails autorizados se comparte desde `src/utils/administradores.js`. Las cuentas normales continúan usando Redsys.
 
 **Canje con tarjeta regalo:** algunos flujos confirman directamente sin pasarela (`desdeTarjetaRegalo: true`).
 
@@ -527,7 +527,7 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 ### Código y mantenimiento
 
 - **~25 archivos `Reserva*.jsx`** con lógica duplicada (~600–800 líneas cada uno). Un cambio transversal requiere tocar muchos archivos.
-- **Archivos legacy** en repo: pantallas de siempre (`Reserva*.jsx`), Tearium y The Club.
+- **Archivos legacy** en repo: pantallas de siempre (`Reserva*.jsx`).
 - **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (legacy en `HistorialTarjetasRegalo.jsx`).
 - **Estados inconsistentes** en capitalización (`Pendiente` vs `pendiente_pago_individual`).
 
@@ -583,7 +583,7 @@ Priorizadas por impacto, sin orden estricto:
 5. Transacciones RTDB en pagos de grupo individual
 6. Revisar bloqueo de aforo para grupos en pago parcial
 7. Completar PWA con service worker o documentar que no es offline
-8. Eliminar archivos legacy del repositorio (Tearium y The Club ya no pueden cobrar: escriben el pedido desde el navegador)
+8. Eliminar archivos legacy del repositorio (pantallas de siempre `Reserva*.jsx`)
 10. Añadir tests mínimos en webhook y conteo de plazas
 11. Unificar panel admin (un solo dashboard, sidebar, enlazar historial)
 12. Centralizar lista de admins (env var o nodo RTDB protegido)
