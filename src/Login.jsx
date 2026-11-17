@@ -6,6 +6,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { ref, get } from "firebase/database";
+import { mensajeErrorAuth } from "./utils/erroresAuth";
 import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth, dbRealtime } from "./firebase";
 import PantallaConVolver from "./PantallaConVolver";
@@ -80,7 +81,7 @@ export default function Login() {
       await signOut(auth);
       setMensaje("Te hemos reenviado el correo de confirmación.");
     } catch (error) {
-      setError("No se ha podido reenviar el correo. Espera unos minutos e inténtalo de nuevo.");
+      setError(mensajeErrorAuth(error, "No se ha podido reenviar el correo. Espera unos minutos e inténtalo de nuevo."));
     }
   };
 

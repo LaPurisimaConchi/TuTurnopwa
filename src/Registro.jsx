@@ -8,6 +8,7 @@ import {
   updateProfile,
 } from "firebase/auth";
 import { ref, update } from "firebase/database";
+import { mensajeErrorAuth } from "./utils/erroresAuth";
 import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth, dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
@@ -127,14 +128,10 @@ export default function Registro() {
     await signOut(auth);
     setEmailEnviado(emailLimpio);
   } catch (error) {
-    if (
-      error?.code === "auth/email-already-in-use" ||
-      error?.code === "auth/credential-already-in-use"
-    ) {
-      setError("Ya existe una cuenta con ese email. Inicia sesión.");
-      return;
-    }
-    setError("Error al registrar: " + error.message);
+    console.error("Error al registrar:", error);
+    setError(
+      mensajeErrorAuth(error, "No hemos podido crear tu cuenta. Revisa los datos e inténtalo de nuevo.")
+    );
   }
 };
 
@@ -195,7 +192,12 @@ export default function Registro() {
         className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md flex flex-col gap-4"
       >
         {error && (
-          <div className="text-red-600 text-sm text-center">{error}</div>
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center"
+          >
+            {error}
+          </div>
         )}
 
         <div>
