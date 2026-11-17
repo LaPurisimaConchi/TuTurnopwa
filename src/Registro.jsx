@@ -23,6 +23,7 @@ export default function Registro() {
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
   const [emailEnviado, setEmailEnviado] = useState("");
+  const [correoFallido, setCorreoFallido] = useState(false);
   const esInvitado = !!auth.currentUser?.isAnonymous;
 
   // Un invitado que crea su cuenta ya dejó sus datos al reservar
@@ -115,7 +116,14 @@ export default function Registro() {
     }
 
     // La cuenta nueva no se usa hasta confirmar el correo (las anteriores no lo necesitan)
-    await enviarVerificacionEmail(userCredential.user);
+    // Si el envío falla (p. ej. auth/too-many-requests) la cuenta ya existe: no se
+    // muestra error de registro, y desde el login se puede reenviar el correo
+    try {
+      await enviarVerificacionEmail(userCredential.user);
+    } catch (errorCorreo) {
+      console.error("No se pudo enviar el correo de confirmación:", errorCorreo);
+      setCorreoFallido(true);
+    }
     await signOut(auth);
     setEmailEnviado(emailLimpio);
   } catch (error) {
@@ -136,10 +144,18 @@ export default function Registro() {
         <img src="/img/logoPCsin.png" alt="Logo La Purísima Conchi" className="w-40 mb-6" />
         <div className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md text-center">
           <h1 className="text-2xl font-serif text-[#5c2e00] mb-3">Confirma tu correo</h1>
+          {correoFallido ? (
+            <p className="text-sm mb-2">
+              Tu cuenta con <strong>{emailEnviado}</strong> está creada, pero no hemos podido
+              enviar el correo ahora mismo. Espera unos minutos, inicia sesión y pulsa
+              «Reenviar correo de confirmación».
+            </p>
+          ) : (
           <p className="text-sm mb-2">
             Te hemos enviado un enlace a <strong>{emailEnviado}</strong>. Ábrelo para
             activar tu cuenta y después inicia sesión.
           </p>
+          )}
           <p className="text-xs text-tinta-suave mb-5">
             Si no lo ves, revisa la carpeta de spam o correo no deseado.
           </p>
