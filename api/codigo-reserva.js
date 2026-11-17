@@ -69,6 +69,14 @@ async function conLimiteDeTarjeta(req, res, comprobar) {
   return res.status(status).json(resto);
 }
 
+// Web desde la que se llama (https://dominio). El enlace del correo de confirmación vuelve
+// a ella; sale de la cabecera Host, que fija Vercel según el dominio, no del cuerpo.
+function origenDeLaWeb(req) {
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+  if (!/^[a-z0-9.-]+(:\d+)?$/i.test(host)) return "";
+  return `${/^(localhost|127\.0\.0\.1)(:|$)/i.test(host) ? "http" : "https"}://${host}`;
+}
+
 export default async function handler(req, res) {
   if (applyCors(req, res)) return;
 
@@ -104,7 +112,7 @@ export default async function handler(req, res) {
     // Correo de confirmación del email de la cuenta (registro y reenvío desde el login):
     // es lo único que puede hacer una cuenta nueva sin confirmar
     if (cuerpo.tipo === "verificarEmail") {
-      const { status, ...resto } = await enviarCorreoVerificacion(uid);
+      const { status, ...resto } = await enviarCorreoVerificacion(uid, { origen: origenDeLaWeb(req) });
       return res.status(status).json(resto);
     }
 

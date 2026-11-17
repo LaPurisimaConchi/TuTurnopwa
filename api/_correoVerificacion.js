@@ -61,10 +61,11 @@ export function construirCorreoVerificacion({ nombre, enlace }) {
 }
 
 /**
- * Envía el correo de confirmación a la cuenta `uid`. Devuelve { status, ok, error? }.
+ * Envía el correo de confirmación a la cuenta `uid`. `origen` es la web desde la que se pide
+ * (https://dominio), para que el enlace vuelva a ella: en staging debe ir a staging. Devuelve { status, ok, error? }.
  * Máximo 5 envíos por hora y cuenta.
  */
-export async function enviarCorreoVerificacion(uid) {
+export async function enviarCorreoVerificacion(uid, { origen = "" } = {}) {
   const clave = String(process.env.RESEND_API_KEY || "").trim();
   if (!clave) return { status: 503, ok: false, error: "Correo no configurado" };
 
@@ -77,18 +78,24 @@ export async function enviarCorreoVerificacion(uid) {
     return { status: 429, ok: false, error: "Demasiados envíos. Espera un rato e inténtalo de nuevo." };
   }
 
-  const base = urlBase();
-  let enlace;
+  // El enlace lleva a nuestra página (src/AccionCuenta.jsx), no a la de Firebase en inglés:
+  // solo se aprovecha el código del enlace que genera firebase-admin. Se pide con la
+  // redirección (así funciona si el dominio está autorizado) y, si Firebase la rechaza,
+  // sin ella; el código vale igual.
+  const web = origen || urlBase();
+  let enlaceFirebase;
   try {
-    enlace = await adminAuth.generateEmailVerificationLink(
+    enlaceFirebase = await adminAuth.generateEmailVerificationLink(
       cuenta.email,
-      base ? { url: `${base}/login` } : undefined
+      web ? { url: `${web}/login` } : undefined
     );
   } catch (error) {
-    // El dominio de la web puede no estar autorizado en Firebase (p. ej. un Preview)
     console.warn("Correo verificación: enlace con redirección fallido:", error.message);
-    enlace = await adminAuth.generateEmailVerificationLink(cuenta.email);
+    enlaceFirebase = await adminAuth.generateEmailVerificationLink(cuenta.email);
   }
+  const oobCode = new URL(enlaceFirebase).searchParams.get("oobCode");
+  if (!oobCode) return { status: 502, ok: false, error: "No se pudo generar el enlace" };
+  const enlace = `${web}/auth/accion?mode=verifyEmail&oobCode=${encodeURIComponent(oobCode)}`;
 
   const { asunto, html, texto } = construirCorreoVerificacion({
     nombre: cuenta.displayName || "",
