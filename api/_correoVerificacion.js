@@ -90,6 +90,15 @@ export async function enviarCorreoVerificacion(uid) {
     enlace = await adminAuth.generateEmailVerificationLink(cuenta.email);
   }
 
+  // La página de Firebase a la que lleva el enlace sale en el idioma que indique `lang`
+  try {
+    const url = new URL(enlace);
+    url.searchParams.set("lang", "es");
+    enlace = url.toString();
+  } catch {
+    // Si el enlace no fuera una URL válida se envía tal cual
+  }
+
   const { asunto, html, texto } = construirCorreoVerificacion({
     nombre: cuenta.displayName || "",
     enlace,
