@@ -209,6 +209,17 @@ export async function intercambiarOrden(a, b) {
   });
 }
 
+// Guarda un orden completo (arrastrar y soltar): reparte entre las categorías, en el
+// orden nuevo, los mismos valores de orden que ya tenían, para no chocar con las demás
+export async function ordenarCategorias(categoriasEnOrden) {
+  const valores = categoriasEnOrden.map((c) => c.orden).sort((x, y) => x - y);
+  const cambios = {};
+  categoriasEnOrden.forEach((c, i) => {
+    if (c.orden !== valores[i]) cambios[`categoriasTalleres/${c.id}/orden`] = valores[i];
+  });
+  if (Object.keys(cambios).length) await update(ref(dbRealtime), cambios);
+}
+
 // Pasa las categorías de siempre indicadas (o todas las que falten) al panel.
 // Se guardan con su nombre, texto y orden de siempre; los talleres y las reservas
 // no cambian (siguen apuntando al mismo id). Las ya migradas o eliminadas no se tocan.
