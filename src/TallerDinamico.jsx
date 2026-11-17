@@ -336,7 +336,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
-                className="w-full px-4 py-2 rounded-full border border-terracota text-terracota hover:bg-terracota-suave font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 rounded-full border-2 border-terracota bg-terracota-suave text-terracota-oscuro hover:bg-terracota hover:text-white font-bold text-base shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icono nombre="usuarios" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>
@@ -352,7 +352,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="w-full px-4 py-2 rounded-full border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave transition"
+                className="w-full px-4 py-3 rounded-full border-2 border-terracota bg-terracota-suave text-terracota-oscuro hover:bg-terracota hover:text-white font-bold text-base shadow-sm transition"
               >
                 <Icono nombre="regalo" className="mr-1" />Regalar este taller
               </button>
