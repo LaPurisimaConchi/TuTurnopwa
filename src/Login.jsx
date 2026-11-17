@@ -99,7 +99,17 @@ export default function Login() {
     }
 
     try {
-      await sendPasswordResetEmail(auth, emailLimpio);
+      // Correo propio (api/_correoVerificacion.js); si el servidor falla, el de Firebase
+      const respuesta = await fetch("/api/codigo-reserva", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "restablecerContrasena", email: emailLimpio }),
+      }).catch(() => null);
+      if (respuesta?.status === 429) {
+        setError("Demasiados intentos. Espera un rato e inténtalo de nuevo.");
+        return;
+      }
+      if (!respuesta?.ok) await sendPasswordResetEmail(auth, emailLimpio);
       setMensaje(
         "Si el correo es correcto, te hemos enviado un enlace para restablecer tu contraseña."
       );

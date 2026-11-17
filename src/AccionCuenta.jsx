@@ -1,9 +1,7 @@
 // Página a la que llevan los enlaces de los correos de Firebase Auth (confirmar el
 // correo y restablecer la contraseña), con el estilo de la web en vez de la página
 // en inglés de Firebase. Ruta: /auth/accion?mode=verifyEmail|resetPassword&oobCode=…
-// El correo de confirmación lo monta api/_correoVerificacion.js apuntando aquí; para el
-// de restablecer contraseña hay que poner esta ruta en Firebase Console → Authentication
-// → Plantillas → «Personalizar URL de acción» (ver docs/paso-a-produccion.md).
+// Los dos correos (confirmar y restablecer) los monta api/_correoVerificacion.js apuntando aquí.
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { applyActionCode, confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";

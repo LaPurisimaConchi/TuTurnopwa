@@ -25,11 +25,10 @@ primero y se repite justo antes de las reglas.
 ### Antes de fusionar
 - [ ] Authentication → Configuración → **Dominios autorizados**: el dominio de producción
   (`app.lapurisimaconchi.com`). Sin él, el enlace del correo confirma igual pero no vuelve a `/login`.
-- [ ] **URL de acción de los correos de Firebase** (Authentication → Plantillas → «Personalizar URL de acción», en el
-  proyecto de producción): `https://app.lapurisimaconchi.com/auth/accion`. La página `src/AccionCuenta.jsx` confirma el
-  correo y cambia la contraseña con el diseño de la web. El correo de confirmación ya apunta a ella solo; este ajuste
-  es para el de «¿Has olvidado tu contraseña?». Sin él, ese correo sigue llevando a la página en inglés de Firebase
-  (funciona igual). Es un ajuste por proyecto: hecho en staging no vale para producción.
+- [ ] **Páginas de los enlaces**: los correos de confirmar el correo y de «¿Has olvidado tu contraseña?» los envía
+  `api/_correoVerificacion.js` (Resend) y sus enlaces llevan a `/auth/accion` (`src/AccionCuenta.jsx`) en el mismo dominio
+  desde el que se piden. No hace falta tocar la plantilla de Firebase. Solo si el servidor falla, el login cae al correo
+  estándar de Firebase (en inglés) como respaldo.
 - [ ] Variables de Vercel (Production): `RESEND_API_KEY`, `CORREO_REMITENTE` (dominio verificado en
   Resend) y `CORREO_URL_BASE` (logo y enlaces del correo). Sin ellas el correo de confirmación sale con
   la plantilla estándar de Firebase, en inglés y sin diseño.
