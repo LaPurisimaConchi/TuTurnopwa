@@ -342,7 +342,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
-                className="relative w-full px-4 py-2.5 rounded-full bg-mostaza text-tinta hover:bg-mostaza-borde font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-tinta/40 -outline-offset-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="relative w-full px-4 py-4 rounded-full bg-mostaza text-tinta hover:bg-mostaza-borde font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-tinta/40 -outline-offset-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundImage: PATRON_GRUPO }}
               >
                 <Icono nombre="usuarios" color="currentColor" className="mr-1" />Reservar para grupo
@@ -359,7 +359,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="relative overflow-hidden w-full pl-11 pr-3 py-2.5 rounded-full bg-white text-tinta hover:bg-[#fff1f1] font-bold text-sm shadow-sm transition border border-[#e9c4c8] outline outline-1 outline-dashed outline-[#d62839]/40 -outline-offset-4 before:content-[''] before:absolute before:-inset-y-6 before:left-6 before:w-4 before:-rotate-[28deg] before:bg-[#d62839] before:border-x before:border-[#a81b2b] before:pointer-events-none"
+                className="relative overflow-hidden w-full pl-11 pr-3 py-4 rounded-full bg-white text-tinta hover:bg-[#fff1f1] font-bold text-sm shadow-sm transition border border-[#e9c4c8] outline outline-1 outline-dashed outline-[#d62839]/40 -outline-offset-4 before:content-[''] before:absolute before:-inset-y-6 before:left-6 before:w-4 before:-rotate-[28deg] before:bg-[#d62839] before:border-x before:border-[#a81b2b] before:pointer-events-none"
                 style={{ backgroundImage: PATRON_REGALO }}
               >
                 <svg
