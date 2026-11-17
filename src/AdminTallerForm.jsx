@@ -434,6 +434,7 @@ export default function AdminTallerForm() {
 
     if (
       !esBono &&
+      !form.monografico &&
       form.minPersonasGrupo !== "" &&
       (numeroPositivo(form.minPersonasGrupo) < 2 || numeroPositivo(form.minPersonasGrupo) > 45)
     ) {
@@ -552,10 +553,10 @@ export default function AdminTallerForm() {
         setImagenesCambiadas(false);
       }
 
-      if (esNuevo) {
-        navigate(`/admin-taller?id=${id}`, { replace: true });
-      }
-      setMensaje("Taller guardado correctamente.");
+      // Guardado con éxito: vuelve a la página de la que se venía
+      if (window.history.state?.idx > 0) navigate(-1);
+      else navigate("/admin-clases-nuevo", { replace: true });
+      return;
     } catch (err) {
       console.error("Error al guardar el taller:", err);
       setError(
@@ -1286,10 +1287,17 @@ export default function AdminTallerForm() {
                     min="2"
                     max="45"
                     placeholder="5"
-                    className={input}
+                    className={`${input} disabled:opacity-50 disabled:cursor-not-allowed`}
                     value={form.minPersonasGrupo}
+                    disabled={form.monografico}
                     onChange={(e) => cambiar("minPersonasGrupo", e.target.value)}
                   />
+                  {form.monografico && (
+                    <p className="text-xs text-red-600 mt-1">
+                      No aplica a un taller monográfico: solo se reserva en sus fechas
+                      concretas, no hay días que habilitar.
+                    </p>
+                  )}
                   <p className="text-xs text-tinta-suave mt-1">
                     Por defecto 5. Los días en que el taller no se da normalmente se
                     pueden reservar si se juntan al menos estas personas. El mínimo

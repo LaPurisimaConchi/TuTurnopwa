@@ -1,6 +1,6 @@
 // src/components/BotonConfirmarReserva.jsx
 // Botón de envío de las pantallas de reserva (talleres y bonos).
-export default function BotonConfirmarReserva({ guardando, desdeTarjeta, deshabilitado }) {
+export default function BotonConfirmarReserva({ guardando, desdeTarjeta, deshabilitado, texto }) {
   return (
     <button
       type="submit"
@@ -10,7 +10,7 @@ export default function BotonConfirmarReserva({ guardando, desdeTarjeta, deshabi
       transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       disabled={guardando || deshabilitado}
     >
-      {guardando ? "Guardando..." : desdeTarjeta ? "Confirmar reserva" : "Confirmar y pagar"}
+      {guardando ? "Guardando..." : texto || (desdeTarjeta ? "Confirmar reserva" : "Confirmar y pagar")}
     </button>
   );
 }

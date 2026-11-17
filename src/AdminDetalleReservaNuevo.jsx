@@ -22,6 +22,11 @@ const AdminDetalleReservaNuevo = () => {
   const [eliminandoNotaId, setEliminandoNotaId] = useState(null);
 
   const [claseConfig, setClaseConfig] = useState(null);
+  const [numeroSesionBono, setNumeroSesionBono] = useState(null);
+  // Precio pagado por el producto completo (bono, o taller con varias sesiones)
+  const [precioProducto, setPrecioProducto] = useState(null);
+  // Importe de la tarjeta regalo con la que se reservó (la reserva guarda 0 €)
+  const [precioTarjeta, setPrecioTarjeta] = useState(null);
   const [fechasBloqueadas, setFechasBloqueadas] = useState({});
   const [fechasHabilitadas, setFechasHabilitadas] = useState({});
   const [nuevaFecha, setNuevaFecha] = useState("");
@@ -180,6 +185,82 @@ useEffect(() => {
         }
 
         setReserva(encontrada);
+
+        // Taller con varias sesiones: el pago va en la reserva de la sesión que lo cobra
+        if (
+          encontrada?.orderId &&
+          (encontrada.sesionesCurso > 1 || encontrada.sesionesEdicion > 1) &&
+          !(Number(encontrada.precioTotal) > 0)
+        ) {
+          let importe = 0;
+          const buscar = (nodo) => {
+            if (!nodo || typeof nodo !== "object") return;
+            if (nodo.orderId === encontrada.orderId && Number(nodo.precioTotal) > importe) {
+              importe = Number(nodo.precioTotal);
+              return;
+            }
+            Object.values(nodo).forEach(buscar);
+          };
+          buscar(reservasSnap.val());
+          if (importe > 0) setPrecioProducto({ tipo: "taller", importe });
+        }
+
+        // Reserva con tarjeta regalo: lee el importe de la tarjeta
+        if (encontrada?.desdeTarjeta) {
+          try {
+            let tarjetaId = encontrada.tarjetaRegaloId || "";
+            if (!tarjetaId && encontrada.codigoTarjeta) {
+              const idx = await get(
+                ref(dbRealtime, `codigosTarjetaRegalo/${String(encontrada.codigoTarjeta).toUpperCase()}`)
+              );
+              if (idx.exists()) tarjetaId = String(idx.val());
+            }
+            if (tarjetaId) {
+              const tarjetaSnap = await get(ref(dbRealtime, `tarjetasRegalo/${tarjetaId}`));
+              if (tarjetaSnap.exists()) {
+                const t = tarjetaSnap.val() || {};
+                const plazasTarjeta = Number(t.plazas) || 1;
+                const total = Number(t.precioTotal ?? t.precio ?? 0);
+                const unitario =
+                  Number(t.precioUnitario ?? t.precioBase ?? 0) || total / plazasTarjeta;
+                if (total > 0) setPrecioTarjeta({ total, unitario, plazas: plazasTarjeta });
+              }
+            }
+          } catch (e) {
+            console.error("No se pudo leer la tarjeta regalo", e);
+          }
+        }
+
+        // Si la reserva es de un bono, calcula qué sesión del bono es
+        const bonoIdReserva =
+          encontrada?.bonoId ||
+          (encontrada?.tipoTaller === "bono_mensual" ? encontrada.orderId : "");
+        if (encontrada?.uid && bonoIdReserva) {
+          try {
+            const bonoSnap = await get(
+              ref(dbRealtime, `usuarios/${encontrada.uid}/bonos/${bonoIdReserva}`)
+            );
+            if (bonoSnap.exists()) {
+              const bono = bonoSnap.val() || {};
+              const sesiones = Object.values(bono.sesionesConsumidas || {}).sort((a, b) =>
+                String(a.timestamp || "").localeCompare(String(b.timestamp || ""))
+              );
+              const indice = sesiones.findIndex(
+                (x) => x.reservaId && x.reservaId === encontrada.reservaKey
+              );
+              const precioBono = Number(bono.precioTotal ?? bono.precio ?? 0);
+              if (precioBono > 0) {
+                setPrecioProducto({ tipo: "bono", importe: precioBono });
+              }
+              setNumeroSesionBono({
+                numero: indice >= 0 ? indice + 1 : null,
+                total: Number(bono.numeroClases || 0) || null,
+              });
+            }
+          } catch (e) {
+            console.error("No se pudo leer el bono de la reserva", e);
+          }
+        }
 
         if (encontrada?.claseId) {
           const [claseConfigSnap, bloqueosSnap, habilitadasSnap] =
@@ -926,6 +1007,59 @@ useEffect(() => {
     <span style={{ ...styles.chip, ...styles[`chip_${tono}`] }}>{texto}</span>
   );
 
+  // De qué producto viene la reserva (bono, tarjeta regalo, taller...)
+  const origen = (() => {
+    const r = reserva;
+    const deTotal = (n, t) => (n && t ? `Sesión ${n} de ${t}` : n ? `Sesión ${n}` : "");
+    const sesionBono = numeroSesionBono
+      ? deTotal(numeroSesionBono.numero, numeroSesionBono.total)
+      : "";
+    const sesionTaller =
+      deTotal(Number(r.sesionCurso), Number(r.sesionesCurso)) ||
+      deTotal(Number(r.sesionEdicion), Number(r.sesionesEdicion)) ||
+      (r.tipoTaller === "dos_sesiones" && r.fechaPrimeraSesion ? "Sesión 1 de 2" : "");
+    if (r.desdeBono) {
+      return {
+        etiqueta: "Sesión de un bono",
+        detalle: [sesionBono, r.bonoId ? `Bono ${r.bonoId}` : ""].filter(Boolean).join(" · "),
+        tono: "azul",
+      };
+    }
+    if (r.desdeTarjeta) {
+      return {
+        etiqueta: "Tarjeta regalo",
+        detalle: [sesionTaller || sesionBono, r.codigoTarjeta ? `Código ${r.codigoTarjeta}` : ""]
+          .filter(Boolean)
+          .join(" · "),
+        tono: "ambar",
+      };
+    }
+    if (r.tipoTaller === "bono_mensual" || r.tipo === "bono") {
+      return {
+        etiqueta: "Compra de bono (primera sesión)",
+        detalle: sesionBono,
+        tono: "azul",
+      };
+    }
+    if (r.tipo === "grupo" || r.claseId === "reserva-grupo") {
+      return { etiqueta: "Reserva de grupo", detalle: "", tono: "azul" };
+    }
+    if (r.tipoTaller === "dos_sesiones") {
+      return { etiqueta: "Taller de dos sesiones", detalle: sesionTaller, tono: "verde" };
+    }
+    if (r.tipoTaller === "monografico") {
+      return { etiqueta: "Taller monográfico", detalle: sesionTaller, tono: "verde" };
+    }
+    return { etiqueta: "Sesión de taller", detalle: sesionTaller, tono: "verde" };
+  })();
+
+  // Sesiones sin cobro propio porque van incluidas en un bono o en un taller ya pagado
+  const sinCobro =
+    !precioTarjeta &&
+    !(Number(reserva.precioTotal) > 0) &&
+    (reserva.desdeBono || precioProducto?.tipo === "taller");
+  const textoIncluido = reserva.desdeBono ? "Incluido en el bono" : "Incluido en el taller";
+
   const tonoEstado = reservaYaCancelada
     ? "rojo"
     : String(reserva.estado).toLowerCase() === "confirmada"
@@ -974,6 +1108,12 @@ useEffect(() => {
           <div style={styles.chips}>
             {chip(reservaYaCancelada ? "Cancelada" : reserva.estado, tonoEstado)}
             {chip(esPagado ? "Pagado" : `Pago: ${reserva.estadoPago}`, esPagado ? "verde" : "ambar")}
+            {chip(
+              origen.detalle && origen.detalle.startsWith("Sesión ")
+                ? `${origen.etiqueta} · ${origen.detalle.split(" · ")[0]}`
+                : origen.etiqueta,
+              origen.tono
+            )}
             {reserva.reprogramada && chip("Reprogramada", "azul")}
             {reserva.sobreaforo && chip("Sobreaforo", "rojo")}
           </div>
@@ -1066,9 +1206,33 @@ useEffect(() => {
 
           <section style={styles.tarjeta}>
             <h2 style={styles.tarjetaTitulo}>Pago</h2>
-            {dato("Precio por plaza", `${reserva.precioUnitario} €`)}
-            {dato("Precio total", `${reserva.precioTotal} €`)}
+            {precioProducto &&
+              !precioTarjeta &&
+              dato(
+                precioProducto.tipo === "bono" ? "Pagado por el bono" : "Pagado por el taller",
+                `${precioProducto.importe} €`
+              )}
+            {dato(
+              "Precio por plaza",
+              precioTarjeta
+                ? `${precioTarjeta.unitario} € · con tarjeta regalo`
+                : sinCobro
+                ? textoIncluido
+                : `${reserva.precioUnitario} €`
+            )}
+            {dato(
+              "Precio total",
+              precioTarjeta
+                ? `${precioTarjeta.total} € · con tarjeta regalo`
+                : sinCobro
+                ? textoIncluido
+                : `${reserva.precioTotal} €`
+            )}
             {dato("Fecha de pago", reserva.timestamp)}
+            {dato(
+              "Origen",
+              origen.detalle ? `${origen.etiqueta} · ${origen.detalle}` : origen.etiqueta
+            )}
             {dato("Desde tarjeta regalo", reserva.desdeTarjeta ? "Sí" : "No")}
           </section>
 

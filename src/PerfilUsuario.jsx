@@ -5,6 +5,7 @@ import { auth, dbRealtime } from "./firebase";
 import { ref, get } from "firebase/database";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import Footer from "./Footer";
+import BarraDeslizable from "./components/BarraDeslizable";
 import PantallaConVolver from "./PantallaConVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
@@ -193,24 +194,68 @@ function AvisoCancelacion({ reserva }) {
   );
 }
 
-function TarjetaReserva({ reserva }) {
-  return (
-    <div className="space-y-1 text-sm">
-      <p>
-        <strong>Clase:</strong> {reserva.clase}
-      </p>
-      <p>
-        <strong>Fecha:</strong> {fechaDMA(reserva.fecha)}
-      </p>
-      <p>
-        <strong>Turno:</strong> {reserva.turno}
-      </p>
-      {reserva.ubicacion && (
-        <p>
-          <strong>Ubicación:</strong> {reserva.ubicacion}
-        </p>
-      )}
+const tarjetaItem = "bg-crema border border-linea rounded-xl p-3 text-sm text-tinta";
+const botonSecundario =
+  "w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2.5 px-4 rounded-full transition border border-[#e7dccb] text-sm";
+const botonContorno =
+  "w-full text-center border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-2.5 px-4 rounded-full transition text-sm";
 
+function Chip({ tono = "neutro", children }) {
+  const tonos = {
+    verde: "bg-[#e0f0dc] text-[#2f6b2f]",
+    ambar: "bg-[#fdebc8] text-[#8a5a00]",
+    rojo: "bg-[#f7d7d7] text-[#8a3b3b]",
+    neutro: "bg-arena text-tinta-suave",
+  };
+  return (
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${tonos[tono]}`}>
+      {children}
+    </span>
+  );
+}
+
+function TituloSeccion({ children, aside }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 mb-2">
+      <h2 className="font-serif text-lg font-bold text-tinta">{children}</h2>
+      {aside}
+    </div>
+  );
+}
+
+// Una reserva en las listas: fecha destacada, taller y turno
+function FilaReserva({ reserva, historial = false }) {
+  const cancelada = esReservaCancelada(reserva);
+  return (
+    <li className={tarjetaItem}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">{reserva.clase}</p>
+          <p className="text-tinta-suave">
+            {fechaDMA(reserva.fecha)} · {reserva.turno}
+            {reserva.ubicacion ? ` · ${reserva.ubicacion}` : ""}
+          </p>
+        </div>
+        {cancelada && <Chip tono="rojo">Cancelada</Chip>}
+      </div>
+
+      {historial && <AvisoCancelacion reserva={reserva} />}
+      {(!historial || !cancelada) && <AvisoReprogramacion reserva={reserva} />}
+    </li>
+  );
+}
+
+function ReservaDestacada({ reserva }) {
+  return (
+    <div className="rounded-2xl border border-terracota/40 bg-terracota-suave/40 p-4 text-tinta">
+      <p className="text-xs font-semibold uppercase tracking-wider text-terracota mb-1">
+        Tu próxima reserva
+      </p>
+      <p className="font-serif text-xl font-bold leading-tight">{reserva.clase}</p>
+      <p className="mt-1 text-sm">
+        <strong>{fechaDMA(reserva.fecha)}</strong> · {reserva.turno}
+        {reserva.ubicacion ? ` · ${reserva.ubicacion}` : ""}
+      </p>
       <AvisoReprogramacion reserva={reserva} />
       <AvisoCancelacion reserva={reserva} />
     </div>
@@ -228,7 +273,7 @@ export default function PerfilUsuario() {
   const [tarjetasRegalo, setTarjetasRegalo] = useState([]);
   const [bonos, setBonos] = useState([]);
   const [esInvitado, setEsInvitado] = useState(false);
-
+  const [pestana, setPestana] = useState("reservas");
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -357,378 +402,346 @@ export default function PerfilUsuario() {
     signOut(auth).then(() => navigate("/"));
   };
 
+  const pestanas = [
+    { id: "reservas", etiqueta: "Reservas", cuenta: reservasActivas.length + (reservaActiva ? 1 : 0) },
+    { id: "bonos", etiqueta: "Bonos", cuenta: bonos.length },
+    { id: "tarjetas", etiqueta: "Tarjetas regalo", cuenta: tarjetasRegalo.length },
+    { id: "pieza", etiqueta: "Mi pieza" },
+  ];
+  const inicial = (nombre || email || "?").trim().charAt(0).toUpperCase();
+
   return (
     <PantallaConVolver volverA="/portada">
-      <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-tinta">
-        <div className="text-center mb-6">
-          <h1 className="text-[2rem] font-serif font-bold text-[#6f3d22] mb-2">
-            Tu perfil
-          </h1>
-          <p className="text-sm text-tinta-suave">
-           Consulta y gestiona tus reservas y datos de tu cuenta
-          </p>
-        </div>
+      <div className="max-w-5xl w-full mx-auto bg-white rounded-2xl shadow-md p-5 sm:p-6 text-tinta">
+        <h1 className="text-center font-serif text-tinta mb-5">
+          <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
+            Tu cuenta
+          </span>
+          <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">Tu perfil</span>
+        </h1>
 
         {esInvitado && (
-          <div className="bg-mostaza-suave border border-linea rounded-2xl px-4 py-4 mb-5 text-sm text-tinta-suave">
-            <p className="font-semibold mb-1">Estás usando la app como invitado</p>
-            <p className="leading-relaxed mb-3">
-              Crea una contraseña para guardar tus reservas y compras y poder
-              verlas desde cualquier dispositivo.
-            </p>
+          <div className="bg-mostaza-suave border border-linea rounded-xl px-4 py-3 mb-5 text-sm text-tinta-suave md:flex md:items-center md:justify-between md:gap-4">
+            <div>
+              <p className="font-semibold mb-1">Estás usando la app como invitado</p>
+              <p className="leading-relaxed">
+                Crea una contraseña para guardar tus reservas y compras y poder verlas desde cualquier
+                dispositivo.
+              </p>
+            </div>
             <button
               onClick={() => navigate("/registro")}
-              className="w-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold py-2.5 rounded-full transition"
+              className="mt-3 md:mt-0 md:shrink-0 w-full md:w-auto bg-terracota hover:bg-terracota-oscuro text-white font-semibold py-2.5 px-5 rounded-full transition"
             >
               Crear mi cuenta
             </button>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-arena px-4 py-4 shadow-sm mb-5">
-  <p className="text-sm mb-2">
-    <span className="font-semibold">Nombre:</span> {nombre || "—"}
-  </p>
-  <p className="text-sm mb-2">
-    <span className="font-semibold">Email:</span> {email || "—"}
-  </p>
-  <p className="text-sm mb-3">
-    <span className="font-semibold">Teléfono:</span> {telefono || "—"}
-  </p>
-
-  <button
-    onClick={() => navigate("/editar-perfil")}
-    className="w-full bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-3 rounded-2xl transition"
-  >
-    Editar perfil
-  </button>
-</div>
-
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <button
-            className="bg-terracota hover:bg-terracota-oscuro text-white font-bold py-3 rounded-full text-sm shadow-md transition"
-            onClick={() => navigate("/portada")}
-          >
-            Reservar
-          </button>
-
-          <button
-            className="bg-white border border-terracota text-terracota hover:bg-terracota-suave font-bold py-3 rounded-full text-sm transition"
-            onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
-          >
-            Canjear tarjeta regalo
-          </button>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-arena px-4 py-4 shadow-sm mb-5">
-          <h2 className="text-base font-semibold mb-3">Tu reserva</h2>
-
-          {reservaActiva ? (
-            <TarjetaReserva reserva={reservaActiva} />
-          ) : (
-            <p className="text-sm text-tinta-suave">
-              No tienes reservas activas.
-            </p>
-          )}
-        </div>
-
-        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
-          <summary className="cursor-pointer font-semibold">
-            Próximas reservas
-          </summary>
-
-          <div className="mt-3">
-            {reservasActivas.length > 0 ? (
-              <ul className="text-sm space-y-2">
-                {reservasActivas.map((r, i) => (
-                  <li
-                    key={i}
-                    className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8]"
-                  >
-                    <p>
-                      <strong>{fechaDMA(r.fecha)}</strong> — {r.clase} ({r.turno})
-                      {r.ubicacion ? ` en ${r.ubicacion}` : ""}
-                    </p>
-
-                    <AvisoReprogramacion reserva={r} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-tinta-suave">
-                No tienes más reservas futuras.
+        <div className="grid gap-6 md:grid-cols-[17rem_1fr] md:gap-x-10">
+          {/* Izquierda: cuenta y accesos */}
+          <aside className="space-y-4 md:sticky md:top-24 md:self-start">
+            <div className={tarjetaItem}>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-terracota text-white font-serif text-xl font-bold">
+                  {inicial}
+                </span>
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{nombre || "Sin nombre"}</p>
+                  <p className="text-xs text-tinta-suave truncate">{email || "—"}</p>
+                </div>
+              </div>
+              <p className="text-sm mb-3">
+                <span className="font-semibold">Teléfono:</span> {telefono || "—"}
               </p>
-            )}
-          </div>
-        </details>
+              <button onClick={() => navigate("/editar-perfil")} className={botonSecundario}>
+                Editar perfil
+              </button>
+            </div>
 
-        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
-          <summary className="cursor-pointer font-semibold">
-            Historial de reservas
-          </summary>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
+              <button
+                className="bg-terracota hover:bg-terracota-oscuro text-white font-bold py-3 rounded-full text-sm shadow-md transition"
+                onClick={() => navigate("/portada")}
+              >
+                Reservar
+              </button>
+              <button
+                className="bg-white border border-terracota text-terracota hover:bg-terracota-suave font-bold py-3 rounded-full text-sm transition"
+                onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
+              >
+                Canjear tarjeta regalo
+              </button>
+            </div>
 
-          <div className="mt-3">
-            {reservasPasadas.length > 0 ? (
-              <ul className="text-sm space-y-2">
-                {reservasPasadas.map((r, i) => (
-                  <li
-                    key={i}
-                    className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8]"
-                  >
-                    <p>
-                      <strong>{fechaDMA(r.fecha)}</strong> — {r.clase} ({r.turno})
-                      {r.ubicacion ? ` en ${r.ubicacion}` : ""}
-                    </p>
-
-                    <AvisoCancelacion reserva={r} />
-                    {!esReservaCancelada(r) && (
-                      <AvisoReprogramacion reserva={r} />
-                    )}
-                  </li>
-                ))}
+            <details className={`${tarjetaItem} hidden md:block`} open>
+              <summary className="cursor-pointer font-semibold">
+                <Icono nombre="ubicacion" className="mr-1.5" />Contacto
+              </summary>
+              <ul className="mt-3 space-y-2">
+                <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
+                <li className="break-all"><Icono nombre="correo" className="mr-1.5" />lapurisimaconchioficial@gmail.com</li>
+                <li><Icono nombre="casa" className="mr-1.5" />Calle Israel Nº5, Córdoba</li>
               </ul>
-            ) : (
-              <p className="text-sm text-tinta-suave">
-                Aún no tienes reservas anteriores.
-              </p>
-            )}
-          </div>
-        </details>
+              <button
+                onClick={() => window.open("https://maps.google.com/?q=Calle+Israel+5+Córdoba", "_blank")}
+                className={`${botonSecundario} mt-3`}
+              >
+                <Icono nombre="ubicacion" className="mr-1.5" />Cómo llegar
+              </button>
+            </details>
+          </aside>
 
-        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
-          <summary className="cursor-pointer font-semibold">
-            <Icono nombre="bono" className="mr-1.5" />Mis bonos
-          </summary>
+          {/* Derecha: contenido por pestañas */}
+          <section className="min-w-0">
+            <BarraDeslizable role="tablist" claseExterior="mb-4" className="gap-2 -mx-1 px-1">
+                {pestanas.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={pestana === t.id}
+                    onClick={(e) => {
+                      setPestana(t.id);
+                      e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                    }}
+                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition border ${
+                      pestana === t.id
+                        ? "bg-terracota text-white border-terracota shadow-sm"
+                        : "bg-white text-tinta-suave border-linea hover:bg-arena"
+                    }`}
+                  >
+                    {t.etiqueta}
+                    {t.cuenta > 0 ? ` (${t.cuenta})` : ""}
+                  </button>
+                ))}
+            </BarraDeslizable>
 
-          <div className="mt-3">
-            {bonos.length > 0 ? (
-              <ul className="text-sm space-y-2">
-                {bonos.map((bono, i) => {
-                  const estadoVisible = obtenerEstadoVisibleBono(bono);
+            {pestana === "reservas" && (
+              <div className="space-y-5">
+                {reservaActiva ? (
+                  <ReservaDestacada reserva={reservaActiva} />
+                ) : (
+                  <div className={tarjetaItem}>
+                    <p className="text-tinta-suave">No tienes reservas activas.</p>
+                    <button onClick={() => navigate("/portada")} className={`${botonContorno} mt-3 sm:w-auto`}>
+                      Reservar un taller
+                    </button>
+                  </div>
+                )}
 
-                  return (
-                    <li
-                      key={bono.bonoId || i}
-                      className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8]"
+                <div>
+                  <TituloSeccion>Próximas reservas</TituloSeccion>
+                  {reservasActivas.length > 0 ? (
+                    <ul className="grid gap-2 lg:grid-cols-2">
+                      {reservasActivas.map((r, i) => (
+                        <FilaReserva key={i} reserva={r} />
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-tinta-suave">No tienes más reservas futuras.</p>
+                  )}
+                </div>
+
+                <details className="group">
+                  <summary className="cursor-pointer list-none">
+                    <TituloSeccion
+                      aside={<span className="text-xs text-tinta-suave group-open:hidden">Mostrar</span>}
                     >
-                      <p>
-                        <strong>Bono:</strong> {bono.clase || "Bono"}
-                      </p>
-                      <p>
-                        <strong>Clases incluidas:</strong>{" "}
-                        {Number(bono.numeroClases || 0)}
-                      </p>
-                      <p>
-                        <strong>Consumidas:</strong>{" "}
-                        {Number(bono.clasesConsumidas || 0)}
-                      </p>
-                      <p>
-                        <strong>Restantes:</strong>{" "}
-                        {Number(bono.clasesRestantes || 0)}
-                      </p>
-                      <p>
-                        <strong>Fecha de inicio:</strong>{" "}
-                        {fechaDMA(bono.fechaInicio) || "—"}
-                      </p>
-                      <p>
-                        <strong>Caduca el:</strong>{" "}
-                        {fechaDMA(bono.fechaCaducidadBono) || "—"}
-                      </p>
-                      <p>
-                        <strong>Estado:</strong> {estadoVisible}
-                      </p>
-                      
-                      {estadoVisible === "Activo" && (
- <button
-  onClick={() => navigate(`/usar-bono/${bono.bonoId}`)}
-  className="mt-3 w-full px-4 py-2 bg-terracota hover:bg-terracota-oscuro text-white font-semibold rounded-full transition"
->
-  Reservar sesión con este bono
-</button>
-)}
-                      
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="text-sm text-tinta-suave">
-                Aún no tienes bonos comprados.
-              </p>
+                      Historial de reservas
+                    </TituloSeccion>
+                  </summary>
+                  {reservasPasadas.length > 0 ? (
+                    <ul className="grid gap-2 lg:grid-cols-2">
+                      {reservasPasadas.map((r, i) => (
+                        <FilaReserva key={i} reserva={r} historial />
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-tinta-suave">Aún no tienes reservas anteriores.</p>
+                  )}
+                </details>
+              </div>
             )}
-          </div>
-        </details>
 
-        <details className="mb-5 bg-white border border-arena rounded-2xl p-4 shadow-sm">
-          <summary className="cursor-pointer font-semibold">
-            <Icono nombre="regalo" className="mr-1.5" />Mis tarjetas regalo
-          </summary>
+            {pestana === "bonos" && (
+              <div>
+                <TituloSeccion>Mis bonos</TituloSeccion>
+                {bonos.length > 0 ? (
+                  <ul className="grid gap-3 lg:grid-cols-2">
+                    {bonos.map((bono, i) => {
+                      const estadoVisible = obtenerEstadoVisibleBono(bono);
+                      const total = Number(bono.numeroClases || 0);
+                      const usadas = Number(bono.clasesConsumidas || 0);
+                      const porcentaje = total > 0 ? Math.min(100, (usadas / total) * 100) : 0;
+                      return (
+                        <li key={bono.bonoId || i} className={`${tarjetaItem} flex flex-col`}>
+                          <div className="flex items-start justify-between gap-3">
+                            <p className="font-semibold">{bono.clase || "Bono"}</p>
+                            <Chip tono={estadoVisible === "Activo" ? "verde" : "ambar"}>{estadoVisible}</Chip>
+                          </div>
 
-          <div className="mt-3">
-            {tarjetasRegalo.length > 0 ? (
-              <ul className="text-sm space-y-2">
-                {tarjetasRegalo.map((tarjeta, i) => (
-                  <li
-                    key={i}
-                    className="bg-[#faf8f4] p-3 rounded-xl border border-[#ece4d8]"
+                          <div className="mt-3">
+                            <div className="h-2 rounded-full bg-arena overflow-hidden">
+                              <div className="h-full bg-terracota" style={{ width: `${porcentaje}%` }} />
+                            </div>
+                            <p className="mt-1 text-xs text-tinta-suave">
+                              {usadas} de {total} clases usadas · {Number(bono.clasesRestantes || 0)} restantes
+                            </p>
+                          </div>
+
+                          <p className="mt-2 text-tinta-suave">
+                            {fechaDMA(bono.fechaInicio) || "—"} → {fechaDMA(bono.fechaCaducidadBono) || "—"}
+                          </p>
+
+                          {estadoVisible === "Activo" && (
+                            <button
+                              onClick={() => navigate(`/usar-bono/${bono.bonoId}`)}
+                              className="mt-3 w-full px-4 py-2.5 bg-terracota hover:bg-terracota-oscuro text-white font-semibold rounded-full transition text-sm"
+                            >
+                              Reservar sesión con este bono
+                            </button>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-tinta-suave">Aún no tienes bonos comprados.</p>
+                )}
+              </div>
+            )}
+
+            {pestana === "tarjetas" && (
+              <div>
+                <TituloSeccion>Mis tarjetas regalo</TituloSeccion>
+                {tarjetasRegalo.length > 0 ? (
+                  <ul className="grid gap-3">
+                    {tarjetasRegalo.map((tarjeta, i) => {
+                      const usada = tarjeta.estadoCanje === "usada" || tarjeta.estadoCanje === "canjeado";
+                      return (
+                        <li key={i} className={tarjetaItem}>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold">{tarjeta.clase || "Tarjeta regalo"}</p>
+                              <p className="text-tinta-suave">{tarjeta.precioTotal} €</p>
+                            </div>
+                            <Chip tono={usada ? "neutro" : "verde"}>{usada ? "Usada" : "Disponible"}</Chip>
+                          </div>
+                          <p className="mt-2">
+                            <span className="font-semibold">Código:</span>{" "}
+                            <span className="font-mono tracking-wider">{tarjeta.codigo || "—"}</span>
+                          </p>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            <a href="/tarjetas-regalo/postal regalo.pdf" download className={botonSecundario}>
+                              Tarjeta clásica
+                            </a>
+                            <a href="/tarjetas-regalo/regalo papa noel.pdf" download className={botonSecundario}>
+                              Navidad 1
+                            </a>
+                            <a href="/tarjetas-regalo/regalo reyes.pdf" download className={botonSecundario}>
+                              Navidad 2
+                            </a>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-tinta-suave">Aún no has comprado ninguna tarjeta regalo.</p>
+                )}
+              </div>
+            )}
+
+            {pestana === "pieza" && (
+              <div className="rounded-2xl border border-[#ead66d] bg-[#fbf4d8] p-4 text-sm text-tinta space-y-4">
+                <TituloSeccion>
+                  <Icono nombre="taller" className="mr-1.5" />Quiero recoger mi pieza
+                </TituloSeccion>
+                <p>Tus piezas necesitan secado y cocción. Cuando estén listas, podrás consultarlas aquí.</p>
+
+                <div>
+                  <p className="font-semibold mb-1">Pasos a seguir:</p>
+                  <ol className="list-decimal pl-5 space-y-1">
+                    <li>Elige el esmalte y sube la foto de tu pieza.</li>
+                    <li>Revisa si tu pieza está lista para recoger.</li>
+                    <li>Cuando esté lista, escríbenos por WhatsApp para venir a recogerla.</li>
+                  </ol>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <a
+                    href="https://drive.google.com/drive/folders/1Im70RbYcyCFs5pPLgq2ooHhowwtA8F0R"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${botonContorno} bg-white`}
                   >
-                    <p>
-                      <strong>Producto:</strong>{" "}
-                      {tarjeta.clase || "Tarjeta regalo"}
-                    </p>
-                    <p>
-                      <strong>Precio:</strong> {tarjeta.precioTotal} €
-                    </p>
-                    <p>
-                      <strong>Código:</strong> {tarjeta.codigo || "—"}
-                    </p>
-                    <p>
-                      <strong>Estado:</strong>{" "}
-                      {tarjeta.estadoCanje === "usada"
-                        ? "Usada"
-                        : tarjeta.estadoCanje === "canjeado"
-                        ? "Usada"
-                        : "Disponible"}
-                    </p>
-                    <div className="mt-3 flex flex-col gap-2">
-  <a
-    href="/tarjetas-regalo/postal regalo.pdf"
-    download
-    className="w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
-  >
-    Descargar tarjeta clásica
-  </a>
+                    Elegir esmalte y subir foto
+                  </a>
+                  <a
+                    href="https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${botonContorno} bg-white`}
+                  >
+                    Ver si mi pieza está lista
+                  </a>
+                </div>
 
-  <a
-    href="/tarjetas-regalo/regalo papa noel.pdf"
-    download
-    className="w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
-  >
-    Descargar tarjeta Navidad 1
-  </a>
+                <p>
+                  <span className="font-semibold">WhatsApp:</span>{" "}
+                  <a
+                    href="https://wa.me/34611804664"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#b58900] font-bold"
+                  >
+                    611 804 664
+                  </a>
+                </p>
 
-  <a
-    href="/tarjetas-regalo/regalo reyes.pdf"
-    download
-    className="w-full text-center bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-2 px-4 rounded-xl transition border border-[#e7dccb]"
-  >
-    Descargar tarjeta Navidad 2
-  </a>
-</div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-tinta-suave">
-                Aún no has comprado ninguna tarjeta regalo.
-              </p>
+                <div>
+                  <p className="font-semibold mb-1">Importante:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Si viniste en grupo, las piezas pueden estar listas en momentos diferentes.</li>
+                    <li>Tienes 1 mes para recogerla sin coste desde que se publique.</li>
+                    <li>Si necesitas organizar un envío o tienes dudas, escríbenos por WhatsApp.</li>
+                  </ul>
+                </div>
+              </div>
             )}
-          </div>
-        </details>
+          </section>
+        </div>
 
-        <details className="mb-5 bg-[#fbf4d8] border border-[#ead66d] rounded-2xl p-4 shadow-sm">
-  <summary className="cursor-pointer font-semibold">
-    <Icono nombre="taller" className="mr-1.5" />Quiero recoger mi pieza
-  </summary>
-
-  <div className="mt-3 text-sm text-tinta space-y-3">
-    <p>
-      Tus piezas necesitan secado y cocción. Cuando estén listas, podrás consultarlas aquí.
-    </p>
-
-    <div>
-      <p className="font-semibold mb-1">Pasos a seguir:</p>
-      <ol className="list-decimal pl-5 space-y-1">
-        <li>Elige el esmalte y sube la foto de tu pieza.</li>
-        <li>Revisa si tu pieza está lista para recoger.</li>
-        <li>Cuando esté lista, escríbenos por WhatsApp para venir a recogerla.</li>
-      </ol>
-    </div>
-
-    <div className="flex flex-col gap-2">
-      <a
-        href="https://drive.google.com/drive/folders/1Im70RbYcyCFs5pPLgq2ooHhowwtA8F0R"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-3 px-4 rounded-full text-center transition"
-      >
-        Elegir esmalte y subir foto
-      </a>
-
-      <a
-        href="https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="w-full border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-3 px-4 rounded-full text-center transition"
-      >
-        Ver si mi pieza está lista
-      </a>
-    </div>
-
-    <p>
-      <span className="font-semibold">WhatsApp:</span>{" "}
-      <a
-        href="https://wa.me/34611804664"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-[#b58900] font-bold"
-      >
-        611 804 664
-      </a>
-    </p>
-
-    <div>
-      <p className="font-semibold mb-1">Importante:</p>
-      <ul className="list-disc pl-5 space-y-1">
-        <li>Si viniste en grupo, las piezas pueden estar listas en momentos diferentes.</li>
-        <li>Tienes 1 mes para recogerla sin coste desde que se publique.</li>
-        <li>Si necesitas organizar un envío o tienes dudas, escríbenos por WhatsApp.</li>
-      </ul>
-    </div>
-  </div>
-</details>
-
-        <details className="mb-6 bg-white border border-arena rounded-2xl p-4 shadow-sm">
+        {/* Contacto en móvil (en escritorio va en la columna izquierda) */}
+        <details className={`${tarjetaItem} mt-6 md:hidden`}>
           <summary className="cursor-pointer font-semibold">
             <Icono nombre="ubicacion" className="mr-1.5" />Contacto
           </summary>
-
-          <ul className="mt-3 text-sm space-y-2">
+          <ul className="mt-3 space-y-2">
             <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
-            <li><Icono nombre="correo" className="mr-1.5" />lapurisimaconchioficial@gmail.com</li>
+            <li className="break-all"><Icono nombre="correo" className="mr-1.5" />lapurisimaconchioficial@gmail.com</li>
             <li><Icono nombre="casa" className="mr-1.5" />Calle Israel Nº5, Córdoba</li>
           </ul>
-
-          <div className="mt-4">
-            <button
-              onClick={() =>
-                window.open(
-                  "https://maps.google.com/?q=Calle+Israel+5+Córdoba",
-                  "_blank"
-                )
-              }
-              className="w-full px-4 py-2 bg-arena hover:bg-[#ebe4da] rounded-xl text-sm font-medium transition"
-            >
-              <Icono nombre="ubicacion" className="mr-1.5" />Cómo llegar
-            </button>
-          </div>
+          <button
+            onClick={() => window.open("https://maps.google.com/?q=Calle+Israel+5+Córdoba", "_blank")}
+            className={`${botonSecundario} mt-3`}
+          >
+            <Icono nombre="ubicacion" className="mr-1.5" />Cómo llegar
+          </button>
         </details>
 
-        <button
-          onClick={handleLogout}
-          className="w-full mb-5 bg-[#7a4326] text-white py-3 rounded-2xl font-semibold shadow-md"
-        >
-          Cerrar sesión
-        </button>
-
-        <div className="text-center text-xs space-y-1 text-[#a08f80]">
-          <button onClick={() => navigate("/politica-privacidad")}>
-            Política de Privacidad
+        <div className="mt-6 flex flex-col items-center gap-4">
+          <button
+            onClick={handleLogout}
+            className="w-full sm:w-auto sm:px-10 bg-[#7a4326] hover:bg-[#633620] text-white py-3 rounded-full font-semibold shadow-md transition"
+          >
+            Cerrar sesión
           </button>
-          <br />
-          <button onClick={() => navigate("/condiciones-pago")}>
-            Condiciones de Pago
-          </button>
+          <div className="text-center text-xs text-[#a08f80] space-x-4">
+            <button onClick={() => navigate("/politica-privacidad")}>Política de Privacidad</button>
+            <button onClick={() => navigate("/condiciones-pago")}>Condiciones de Pago</button>
+          </div>
         </div>
       </div>
 

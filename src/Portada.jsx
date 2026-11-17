@@ -3,6 +3,7 @@ import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
+import BarraDeslizable from "./components/BarraDeslizable";
 import useMiniaturasTalleres from "./components/useMiniaturasTalleres";
 import useCategorias from "./components/useCategorias";
 import { useConfigEspacio } from "./configuracionEspacio";
@@ -123,12 +124,19 @@ export default function Portada() {
           </div>
 
           {grupos.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-5 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:justify-center [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <BarraDeslizable
+              fondo="crema"
+              claseExterior="mb-6 -mx-4 sm:mx-0"
+              className="gap-2 px-4 sm:px-0 sm:flex-wrap sm:justify-center"
+            >
               {[{ id: "todos", titulo: "Todos" }, ...grupos].map((g) => (
                 <button
                   key={g.id}
                   type="button"
-                  onClick={() => setGrupoActivo(g.id)}
+                  onClick={(e) => {
+                    setGrupoActivo(g.id);
+                    e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+                  }}
                   className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
                     grupoActivo === g.id
                       ? "border-terracota bg-terracota text-white"
@@ -138,7 +146,7 @@ export default function Portada() {
                   {g.titulo}
                 </button>
               ))}
-            </div>
+            </BarraDeslizable>
           )}
 
           {cargando ? (
