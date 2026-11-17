@@ -717,10 +717,21 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Izquierda: qué y cuándo (opción y día) */}
           <div className="space-y-4">
-          {conVariante && varianteFija && variante && (
-            <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
-              <strong>{clase.variante?.etiqueta || "Opción"}:</strong> {variante.nombre} — {variante.precio}€
-            </p>
+          {((conVariante && varianteFija && variante) || (conMetodo && metodoFijo && metodoElegido)) && (
+            <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
+              {conVariante && varianteFija && variante && (
+                <p>
+                  <strong>{clase.variante?.etiqueta || "Opción"}:</strong> {variante.nombre} — {variante.precio}€
+                </p>
+              )}
+              {conMetodo && metodoFijo && metodoElegido && (
+                <p>
+                  <strong>Método:</strong> {metodoElegido.nombre}
+                  {!conVariante && metodoElegido.precio > 0 ? ` — ${metodoElegido.precio}€` : ""}
+                  {conVariante && metodoElegido.extra > 0 ? ` (+${metodoElegido.extra}€)` : ""}
+                </p>
+              )}
+            </div>
           )}
           {conVariante && !varianteFija && (
             <div>
@@ -788,13 +799,6 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Derecha: método, turno, plazas, resumen y pago */}
           <div className="space-y-4">
-          {conMetodo && metodoFijo && metodoElegido && (
-            <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
-              <strong>Método:</strong> {metodoElegido.nombre}
-              {!conVariante && metodoElegido.precio > 0 ? ` — ${metodoElegido.precio}€` : ""}
-              {conVariante && metodoElegido.extra > 0 ? ` (+${metodoElegido.extra}€)` : ""}
-            </p>
-          )}
           {conMetodo && !metodoFijo && (
             <div>
               <label htmlFor="metodo" className="block font-bold text-sm mb-1">

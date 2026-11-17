@@ -407,10 +407,21 @@ export default function ReservaGrupos() {
               </p>
             )}
 
-            {taller && opcion && opciones.clave === "variante" && (
-              <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
-                <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {opcion.precio}€
-              </p>
+            {taller && (opcion || metodo) && (
+              <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
+                {opcion && opciones.clave === "variante" && (
+                  <p>
+                    <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {opcion.precio}€
+                  </p>
+                )}
+                {metodo && (
+                  <p>
+                    <strong>Método:</strong> {metodo.nombre}
+                    {opciones.clave === "metodo" && metodo.precio > 0 ? ` — ${metodo.precio}€` : ""}
+                    {opciones.clave === "variante" && metodo.extra > 0 ? ` (+${metodo.extra}€)` : ""}
+                  </p>
+                )}
+              </div>
             )}
 
             <SelectorDiaReserva
@@ -430,14 +441,6 @@ export default function ReservaGrupos() {
 
           {/* Derecha: turno, personas, datos, resumen y pago */}
           <div className="space-y-4">
-            {taller && metodo && (
-              <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
-                <strong>Método:</strong> {metodo.nombre}
-                {opciones.clave === "metodo" && metodo.precio > 0 ? ` — ${metodo.precio}€` : ""}
-                {opciones.clave === "variante" && metodo.extra > 0 ? ` (+${metodo.extra}€)` : ""}
-              </p>
-            )}
-
             <SelectorTurnoReserva
               etiqueta="Selecciona el turno:"
               value={horario}
