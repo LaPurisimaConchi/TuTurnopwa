@@ -365,10 +365,12 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 28 20"
-                  className="absolute left-[13px] top-1/2 -translate-y-1/2 w-7 h-5 pointer-events-none"
+                  className="absolute left-[10px] top-1/2 -translate-y-1/2 -rotate-[28deg] w-9 h-7 pointer-events-none"
                 >
-                  <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#d62839" stroke="#a81b2b" strokeWidth="1" strokeLinejoin="round" />
-                  <rect x="11.500" y="7.500" width="5" height="5" rx="1.500" fill="#a81b2b" stroke="#7d1220" strokeWidth="1" />
+                  <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#e63946" stroke="#fff" strokeWidth="1.300" strokeLinejoin="round" />
+                  <path d="M14 10l-6 8M14 10l6 8" stroke="#fff" strokeWidth="3.200" strokeLinecap="round" />
+                  <path d="M14 10l-6 8M14 10l6 8" stroke="#e63946" strokeWidth="1.600" strokeLinecap="round" />
+                  <rect x="11" y="7" width="6" height="6" rx="1.800" fill="#7d1220" stroke="#fff" strokeWidth="1.300" />
                 </svg>
                 <span className="relative whitespace-nowrap">Regalar este taller</span>
               </button>
