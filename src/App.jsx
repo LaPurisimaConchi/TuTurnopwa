@@ -11,7 +11,6 @@ import RutaCategoria from "./RutaCategoria";
 import Portada from "./Portada.jsx";
 import Login from "./Login.jsx";
 import Registro from "./Registro.jsx";
-import Menu from "./Menu.jsx";
 import PerfilUsuario from "./PerfilUsuario.jsx";
 import EditarPerfil from "./EditarPerfil.jsx";
 
@@ -142,7 +141,6 @@ function App() {
           <Route path="/portada" element={<Portada />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
-          <Route path="/menu" element={<Menu />} />
           <Route path="/perfil" element={<PerfilUsuario />} />
           <Route path="/editar-perfil" element={<EditarPerfil />} />
 
