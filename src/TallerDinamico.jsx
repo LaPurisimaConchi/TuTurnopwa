@@ -24,6 +24,10 @@ import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 const NOTA_TARIFAS =
   "Las tarifas están sujetas a cambios. Si no asistes a tu formación en la fecha original y deseas reprogramarla cuando las tarifas hayan cambiado, deberás abonar la diferencia o elegir una formación acorde a la cantidad ya pagada.";
 
+// Patrón de cajitas de regalo, lazos y destellos (blanco translúcido) para el botón de regalo
+const PATRON_REGALO =
+  'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'36\' height=\'36\'%3E%3Cg fill=\'none\' stroke=\'white\' stroke-opacity=\'.28\' stroke-width=\'1.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Crect x=\'5\' y=\'9\' width=\'10\' height=\'8\'/%3E%3Cpath d=\'M5 12h10M10 9v8M10 9c-3-4-6-1-3 0M10 9c3-4 6-1 3 0\'/%3E%3C/g%3E%3Ccircle cx=\'27\' cy=\'25\' r=\'1.6\' fill=\'white\' fill-opacity=\'.28\'/%3E%3Cpath d=\'M27 6l1 2 2 1-2 1-1 2-1-2-2-1 2-1z\' fill=\'white\' fill-opacity=\'.28\'/%3E%3C/svg%3E")';
+
 export default function TallerDinamico() {
   const { claseId } = useParams();
   const navigate = useNavigate();
@@ -353,6 +357,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                   )
                 }
                 className="relative overflow-hidden w-full px-4 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-white/70 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-5 before:bg-white/15 before:pointer-events-none"
+                style={{ backgroundImage: PATRON_REGALO }}
               >
                 <span className="relative"><Icono nombre="regalo" color="currentColor" className="mr-1" />Regalar este taller</span>
               </button>
