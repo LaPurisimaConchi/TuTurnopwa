@@ -599,6 +599,10 @@ export function FormularioReserva({ claseId, clase }) {
   if (conMetodo && !conVariante && metodo) parametrosGrupo.set("metodo", metodo);
   const destinoGrupo = `/reserva-grupos?${parametrosGrupo.toString()}`;
 
+  // Lo elegido en la página del taller (o en la tarjeta regalo) no se puede cambiar aquí
+  const varianteFija = !!(variantePrevia || varianteTarjeta);
+  const metodoFijo = !!(metodoPrevio || metodoTarjeta || metodos.length === 1);
+
   const eleccionesPrevias = (!conVariante || !!varianteId) && (!conMetodo || !!metodo);
   const puedeElegirMetodo =
     !!fecha && !fechaBloqueada && !diaNoDisponible && !metodoTarjeta && (!conVariante || !!varianteId);
@@ -713,7 +717,12 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Izquierda: qué y cuándo (opción y día) */}
           <div className="space-y-4">
-          {conVariante && (
+          {conVariante && varianteFija && variante && (
+            <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
+              <strong>{clase.variante?.etiqueta || "Opción"}:</strong> {variante.nombre} — {variante.precio}€
+            </p>
+          )}
+          {conVariante && !varianteFija && (
             <div>
               <label htmlFor="variante" className="block font-bold text-sm mb-1">
                 {clase.variante?.etiqueta || "Opción"}:
@@ -722,9 +731,8 @@ export function FormularioReserva({ claseId, clase }) {
                 id="variante"
                 value={varianteId}
                 onChange={(e) => handleVarianteChange(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base"
                 required
-                disabled={!!varianteTarjeta}
               >
                 <option value="">-- Elige una opción --</option>
                 {variantes.map((v) => (
@@ -780,7 +788,14 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Derecha: método, turno, plazas, resumen y pago */}
           <div className="space-y-4">
-          {conMetodo && (
+          {conMetodo && metodoFijo && metodoElegido && (
+            <p className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta">
+              <strong>Método:</strong> {metodoElegido.nombre}
+              {!conVariante && metodoElegido.precio > 0 ? ` — ${metodoElegido.precio}€` : ""}
+              {conVariante && metodoElegido.extra > 0 ? ` (+${metodoElegido.extra}€)` : ""}
+            </p>
+          )}
+          {conMetodo && !metodoFijo && (
             <div>
               <label htmlFor="metodo" className="block font-bold text-sm mb-1">
                 Método:
