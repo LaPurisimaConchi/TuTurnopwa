@@ -36,7 +36,7 @@ function VerificarEmailAdmin({ usuario, alVerificar }) {
   };
 
   const boton =
-    "w-full py-2 px-4 rounded-xl font-semibold text-white bg-terracota hover:bg-terracota-oscuro disabled:opacity-60";
+    "w-full py-2 px-4 rounded-full font-semibold text-white bg-terracota hover:bg-terracota-oscuro disabled:opacity-60";
 
   return (
     <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
@@ -52,7 +52,7 @@ function VerificarEmailAdmin({ usuario, alVerificar }) {
           </button>
           <button
             type="button"
-            className="w-full py-2 px-4 rounded-xl font-semibold border border-terracota text-terracota disabled:opacity-60"
+            className="w-full py-2 px-4 rounded-full font-semibold border border-terracota text-terracota disabled:opacity-60"
             onClick={comprobar}
             disabled={ocupado}
           >

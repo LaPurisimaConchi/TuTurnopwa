@@ -10,7 +10,6 @@ import { ref, get, push, set } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import {
   cargarTalleres,
-  formatearEuros,
   MAX_PERSONAS_GRUPO,
   metodosDelTaller,
   variantesDelTaller,
@@ -78,6 +77,7 @@ export default function ReservaGrupos() {
 
   const [tallerId, setTallerId] = useState("");
   const [opcionId, setOpcionId] = useState("");
+  const [metodoId, setMetodoId] = useState("");
   const [fecha, setFecha] = useState("");
   const [horario, setHorario] = useState("");
   const [personas, setPersonas] = useState(configEspacio.minPersonasGrupo);
@@ -148,6 +148,8 @@ export default function ReservaGrupos() {
     const elegida = clave && lista.find((o) => o.id === params.get(clave));
     setOpcionId(elegida ? elegida.id : lista.length === 1 ? lista[0].id : "");
 
+    setMetodoId(params.get("metodo") || "");
+
     // Personas que ya había elegido en la reserva del taller
     const previas = Math.round(Number(params.get("personas")));
     if (previas > 0) setPersonas(Math.min(MAX_PERSONAS, previas));
@@ -161,18 +163,26 @@ export default function ReservaGrupos() {
     [taller]
   );
   const opcion = opciones.lista.find((o) => o.id === opcionId) || null;
+  // Método elegido en la página del taller (con tipo/tamaño no cambia el precio de grupo)
+  const metodo = useMemo(() => {
+    if (!taller) return null;
+    if (opciones.clave === "metodo") return opcion;
+    return metodosDelTaller(taller).find((m) => m.id === metodoId) || null;
+  }, [taller, opciones.clave, opcion, metodoId]);
 
   const precioUnitario = !taller
     ? 0
     : opciones.lista.length
-    ? opcion?.precio || 0
+    ? (opcion?.precio || 0) + (opciones.clave === "variante" ? metodo?.extra || 0 : 0)
     : Number(taller.precio) || taller.precioDesde || 0;
 
   const personasNum = Number(personas) || 0;
   const precioTotal = precioUnitario * personasNum;
   const nombreTaller = taller
     ? opcion
-      ? `${taller.nombre} — ${opcion.nombre}`
+      ? `${taller.nombre} — ${opcion.nombre}${
+          metodo && metodo !== opcion ? ` — ${metodo.nombre}` : ""
+        }`
       : taller.nombre
     : "";
 
@@ -299,6 +309,7 @@ export default function ReservaGrupos() {
         tallerId: taller.id,
         // Variante o método elegido: con él calcula el servidor el precio (api/_pedidoServidor.js)
         opcionTaller: opcion?.id || "",
+        metodoTaller: metodo?.id || "",
         tipo: "grupo",
         fecha,
         turno: horario,
@@ -396,25 +407,20 @@ export default function ReservaGrupos() {
               </p>
             )}
 
-            {opciones.lista.length > 1 && (
-              <div>
-                <label htmlFor="opcion" className="block font-bold text-sm mb-1">
-                  {opciones.etiqueta} <span className="text-red-600">*</span>
-                </label>
-                <select
-                  id="opcion"
-                  value={opcionId}
-                  onChange={(e) => setOpcionId(e.target.value)}
-                  className={campo}
-                  required
-                >
-                  <option value="">-- Elige una opción --</option>
-                  {opciones.lista.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.nombre} — {formatearEuros(o.precio)}
-                    </option>
-                  ))}
-                </select>
+            {taller && (opcion || metodo) && (
+              <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
+                {opcion && opciones.clave === "variante" && (
+                  <p>
+                    <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {opcion.precio}€
+                  </p>
+                )}
+                {metodo && (
+                  <p>
+                    <strong>Método:</strong> {metodo.nombre}
+                    {opciones.clave === "metodo" && metodo.precio > 0 ? ` — ${metodo.precio}€` : ""}
+                    {opciones.clave === "variante" && metodo.extra > 0 ? ` (+${metodo.extra}€)` : ""}
+                  </p>
+                )}
               </div>
             )}
 
@@ -446,7 +452,7 @@ export default function ReservaGrupos() {
 
             <div>
               <label className="block font-bold text-sm mb-2">
-                Número de personas <span className="text-red-600">*</span>
+                ¿Cuántas personas venís? <span className="text-red-600">*</span>
               </label>
               <div className="flex items-center justify-between border border-gray-300 rounded-xl px-3 py-2">
                 <button
@@ -531,14 +537,18 @@ export default function ReservaGrupos() {
             </div>
 
             <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
+              {opcion && opciones.clave === "variante" && (
+                <p>
+                  <strong>{opciones.etiqueta}:</strong> {opcion.nombre}
+                </p>
+              )}
+              {metodo && (
+                <p>
+                  <strong>Método elegido:</strong> {metodo.nombre}
+                </p>
+              )}
               <p>
-                <strong>Taller:</strong> {nombreTaller || "—"}
-              </p>
-              <p>
-                <strong>Turno:</strong> {horario || "—"}
-              </p>
-              <p>
-                <strong>Precio por persona:</strong> {precioUnitario > 0 ? `${precioUnitario}€` : "—"}
+                <strong>Precio unitario:</strong> {precioUnitario > 0 ? `${precioUnitario}€` : "—"}
               </p>
               <p>
                 <strong>Precio total:</strong> {precioTotal > 0 ? `${precioTotal}€` : "—"}
@@ -554,7 +564,7 @@ export default function ReservaGrupos() {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-full px-5 py-2 rounded-full bg-green-500 text-white font-semibold hover:bg-green-600 transition"
+                className="inline-flex items-center justify-center w-full px-5 py-2 rounded-full bg-[#128C7E] text-white font-semibold hover:bg-[#0e6f64] transition"
               >
                 Hablar con Berto por WhatsApp
               </a>

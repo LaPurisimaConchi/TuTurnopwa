@@ -174,30 +174,42 @@ const CanjearTarjetaRegalo = () => {
   };
 
   return (
-    <div style={styles.body}>
-      <div style={styles.container}>
-        <p style={styles.descripcion}>
-          Introduce el código de tu tarjeta para acceder a tu taller.
-        </p>
-
-        <input
-          type="text"
-          placeholder="Introduce tu código"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-          style={styles.input}
-        />
-
-        <button
-          onClick={handleValidar}
-          style={styles.btn}
-          disabled={validando}
+    <div className="max-w-xl mx-auto">
+      <section className="bg-white rounded-2xl border border-linea shadow-sm p-5">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleValidar();
+          }}
+          className="space-y-4"
         >
-          {validando ? "VALIDANDO..." : "VALIDAR CÓDIGO"}
-        </button>
+          <label className="block text-sm font-medium text-tinta">
+            Código de la tarjeta regalo
+            <input
+              type="text"
+              placeholder="Introduce tu código"
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              autoComplete="off"
+              className="mt-1 block w-full min-h-[48px] rounded-xl border border-gray-300 px-3 text-base focus:outline-none focus:ring-2 focus:ring-terracota"
+            />
+          </label>
 
-        {mensaje && <div style={styles.mensaje}>{mensaje}</div>}
-      </div>
+          <button
+            type="submit"
+            disabled={validando}
+            className="inline-flex items-center justify-center w-full min-h-[48px] rounded-full px-6 font-bold bg-terracota text-white hover:bg-terracota-oscuro transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2"
+          >
+            {validando ? "Validando…" : "Validar código"}
+          </button>
+        </form>
+
+        {mensaje && (
+          <p role="alert" className="mt-4 text-sm text-red-700">
+            {mensaje}
+          </p>
+        )}
+      </section>
 
       {pidiendoDatos && (
         <DatosContactoInvitado
@@ -208,54 +220,6 @@ const CanjearTarjetaRegalo = () => {
       )}
     </div>
   );
-};
-
-const styles = {
-  body: {
-    display: "flex",
-    justifyContent: "center",
-  },
-  container: {
-    padding: "8px 0",
-    maxWidth: 420,
-    width: "100%",
-    textAlign: "center",
-  },
-  titulo: {
-    color: "#3f3128",
-    fontSize: "1.3rem",
-    marginBottom: 10,
-  },
-  descripcion: {
-    fontSize: "0.95rem",
-    color: "#555",
-    marginBottom: 20,
-  },
-  input: {
-    width: "100%",
-    padding: 12,
-    borderRadius: 12,
-    border: "1px solid #ccc",
-    marginBottom: 20,
-    fontSize: "1rem",
-    textAlign: "center",
-  },
-  btn: {
-    backgroundColor: "#f8b5b5",
-    color: "white",
-    padding: "10px 20px",
-    fontWeight: "bold",
-    borderRadius: 30,
-    fontSize: "0.95rem",
-    border: "none",
-    cursor: "pointer",
-    opacity: 1,
-  },
-  mensaje: {
-    marginTop: 20,
-    fontSize: "0.95rem",
-    color: "#3f3128",
-  },
 };
 
 export default CanjearTarjetaRegalo;

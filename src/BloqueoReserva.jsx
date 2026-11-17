@@ -44,7 +44,7 @@ export default function BloqueoReserva({ children, permitirVisitante = false }) 
               hash: location.hash,
             },
           }}
-          className="inline-block mt-4 bg-terracota hover:bg-terracota-oscuro text-white font-bold px-5 py-2 rounded-lg"
+          className="inline-block mt-4 bg-terracota hover:bg-terracota-oscuro text-white font-bold px-5 py-2 rounded-full"
         >
           Registrarse
         </Link>

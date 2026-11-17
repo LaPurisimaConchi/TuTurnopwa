@@ -227,7 +227,7 @@ export default function Registro() {
 
         <button
           type="submit"
-          className="bg-terracota hover:bg-terracota-oscuro text-white font-bold text-lg py-3 rounded-xl"
+          className="bg-terracota hover:bg-terracota-oscuro text-white font-bold text-lg py-3 rounded-full"
         >
           Registrarse
         </button>

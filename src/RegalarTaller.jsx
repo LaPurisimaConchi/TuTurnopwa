@@ -10,11 +10,11 @@ export default function RegalarTaller() {
       entradilla="Un regalo para quien ya lo tiene todo: una experiencia para crear algo con sus manos."
       imagenPrincipal="/img/creatupiezafavoritaregalo.jpg"
       descripcion={[
-        "La tarjeta regalo sirve para cualquier taller del estudio. La persona que la recibe elige el taller y la fecha que mejor le vaya, sin prisas ni caducidades incómodas.",
+        "Eliges el taller que quieres regalar y la tarjeta es válida para ese taller. La persona que la recibe elige la fecha que mejor le vaya, sin prisas ni caducidades incómodas.",
         "No hace falta saber de cerámica: en cada taller te acompañamos paso a paso y se lleva su pieza terminada.",
       ]}
       ventajas={[
-        { icono: "regalo", titulo: "Vale para todo", texto: "Cualquier taller del estudio." },
+        { icono: "regalo", titulo: "Tú eliges el taller", texto: "El regalo es para ese taller." },
         { icono: "calendarioEvento", titulo: "Fecha a su gusto", texto: "Reserva cuando le venga bien." },
         { icono: "brillo", titulo: "Sin experiencia", texto: "Apto para principiantes." },
       ]}

@@ -781,7 +781,7 @@ export default function AdminTallerForm() {
                   }`}
                 >
                   <span aria-hidden="true" className={activa ? "" : "grayscale opacity-70"}>
-                    <Icono nombre={ICONOS_PESTANAS[clave]} />
+                    <Icono nombre={ICONOS_PESTANAS[clave]} color={activa ? "currentColor" : undefined} />
                   </span>
                   {texto}
                   {conError && (

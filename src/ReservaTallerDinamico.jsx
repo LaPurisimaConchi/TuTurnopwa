@@ -599,6 +599,10 @@ export function FormularioReserva({ claseId, clase }) {
   if (conMetodo && !conVariante && metodo) parametrosGrupo.set("metodo", metodo);
   const destinoGrupo = `/reserva-grupos?${parametrosGrupo.toString()}`;
 
+  // Lo elegido en la página del taller (o en la tarjeta regalo) no se puede cambiar aquí
+  const varianteFija = !!(variantePrevia || varianteTarjeta);
+  const metodoFijo = !!(metodoPrevio || metodoTarjeta || metodos.length === 1);
+
   const eleccionesPrevias = (!conVariante || !!varianteId) && (!conMetodo || !!metodo);
   const puedeElegirMetodo =
     !!fecha && !fechaBloqueada && !diaNoDisponible && !metodoTarjeta && (!conVariante || !!varianteId);
@@ -713,7 +717,23 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Izquierda: qué y cuándo (opción y día) */}
           <div className="space-y-4">
-          {conVariante && (
+          {((conVariante && varianteFija && variante) || (conMetodo && metodoFijo && metodoElegido)) && (
+            <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
+              {conVariante && varianteFija && variante && (
+                <p>
+                  <strong>{clase.variante?.etiqueta || "Opción"}:</strong> {variante.nombre} — {variante.precio}€
+                </p>
+              )}
+              {conMetodo && metodoFijo && metodoElegido && (
+                <p>
+                  <strong>Método:</strong> {metodoElegido.nombre}
+                  {!conVariante && metodoElegido.precio > 0 ? ` — ${metodoElegido.precio}€` : ""}
+                  {conVariante && metodoElegido.extra > 0 ? ` (+${metodoElegido.extra}€)` : ""}
+                </p>
+              )}
+            </div>
+          )}
+          {conVariante && !varianteFija && (
             <div>
               <label htmlFor="variante" className="block font-bold text-sm mb-1">
                 {clase.variante?.etiqueta || "Opción"}:
@@ -722,9 +742,8 @@ export function FormularioReserva({ claseId, clase }) {
                 id="variante"
                 value={varianteId}
                 onChange={(e) => handleVarianteChange(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base"
                 required
-                disabled={!!varianteTarjeta}
               >
                 <option value="">-- Elige una opción --</option>
                 {variantes.map((v) => (
@@ -780,7 +799,7 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Derecha: método, turno, plazas, resumen y pago */}
           <div className="space-y-4">
-          {conMetodo && (
+          {conMetodo && !metodoFijo && (
             <div>
               <label htmlFor="metodo" className="block font-bold text-sm mb-1">
                 Método:
@@ -875,7 +894,7 @@ export function FormularioReserva({ claseId, clase }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 tabIndex={mostrarSugerencia ? 0 : -1}
-                className="mt-2 w-full px-4 py-2 rounded-full bg-mostaza text-tinta font-semibold hover:bg-mostaza-borde transition"
+                className="mt-2 w-full px-4 py-2 rounded-full border border-terracota text-terracota font-semibold hover:bg-terracota-suave transition"
               >
                 <Icono nombre="usuarios" className="mr-1" />Reservar para grupo
               </button>
