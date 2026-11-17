@@ -1011,8 +1011,9 @@ const styles = {
     backgroundColor: "#f6efdd",
   },
   imagenMobile: {
-    width: "100%",
-    height: 200,
+    width: 110,
+    height: 110,
+    borderRadius: 14,
   },
   contenido: {
     flex: 1,
