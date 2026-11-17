@@ -336,7 +336,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
-                className="w-full px-4 py-2 rounded-full border border-mostaza-borde text-tinta font-semibold text-sm hover:bg-mostaza-suave transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-2 rounded-full border border-terracota text-terracota hover:bg-terracota-suave font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icono nombre="usuarios" className="mr-1" />Reservar para grupo ({configEspacio.minPersonasGrupo} o más)
               </button>

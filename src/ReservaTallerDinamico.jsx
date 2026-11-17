@@ -894,7 +894,7 @@ export function FormularioReserva({ claseId, clase }) {
                 type="button"
                 onClick={() => navigate(destinoGrupo)}
                 tabIndex={mostrarSugerencia ? 0 : -1}
-                className="mt-2 w-full px-4 py-2 rounded-full bg-mostaza text-tinta font-semibold hover:bg-mostaza-borde transition"
+                className="mt-2 w-full px-4 py-2 rounded-full border border-terracota text-terracota font-semibold hover:bg-terracota-suave transition"
               >
                 <Icono nombre="usuarios" className="mr-1" />Reservar para grupo
               </button>

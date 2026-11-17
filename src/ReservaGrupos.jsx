@@ -564,7 +564,7 @@ export default function ReservaGrupos() {
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-full px-5 py-2 rounded-full bg-green-500 text-white font-semibold hover:bg-green-600 transition"
+                className="inline-flex items-center justify-center w-full px-5 py-2 rounded-full bg-[#128C7E] text-white font-semibold hover:bg-[#0e6f64] transition"
               >
                 Hablar con Berto por WhatsApp
               </a>

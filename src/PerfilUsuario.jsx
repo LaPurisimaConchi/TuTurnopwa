@@ -406,14 +406,14 @@ export default function PerfilUsuario() {
 
         <div className="grid grid-cols-2 gap-3 mb-5">
           <button
-            className="bg-mostaza hover:bg-mostaza-borde text-tinta font-bold py-3 rounded-full text-sm shadow-md transition"
+            className="bg-terracota hover:bg-terracota-oscuro text-white font-bold py-3 rounded-full text-sm shadow-md transition"
             onClick={() => navigate("/portada")}
           >
             Reservar
           </button>
 
           <button
-            className="bg-white border border-[#e6a6cf] text-[#b84c85] font-bold py-3 rounded-2xl text-sm shadow-sm transition hover:bg-[#fdf2f8]"
+            className="bg-white border border-terracota text-terracota hover:bg-terracota-suave font-bold py-3 rounded-full text-sm transition"
             onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
           >
             Canjear tarjeta regalo
@@ -541,7 +541,7 @@ export default function PerfilUsuario() {
                       {estadoVisible === "Activo" && (
  <button
   onClick={() => navigate(`/usar-bono/${bono.bonoId}`)}
-  className="mt-3 w-full px-4 py-2 bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold rounded-full transition"
+  className="mt-3 w-full px-4 py-2 bg-terracota hover:bg-terracota-oscuro text-white font-semibold rounded-full transition"
 >
   Reservar sesión con este bono
 </button>
@@ -650,7 +650,7 @@ export default function PerfilUsuario() {
         href="https://drive.google.com/drive/folders/1Im70RbYcyCFs5pPLgq2ooHhowwtA8F0R"
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full bg-mostaza hover:bg-mostaza-borde text-tinta font-semibold py-3 px-4 rounded-full text-center transition shadow-sm"
+        className="w-full border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-3 px-4 rounded-full text-center transition"
       >
         Elegir esmalte y subir foto
       </a>
@@ -659,7 +659,7 @@ export default function PerfilUsuario() {
         href="https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn"
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full bg-arena hover:bg-[#ebe4da] text-tinta-suave font-semibold py-3 px-4 rounded-2xl text-center transition border border-[#e7dccb]"
+        className="w-full border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-3 px-4 rounded-full text-center transition"
       >
         Ver si mi pieza está lista
       </a>
