@@ -107,6 +107,15 @@ export default function Portada() {
                 </span>
               </span>
             </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
+              className="sm:col-span-2 flex items-center justify-center gap-2 rounded-2xl border border-terracota bg-white hover:bg-terracota-suave px-4 py-3 font-semibold text-terracota-oscuro transition"
+            >
+              <Icono nombre="regalo" />
+              Canjear código de tarjeta regalo
+            </button>
           </div>
         </div>
       </section>
