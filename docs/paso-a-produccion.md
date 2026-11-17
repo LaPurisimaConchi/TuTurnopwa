@@ -6,20 +6,65 @@ Firebase Auth y datos. Proyecto de producción: `la-purisima-conchi` (pasa siemp
 
 Estado comprobado el 16-11-2026. Si pasa mucho tiempo, vuelve a revisar los puntos 1 y 2.
 
-## 0. Confirmación de correo (hacerlo ANTES de fusionar y de desplegar reglas)
+## 0. Confirmación de correo
 
-Las cuentas nuevas con email y contraseña solo operan con el correo confirmado; las existentes no.
-Para distinguirlas, las existentes llevan `usuarios/{uid}/cuentaAnterior: true` (solo lo escribe el
-servidor). **Si fusionas sin marcarlas, todos los usuarios actuales quedan bloqueados** (la web los
-desconecta y las reglas les niegan reservar).
+Las cuentas nuevas con email y contraseña solo operan con el correo confirmado; las que ya existen,
+no. Para distinguirlas, las existentes llevan `usuarios/{uid}/cuentaAnterior: true` (solo la escribe
+el servidor: las reglas no dejan al navegador ponerla ni quitarla). Los invitados (sesión anónima)
+no cambian: siguen comprando sin cuenta.
 
-- [ ] Marcar las cuentas existentes (primero sin `--aplicar` para ver cuántas son; `--hasta` = momento justo antes de fusionar):
+Dónde se exige: `database.rules.json` (crear reservas y grupos, leer grupos), `api/_cuentaActiva.js`
+(`api/codigo-reserva.js`: tarjetas, canjes, bonos, pagos…) y la web (`src/utils/guardiaVerificacion.js`
+cierra la sesión de una cuenta sin confirmar; `Login.jsx` la bloquea). Una cuenta sin confirmar solo
+puede guardar su perfil y pedir que se le reenvíe el correo.
+
+**Si se despliegan las reglas o el código sin marcar antes las cuentas existentes, todos los usuarios
+actuales quedan bloqueados** (la web los desconecta y no pueden reservar). Por eso la migración va
+primero y se repite justo antes de las reglas.
+
+### Antes de fusionar
+- [ ] Authentication → Configuración → **Dominios autorizados**: el dominio de producción
+  (`app.lapurisimaconchi.com`). Sin él, el enlace del correo confirma igual pero no vuelve a `/login`.
+- [ ] Variables de Vercel (Production): `RESEND_API_KEY`, `CORREO_REMITENTE` (dominio verificado en
+  Resend) y `CORREO_URL_BASE` (logo y enlaces del correo). Sin ellas el correo de confirmación sale con
+  la plantilla estándar de Firebase, en inglés y sin diseño.
+- [ ] **Simulacro** de la migración (no escribe nada). Con `--hasta` = ahora mismo (fecha y hora ISO, en UTC):
   ```bash
-  node scripts/marcar-cuentas-anteriores.mjs --project la-purisima-conchi --hasta <fecha ISO> --aplicar
+  node scripts/marcar-cuentas-anteriores.mjs --project la-purisima-conchi --hasta <fecha ISO>
   ```
-- [ ] Authentication → Configuración → Dominios autorizados: el dominio de producción (para que el enlace del correo vuelva a `/login`).
-- [ ] `RESEND_API_KEY` y `CORREO_REMITENTE` en Production (el correo de confirmación usa los mismos que el de reserva).
-- [ ] Repetir el script justo antes de fusionar si se han registrado cuentas desde entonces (se puede repetir sin riesgo).
+  Comprueba que «N con email creadas antes de…» coincide con las cuentas reales de clientes.
+- [ ] **Aplicar** la migración (mismo comando con `--aplicar`).
+
+### Justo antes de desplegar las reglas (paso 2.4)
+- [ ] **Repetir la migración** con `--hasta` = ahora: las cuentas creadas entre la primera ejecución y
+  este momento son reales y también deben quedar marcadas. Se puede repetir sin riesgo: no toca las ya
+  marcadas ni nada más que `cuentaAnterior`. Las cuentas que se registren *después* de esta pasada ya
+  son «nuevas» y tendrán que confirmar el correo.
+- [ ] Si alguien se registró entre la pasada y las reglas y no debía confirmar, se arregla a mano
+  poniendo `cuentaAnterior: true` en `usuarios/{uid}` desde la consola de Firebase (el panel no puede).
+
+### Después de desplegar (comprobación)
+- [ ] Entrar con una cuenta anterior sin confirmar el correo: entra y puede reservar.
+- [ ] Registrar una cuenta nueva (alias `tucorreo+prueba@…`): sale «Confirma tu correo» y llega el
+  correo con el diseño de La Purísima Conchi.
+- [ ] Intentar entrar sin confirmar: el login bloquea y ofrece reenviar. El reenvío tiene límite de
+  5 por hora y cuenta.
+- [ ] Confirmar desde el enlace: vuelve a `/login` y entra.
+- [ ] Invitado: reservar sin cuenta sigue funcionando; si luego crea cuenta desde la reserva, también
+  debe confirmar el correo (conserva su uid, reservas y bonos).
+- [ ] Borrar las cuentas de prueba (Authentication y `usuarios/{uid}`).
+
+### Notas
+- Un cliente nuevo sin confirmar que reserva desde otro dispositivo verá «Confirma tu correo»: es lo esperado.
+- Los límites de reenvío (`limitesVerificacionEmail`) los limpia el cron semanal.
+- Errores `auth/too-many-requests` al probar: es el límite de Firebase por IP; espera unos minutos o usa otra red.
+
+### Volver atrás
+Las reglas anteriores (guardadas en el paso 1) quitan la exigencia en la base de datos. Para quitarla
+también en la API y la web hay que volver al despliegue anterior de Vercel. `cuentaAnterior` puede
+quedarse en la base de datos sin efecto. Si solo hace falta dejar entrar a todos en una urgencia,
+basta repetir la migración con `--hasta` en el futuro: marca todas las cuentas con email y desactiva
+de hecho la confirmación.
 
 ## 1. Antes de fusionar
 
@@ -70,7 +115,7 @@ que recargue la página: mejor hacerlo en un momento con pocas compras.
    ```bash
    npm run probar-reglas
    ```
-4. [ ] Desplegar las reglas:
+4. [ ] Repetir la migración de cuentas (sección 0) y desplegar las reglas:
    ```bash
    npx firebase-tools deploy --only database --project la-purisima-conchi
    ```
@@ -113,7 +158,7 @@ con las nuevas, el código viejo no puede cobrar.
 - [ ] **Cron `limpiar-invitados`** (`vercel.json`, domingos a las 4:00). En producción borrará las
   sesiones de invitado antiguas sin nada asociado, las reservas pendientes con la plaza caducada y
   los contadores de los límites de intentos con más de un día (`limitesCambioFecha`,
-  `limitesTarjetaRegalo`, `limitesDisponibilidad`).
+  `limitesTarjetaRegalo`, `limitesDisponibilidad`, `limitesVerificacionEmail`).
   Para ver antes cuánto borraría: `GET /api/limpiar-invitados?dry=1` con la cabecera
   `Authorization: Bearer <CRON_SECRET>`.
 - [ ] **Cloud Functions antiguas de Redsys.** El repositorio ya no tiene `functions/` (una
