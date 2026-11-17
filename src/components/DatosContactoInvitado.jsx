@@ -79,14 +79,14 @@ export default function DatosContactoInvitado({ onListo, onCancelar, compra = fa
 
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4 py-8 overflow-y-auto transition-opacity duration-200 ${
+      className={`fixed inset-0 z-50 bg-black/40 flex px-4 py-8 overflow-y-auto overscroll-contain transition-opacity duration-200 ${
         visible ? "opacity-100" : "opacity-0"
       }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="datos-contacto-titulo"
     >
-      <div className={`relative bg-white max-w-md w-full rounded-2xl shadow-xl p-6 transition-transform duration-200 ${
+      <div className={`relative m-auto bg-white max-w-md w-full rounded-2xl shadow-xl p-6 transition-transform duration-200 ${
           visible ? "scale-100" : "scale-95"
         }`}>
         <button
