@@ -359,13 +359,13 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="relative overflow-hidden w-full pl-11 pr-3 py-2.5 rounded-full bg-white text-tinta hover:bg-[#fff1f1] font-bold text-sm shadow-sm transition border border-[#e9c4c8] outline outline-1 outline-dashed outline-[#d62839]/40 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-5 before:w-4 before:bg-[#d62839] before:border-x before:border-[#a81b2b] before:pointer-events-none"
+                className="relative overflow-hidden w-full pl-11 pr-3 py-2.5 rounded-full bg-white text-tinta hover:bg-[#fff1f1] font-bold text-sm shadow-sm transition border border-[#e9c4c8] outline outline-1 outline-dashed outline-[#d62839]/40 -outline-offset-4 before:content-[''] before:absolute before:-inset-y-6 before:left-6 before:w-4 before:rotate-[28deg] before:bg-[#d62839] before:border-x before:border-[#a81b2b] before:pointer-events-none"
                 style={{ backgroundImage: PATRON_REGALO }}
               >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 28 20"
-                  className="absolute left-[10px] top-1/2 -translate-y-1/2 -rotate-[28deg] w-9 h-7 pointer-events-none"
+                  className="absolute left-[14px] top-1/2 -translate-y-1/2 rotate-[28deg] w-9 h-7 pointer-events-none"
                 >
                   <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#e63946" stroke="#fff" strokeWidth="1.300" strokeLinejoin="round" />
                   <path d="M14 10l-6 8M14 10l6 8" stroke="#fff" strokeWidth="3.200" strokeLinecap="round" />
