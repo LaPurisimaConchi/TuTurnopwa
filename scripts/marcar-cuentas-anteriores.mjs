@@ -78,6 +78,15 @@ console.log(
   `${usuarios.length} cuentas en ${proyecto}; ${aMarcar.length} con email creadas antes de ${hasta.toISOString()}.`
 );
 
+const conEmail = usuarios.filter((u) => (u.providerUserInfo || []).some((p) => p.providerId === "password"));
+const fechas = conEmail.map((u) => Number(u.createdAt)).filter(Boolean).sort((a, b) => a - b);
+console.log(
+  `Con email y contraseña: ${conEmail.length}` +
+    (fechas.length
+      ? ` (la más antigua: ${new Date(fechas[0]).toISOString()}, la más reciente: ${new Date(fechas.at(-1)).toISOString()})`
+      : "")
+);
+
 if (!aplicar) {
   console.log("Simulacro: no se ha escrito nada. Añade --aplicar para marcarlas.");
   process.exit(0);
