@@ -601,14 +601,8 @@ listaClases.push({
     ...(isMobile ? styles.gridMobile : {}),
   }}
 >
-  {clasesFiltradas.map((clase) => (
-             <div
-  key={clase.id}
-  style={{
-    ...styles.card,
-    ...(isMobile ? styles.cardMobile : {}),
-  }}
->
+  {clasesFiltradas.map((clase) => {
+    const imgEl = (
                 <img
                   src={
                     miniaturas[clase.id] ||
@@ -626,8 +620,16 @@ listaClases.push({
                     ...(isMobile ? styles.imagenMobile : {}),
                   }}
                 />
-                <div style={styles.contenido}>
-                <div style={styles.cardTop}>
+    );
+    const topEl = (
+                <div
+                  style={{
+                    ...styles.cardTop,
+                    ...(isMobile
+                      ? { flexDirection: "column", gap: 8, marginBottom: 0 }
+                      : {}),
+                  }}
+                >
                   <div>
                     <h2 style={styles.nombre}>{clase.nombre}</h2>
                     <p style={styles.categoria}>{clase.categoria}</p>
@@ -644,6 +646,25 @@ listaClases.push({
                     {clase.reservasFuturas !== 1 ? "s" : ""}
                   </span>
                 </div>
+    );
+    return (
+             <div
+  key={clase.id}
+  style={{
+    ...styles.card,
+    ...(isMobile ? styles.cardMobile : {}),
+  }}
+>
+                {isMobile ? (
+                  <div style={styles.cabeceraMobile}>
+                    {imgEl}
+                    <div style={{ flex: 1, minWidth: 0 }}>{topEl}</div>
+                  </div>
+                ) : (
+                  imgEl
+                )}
+                <div style={styles.contenido}>
+                {!isMobile && topEl}
 
                 <div
                   style={{
@@ -907,7 +928,8 @@ listaClases.push({
                 </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>
@@ -1009,6 +1031,12 @@ const styles = {
     objectFit: "cover",
     borderRadius: 16,
     backgroundColor: "#f6efdd",
+  },
+  cabeceraMobile: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    width: "100%",
   },
   imagenMobile: {
     width: 110,
