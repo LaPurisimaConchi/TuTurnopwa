@@ -1,59 +1,21 @@
-import React, { useEffect, useMemo, useState } from "react";
+// src/UsarBono.jsx
+// Reserva de una sesión con un bono que ya se tiene. Mismo formato que las demás
+// pantallas de reserva: tarjeta de dos columnas, calendario, turnos y botón de confirmar.
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import BotonVolver from "./BotonVolver";
-import DateInputReserva from "./components/DateInputReserva";
+import { cargarFranja } from "./utils/disponibilidad";
+import { plazasLibresFranja } from "./utils/aforo";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { estadoDiaTaller, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
+import PantallaReserva from "./components/PantallaReserva";
+import SelectorDiaReserva from "./components/SelectorDiaReserva";
+import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
+import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import { reservarConBono } from "./utils/canjeServidor";
-
 import { fechaDMA } from "./utils/formatoFecha";
-const normalizarTurnos = (turnosRaw) => {
-  if (!turnosRaw) return [];
-
-  if (Array.isArray(turnosRaw)) {
-    return turnosRaw.map((t) => String(t || "").trim()).filter(Boolean);
-  }
-
-  if (typeof turnosRaw === "object") {
-    return Object.values(turnosRaw)
-      .map((t) => String(t || "").trim())
-      .filter(Boolean);
-  }
-
-  if (typeof turnosRaw === "string") {
-    return [turnosRaw.trim()].filter(Boolean);
-  }
-
-  return [];
-};
-
-const getNombreDiaSemana = (fechaISO) => {
-  if (!fechaISO) return "";
-
-  const [year, month, day] = fechaISO.split("-").map(Number);
-  const fechaLocal = new Date(year, month - 1, day);
-
-  const dias = [
-    "domingo",
-    "lunes",
-    "martes",
-    "miercoles",
-    "jueves",
-    "viernes",
-    "sabado",
-  ];
-
-  return dias[fechaLocal.getDay()] || "";
-};
-
-const getTurnosDesdeHorarios = (horarios, fechaISO) => {
-  if (!horarios || !fechaISO) return [];
-  const nombreDia = getNombreDiaSemana(fechaISO);
-  return normalizarTurnos(horarios[nombreDia]).map((t) =>
-  String(t).replaceAll(" a ", "-").trim()
-);
-};
 
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
@@ -84,20 +46,28 @@ function obtenerEstadoVisibleBono(bono) {
 export default function UsarBono() {
   const navigate = useNavigate();
   const { bonoId } = useParams();
+  const { config: configEspacio } = useConfigEspacio();
+  const {
+    fechasBloqueadas,
+    fechasHabilitadas,
+    reservasGrupos,
+    error: errorContexto,
+    cargado: contextoCargado,
+  } = useContextoReserva();
 
   const [user, setUser] = useState(null);
   const [bono, setBono] = useState(null);
   const [claseConfig, setClaseConfig] = useState(null);
-  const [fechasBloqueadas, setFechasBloqueadas] = useState({});
-  const [fechasHabilitadas, setFechasHabilitadas] = useState({});
   const [fechaSesion, setFechaSesion] = useState("");
   const [turno, setTurno] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [ocupadas, setOcupadas] = useState({ total: 0, torno: 0 });
+  const [plazasListas, setPlazasListas] = useState(false);
+  const [errorPlazas, setErrorPlazas] = useState(false);
 
   useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(getAuth(), (firebaseUser) => {
       setUser(firebaseUser || null);
     });
     return () => unsubscribe();
@@ -110,9 +80,7 @@ export default function UsarBono() {
       try {
         setCargando(true);
 
-        const bonoRef = ref(dbRealtime, `usuarios/${user.uid}/bonos/${bonoId}`);
-        const bonoSnap = await get(bonoRef);
-
+        const bonoSnap = await get(ref(dbRealtime, `usuarios/${user.uid}/bonos/${bonoId}`));
         if (!bonoSnap.exists()) {
           setBono(null);
           setClaseConfig(null);
@@ -129,15 +97,6 @@ export default function UsarBono() {
         } else {
           setClaseConfig(null);
         }
-
-        const bloqueosSnap = await get(ref(dbRealtime, "bloqueosFechas"));
-        setFechasBloqueadas(
-          bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {}
-        );
-        const habilitadasSnap = await get(ref(dbRealtime, "fechasHabilitadas"));
-setFechasHabilitadas(
-  habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {}
-);
       } catch (error) {
         console.error("Error al cargar bono:", error);
         setBono(null);
@@ -149,61 +108,58 @@ setFechasHabilitadas(
 
     cargarTodo();
   }, [user, bonoId]);
-  const fechaHabilitadaManual = useMemo(() => {
-  if (!fechaSesion) return null;
-
-  const habilitacion = fechasHabilitadas?.[fechaSesion];
-
-  if (!habilitacion) return null;
-
-  if (
-    habilitacion.habilitada === true ||
-    habilitacion.activo === true ||
-    habilitacion.estado === "activa" ||
-    habilitacion.tipo === "apertura_especial" ||
-    habilitacion.turnos ||
-    habilitacion.turnosHabilitados ||
-    habilitacion.turnosDisponibles
-  ) {
-    return habilitacion;
-  }
-
-  return null;
-}, [fechaSesion, fechasHabilitadas]);
 
   const estadoVisible = useMemo(() => obtenerEstadoVisibleBono(bono), [bono]);
+  const clase = useMemo(() => claseConfig || { horarios: {} }, [claseConfig]);
 
-const turnosDisponibles = useMemo(() => {
-  let turnos = getTurnosDesdeHorarios(claseConfig?.horarios, fechaSesion);
+  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
+    useDiaDeReserva({
+      clase,
+      fecha: fechaSesion,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      reservasGrupos,
+    });
 
-  if (fechaHabilitadaManual) {
-    const turnosConfig =
-      fechaHabilitadaManual.turnosHabilitados ||
-      fechaHabilitadaManual.turnos ||
-      fechaHabilitadaManual.turnosDisponibles ||
-      [];
+  // Plazas libres del turno elegido
+  const modalidad = bono?.modalidad || clase?.modalidad || "";
+  const esTorno = /torno/i.test(modalidad);
+  const plazasQuedan = plazasLibresFranja(
+    ocupadas,
+    {
+      aforoTotal: ocupadas.aforoTotal ?? configEspacio.aforoTotal,
+      maxTorno: ocupadas.maxTorno ?? configEspacio.maxTorno,
+    },
+    { conTorno: esTorno }
+  ).reservables;
 
-    const turnosManual = normalizarTurnos(turnosConfig).map((t) =>
-      String(t).replaceAll(" a ", "-").trim()
-    );
-
-    if (turnosManual.length > 0) {
-      turnos = turnosManual;
+  useEffect(() => {
+    if (!fechaSesion || !turno) {
+      setOcupadas({ total: 0, torno: 0 });
+      setPlazasListas(false);
+      setErrorPlazas(false);
+      return;
     }
-  }
 
-  return turnos;
-}, [claseConfig, fechaSesion, fechaHabilitadaManual]);
-  const fechaBloqueada = useMemo(() => {
-    if (!fechaSesion) return null;
-    const bloqueo = fechasBloqueadas?.[fechaSesion];
-    return bloqueo?.bloqueado ? bloqueo : null;
-  }, [fechaSesion, fechasBloqueadas]);
+    let cancelado = false;
+    setPlazasListas(false);
 
-  const diaNoDisponible = useMemo(() => {
-    if (!fechaSesion) return false;
-    return turnosDisponibles.length === 0;
-  }, [fechaSesion, turnosDisponibles]);
+    cargarFranja(fechaSesion, turno)
+      .then((cuentas) => {
+        if (cancelado) return;
+        setOcupadas(cuentas);
+        setErrorPlazas(false);
+        setPlazasListas(true);
+      })
+      .catch((error) => {
+        console.error("Error al contar plazas:", error);
+        if (!cancelado) setErrorPlazas(true);
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [fechaSesion, turno]);
 
   const handleReservar = async (e) => {
     e.preventDefault();
@@ -212,22 +168,22 @@ const turnosDisponibles = useMemo(() => {
       alert("Debes iniciar sesión.");
       return;
     }
-
     if (!bono) {
       alert("No se ha encontrado el bono.");
       return;
     }
-
     if (estadoVisible !== "Activo") {
       alert("Este bono no está disponible para reservar.");
       return;
     }
-
+    if (errorContexto) {
+      alert("No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.");
+      return;
+    }
     if (!fechaSesion || !turno) {
       alert("Selecciona una fecha y un turno.");
       return;
     }
-
     if (fechaBloqueada) {
       alert(
         `No se puede reservar el día ${fechaDMA(fechaSesion)}. Motivo: ${
@@ -236,7 +192,6 @@ const turnosDisponibles = useMemo(() => {
       );
       return;
     }
-
     if (diaNoDisponible) {
       alert("Esta clase no se imparte el día seleccionado.");
       return;
@@ -264,136 +219,140 @@ const turnosDisponibles = useMemo(() => {
 
   if (!user) {
     return (
-      <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
-        <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6 text-center">
-          <p className="text-tinta-suave">Debes iniciar sesión para usar tu bono.</p>
-        </div>
-      </div>
+      <PantallaReserva>
+        <p className="text-center text-tinta-suave py-6">Debes iniciar sesión para usar tu bono.</p>
+      </PantallaReserva>
     );
   }
 
+  const activo = estadoVisible === "Activo";
+
   return (
-    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
-      <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
-        <BotonVolver />
-
-        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
+    <PantallaReserva ancho="max-w-4xl">
+      <h1 className="text-center font-serif text-tinta mb-4">
+        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
           Usar bono
-        </h1>
+        </span>
+        {bono && (
+          <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+            {bono.clase || "Bono"}
+          </span>
+        )}
+      </h1>
 
-        {cargando ? (
-          <p className="text-center text-tinta-suave py-8">Cargando bono...</p>
-        ) : !bono ? (
-          <p className="text-center text-red-600 py-8">
-            No se ha encontrado este bono.
-          </p>
-        ) : (
-          <form onSubmit={handleReservar} className="space-y-4">
+      {cargando ? (
+        <p className="text-center text-tinta-suave py-8">Cargando bono...</p>
+      ) : !bono ? (
+        <p className="text-center text-red-600 py-8">No se ha encontrado este bono.</p>
+      ) : (
+        <form onSubmit={handleReservar} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
+          {/* Izquierda: el bono y el día */}
+          <div className="space-y-4">
             <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
-              <p>
-                <strong>Bono:</strong> {bono.clase || "Bono"}
-              </p>
               <p>
                 <strong>Estado:</strong> {estadoVisible}
               </p>
               <p>
-                <strong>Restantes:</strong>{" "}
-                {Number(bono.clasesRestantes || 0)}
+                <strong>Clases restantes:</strong> {Number(bono.clasesRestantes || 0)}
               </p>
               <p>
-                <strong>Caduca el:</strong>{" "}
-                {fechaDMA(bono.fechaCaducidadBono) || "—"}
+                <strong>Caduca el:</strong> {fechaDMA(bono.fechaCaducidadBono) || "—"}
               </p>
             </div>
 
-            {estadoVisible !== "Activo" ? (
+            {!activo ? (
               <p className="text-sm text-red-600 font-medium">
                 Este bono no puede usarse ahora mismo.
               </p>
             ) : (
               <>
-                <div>
-                  <label
-                    htmlFor="fechaSesion"
-                    className="block font-bold text-sm mb-1"
-                  >
-                    Selecciona la fecha de la sesión:
-                  </label>
-                  <DateInputReserva
-                    id="fechaSesion"
-                    value={fechaSesion}
-                    onChange={(e) => {
-                      setFechaSesion(e.target.value);
-                      setTurno("");
-                    }}
-                  />
-                  {fechaBloqueada && (
-                    <p className="mt-2 text-sm text-red-600 font-medium">
-                      Este día no está disponible.
-                      {fechaBloqueada.motivo
-                        ? ` Motivo: ${fechaBloqueada.motivo}.`
-                        : ""}
-                    </p>
-                  )}
-                  {fechaSesion && !fechaBloqueada && diaNoDisponible && (
-                    <p className="mt-2 text-sm text-red-600 font-medium">
-                      Esta clase no se imparte el día seleccionado.
-                    </p>
-                    
-                  )}
-                  {fechaSesion && !fechaBloqueada && fechaHabilitadaManual && (
-  <p className="mt-2 text-sm text-green-700 font-medium">
-    Esta fecha ha sido habilitada manualmente desde administración.
-  </p>
-)}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="turno"
-                    className="block font-bold text-sm mb-1"
-                  >
-                    Selecciona el turno:
-                  </label>
-                  <select
-                    id="turno"
-                    value={turno}
-                    onChange={(e) => setTurno(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base"
-                    required
-                    disabled={!fechaSesion || diaNoDisponible}
-                  >
-                    <option value="">-- Elige turno --</option>
-                    {turnosDisponibles.map((turnoItem) => (
-                      <option key={turnoItem} value={turnoItem}>
-                        {turnoItem}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={
-                    guardando ||
-                    !fechaSesion ||
-                    !turno ||
-                    !!fechaBloqueada ||
-                    diaNoDisponible
+                {errorContexto && (
+                  <p className="text-sm text-red-600" role="alert">
+                    No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.
+                  </p>
+                )}
+                <SelectorDiaReserva
+                  etiqueta="Selecciona la fecha de la sesión:"
+                  value={fechaSesion}
+                  onChange={(iso) => {
+                    setFechaSesion(iso);
+                    setTurno("");
+                  }}
+                  estadoDia={(iso) =>
+                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
                   }
-                  className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-                  bg-terracota
-                  shadow-md hover:shadow-lg
-                  hover:bg-terracota-oscuro
-                  transition-all duration-200"
-                >
-                  {guardando ? "Reservando..." : "Confirmar sesión con bono"}
-                </button>
+                  cargando={!contextoCargado}
+                  fechaBloqueada={fechaBloqueada}
+                  fechaHabilitadaManual={fechaHabilitadaManual}
+                  diaNoDisponible={diaNoDisponible}
+                  clase={clase}
+                  producto="Esta clase"
+                />
               </>
             )}
-          </form>
-        )}
-      </div>
-    </div>
+          </div>
+
+          {/* Derecha: turno, plazas y confirmación */}
+          {activo && (
+            <div className="space-y-4">
+              <SelectorTurnoReserva
+                etiqueta="Selecciona el turno:"
+                value={turno}
+                onChange={setTurno}
+                turnos={turnosDisponibles}
+                deshabilitado={!fechaSesion || diaNoDisponible || !!fechaBloqueada}
+                placeholder={!fechaSesion ? "-- Primero selecciona el día --" : "-- Elige turno --"}
+              />
+
+              {!!turno && errorPlazas && (
+                <p className="text-sm text-red-600" role="alert">
+                  No se ha podido comprobar las plazas. Recarga la página e inténtalo de nuevo.
+                </p>
+              )}
+
+              {!!turno && plazasListas && plazasQuedan > 0 && plazasQuedan <= 10 && (
+                <p className="text-sm text-tinta font-medium">
+                  {plazasQuedan <= 5
+                    ? `Quedan ${plazasQuedan} ${plazasQuedan === 1 ? "plaza disponible" : "plazas disponibles"}`
+                    : "Quedan pocas plazas"}{" "}
+                  en este turno.
+                </p>
+              )}
+
+              {!!turno && plazasListas && plazasQuedan <= 0 && (
+                <p className="text-sm text-red-600 font-medium" role="alert">
+                  No quedan plazas en este turno. Elige otro turno u otro día.
+                </p>
+              )}
+
+              <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
+                <p>
+                  <strong>Precio:</strong> incluido en tu bono
+                </p>
+                <p>
+                  <strong>Plazas:</strong> 1 (se descuenta una clase del bono)
+                </p>
+              </div>
+
+              <BotonConfirmarReserva
+                guardando={guardando}
+                texto="Confirmar sesión con bono"
+                deshabilitado={
+                  !!errorContexto ||
+                  !contextoCargado ||
+                  !fechaSesion ||
+                  !turno ||
+                  !!fechaBloqueada ||
+                  diaNoDisponible ||
+                  !plazasListas ||
+                  errorPlazas ||
+                  plazasQuedan <= 0
+                }
+              />
+            </div>
+          )}
+        </form>
+      )}
+    </PantallaReserva>
   );
 }
