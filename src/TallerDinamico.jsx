@@ -27,10 +27,6 @@ const NOTA_TARIFAS =
 const PATRON_REGALO =
   'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'44\' height=\'40\'%3E%3Cg fill=\'%23d62839\' fill-opacity=\'.13\'%3E%3Cpath d=\'M11 17c-5-3.4-6-6.6-3.6-8.4 1.7-1.2 3.2-.4 3.6 1 .4-1.4 1.9-2.2 3.6-1C17 10.400 16 13.600 11 17z\'/%3E%3Cpath d=\'M34 33c-3.300-2.300-4-4.400-2.400-5.600 1.100-.8 2.100-.3 2.400.7.300-1 1.300-1.500 2.400-.7C38 28.600 37.300 30.700 34 33z\'/%3E%3Ccircle cx=\'30\' cy=\'9\' r=\'1.6\'/%3E%3Ccircle cx=\'6\' cy=\'31\' r=\'1.3\'/%3E%3C/g%3E%3Cg stroke=\'%23d62839\' stroke-opacity=\'.13\' stroke-width=\'1.6\' stroke-linecap=\'round\'%3E%3Cpath d=\'M22 22l3-2M38 15l2.500 2M17 35l2-2.500\'/%3E%3C/g%3E%3C/svg%3E")';
 
-// Patrón de personas y destellos (tinta translúcida) para el botón de grupo
-const PATRON_GRUPO =
-  'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'36\'%3E%3Cg fill=\'none\' stroke=\'%233f3128\' stroke-opacity=\'.22\' stroke-width=\'1.2\' stroke-linecap=\'round\'%3E%3Ccircle cx=\'9\' cy=\'11\' r=\'2.6\'/%3E%3Cpath d=\'M4 20c0-4 2.2-5.5 5-5.5s5 1.5 5 5.5\'/%3E%3Ccircle cx=\'20\' cy=\'9\' r=\'2.6\'/%3E%3Cpath d=\'M15 18c0-4 2.2-5.5 5-5.5s5 1.5 5 5.5\'/%3E%3C/g%3E%3Ccircle cx=\'31\' cy=\'27\' r=\'1.6\' fill=\'%233f3128\' fill-opacity=\'.22\'/%3E%3Cpath d=\'M32 8l1 2 2 1-2 1-1 2-1-2-2-1 2-1z\' fill=\'%233f3128\' fill-opacity=\'.22\'/%3E%3C/svg%3E")';
-
 export default function TallerDinamico() {
   const { claseId } = useParams();
   const navigate = useNavigate();
@@ -343,7 +339,6 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 onClick={() => navigate(destinoGrupo)}
                 disabled={faltaOpcion}
                 className="relative w-full px-4 py-4 rounded-full bg-mostaza text-tinta hover:bg-mostaza-borde font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-tinta/40 -outline-offset-4 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundImage: PATRON_GRUPO }}
               >
                 <Icono nombre="usuarios" color="currentColor" className="mr-1" />Reservar para grupo
               </button>
