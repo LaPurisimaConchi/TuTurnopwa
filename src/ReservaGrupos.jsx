@@ -78,6 +78,7 @@ export default function ReservaGrupos() {
 
   const [tallerId, setTallerId] = useState("");
   const [opcionId, setOpcionId] = useState("");
+  const [metodoId, setMetodoId] = useState("");
   const [fecha, setFecha] = useState("");
   const [horario, setHorario] = useState("");
   const [personas, setPersonas] = useState(configEspacio.minPersonasGrupo);
@@ -148,6 +149,8 @@ export default function ReservaGrupos() {
     const elegida = clave && lista.find((o) => o.id === params.get(clave));
     setOpcionId(elegida ? elegida.id : lista.length === 1 ? lista[0].id : "");
 
+    setMetodoId(params.get("metodo") || "");
+
     // Personas que ya había elegido en la reserva del taller
     const previas = Math.round(Number(params.get("personas")));
     if (previas > 0) setPersonas(Math.min(MAX_PERSONAS, previas));
@@ -161,6 +164,12 @@ export default function ReservaGrupos() {
     [taller]
   );
   const opcion = opciones.lista.find((o) => o.id === opcionId) || null;
+  // Método elegido en la página del taller (con tipo/tamaño no cambia el precio de grupo)
+  const metodo = useMemo(() => {
+    if (!taller) return null;
+    if (opciones.clave === "metodo") return opcion;
+    return metodosDelTaller(taller).find((m) => m.id === metodoId) || null;
+  }, [taller, opciones.clave, opcion, metodoId]);
 
   const precioUnitario = !taller
     ? 0
@@ -172,7 +181,9 @@ export default function ReservaGrupos() {
   const precioTotal = precioUnitario * personasNum;
   const nombreTaller = taller
     ? opcion
-      ? `${taller.nombre} — ${opcion.nombre}`
+      ? `${taller.nombre} — ${opcion.nombre}${
+          metodo && metodo !== opcion ? ` — ${metodo.nombre}` : ""
+        }`
       : taller.nombre
     : "";
 
@@ -299,6 +310,7 @@ export default function ReservaGrupos() {
         tallerId: taller.id,
         // Variante o método elegido: con él calcula el servidor el precio (api/_pedidoServidor.js)
         opcionTaller: opcion?.id || "",
+        metodoTaller: metodo?.id || "",
         tipo: "grupo",
         fecha,
         turno: horario,
@@ -396,25 +408,24 @@ export default function ReservaGrupos() {
               </p>
             )}
 
-            {opciones.lista.length > 1 && (
-              <div>
-                <label htmlFor="opcion" className="block font-bold text-sm mb-1">
-                  {opciones.etiqueta} <span className="text-red-600">*</span>
-                </label>
-                <select
-                  id="opcion"
-                  value={opcionId}
-                  onChange={(e) => setOpcionId(e.target.value)}
-                  className={campo}
-                  required
-                >
-                  <option value="">-- Elige una opción --</option>
-                  {opciones.lista.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.nombre} — {formatearEuros(o.precio)}
-                    </option>
-                  ))}
-                </select>
+            {taller && (opcion || metodo) && (
+              <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
+                {opcion && (
+                  <p>
+                    <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {formatearEuros(opcion.precio)}
+                  </p>
+                )}
+                {metodo && (
+                  <p>
+                    <strong>Método:</strong> {metodo.nombre}
+                  </p>
+                )}
+                <p className="text-xs text-tinta-suave">
+                  Elegido en la página del taller.{" "}
+                  <Link to={`/taller/${taller.id}`} className="text-blue-700 underline">
+                    Cambiar
+                  </Link>
+                </p>
               </div>
             )}
 

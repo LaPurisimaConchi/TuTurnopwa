@@ -346,7 +346,11 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               <button
                 type="button"
                 onClick={() =>
-                  navigate(`/comprar-tarjeta-regalo?taller=${encodeURIComponent(claseId)}`)
+                  navigate(
+                    `/comprar-tarjeta-regalo?taller=${encodeURIComponent(claseId)}${
+                      parametros.toString() ? `&${parametros.toString()}` : ""
+                    }`
+                  )
                 }
                 className="w-full px-4 py-2 rounded-full border border-terracota text-terracota font-semibold text-sm hover:bg-terracota-suave transition"
               >
