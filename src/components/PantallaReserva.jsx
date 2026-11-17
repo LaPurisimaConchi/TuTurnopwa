@@ -5,7 +5,7 @@ import BotonVolver from "../BotonVolver";
 
 export default function PantallaReserva({ children, ancho = "max-w-md" }) {
   return (
-    <div className="bg-crema min-h-screen flex items-start justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-start justify-center px-0 pt-0 pb-6 -mt-5 sm:mt-0 sm:px-4 sm:py-8">
       <div className={`bg-white ${ancho} w-full rounded-2xl shadow-md p-6`}>
         <BotonVolver />
         {children}
