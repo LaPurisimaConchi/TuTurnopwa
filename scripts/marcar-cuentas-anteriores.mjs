@@ -17,7 +17,7 @@
 //
 // Usa tu sesión de Firebase CLI (npx firebase-tools login): no hacen falta claves de
 // administrador. Solo añade el campo cuentaAnterior a usuarios/{uid}; no toca nada más.
-// Se puede repetir sin riesgo. No marca las cuentas anónimas.
+// Se puede repetir sin riesgo. No marca las cuentas anónimas (sin email).
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -66,22 +66,23 @@ try {
   rmSync(carpeta, { recursive: true, force: true });
 }
 
-const aMarcar = usuarios
-  .filter(
-    (u) =>
-      (u.providerUserInfo || []).some((p) => p.providerId === "password") &&
-      new Date(Number(u.createdAt)) < hasta
-  )
-  .map((u) => u.localId);
+// Cuenta con email: tiene correo (las anónimas no). La exportación no siempre lista
+// el proveedor "password", así que no se depende de él.
+const esConEmail = (u) => Boolean(u.email);
+const creadaAntes = (u) => Number(u.createdAt) < hasta.getTime();
+const sinFecha = usuarios.filter((u) => esConEmail(u) && !Number(u.createdAt)).length;
+if (sinFecha) console.warn(`Aviso: ${sinFecha} cuentas con email sin fecha de creación; no se marcan.`);
+
+const aMarcar = usuarios.filter((u) => esConEmail(u) && creadaAntes(u)).map((u) => u.localId);
 
 console.log(
   `${usuarios.length} cuentas en ${proyecto}; ${aMarcar.length} con email creadas antes de ${hasta.toISOString()}.`
 );
 
-const conEmail = usuarios.filter((u) => (u.providerUserInfo || []).some((p) => p.providerId === "password"));
+const conEmail = usuarios.filter(esConEmail);
 const fechas = conEmail.map((u) => Number(u.createdAt)).filter(Boolean).sort((a, b) => a - b);
 console.log(
-  `Con email y contraseña: ${conEmail.length}` +
+  `Cuentas con email: ${conEmail.length}` +
     (fechas.length
       ? ` (la más antigua: ${new Date(fechas[0]).toISOString()}, la más reciente: ${new Date(fechas.at(-1)).toISOString()})`
       : "")
