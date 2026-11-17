@@ -740,7 +740,7 @@ listaClases.push({
                       navigate(`/admin-taller?id=${clase.id}`);
                     }}
                   >
-                    <Icono nombre="camara" color="currentColor" className="mr-1.5" />{clase.dinamica ? "Editar ficha y fotos" : "Fotos y portada"}
+                    <Icono nombre={clase.dinamica ? "notas" : "camara"} color="currentColor" className="mr-1.5" />{clase.dinamica ? "Editar ficha" : "Fotos y portada"}
                   </button>
 
                   {(clase.dinamica || TALLERES_FIJOS[clase.id]?.ruta) && (
