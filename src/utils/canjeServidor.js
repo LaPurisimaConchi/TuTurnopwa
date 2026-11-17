@@ -64,3 +64,14 @@ export function mensajeErrorCanje(error) {
   }
   return error?.message || "No se pudo confirmar la reserva con la tarjeta regalo.";
 }
+
+// Sesiones de talleres de varias sesiones que se reservaron solo con la primera:
+// { hoy, sesiones: [{ orderId, clase, claseId, fechaPrimeraSesion, fechaDisponible, plazas }] }
+export function sesionesPendientes() {
+  return llamar({ tipo: "sesionesPendientes" });
+}
+
+// Reserva la siguiente sesión de un pedido (sin coste: ya se pagó con la primera)
+export function reservarSiguienteSesion({ orderId, fecha, turno }) {
+  return llamar({ tipo: "siguienteSesion", orderId, fecha, turno });
+}
