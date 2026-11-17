@@ -352,9 +352,9 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="w-full px-4 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition"
+                className="relative overflow-hidden w-full px-4 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-white/70 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-5 before:bg-white/15 before:pointer-events-none"
               >
-                <Icono nombre="regalo" className="mr-1" />Regalar este taller
+                <span className="relative"><Icono nombre="regalo" color="currentColor" className="mr-1" />Regalar este taller</span>
               </button>
             )}
             </div>
