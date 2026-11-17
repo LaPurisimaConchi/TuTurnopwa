@@ -23,9 +23,9 @@ import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 const NOTA_TARIFAS =
   "Las tarifas están sujetas a cambios. Si no asistes a tu formación en la fecha original y deseas reprogramarla cuando las tarifas hayan cambiado, deberás abonar la diferencia o elegir una formación acorde a la cantidad ya pagada.";
 
-// Patrón de corazones y confeti (blanco translúcido) para el botón de regalo
+// Patrón de corazones y confeti (rojo translúcido) para el botón de regalo
 const PATRON_REGALO =
-  'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'44\' height=\'40\'%3E%3Cg fill=\'white\' fill-opacity=\'.3\'%3E%3Cpath d=\'M11 17c-5-3.4-6-6.6-3.6-8.4 1.7-1.2 3.2-.4 3.6 1 .4-1.4 1.9-2.2 3.6-1C17 10.400 16 13.600 11 17z\'/%3E%3Cpath d=\'M34 33c-3.300-2.300-4-4.400-2.400-5.600 1.100-.8 2.100-.3 2.400.7.300-1 1.300-1.500 2.400-.7C38 28.600 37.300 30.700 34 33z\'/%3E%3Ccircle cx=\'30\' cy=\'9\' r=\'1.6\'/%3E%3Ccircle cx=\'6\' cy=\'31\' r=\'1.3\'/%3E%3C/g%3E%3Cg stroke=\'white\' stroke-opacity=\'.3\' stroke-width=\'1.6\' stroke-linecap=\'round\'%3E%3Cpath d=\'M22 22l3-2M38 15l2.500 2M17 35l2-2.500\'/%3E%3C/g%3E%3C/svg%3E")';
+  'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'44\' height=\'40\'%3E%3Cg fill=\'%23d62839\' fill-opacity=\'.13\'%3E%3Cpath d=\'M11 17c-5-3.4-6-6.6-3.6-8.4 1.7-1.2 3.2-.4 3.6 1 .4-1.4 1.9-2.2 3.6-1C17 10.400 16 13.600 11 17z\'/%3E%3Cpath d=\'M34 33c-3.300-2.300-4-4.400-2.400-5.600 1.100-.8 2.100-.3 2.400.7.300-1 1.300-1.500 2.400-.7C38 28.600 37.300 30.700 34 33z\'/%3E%3Ccircle cx=\'30\' cy=\'9\' r=\'1.6\'/%3E%3Ccircle cx=\'6\' cy=\'31\' r=\'1.3\'/%3E%3C/g%3E%3Cg stroke=\'%23d62839\' stroke-opacity=\'.13\' stroke-width=\'1.6\' stroke-linecap=\'round\'%3E%3Cpath d=\'M22 22l3-2M38 15l2.500 2M17 35l2-2.500\'/%3E%3C/g%3E%3C/svg%3E")';
 
 // Patrón de personas y destellos (tinta translúcida) para el botón de grupo
 const PATRON_GRUPO =
@@ -359,7 +359,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                     }`
                   )
                 }
-                className="relative overflow-hidden w-full pl-11 pr-3 py-2.5 rounded-full bg-[#b84c85] text-white hover:bg-[#9d3d6e] font-bold text-sm shadow-sm transition outline outline-1 outline-dashed outline-white/70 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-5 before:w-4 before:bg-[#f7d6e6] before:border-x before:border-[#e9a9c8] before:pointer-events-none"
+                className="relative overflow-hidden w-full pl-11 pr-3 py-2.5 rounded-full bg-white text-tinta hover:bg-[#fff1f1] font-bold text-sm shadow-sm transition border border-[#e9c4c8] outline outline-1 outline-dashed outline-[#d62839]/40 -outline-offset-4 before:content-[''] before:absolute before:inset-y-0 before:left-5 before:w-4 before:bg-[#d62839] before:border-x before:border-[#a81b2b] before:pointer-events-none"
                 style={{ backgroundImage: PATRON_REGALO }}
               >
                 <svg
@@ -367,8 +367,8 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                   viewBox="0 0 28 20"
                   className="absolute left-[13px] top-1/2 -translate-y-1/2 w-7 h-5 pointer-events-none"
                 >
-                  <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#f7d6e6" stroke="#d98ab4" strokeWidth="1" strokeLinejoin="round" />
-                  <rect x="11.500" y="7.500" width="5" height="5" rx="1.500" fill="#fff" stroke="#d98ab4" strokeWidth="1" />
+                  <path d="M14 10C9 1 1 2 3 8c1 3 7 3 11 2zM14 10c5-9 13-8 11-2-1 3-7 3-11 2z" fill="#d62839" stroke="#a81b2b" strokeWidth="1" strokeLinejoin="round" />
+                  <rect x="11.500" y="7.500" width="5" height="5" rx="1.500" fill="#a81b2b" stroke="#7d1220" strokeWidth="1" />
                 </svg>
                 <span className="relative whitespace-nowrap">Regalar este taller</span>
               </button>
