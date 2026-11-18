@@ -285,7 +285,7 @@ const ConfirmacionPago = () => {
 
         <img
           src="/img/logoPC.png"
-          alt="Logo TuTurno"
+          alt="Logo de La Purísima Conchi"
           style={styles.logo}
         />
       </div>

@@ -26,11 +26,10 @@ import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
-const sumarUnMes = (fechaISO) => {
-  const d = new Date(`${fechaISO}T12:00:00`);
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 10);
-};
+import { diasCaducidadBono, fechaCaducidadBono } from "./utils/estadoBono";
+
+// Último día del bono según los días de validez de su ficha (31 por defecto)
+const caducidadDe = (clase, fechaISO) => fechaCaducidadBono(fechaISO, diasCaducidadBono(clase));
 
 export default function ReservaBonoDinamico({ claseId, clase }) {
   const navigate = useNavigate();
@@ -175,7 +174,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
     try {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
-      const fechaFinMes = sumarUnMes(fechaInicio);
+      const fechaFinMes = caducidadDe(clase, fechaInicio);
 
       // Primera sesión del bono: se reserva con la compra, con la misma forma que
       // las que se reservan después desde el perfil (UsarBono). Pendiente hasta
@@ -455,10 +454,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
                 <strong>Precio total:</strong> {desdeTarjeta ? "0€" : `${precioTotal}€`}
               </p>
               <p>
-                <strong>Fin del bono mensual:</strong> {sumarUnMes(fechaInicio)}
-              </p>
-              <p>
-                <strong>Validez máxima del bono:</strong> {sumarUnMes(fechaInicio)}
+                <strong>Válido hasta:</strong> {fechaDMA(caducidadDe(clase, fechaInicio))}{" "}
+                ({diasCaducidadBono(clase)} días desde la primera clase)
               </p>
             </div>
           )}

@@ -13,7 +13,7 @@ export default function CondicionesPago() {
       <div className="flex justify-center mb-6">
         <img
           src="/img/logoPCsin.png"
-          alt="TuTurnoApp"
+          alt="La Purísima Conchi"
           className="w-32 md:w-40"
         />
       </div>
@@ -24,11 +24,11 @@ export default function CondicionesPago() {
       {/* Contenido */}
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold text-tinta mb-4">
-          Condiciones del Servicio de Pago – TuTurnoApp
+          Condiciones del Servicio de Pago – La Purísima Conchi
         </h1>
 
         <p className="mb-4">
-          En <strong>TuTurnoApp</strong> los pagos se procesan a través de la plataforma segura
+          En <strong>La Purísima Conchi</strong> los pagos se procesan a través de la plataforma segura
           <strong> Redsys</strong>, proveedor homologado que utiliza cifrado de extremo a extremo
           para garantizar la protección de tus datos personales y financieros.
         </p>

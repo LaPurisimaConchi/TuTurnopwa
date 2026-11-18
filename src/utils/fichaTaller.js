@@ -47,6 +47,7 @@ export const FORMULARIO_VACIO = {
   minPersonasGrupo: "5",
   bono: {
     numeroClases: "4",
+    diasCaducidad: "31",
     duracionClase: "3 horas",
     modalidad: "",
     distribucionClases: "",
@@ -180,6 +181,7 @@ export function formularioDesdeClase(id, clase = {}) {
     minPersonasGrupo: String(clase.minPersonasGrupo || 5),
     bono: {
       numeroClases: String(clase.numeroClases ?? clase.NumeroClases ?? "4"),
+      diasCaducidad: String(clase.diasCaducidad ?? 31),
       duracionClase: clase.duracionClase || clase.duracion || "",
       modalidad: clase.modalidad || "",
       distribucionClases: clase.distribucionClases || "",
@@ -317,6 +319,7 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
     ...(esBono
       ? {
           numeroClases: Math.round(numeroPositivo(form.bono.numeroClases)),
+          diasCaducidad: Math.round(numeroPositivo(form.bono.diasCaducidad)) || 31,
           duracionClase: form.bono.duracionClase.trim(),
           modalidad: form.bono.modalidad.trim(),
           distribucionClases: form.bono.distribucionClases.trim() || null,

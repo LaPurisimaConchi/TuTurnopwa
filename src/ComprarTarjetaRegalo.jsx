@@ -86,6 +86,13 @@ export default function ComprarTarjetaRegalo() {
     (op) => op.id === opcionSeleccionadaId
   );
 
+  // Métodos entre los que elegirá quien la reciba (si la opción no fija uno)
+  const metodosAlCanjear = useMemo(() => {
+    if (!opcionSeleccionada || opcionSeleccionada.metodo || opcionSeleccionada.subtipo) return [];
+    const ficha = (talleres || []).find((t) => t.id === opcionSeleccionada.claseId);
+    return metodosDelTaller(ficha || {}).map((m) => m.nombre);
+  }, [opcionSeleccionada, talleres]);
+
   const variasPlazas = admiteVariasPlazas(opcionSeleccionada);
   const plazasNum = variasPlazas ? plazas : 1;
   const precioTotal = Number(opcionSeleccionada?.precio || 0) * plazasNum;
@@ -157,7 +164,23 @@ export default function ComprarTarjetaRegalo() {
 
         <div className="bg-crema border border-linea rounded-xl p-4 mb-5 text-sm text-tinta">
           <p className="mb-2">
-            <strong>La tarjeta regalo será válida solo para la opción elegida.</strong>
+            {!opcionSeleccionada ? (
+              <strong>La tarjeta regalo será válida solo para la opción que elijas.</strong>
+            ) : opcionSeleccionada.subtipo ? (
+              <>
+                La tarjeta regalo será válida solo para:{" "}
+                <strong>
+                  {opcionSeleccionada.clase} — {opcionSeleccionada.subtipo}
+                </strong>
+                .
+              </>
+            ) : (
+              <>
+                La tarjeta regalo será válida para <strong>{opcionSeleccionada.clase}</strong>.
+                {metodosAlCanjear.length > 1 &&
+                  ` Quien la reciba elige el método (${metodosAlCanjear.join(" o ")}) al reservar.`}
+              </>
+            )}
           </p>
           <p>
             La persona que la reciba podrá canjear el código más adelante y reservar

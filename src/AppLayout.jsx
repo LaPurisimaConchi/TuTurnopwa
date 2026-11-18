@@ -10,7 +10,7 @@ import { useGuardiaVerificacion } from "./utils/guardiaVerificacion";
 export default function AppLayout() {
   const location = useLocation();
   useGuardiaVerificacion();
-  const ocultarFooterEn = ["/perfil"];
+  const ocultarFooterEn = [];
 
   // ✅ Rutas que NO deben ir dentro de PageContainer (portada y el calendario del
   // admin, que necesita todo el ancho de la pantalla)

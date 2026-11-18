@@ -414,6 +414,10 @@ export default function AdminTallerForm() {
     if (esBono) {
       if (!numeroPositivo(form.precioUnico)) return fallo("precios", "Indica el precio del bono.");
       if (!numeroPositivo(form.bono.numeroClases)) return fallo("precios", "Indica cuántas clases tiene el bono.");
+      const dias = Number(form.bono.diasCaducidad);
+      if (!(Number.isInteger(dias) && dias >= 1 && dias <= 365)) {
+        return fallo("precios", "Los días de validez del bono deben ser un número entre 1 y 365.");
+      }
     } else if (form.modalidad === "metodos") {
       const marcados = METODOS_TALLER.filter((m) => form.metodos[m.id]);
       if (!marcados.length) return fallo("precios", "Elige al menos un método (torno, modelado…).");
@@ -1326,6 +1330,22 @@ export default function AdminTallerForm() {
                       value={form.bono.numeroClases}
                       onChange={(e) => cambiarAnidado("bono", "numeroClases", e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label htmlFor="bono-caducidad" className={label}>Días de validez</label>
+                    <input
+                      id="bono-caducidad"
+                      type="number"
+                      min="1"
+                      max="365"
+                      className={input}
+                      value={form.bono.diasCaducidad}
+                      onChange={(e) => cambiarAnidado("bono", "diasCaducidad", e.target.value)}
+                    />
+                    <p className="text-xs text-tinta-suave mt-1">
+                      Desde la primera clase. Con 31, un bono que empieza el 25-11 caduca el 26-12.
+                      Solo afecta a los bonos que se compren a partir de ahora.
+                    </p>
                   </div>
                   <div>
                     <label htmlFor="bono-duracion" className={label}>Duración de cada clase</label>

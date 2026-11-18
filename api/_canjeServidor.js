@@ -16,7 +16,15 @@ import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
-import { datosPrimeraSesionBono, obtenerEstadoVisibleBono } from "../src/utils/estadoBono.js";
+import {
+  datosPrimeraSesionBono,
+  diasCaducidadBono,
+  fechaCaducidadBono,
+  motivoFechaFueraDeBono,
+  obtenerEstadoVisibleBono,
+  sesionBonoRepetida,
+} from "../src/utils/estadoBono.js";
+import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -285,8 +293,13 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
               sesionesConsumidas: {},
             };
 
+        // La validez la calcula el servidor con la ficha del bono, no la pantalla
+        const fechaInicio = String(primeraReserva.fecha || deCliente.fechaInicio || "");
+        const caduca = fechaCaducidadBono(fechaInicio, diasCaducidadBono(clase));
+
         bonoCreado = {
           ...deCliente,
+          ...(caduca ? { fechaInicio, fechaFinMes: caduca, fechaCaducidadBono: caduca } : {}),
           bonoId: orderId,
           uid,
           clase: deCliente.clase || primeraReserva.clase || clase?.nombre || tarjeta.clase || "Bono",
@@ -450,6 +463,15 @@ export async function usarBono(db, uid, { bonoId, fecha, turno } = {}) {
   if (!ID.test(carpetaTaller)) return fallo(400, "Taller no válido");
 
   if (fecha < hoyMadrid()) return fallo(409, "Esa fecha ya ha pasado", { codigo: "fecha_pasada" });
+  if (turnoYaEmpezado(fecha, turno)) {
+    return fallo(409, "Ese turno ya ha empezado. Elige otro turno u otro día.", { codigo: "fecha_pasada" });
+  }
+  const fueraDeBono = motivoFechaFueraDeBono(bono, fecha);
+  if (fueraDeBono) return fallo(409, fueraDeBono, { codigo: "fuera_de_bono" });
+  const bonosSnap = await db.ref(`usuarios/${uid}/bonos`).get();
+  if (sesionBonoRepetida(bonosSnap.val(), fecha, turno)) {
+    return fallo(409, "Ya tienes una clase reservada ese día en ese turno.", { codigo: "repetida" });
+  }
   const bloqueos = bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {};
   if (bloqueoAfectaTurno(bloqueos[fecha], turno)) {
     return fallo(409, "Ese día no está disponible", { codigo: "bloqueado" });

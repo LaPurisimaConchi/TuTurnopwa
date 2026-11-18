@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { cargarMiniatura, TALLERES_FIJOS } from "./catalogoTalleres";
 import { cargarCategorias } from "./categoriasTalleres";
+import { fechaDMA } from "./utils/formatoFecha";
 
 const IMAGENES_CLASE = {
   clasesueltacontinuidad: "/img/clasesuelta/clase-suelta1.JPG",
@@ -697,7 +698,7 @@ listaClases.push({
                   </p>
                   <p style={styles.linea}>
                     <strong>Próxima fecha:</strong>{" "}
-                    {clase.proximaFecha || "Sin reservas futuras"}
+                    {fechaDMA(clase.proximaFecha) || "Sin reservas futuras"}
                   </p>
                   <p style={styles.linea}>
                     <strong>Precio base:</strong>{" "}

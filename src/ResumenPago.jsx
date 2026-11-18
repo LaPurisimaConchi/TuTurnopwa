@@ -253,8 +253,15 @@ export default function ResumenPago() {
           Resumen del pago
         </h1>
 
+        {desdeCompraTarjeta && (
+          <p className="mb-3 inline-block rounded-full bg-mostaza-suave border border-mostaza px-3 py-1 text-sm font-semibold text-tinta">
+            Tarjeta regalo
+          </p>
+        )}
+
         <p className="mb-2">
-          <strong>Clase:</strong> {clase || (desdeCompraTarjeta ? "Tarjeta regalo" : "-")}
+          <strong>{desdeCompraTarjeta ? "Taller que regalas:" : "Clase:"}</strong>{" "}
+          {clase || (desdeCompraTarjeta ? "Tarjeta regalo" : "-")}
         </p>
 
         {subtipo && (
@@ -263,7 +270,13 @@ export default function ResumenPago() {
           </p>
         )}
 
-        {Array.isArray(sesionesElegidas) && sesionesElegidas.length > 1 ? (
+        {desdeCompraTarjeta ? (
+          // Una tarjeta regalo no tiene fecha: la elige quien la recibe al canjearla
+          <p className="mb-2 text-sm text-tinta-suave">
+            Recibirás un código para regalar. Quien lo reciba elegirá la fecha y el turno
+            al canjearlo en la web.
+          </p>
+        ) : Array.isArray(sesionesElegidas) && sesionesElegidas.length > 1 ? (
           <div className="mb-2">
             <strong>Sesiones:</strong>
             <ul className="mt-1 space-y-0.5">
@@ -286,9 +299,11 @@ export default function ResumenPago() {
           </>
         )}
 
-       <p className="mb-2">
-  <strong>Modalidad:</strong> {tipo === "grupo" ? "Reserva para grupo" : (metodo || modalidad || "-")}
-</p>
+        {!desdeCompraTarjeta && (
+          <p className="mb-2">
+            <strong>Modalidad:</strong> {tipo === "grupo" ? "Reserva para grupo" : (metodo || modalidad || "-")}
+          </p>
+        )}
 
         <p className="mb-2">
           <strong>Plazas:</strong> {plazasNum}

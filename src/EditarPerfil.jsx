@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { getAuth, updateProfile, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get, update } from "firebase/database";
 import PantallaConVolver from "./PantallaConVolver";
-import Footer from "./Footer";
 
 export default function EditarPerfil() {
   const navigate = useNavigate();
@@ -71,7 +70,7 @@ export default function EditarPerfil() {
       return;
     }
 
-    if (!telefonoLimpio) {
+    if (!telefono.trim()) {
       setError("El teléfono es obligatorio.");
       return;
     }
@@ -127,7 +126,6 @@ export default function EditarPerfil() {
         </h1>
         {children}
       </div>
-      <Footer />
     </PantallaConVolver>
   );
 

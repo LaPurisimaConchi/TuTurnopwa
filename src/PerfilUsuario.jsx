@@ -4,13 +4,13 @@ import { useNavigate } from "react-router-dom";
 import { auth, dbRealtime } from "./firebase";
 import { ref, get } from "firebase/database";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import Footer from "./Footer";
 import BarraDeslizable from "./components/BarraDeslizable";
 import {
   sesionesPendientes as cargarSesionesPendientes,
   cancelarSesionBono,
 } from "./utils/canjeServidor";
 import { useConfigEspacio } from "./configuracionEspacio";
+import { enlaceWhatsapp, telefonoVisible } from "./utils/configEspacio";
 import { ahoraMadridMs, horasAntelacionDe, inicioClaseMs } from "./utils/cambioFecha";
 import PantallaConVolver from "./PantallaConVolver";
 import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
@@ -338,7 +338,8 @@ function FilaReserva({ reserva, historial = false, config }) {
             {reserva.ubicacion ? ` · ${reserva.ubicacion}` : ""}
           </p>
         </div>
-        {cancelada && <Chip tono="rojo">Cancelada</Chip>}
+        {/* En el historial ya lo dice el aviso de cancelación de debajo */}
+        {cancelada && !historial && <Chip tono="rojo">Cancelada</Chip>}
       </div>
 
       {historial && <AvisoCancelacion reserva={reserva} />}
@@ -668,8 +669,14 @@ export default function PerfilUsuario() {
                 <Icono nombre="ubicacion" className="mr-1.5" />Contacto
               </summary>
               <ul className="mt-3 space-y-2">
-                <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
-                <li className="break-all"><Icono nombre="correo" className="mr-1.5" />lapurisimaconchioficial@gmail.com</li>
+                <li><Icono nombre="telefono" className="mr-1.5" />{telefonoVisible(configEspacio.telefonoWhatsapp)}</li>
+                <li className="[overflow-wrap:anywhere]">
+                  <Icono nombre="correo" className="mr-1.5" />
+                  {/* Se parte por la @ si no cabe, no en mitad del dominio */}
+                  <a href="mailto:lapurisimaconchioficial@gmail.com" className="hover:underline">
+                    lapurisimaconchioficial<wbr />@gmail.com
+                  </a>
+                </li>
                 <li><Icono nombre="casa" className="mr-1.5" />Calle Israel Nº5, Córdoba</li>
               </ul>
               <button
@@ -909,12 +916,12 @@ export default function PerfilUsuario() {
                 <p>
                   <span className="font-semibold">WhatsApp:</span>{" "}
                   <a
-                    href="https://wa.me/34611804664"
+                    href={enlaceWhatsapp(configEspacio.telefonoWhatsapp)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#b58900] font-bold"
                   >
-                    611 804 664
+                    {telefonoVisible(configEspacio.telefonoWhatsapp)}
                   </a>
                 </p>
 
@@ -937,8 +944,14 @@ export default function PerfilUsuario() {
             <Icono nombre="ubicacion" className="mr-1.5" />Contacto
           </summary>
           <ul className="mt-3 space-y-2">
-            <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
-            <li className="break-all"><Icono nombre="correo" className="mr-1.5" />lapurisimaconchioficial@gmail.com</li>
+            <li><Icono nombre="telefono" className="mr-1.5" />{telefonoVisible(configEspacio.telefonoWhatsapp)}</li>
+            <li className="[overflow-wrap:anywhere]">
+                  <Icono nombre="correo" className="mr-1.5" />
+                  {/* Se parte por la @ si no cabe, no en mitad del dominio */}
+                  <a href="mailto:lapurisimaconchioficial@gmail.com" className="hover:underline">
+                    lapurisimaconchioficial<wbr />@gmail.com
+                  </a>
+                </li>
             <li><Icono nombre="casa" className="mr-1.5" />Calle Israel Nº5, Córdoba</li>
           </ul>
           <button
@@ -956,14 +969,8 @@ export default function PerfilUsuario() {
           >
             Cerrar sesión
           </button>
-          <div className="text-center text-xs text-[#a08f80] space-x-4">
-            <button onClick={() => navigate("/politica-privacidad")}>Política de Privacidad</button>
-            <button onClick={() => navigate("/condiciones-pago")}>Condiciones de Pago</button>
-          </div>
         </div>
       </div>
-
-      <Footer />
     </PantallaConVolver>
   );
 }

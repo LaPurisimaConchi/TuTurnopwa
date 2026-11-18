@@ -42,9 +42,11 @@ export default function CalendarioReserva({
   estadoDia,
   cargando = false,
   desde = "", // primer día que se puede elegir (si es posterior a hoy)
+  hasta = "", // último día que se puede elegir (si es anterior al límite general)
 }) {
   const hoy = useMemo(hoyISO, []);
-  const limite = useMemo(maxISO, []);
+  const limiteGeneral = useMemo(maxISO, []);
+  const limite = hasta && hasta < limiteGeneral ? hasta : limiteGeneral;
 
   const inicial = value ? new Date(`${value}T12:00:00`) : desde > hoy ? new Date(`${desde}T12:00:00`) : new Date();
   const [anio, setAnio] = useState(inicial.getFullYear());

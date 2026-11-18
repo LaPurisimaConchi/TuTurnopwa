@@ -79,6 +79,13 @@ export function inicioClaseMs(fecha, turno = "") {
   return Date.UTC(anio, mes - 1, dia, hora ? Number(hora[1]) : 0, hora ? Number(hora[2]) : 0);
 }
 
+// Un turno deja de poderse reservar en cuanto llega su hora de inicio (hora de Madrid).
+// Sin fecha válida se considera empezado, para no dejar pasar nada raro.
+export function turnoYaEmpezado(fecha, turno = "", ahoraMs = ahoraMadridMs()) {
+  const inicio = inicioClaseMs(fecha, turno);
+  return Number.isNaN(inicio) || inicio <= ahoraMs;
+}
+
 // Horas mínimas de antelación para reprogramar esta reserva: las de bono tienen su plazo;
 // el resto (monográficos incluidos) usa el de las reservas normales
 export function horasAntelacionDe(reserva, config = CONFIG_ESPACIO_DEFECTO) {

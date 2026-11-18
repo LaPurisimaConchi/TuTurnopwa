@@ -18,3 +18,26 @@ export function hoyMadrid(ahora = new Date()) {
     day: "2-digit",
   }).format(ahora);
 }
+
+// Fecha y hora para mostrar: "2026-11-17T22:14:20.354Z" → "17-11-2026, 23:14" (hora de
+// España). Una fecha sin hora sale como fechaDMA y el resto se devuelve igual.
+export function fechaHoraLegible(valor) {
+  const texto = typeof valor === "string" ? valor.trim() : "";
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(texto)) return fechaDMA(valor);
+  const fecha = new Date(texto);
+  if (Number.isNaN(fecha.getTime())) return fechaDMA(valor);
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat("es-ES", {
+      timeZone: "Europe/Madrid",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(fecha)
+      .map((p) => [p.type, p.value])
+  );
+  return `${partes.day}-${partes.month}-${partes.year}, ${partes.hour}:${partes.minute}`;
+}

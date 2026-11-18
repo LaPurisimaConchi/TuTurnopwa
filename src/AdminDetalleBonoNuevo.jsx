@@ -4,7 +4,8 @@ import { useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
+import { motivoFechaFueraDeBono } from "./utils/estadoBono";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -137,6 +138,16 @@ useEffect(() => {
           orderId: bonoData.orderId || bonoId,
           tipoTaller: bonoData.tipoTaller || "",
           subtipo: bonoData.subtipo || "",
+          // Clases ya reservadas con el bono, por fecha
+          sesiones: Object.entries(bonoData.sesionesConsumidas || {})
+            .map(([clave, s]) => ({
+              clave,
+              fecha: String(s?.fecha || ""),
+              turno: String(s?.turno || ""),
+              reservaId: String(s?.reservaId || ""),
+              primera: clave === "primeraSesion" || s?.primeraSesion === true,
+            }))
+            .sort((a, b) => `${a.fecha} ${a.turno}`.localeCompare(`${b.fecha} ${b.turno}`)),
         });
       } catch (error) {
         console.error("Error al cargar detalle del bono:", error);
@@ -525,7 +536,7 @@ useEffect(() => {
                       </div>
                     </div>
                   ) : (
-                    <span style={styles.valorGrande}>{bono.fechaInicio || "—"}</span>
+                    <span style={styles.valorGrande}>{fechaDMA(bono.fechaInicio) || "—"}</span>
                   )}
                 </div>
 
@@ -675,6 +686,47 @@ useEffect(() => {
             </div>
 
             <div style={styles.bloque}>
+              <h2 style={styles.bloqueTitulo}>Sesiones reservadas</h2>
+              {bono.sesiones.length === 0 ? (
+                <p style={styles.filaLabel}>Todavía no hay clases reservadas con este bono.</p>
+              ) : (
+                <div style={styles.listaDatos}>
+                  {bono.sesiones.map((sesion, i) => {
+                    const fuera = motivoFechaFueraDeBono(bono, sesion.fecha);
+                    const repetida = bono.sesiones.some(
+                      (otra, j) => j !== i && otra.fecha === sesion.fecha && otra.turno === sesion.turno
+                    );
+                    const pasada = sesion.fecha < hoyMadrid();
+                    const avisos = [
+                      sesion.primera && "Primera sesión",
+                      pasada && "Ya pasada",
+                      fuera && "Fuera de la validez del bono",
+                      repetida && "Repetida (mismo día y turno)",
+                    ].filter(Boolean);
+                    return (
+                      <div
+                        key={sesion.clave}
+                        style={{ ...styles.filaDato, ...(isMobile ? styles.filaDatoMobile : {}) }}
+                      >
+                        <span style={styles.filaLabel}>
+                          {fechaDMA(sesion.fecha) || "—"} · {sesion.turno || "—"}
+                        </span>
+                        <span
+                          style={{
+                            ...styles.filaValor,
+                            color: fuera || repetida ? "#b42318" : styles.filaValor.color,
+                          }}
+                        >
+                          {avisos.join(" · ") || "Reservada"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.bloque}>
               <h2 style={styles.bloqueTitulo}>Datos técnicos del bono</h2>
 
               <div style={styles.listaDatos}>
@@ -725,7 +777,7 @@ useEffect(() => {
   }}
 >
                   <span style={styles.filaLabel}>Creado en</span>
-                  <span style={styles.filaValor}>{bono.creadoEn || "—"}</span>
+                  <span style={styles.filaValor}>{fechaHoraLegible(bono.creadoEn) || "—"}</span>
                 </div>
 
                 <div
@@ -735,7 +787,7 @@ useEffect(() => {
   }}
 >
                   <span style={styles.filaLabel}>Actualizado en</span>
-                  <span style={styles.filaValor}>{bono.actualizadoEn || "—"}</span>
+                  <span style={styles.filaValor}>{fechaHoraLegible(bono.actualizadoEn) || "—"}</span>
                 </div>
               </div>
             </div>

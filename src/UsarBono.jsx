@@ -16,6 +16,7 @@ import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import { reservarConBono } from "./utils/canjeServidor";
 import { fechaDMA } from "./utils/formatoFecha";
+import { motivoFechaFueraDeBono, rangoFechasBono, sesionBonoRepetida } from "./utils/estadoBono";
 
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
@@ -58,6 +59,8 @@ export default function UsarBono() {
   const [user, setUser] = useState(null);
   const [bono, setBono] = useState(null);
   const [claseConfig, setClaseConfig] = useState(null);
+  // Todos los bonos de la persona: para no repetir día y turno entre sesiones
+  const [todosBonos, setTodosBonos] = useState({});
   const [fechaSesion, setFechaSesion] = useState("");
   const [turno, setTurno] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -80,14 +83,16 @@ export default function UsarBono() {
       try {
         setCargando(true);
 
-        const bonoSnap = await get(ref(dbRealtime, `usuarios/${user.uid}/bonos/${bonoId}`));
-        if (!bonoSnap.exists()) {
+        const bonosSnap = await get(ref(dbRealtime, `usuarios/${user.uid}/bonos`));
+        const bonos = bonosSnap.val() || {};
+        setTodosBonos(bonos);
+        if (!bonos[bonoId]) {
           setBono(null);
           setClaseConfig(null);
           return;
         }
 
-        const bonoData = bonoSnap.val();
+        const bonoData = bonos[bonoId];
         setBono(bonoData);
 
         const claseId = bonoData?.claseId || "";
@@ -161,6 +166,8 @@ export default function UsarBono() {
     };
   }, [fechaSesion, turno]);
 
+  const turnoRepetido = !!fechaSesion && !!turno && sesionBonoRepetida(todosBonos, fechaSesion, turno);
+
   const handleReservar = async (e) => {
     e.preventDefault();
 
@@ -194,6 +201,15 @@ export default function UsarBono() {
     }
     if (diaNoDisponible) {
       alert("Esta clase no se imparte el día seleccionado.");
+      return;
+    }
+    const fueraDeBono = motivoFechaFueraDeBono(bono, fechaSesion);
+    if (fueraDeBono) {
+      alert(fueraDeBono);
+      return;
+    }
+    if (turnoRepetido) {
+      alert("Ya tienes una clase reservada ese día en ese turno.");
       return;
     }
 
@@ -287,6 +303,8 @@ export default function UsarBono() {
                   diaNoDisponible={diaNoDisponible}
                   clase={clase}
                   producto="Esta clase"
+                  desde={rangoFechasBono(bono).desde}
+                  hasta={rangoFechasBono(bono).hasta}
                 />
               </>
             )}
@@ -303,6 +321,12 @@ export default function UsarBono() {
                 deshabilitado={!fechaSesion || diaNoDisponible || !!fechaBloqueada}
                 placeholder={!fechaSesion ? "-- Primero selecciona el día --" : "-- Elige turno --"}
               />
+
+              {turnoRepetido && (
+                <p className="text-sm text-red-600 font-medium" role="alert">
+                  Ya tienes una clase reservada ese día en ese turno. Elige otro turno u otro día.
+                </p>
+              )}
 
               {!!turno && errorPlazas && (
                 <p className="text-sm text-red-600" role="alert">
@@ -346,7 +370,8 @@ export default function UsarBono() {
                   diaNoDisponible ||
                   !plazasListas ||
                   errorPlazas ||
-                  plazasQuedan <= 0
+                  plazasQuedan <= 0 ||
+                  turnoRepetido
                 }
               />
             </div>
