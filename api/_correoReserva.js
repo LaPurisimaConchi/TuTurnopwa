@@ -11,6 +11,7 @@ import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { asegurarCodigo, formatearCodigo } from "./_codigosReserva.js";
 import { horasAntelacionDe } from "../src/utils/cambioFecha.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
+import { listarPlantillas, PLANTILLAS_POR_DEFECTO } from "../src/utils/plantillasTarjetaRegalo.js";
 
 export const REMITENTE_POR_DEFECTO = "La Purísima Conchi <onboarding@resend.dev>";
 
@@ -124,7 +125,7 @@ function contenidoPorTipo(tipo, datos) {
         ["Importe", importe],
         codigoReserva,
       ],
-      nota: "Quien reciba la tarjeta solo tiene que canjear el código de la tarjeta en «Gestionar reserva» (pestaña «Canjear tarjeta regalo») para reservar su plaza.",
+      nota: `${datos.conAdjunto ? "Te adjuntamos la tarjeta en PDF para que la imprimas y escribas a mano el código. " : ""}Quien reciba la tarjeta solo tiene que canjear el código de la tarjeta en «Gestionar reserva» (pestaña «Canjear tarjeta regalo») para reservar su plaza.`,
       enlace: { ruta: "/gestionar-reserva?tab=tarjeta", texto: "Canjear tarjeta regalo" },
     };
   }
@@ -249,6 +250,42 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
   return { asunto, html, texto };
 }
 
+// PDF de tarjeta regalo para adjuntar al correo de compra (gestionados en el panel, en
+// plantillasTarjetaRegalo / plantillasTarjetaRegaloPdf). Sin ninguno gestionado se adjunta la
+// tarjeta clásica de /public. Nunca lanza: si algo falla, el correo sale sin adjuntos.
+const MAX_ADJUNTOS = 3;
+const MAX_BASE64_TOTAL = 8 * 1024 * 1024;
+
+async function adjuntosTarjetaRegalo() {
+  try {
+    const metaSnap = await adminDb.ref("plantillasTarjetaRegalo").get();
+    const adjuntos = [];
+    if (metaSnap.exists()) {
+      const elegidas = listarPlantillas(metaSnap.val()).filter((p) => p.enCorreo).slice(0, MAX_ADJUNTOS);
+      let total = 0;
+      for (const p of elegidas) {
+        const pdf = await adminDb.ref(`plantillasTarjetaRegaloPdf/${p.id}`).get();
+        const contenido = pdf.exists() ? String(pdf.val()) : "";
+        if (!contenido || total + contenido.length > MAX_BASE64_TOTAL) continue;
+        total += contenido.length;
+        adjuntos.push({ filename: p.archivo, content: contenido });
+      }
+      return adjuntos;
+    }
+
+    const defecto = PLANTILLAS_POR_DEFECTO.find((p) => p.enCorreo);
+    const base = urlBase();
+    if (!defecto || !base) return [];
+    const r = await fetch(`${base}${encodeURI(defecto.url)}`);
+    if (!r.ok) return [];
+    const buffer = Buffer.from(await r.arrayBuffer());
+    return buffer.length ? [{ filename: defecto.archivo, content: buffer.toString("base64") }] : [];
+  } catch (error) {
+    console.error("Correo reserva: no se pudieron preparar los PDF de la tarjeta regalo:", error);
+    return [];
+  }
+}
+
 /**
  * Envía el correo de confirmación de una reserva, una sola vez por pedido.
  * Devuelve true si se envió. No lanza nunca.
@@ -284,9 +321,11 @@ export async function enviarCorreoReserva({ reserva, uid, orderId, tipo = "reser
       normalizarConfigEspacio(espacio.exists() ? espacio.val() : null)
     );
 
+    const adjuntos = tipo === "tarjeta_regalo" ? await adjuntosTarjetaRegalo() : [];
+
     const { asunto, html, texto } = construirCorreo({
       tipo,
-      datos: { ...reserva, orderId, codigoReserva, horasAntelacion },
+      datos: { ...reserva, orderId, codigoReserva, horasAntelacion, conAdjunto: adjuntos.length > 0 },
       nombre,
     });
 
@@ -301,6 +340,7 @@ export async function enviarCorreoReserva({ reserva, uid, orderId, tipo = "reser
       },
       body: JSON.stringify({
         from: String(process.env.CORREO_REMITENTE || "").trim() || REMITENTE_POR_DEFECTO,
+        ...(adjuntos.length ? { attachments: adjuntos } : {}),
         to: [email],
         ...(copia ? { bcc: [copia] } : {}),
         ...(responderA ? { reply_to: responderA } : {}),

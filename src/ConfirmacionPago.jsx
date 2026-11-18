@@ -11,8 +11,10 @@ import {
   conservarSesionInvitado,
 } from "./utils/invitado";
 import CodigoReserva from "./components/CodigoReserva";
+import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
 
 const ConfirmacionPago = () => {
+  const plantillasTarjeta = usePlantillasTarjetaRegalo();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -210,13 +212,13 @@ const ConfirmacionPago = () => {
     Descarga una tarjeta para imprimir y escribir a mano el código.
   </p>
 
-  <a
-    href="/tarjetas-regalo/postal regalo.pdf"
-    download
-    style={styles.botonDescarga}
-  >
-    Descargar tarjeta regalo
-  </a>
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+    {plantillasTarjeta.map((plantilla) => (
+      <BotonPlantilla key={plantilla.id} plantilla={plantilla} style={styles.botonDescarga}>
+        {plantillasTarjeta.length > 1 ? plantilla.nombre : "Descargar tarjeta regalo"}
+      </BotonPlantilla>
+    ))}
+  </div>
 </div>
           </>
         ) : (

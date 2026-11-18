@@ -3,6 +3,7 @@ import { ref, get } from "firebase/database";
 import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import GestionPlantillasTarjetaRegalo from "./components/GestionPlantillasTarjetaRegalo";
 
 const AdminTarjetasRegalo = () => {
   const navigate = useNavigate();
@@ -214,6 +215,8 @@ const AdminTarjetasRegalo = () => {
             </p>
           </div>
         </div>
+
+        <GestionPlantillasTarjetaRegalo />
 
         <div
           style={{

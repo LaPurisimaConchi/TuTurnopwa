@@ -179,3 +179,7 @@ con las nuevas, el código viejo no puede cobrar.
 - los códigos de reserva se crean al pedirlos (también con un número de pedido antiguo);
 - las tarjetas antiguas sin índice de código se siguen encontrando;
 - las reservas pendientes antiguas siguen sin contar para el aforo.
+
+## PDF de tarjeta regalo gestionables
+- [ ] Las reglas nuevas (`plantillasTarjetaRegalo`, `plantillasTarjetaRegaloPdf`) se despliegan con el resto; `npm run probar-reglas` las cubre.
+- [ ] Tras desplegar: subir/sustituir/borrar un PDF en `/admin-tarjetas-regalo`, comprar una tarjeta de prueba y comprobar que el correo trae el PDF adjunto. Sin PDF subido se adjunta el clásico (necesita `CORREO_URL_BASE`).

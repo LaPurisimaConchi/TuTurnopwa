@@ -100,6 +100,17 @@
       ".read": true,
       ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"
     },
+    "plantillasTarjetaRegalo": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"
+    },
+    "plantillasTarjetaRegaloPdf": {
+      "$id": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
+        ".validate": "newData.isString() && newData.val().length <= 2800000"
+      }
+    },
     "imagenesClases": {
       ".read": true,
       ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"
