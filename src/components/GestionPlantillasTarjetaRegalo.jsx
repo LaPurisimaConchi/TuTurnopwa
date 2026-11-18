@@ -18,7 +18,7 @@ const leerBase64 = (archivo) =>
   });
 
 // Panel para gestionar los PDF de tarjeta regalo: ver, subir, sustituir, borrar y elegir
-// cuáles se adjuntan al correo de compra. Sin ninguno, se usan los originales de /public.
+// cuáles salen como botón en el correo de compra. Sin ninguno, se usan los originales de /public.
 export default function GestionPlantillasTarjetaRegalo() {
   const [lista, setLista] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -120,8 +120,8 @@ export default function GestionPlantillasTarjetaRegalo() {
     <section style={{ border: "1px solid #eadfce", borderRadius: 16, padding: 16, margin: "0 0 24px", background: "#fffdf8" }}>
       <h2 style={{ margin: "0 0 4px", fontSize: "1.15rem", color: "#3f3128" }}>PDF de tarjeta regalo</h2>
       <p style={{ margin: "0 0 14px", color: "#7a6858", fontSize: "0.92rem", lineHeight: 1.45 }}>
-        Los PDF que se ofrecen para imprimir y rellenar a mano al comprar una tarjeta. Los marcados «Adjuntar al correo»
-        se envían en el correo de confirmación de la compra. Máximo {formatearTamano(MAX_PDF_BYTES)} por PDF.
+        Los PDF que se ofrecen para imprimir y rellenar a mano al comprar una tarjeta. Los marcados «Botón en el correo»
+        aparecen como botón de descarga en el correo de confirmación de la compra. Máximo {formatearTamano(MAX_PDF_BYTES)} por PDF.
       </p>
 
       {mensaje && (
@@ -135,7 +135,7 @@ export default function GestionPlantillasTarjetaRegalo() {
       ) : lista.length === 0 ? (
         <p style={{ color: "#7a6858", fontSize: "0.92rem" }}>
           No hay ningún PDF subido: se usan los de siempre ({PLANTILLAS_POR_DEFECTO.map((p) => p.nombre).join(", ")}) y
-          el correo adjunta la tarjeta clásica. Al subir el primero, pasan a usarse solo los que gestiones aquí.
+          el correo enlaza la tarjeta clásica. Al subir el primero, pasan a usarse solo los que gestiones aquí.
         </p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: "0 0 14px", display: "grid", gap: 8 }}>
@@ -147,7 +147,7 @@ export default function GestionPlantillasTarjetaRegalo() {
               </div>
               <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.9rem" }}>
                 <input type="checkbox" checked={p.enCorreo} disabled={ocupado} onChange={() => cambiarCorreo(p)} />
-                Adjuntar al correo
+                Botón en el correo
               </label>
               <button type="button" style={boton} disabled={ocupado} onClick={() => { setSustituyendo(p); inputSustituir.current?.click(); }}>
                 Sustituir

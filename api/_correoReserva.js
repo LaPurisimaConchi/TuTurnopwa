@@ -125,7 +125,7 @@ function contenidoPorTipo(tipo, datos) {
         ["Importe", importe],
         codigoReserva,
       ],
-      nota: `${datos.conAdjunto ? "Te adjuntamos la tarjeta en PDF para que la imprimas y escribas a mano el código. " : ""}Quien reciba la tarjeta solo tiene que canjear el código de la tarjeta en «Gestionar reserva» (pestaña «Canjear tarjeta regalo») para reservar su plaza.`,
+      nota: `${datos.pdfs?.length ? "Descarga la tarjeta en PDF con los botones de abajo, imprímela y escribe a mano el código. " : ""}Quien reciba la tarjeta solo tiene que canjear el código de la tarjeta en «Gestionar reserva» (pestaña «Canjear tarjeta regalo») para reservar su plaza.`,
       enlace: { ruta: "/gestionar-reserva?tab=tarjeta", texto: "Canjear tarjeta regalo" },
     };
   }
@@ -197,6 +197,15 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
   const logo = base
     ? `<img src="${escapar(base)}/img/logoPCsin.png" alt="La Purísima Conchi" height="64" style="display:block;margin:0 auto 16px;height:64px;width:auto;">`
     : `<div style="text-align:center;font-size:18px;font-weight:bold;color:${COLOR_MARCA};margin-bottom:16px;">La Purísima Conchi</div>`;
+  // Botones de PDF en horizontal (inline-block con margen: se apilan solos en pantallas estrechas)
+  const botonesPdf = (datos.pdfs || []).length
+    ? `<p style="text-align:center;margin:16px 0 0;">${datos.pdfs
+        .map(
+          (pdf) =>
+            `<a href="${escapar(pdf.url)}" style="display:inline-block;background:#ffffff;color:${COLOR_MARCA};text-decoration:none;padding:11px 22px;margin:4px;border:2px solid ${COLOR_MARCA};border-radius:999px;font-size:15px;font-weight:bold;">${escapar(pdf.nombre)}</a>`
+        )
+        .join("")}</p>`
+    : "";
   const destino = enlace || { ruta: "/perfil", texto: "Ver mis reservas" };
   const botonPerfil = base
     ? `<p style="text-align:center;margin:24px 0 0;"><a href="${escapar(base)}${destino.ruta}" style="display:inline-block;background:${COLOR_MARCA};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:15px;font-weight:bold;">${escapar(destino.texto)}</a></p>`
@@ -219,6 +228,7 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
             .join("")}
         </table>
         ${nota ? `<p style="margin:16px 0 0;font-size:14px;line-height:1.5;">${escapar(nota)}</p>` : ""}
+        ${botonesPdf}
         ${botonPerfil}
         <div style="margin-top:24px;padding:14px 16px;background:#fff7ed;border-radius:8px;font-size:13px;line-height:1.5;">
           <strong style="color:${COLOR_MARCA};">Cambios y cancelaciones</strong><br>
@@ -240,6 +250,7 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
     "",
     ...filas.map(([etiqueta, valor]) => `${etiqueta}: ${valor}`),
     ...(nota ? ["", nota] : []),
+    ...(datos.pdfs || []).map((pdf) => `\nDescargar PDF (${pdf.nombre}): ${pdf.url}`),
     "",
     `Cambios y cancelaciones: no se realizan devoluciones. Puedes reprogramar avisando con al menos ${horasAntelacion} horas de antelación o ceder tu plaza sin coste.`,
     "",
@@ -250,36 +261,26 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
   return { asunto, html, texto };
 }
 
-// PDF de tarjeta regalo para adjuntar al correo de compra (gestionados en el panel, en
-// plantillasTarjetaRegalo / plantillasTarjetaRegaloPdf). Sin ninguno gestionado se adjunta la
-// tarjeta clásica de /public. Nunca lanza: si algo falla, el correo sale sin adjuntos.
-const MAX_ADJUNTOS = 3;
-const MAX_BASE64_TOTAL = 8 * 1024 * 1024;
+// PDF de tarjeta regalo que enlaza el correo de compra: los marcados «Adjuntar al correo» en el
+// panel (plantillasTarjetaRegalo) llevan a /tarjeta-regalo-pdf/{id}; sin ninguno gestionado, se
+// enlazan los PDF por defecto de /public. Nunca lanza: si algo falla, el correo sale sin botones.
+const MAX_ENLACES_PDF = 4;
 
-async function adjuntosTarjetaRegalo() {
+async function enlacesPdfTarjetaRegalo() {
+  const base = urlBase();
+  if (!base) return [];
   try {
     const metaSnap = await adminDb.ref("plantillasTarjetaRegalo").get();
-    const adjuntos = [];
     if (metaSnap.exists()) {
-      const elegidas = listarPlantillas(metaSnap.val()).filter((p) => p.enCorreo).slice(0, MAX_ADJUNTOS);
-      let total = 0;
-      for (const p of elegidas) {
-        const pdf = await adminDb.ref(`plantillasTarjetaRegaloPdf/${p.id}`).get();
-        const contenido = pdf.exists() ? String(pdf.val()) : "";
-        if (!contenido || total + contenido.length > MAX_BASE64_TOTAL) continue;
-        total += contenido.length;
-        adjuntos.push({ filename: p.archivo, content: contenido });
-      }
-      return adjuntos;
+      return listarPlantillas(metaSnap.val())
+        .filter((p) => p.enCorreo)
+        .slice(0, MAX_ENLACES_PDF)
+        .map((p) => ({ nombre: p.nombre, url: `${base}/tarjeta-regalo-pdf/${encodeURIComponent(p.id)}` }));
     }
-
-    const defecto = PLANTILLAS_POR_DEFECTO.find((p) => p.enCorreo);
-    const base = urlBase();
-    if (!defecto || !base) return [];
-    const r = await fetch(`${base}${encodeURI(defecto.url)}`);
-    if (!r.ok) return [];
-    const buffer = Buffer.from(await r.arrayBuffer());
-    return buffer.length ? [{ filename: defecto.archivo, content: buffer.toString("base64") }] : [];
+    return PLANTILLAS_POR_DEFECTO.filter((p) => p.enCorreo).map((p) => ({
+      nombre: p.nombre,
+      url: `${base}${encodeURI(p.url)}`,
+    }));
   } catch (error) {
     console.error("Correo reserva: no se pudieron preparar los PDF de la tarjeta regalo:", error);
     return [];
@@ -321,11 +322,11 @@ export async function enviarCorreoReserva({ reserva, uid, orderId, tipo = "reser
       normalizarConfigEspacio(espacio.exists() ? espacio.val() : null)
     );
 
-    const adjuntos = tipo === "tarjeta_regalo" ? await adjuntosTarjetaRegalo() : [];
+    const pdfs = tipo === "tarjeta_regalo" ? await enlacesPdfTarjetaRegalo() : [];
 
     const { asunto, html, texto } = construirCorreo({
       tipo,
-      datos: { ...reserva, orderId, codigoReserva, horasAntelacion, conAdjunto: adjuntos.length > 0 },
+      datos: { ...reserva, orderId, codigoReserva, horasAntelacion, pdfs },
       nombre,
     });
 
@@ -340,7 +341,6 @@ export async function enviarCorreoReserva({ reserva, uid, orderId, tipo = "reser
       },
       body: JSON.stringify({
         from: String(process.env.CORREO_REMITENTE || "").trim() || REMITENTE_POR_DEFECTO,
-        ...(adjuntos.length ? { attachments: adjuntos } : {}),
         to: [email],
         ...(copia ? { bcc: [copia] } : {}),
         ...(responderA ? { reply_to: responderA } : {}),

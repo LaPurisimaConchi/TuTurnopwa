@@ -189,7 +189,7 @@ con las nuevas, el código viejo no puede cobrar.
   siempre con el proyecto explícito: `npx firebase-tools deploy --only database --project la-purisima-conchi-staging`.
   En producción, solo cuando toque y tras guardar las reglas actuales (ver más arriba).
 - [ ] `npm run probar-reglas` cubre las rutas nuevas (0 fallos antes de desplegar).
-- [ ] Variables de Vercel (Production) para el adjunto: `RESEND_API_KEY` y `CORREO_URL_BASE`. Sin PDF
-  gestionado, el correo adjunta la tarjeta clásica descargándola de `CORREO_URL_BASE`.
+- [ ] Variables de Vercel (Production): `RESEND_API_KEY` y `CORREO_URL_BASE` (sin esta última el correo no
+  lleva los botones de PDF). Sin PDF gestionado, el correo enlaza la tarjeta clásica de `public/`.
 - [ ] Tras desplegar: subir, sustituir y borrar un PDF en `/admin-tarjetas-regalo` (cuenta admin con correo
-  verificado), comprar una tarjeta de prueba y comprobar que el correo trae el PDF adjunto.
+  verificado), comprar una tarjeta de prueba y comprobar que el correo trae los botones de PDF y que descargan.
