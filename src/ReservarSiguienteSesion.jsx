@@ -18,6 +18,8 @@ import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import { fechaDMA } from "./utils/formatoFecha";
 
+const WHATSAPP_TALLER = "34644671664";
+
 export default function ReservarSiguienteSesion() {
   const navigate = useNavigate();
   const { orderId } = useParams();
@@ -222,9 +224,21 @@ export default function ReservarSiguienteSesion() {
               </p>
             ) : (
               <>
-                <p className="text-sm text-tinta bg-crema border border-linea rounded-lg px-3 py-2">
-                  Antes de reservar, habla con el taller para confirmar que todo está listo para la siguiente sesión.
-                </p>
+                <div className="rounded-xl border-2 border-terracota bg-terracota-suave/40 p-4 text-tinta space-y-3">
+                  <p className="font-semibold text-base">
+                    Antes de reservar, habla con el taller para confirmar que todo está listo para la siguiente sesión.
+                  </p>
+                  <a
+                    href={`https://wa.me/${WHATSAPP_TALLER}?text=${encodeURIComponent(
+                      `Hola, quiero reservar la sesión ${pendiente.numeroSesion || 2} de "${pendiente.clase}". ¿Está todo listo?`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center w-full px-4 py-2.5 rounded-full bg-[#25D366] hover:bg-[#1ebe5b] text-white font-semibold text-sm transition"
+                  >
+                    Hablar con el taller por WhatsApp
+                  </a>
+                </div>
                 {errorContexto && (
                   <p className="text-sm text-red-600" role="alert">
                     No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.
