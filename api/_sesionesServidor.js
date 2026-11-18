@@ -10,6 +10,7 @@
 import { escribirConAforo, fallo } from "./_reservarServidor.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
+import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { esReservaValida, normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import { diasEntreSesionesDe, sesionesDeTaller, sumarDias } from "../src/utils/sesionesTaller.js";
@@ -142,6 +143,9 @@ export async function reservarSiguienteSesion(db, uid, { orderId, fecha, turno }
     return fallo(409, "Todavía no se puede reservar esta sesión.", { codigo: "pronto", fechaDisponible: disponible });
   }
   if (fecha < hoy) return fallo(409, "Esa fecha ya ha pasado", { codigo: "fecha_pasada" });
+  if (turnoYaEmpezado(fecha, turno)) {
+    return fallo(409, "Ese turno ya ha empezado. Elige otro turno u otro día.", { codigo: "fecha_pasada" });
+  }
 
   const bloqueos = bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {};
   if (bloqueoAfectaTurno(bloqueos[fecha], turno)) {

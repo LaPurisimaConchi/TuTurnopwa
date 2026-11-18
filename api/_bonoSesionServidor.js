@@ -21,6 +21,7 @@ import {
 } from "../src/utils/cambioFecha.js";
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
+import { sesionBonoRepetida } from "../src/utils/estadoBono.js";
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -215,6 +216,10 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
     ...reglasDeFecha(bono, ahoraMs),
   });
   if (motivo) return fallo(409, motivo, { codigo: "fecha_no_valida" });
+  const bonosSnap = await db.ref(`usuarios/${uid}/bonos`).get();
+  if (sesionBonoRepetida(bonosSnap.val(), fecha, turno, { exceptoReservaId: reservaId })) {
+    return fallo(409, "Ya tienes una clase reservada ese día en ese turno.", { codigo: "repetida" });
+  }
   if (!turnosElegibles({ clase: contexto.clase, fecha, fechasHabilitadas: contexto.fechasHabilitadas, reservasGrupos: contexto.reservasGrupos }).includes(turno)) {
     return fallo(409, "Ese turno no está disponible ese día.", { codigo: "bloqueado" });
   }

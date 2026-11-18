@@ -29,6 +29,7 @@ import { datosPrimeraSesionBono } from "../src/utils/estadoBono.js";
 import { edicionPorId, esMonografico } from "../src/utils/monografico.js";
 import { sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
+import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { reservasDelPedido } from "./_canjeServidor.js";
 
 // 12 dígitos: el número de pedido que se manda a Redsys (api/crear-sesion.js)
@@ -285,6 +286,9 @@ async function pedidoDeGrupo(db, uid, orderId, cuerpo) {
   }
   if (!pendiente(grupo) || grupo.modoPago !== "completo") {
     return fallo(409, "Esta reserva de grupo ya no está pendiente de pago.", { codigo: "no_pendiente" });
+  }
+  if (turnoYaEmpezado(String(grupo.fecha || ""), String(grupo.turno || ""))) {
+    return fallo(409, "Ese turno ya ha empezado. Elige otro turno u otro día.", { codigo: "fecha_pasada" });
   }
 
   const tallerId = String(grupo.tallerId || "");

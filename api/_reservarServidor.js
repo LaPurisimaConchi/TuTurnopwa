@@ -13,6 +13,7 @@ import {
 } from "../src/utils/aforo.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
+import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
@@ -206,6 +207,9 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
 
     if (fecha < hoy) {
       return fallo(409, "Esa fecha ya ha pasado", { codigo: "fecha_pasada", fecha, turno });
+    }
+    if (turnoYaEmpezado(fecha, turno)) {
+      return fallo(409, "Ese turno ya ha empezado. Elige otro turno u otro día.", { codigo: "fecha_pasada", fecha, turno });
     }
     if (bloqueoAfectaTurno(bloqueos[fecha], turno)) {
       return fallo(409, "Ese día no está disponible", { codigo: "bloqueado", fecha, turno });

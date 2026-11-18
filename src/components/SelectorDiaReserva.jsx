@@ -17,6 +17,7 @@ export default function SelectorDiaReserva({
   clase,
   producto = "Este taller",
   desde = "",
+  hasta = "",
   children,
 }) {
   const raiz = useRef(null);
@@ -48,6 +49,7 @@ export default function SelectorDiaReserva({
         estadoDia={estadoDia}
         cargando={cargando}
         desde={desde}
+        hasta={hasta}
       />
 
       {fechaBloqueada && (

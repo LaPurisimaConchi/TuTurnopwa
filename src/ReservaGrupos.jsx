@@ -25,6 +25,7 @@ import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { leerDatosContacto } from "./utils/invitado";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { turnoYaEmpezado } from "./utils/cambioFecha";
 const WHATSAPP_BERTO = "34644671664";
 
 const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
@@ -188,10 +189,12 @@ export default function ReservaGrupos() {
 
   const estadoDia = (iso) => {
     const bloqueo = fechasBloqueadas?.[iso];
-    return bloqueo?.bloqueado
-      ? { estado: "bloqueado", motivo: bloqueo.motivo || "" }
-      : { estado: "disponible" };
+    if (bloqueo?.bloqueado) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
+    // Hoy, cuando ya han empezado todos los turnos de grupo, el día no se ofrece
+    return TURNOS_GRUPO.every((t) => turnoYaEmpezado(iso, t)) ? { estado: "sin-taller" } : { estado: "disponible" };
   };
+  // Los turnos que ya han empezado no se ofrecen
+  const turnosGrupoDelDia = fecha ? TURNOS_GRUPO.filter((t) => !turnoYaEmpezado(fecha, t)) : TURNOS_GRUPO;
   const fechaBloqueada = fecha && fechasBloqueadas?.[fecha]?.bloqueado ? fechasBloqueadas[fecha] : null;
 
   const whatsappUrl = `https://wa.me/${WHATSAPP_BERTO}?text=${construirMensajeWhatsApp({
@@ -445,7 +448,7 @@ export default function ReservaGrupos() {
               etiqueta="Selecciona el turno:"
               value={horario}
               onChange={setHorario}
-              turnos={TURNOS_GRUPO}
+              turnos={turnosGrupoDelDia}
               deshabilitado={!fecha || !!fechaBloqueada}
               placeholder={!fecha ? "-- Primero selecciona el día --" : "-- Elige turno --"}
             />
