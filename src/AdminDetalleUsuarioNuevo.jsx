@@ -5,6 +5,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { obtenerEstadoVisibleBono } from "./utils/estadoBono";
 function formatearFechaNota(fecha) {
   if (!fecha) return "Sin fecha";
 
@@ -24,6 +25,8 @@ const AdminDetalleUsuarioNuevo = () => {
 
   const [usuario, setUsuario] = useState(null);
   const [reservasUsuario, setReservasUsuario] = useState([]);
+  const [bonosUsuario, setBonosUsuario] = useState([]);
+  const [tarjetasUsuario, setTarjetasUsuario] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   const [notasInternas, setNotasInternas] = useState([]);
@@ -89,6 +92,18 @@ useEffect(() => {
         });
 
         setReservasUsuario(lista);
+
+        // Bonos y tarjetas regalo compradas, los más recientes primero
+        setBonosUsuario(
+          Object.entries(data.bonos || {})
+            .map(([id, b]) => ({ id, ...(b || {}) }))
+            .sort((a, b) => String(b.fechaInicio || "").localeCompare(String(a.fechaInicio || "")))
+        );
+        setTarjetasUsuario(
+          Object.entries(data.tarjetasRegalo || {})
+            .map(([id, t]) => ({ id, ...(t || {}) }))
+            .sort((a, b) => String(b.fechaCompra || "").localeCompare(String(a.fechaCompra || "")))
+        );
       } catch (error) {
         console.error("Error al cargar detalle de usuario:", error);
         setUsuario(null);
@@ -289,6 +304,68 @@ useEffect(() => {
           >
             {guardandoNota ? "Guardando..." : "Guardar nota"}
           </button>
+        </div>
+
+        <div style={styles.bloque}>
+          <h2 style={styles.subtitulo}>Bonos ({bonosUsuario.length})</h2>
+          {bonosUsuario.length === 0 ? (
+            <p style={styles.textoVacio}>Este usuario no tiene bonos.</p>
+          ) : (
+            <div style={styles.lista}>
+              {bonosUsuario.map((b) => (
+                <div
+                  key={b.id}
+                  style={styles.reservaItem}
+                  onClick={() => navigate(`/admin-detalle-bono?id=${b.bonoId || b.id}&uid=${uid}`)}
+                >
+                  <p style={styles.linea}>
+                    <strong>Bono:</strong> {b.clase || "Bono"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Validez:</strong> {fechaDMA(b.fechaInicio) || "—"} → {fechaDMA(b.fechaCaducidadBono) || "—"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Clases:</strong> {Number(b.clasesConsumidas || 0)} usadas de {Number(b.numeroClases || 0)}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Estado:</strong> {obtenerEstadoVisibleBono(b)} · {b.estadoPago || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={styles.bloque}>
+          <h2 style={styles.subtitulo}>Tarjetas regalo compradas ({tarjetasUsuario.length})</h2>
+          {tarjetasUsuario.length === 0 ? (
+            <p style={styles.textoVacio}>Este usuario no ha comprado tarjetas regalo.</p>
+          ) : (
+            <div style={styles.lista}>
+              {tarjetasUsuario.map((t) => (
+                <div
+                  key={t.id}
+                  style={styles.reservaItem}
+                  onClick={() => navigate(`/admin-detalle-tarjeta-regalo?id=${t.orderId || t.id}`)}
+                >
+                  <p style={styles.linea}>
+                    <strong>Taller:</strong> {t.clase || "Tarjeta regalo"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Código:</strong> {t.codigo || "—"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Compra:</strong> {fechaDMA(String(t.fechaCompra || "").slice(0, 10)) || "—"} ·{" "}
+                    {Number(t.plazas || 1)} {Number(t.plazas || 1) === 1 ? "plaza" : "plazas"} ·{" "}
+                    {Number(t.precioTotal || 0)} €
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Canje:</strong> {t.estadoCanje || "pendiente"} · <strong>Pago:</strong> {t.estadoPago || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={styles.bloque}>

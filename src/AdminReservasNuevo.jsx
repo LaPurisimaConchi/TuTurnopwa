@@ -99,6 +99,9 @@ const AdminReservasNuevo = () => {
 
             mapaClases[claseId] = { nombre, orden };
 
+            // La ficha "Tarjeta regalo" no es un taller: ya se añade abajo una sola vez
+            if (claseId === "tarjetaregalo" || nombre.trim().toLowerCase() === "tarjeta regalo") return;
+
             listaClases.push({
               id: claseId,
               nombre,
@@ -173,6 +176,7 @@ const AdminReservasNuevo = () => {
                         turno: reserva.turno || turnoKey,
                         metodo:
                           reserva.metodo ||
+                          reserva.modalidad ||
                           reserva.tipoClase ||
                           metodoFallback,
                         plazas: Number(reserva.plazas || 1),
@@ -216,11 +220,9 @@ email:
                     };
 
                     if (pareceReservaDirecta) {
-                      const reservaConstruida = construirReserva(
-                        nivelVal,
-                        nivelKey,
-                        nivelKey
-                      );
+                      // Reserva directamente bajo el turno: su clave es el id de la
+                      // reserva, no un método (antes salía "-P5rLH…" como método)
+                      const reservaConstruida = construirReserva(nivelVal, nivelKey, "—");
                       datosReservas.push(reservaConstruida);
                       return;
                     }
@@ -260,6 +262,17 @@ email:
       estadoPago: grupo.estadoPago || "—",
       precioTotal: Number(grupo.precioTotal || grupo.precio || 0),
       uid: grupo.uid || "",
+      nombre:
+        grupo.nombreReserva ||
+        grupo.nombreOrganizador ||
+        usuariosMap[grupo.uid]?.nombre ||
+        "",
+      telefono:
+        grupo.telefono ||
+        grupo.telefonoOrganizador ||
+        usuariosMap[grupo.uid]?.telefono ||
+        "",
+      email: grupo.email || usuariosMap[grupo.uid]?.email || "",
       orderId: grupo.orderId || grupoSnap.key,
       procesado: grupo.procesado ?? false,
       notasInternas: mapaNotasTemp[(grupo.orderId || grupoSnap.key) || ""] || 0,

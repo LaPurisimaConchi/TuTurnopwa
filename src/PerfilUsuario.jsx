@@ -10,6 +10,7 @@ import {
   cancelarSesionBono,
 } from "./utils/canjeServidor";
 import { useConfigEspacio } from "./configuracionEspacio";
+import { enlaceWhatsapp, telefonoVisible } from "./utils/configEspacio";
 import { ahoraMadridMs, horasAntelacionDe, inicioClaseMs } from "./utils/cambioFecha";
 import PantallaConVolver from "./PantallaConVolver";
 import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
@@ -668,7 +669,7 @@ export default function PerfilUsuario() {
                 <Icono nombre="ubicacion" className="mr-1.5" />Contacto
               </summary>
               <ul className="mt-3 space-y-2">
-                <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
+                <li><Icono nombre="telefono" className="mr-1.5" />{telefonoVisible(configEspacio.telefonoWhatsapp)}</li>
                 <li className="[overflow-wrap:anywhere]">
                   <Icono nombre="correo" className="mr-1.5" />
                   {/* Se parte por la @ si no cabe, no en mitad del dominio */}
@@ -915,12 +916,12 @@ export default function PerfilUsuario() {
                 <p>
                   <span className="font-semibold">WhatsApp:</span>{" "}
                   <a
-                    href="https://wa.me/34611804664"
+                    href={enlaceWhatsapp(configEspacio.telefonoWhatsapp)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-[#b58900] font-bold"
                   >
-                    611 804 664
+                    {telefonoVisible(configEspacio.telefonoWhatsapp)}
                   </a>
                 </p>
 
@@ -943,7 +944,7 @@ export default function PerfilUsuario() {
             <Icono nombre="ubicacion" className="mr-1.5" />Contacto
           </summary>
           <ul className="mt-3 space-y-2">
-            <li><Icono nombre="telefono" className="mr-1.5" />644 671 664</li>
+            <li><Icono nombre="telefono" className="mr-1.5" />{telefonoVisible(configEspacio.telefonoWhatsapp)}</li>
             <li className="[overflow-wrap:anywhere]">
                   <Icono nombre="correo" className="mr-1.5" />
                   {/* Se parte por la @ si no cabe, no en mitad del dominio */}

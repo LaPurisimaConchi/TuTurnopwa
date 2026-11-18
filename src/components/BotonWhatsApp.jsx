@@ -2,15 +2,17 @@
 // Botón flotante de WhatsApp (abajo a la derecha) para consultar dudas al taller.
 // Se monta una sola vez en AppLayout. z-30: por debajo del header (z-40) y de los modales (z-50).
 import React from "react";
+import { useConfigEspacio } from "../configuracionEspacio";
+import { enlaceWhatsapp } from "../utils/configEspacio";
 
-const WHATSAPP_NUMERO = "34644671664";
 const MENSAJE = "Hola, tengo una duda sobre La Purísima Conchi.";
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMERO}?text=${encodeURIComponent(MENSAJE)}`;
 
 export default function BotonWhatsApp() {
+  // El número se cambia en el panel (Espacio → Contacto)
+  const { config } = useConfigEspacio();
   return (
     <a
-      href={WHATSAPP_URL}
+      href={enlaceWhatsapp(config.telefonoWhatsapp, MENSAJE)}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Escríbenos por WhatsApp"

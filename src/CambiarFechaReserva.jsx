@@ -10,7 +10,6 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import CalendarioReserva from "./components/CalendarioReserva";
 import { useConfigEspacio } from "./configuracionEspacio";
 
-const WHATSAPP_BERTO = "34644671664";
 
 const formatearFecha = (fechaISO) => {
   if (!fechaISO) return "";
@@ -132,9 +131,10 @@ function ResumenReserva({ reserva, titulo }) {
 }
 
 function ContactoTaller({ texto = "Escríbenos" }) {
+  const { config } = useConfigEspacio();
   return (
     <a
-      href={`https://wa.me/${WHATSAPP_BERTO}`}
+      href={`https://wa.me/34${config.telefonoWhatsapp}`}
       target="_blank"
       rel="noreferrer"
       className="font-semibold underline"

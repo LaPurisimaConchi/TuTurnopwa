@@ -26,7 +26,6 @@ import { leerDatosContacto } from "./utils/invitado";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { turnoYaEmpezado } from "./utils/cambioFecha";
-const WHATSAPP_BERTO = "34644671664";
 
 const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
 
@@ -197,7 +196,7 @@ export default function ReservaGrupos() {
   const turnosGrupoDelDia = fecha ? TURNOS_GRUPO.filter((t) => !turnoYaEmpezado(fecha, t)) : TURNOS_GRUPO;
   const fechaBloqueada = fecha && fechasBloqueadas?.[fecha]?.bloqueado ? fechasBloqueadas[fecha] : null;
 
-  const whatsappUrl = `https://wa.me/${WHATSAPP_BERTO}?text=${construirMensajeWhatsApp({
+  const whatsappUrl = `https://wa.me/34${configEspacio.telefonoWhatsapp}?text=${construirMensajeWhatsApp({
     nombre: nombreReserva,
     telefono,
     taller: nombreTaller,

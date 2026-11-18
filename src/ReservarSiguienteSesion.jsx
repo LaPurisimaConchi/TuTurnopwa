@@ -18,7 +18,6 @@ import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import { fechaDMA } from "./utils/formatoFecha";
 
-const WHATSAPP_TALLER = "34644671664";
 
 export default function ReservarSiguienteSesion() {
   const navigate = useNavigate();
@@ -229,7 +228,7 @@ export default function ReservarSiguienteSesion() {
                     Antes de reservar, habla con el taller para confirmar que todo está listo para la siguiente sesión.
                   </p>
                   <a
-                    href={`https://wa.me/${WHATSAPP_TALLER}?text=${encodeURIComponent(
+                    href={`https://wa.me/34${configEspacio.telefonoWhatsapp}?text=${encodeURIComponent(
                       `Hola, quiero reservar la sesión ${pendiente.numeroSesion || 2} de "${pendiente.clase}". ¿Está todo listo?`
                     )}`}
                     target="_blank"

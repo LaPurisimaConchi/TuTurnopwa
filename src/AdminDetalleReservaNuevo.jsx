@@ -4,6 +4,7 @@ import { ref, get, push, remove, update } from "firebase/database";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { dbRealtime } from "./firebase";
+import { nombreAdminActual } from "./utils/nombreAdmin";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BotonVolver from "./BotonVolver";
 import CalendarioReserva from "./components/CalendarioReserva";
@@ -651,7 +652,7 @@ useEffect(() => {
         rutaClase: reserva.rutaClase,
 
         reprogramadaEn: fechaReprogramacionTexto,
-        reprogramadaPor: "Berto",
+        reprogramadaPor: nombreAdminActual(),
 
         avisoPerfil:
           "Tu reserva ha sido reprogramada. Revisa la nueva fecha y turno.",
@@ -704,7 +705,7 @@ useEffect(() => {
           rutaClase: reserva.rutaClase,
 
           reprogramadaEn: fechaReprogramacionTexto,
-          reprogramadaPor: "Berto",
+          reprogramadaPor: nombreAdminActual(),
 
           avisoPerfil:
             "Tu reserva ha sido reprogramada. Revisa la nueva fecha y turno.",
@@ -732,11 +733,11 @@ useEffect(() => {
         fechaNueva: nuevaFecha,
         turnoNuevo: turnoNormalizado,
         fechaCambio: fechaReprogramacionTexto,
-        realizadoPor: "Berto",
+        realizadoPor: nombreAdminActual(),
       });
 
       const notaAutomatica = {
-        texto: `Reserva reprogramada por Berto. Antes: ${fechaDMA(reserva.fecha)} - ${turnoAnteriorNormalizado}. Ahora: ${fechaDMA(nuevaFecha)} - ${turnoNormalizado}.`,
+        texto: `Reserva reprogramada por ${nombreAdminActual()}. Antes: ${fechaDMA(reserva.fecha)} - ${turnoAnteriorNormalizado}. Ahora: ${fechaDMA(nuevaFecha)} - ${turnoNormalizado}.`,
         fecha: fechaReprogramacionTexto,
       };
 
@@ -882,7 +883,7 @@ useEffect(() => {
       const datosCancelacion = {
         estado: "Cancelada",
         cancelada: true,
-        canceladaPor: "Berto",
+        canceladaPor: nombreAdminActual(),
         canceladaEn: fechaCancelacionTexto,
         motivoCancelacion: motivoCancelacion.trim() || "",
         avisoPerfil:
@@ -918,7 +919,7 @@ useEffect(() => {
         : "";
 
       const notaAutomatica = {
-        texto: `Reserva cancelada por Berto.${textoMotivo}`,
+        texto: `Reserva cancelada por ${nombreAdminActual()}.${textoMotivo}`,
         fecha: fechaCancelacionTexto,
       };
 

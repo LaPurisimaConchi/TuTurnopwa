@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ref, get, push, remove, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { nombreAdminActual } from "./utils/nombreAdmin";
 import BotonVolver from "./BotonVolver";
 import { useLocation } from "react-router-dom";
 
@@ -472,7 +473,7 @@ const guardarFechaGrupo = async (r) => {
       [`reservasGrupos/${r.id}/fechaReprogramada`]: nuevaFecha,
       [`reservasGrupos/${r.id}/reprogramada`]: true,
       [`reservasGrupos/${r.id}/reprogramadaEn`]: fechaCambio,
-      [`reservasGrupos/${r.id}/reprogramadaPor`]: "Berto",
+      [`reservasGrupos/${r.id}/reprogramadaPor`]: nombreAdminActual(),
       [`reservasGrupos/${r.id}/actualizadoEn`]: ahora.toISOString(),
     };
     let notaInterna;
@@ -480,7 +481,7 @@ const guardarFechaGrupo = async (r) => {
 
     if (r.orderId) {
       notaInterna = {
-        texto: `Fecha de reserva de grupo cambiada por Berto. Antes: ${fechaDMA(r.fecha) || "—"}. Ahora: ${fechaDMA(nuevaFecha)}.`,
+        texto: `Fecha de reserva de grupo cambiada por ${nombreAdminActual()}. Antes: ${fechaDMA(r.fecha) || "—"}. Ahora: ${fechaDMA(nuevaFecha)}.`,
         fecha: fechaCambio,
       };
       const nuevaNotaRef = push(
@@ -506,7 +507,7 @@ const guardarFechaGrupo = async (r) => {
               fechaReprogramada: nuevaFecha,
               reprogramada: true,
               reprogramadaEn: fechaCambio,
-              reprogramadaPor: "Berto",
+              reprogramadaPor: nombreAdminActual(),
               actualizadoEn: ahora.toISOString(),
               ...(notaInterna
                 ? {
@@ -567,7 +568,7 @@ const guardarPlazoPago = async (r) => {
         r.fechaLimitePago || "",
       [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaEn`]:
         ahora.toISOString(),
-      [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaPor`]: "Berto",
+      [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaPor`]: nombreAdminActual(),
     };
     if (reactivarPorCaducidad) {
       actualizacion[`reservasGrupos/${r.id}/estado`] =
@@ -583,7 +584,7 @@ const guardarPlazoPago = async (r) => {
 
     if (r.orderId) {
       notaInterna = {
-        texto: `${reactivarPorCaducidad ? "Reserva reactivada y plazo de pago ampliado" : "Plazo de pago ampliado"} por Berto. Antes: ${
+        texto: `${reactivarPorCaducidad ? "Reserva reactivada y plazo de pago ampliado" : "Plazo de pago ampliado"} por ${nombreAdminActual()}. Antes: ${
           r.fechaLimitePago
             ? new Date(r.fechaLimitePago).toLocaleString("es-ES")
             : "sin fecha"
@@ -609,7 +610,7 @@ const guardarPlazoPago = async (r) => {
               fechaLimitePago: nuevaFechaISO,
               fechaLimitePagoAnterior: r.fechaLimitePago || "",
               fechaLimitePagoActualizadaEn: ahora.toISOString(),
-              fechaLimitePagoActualizadaPor: "Berto",
+              fechaLimitePagoActualizadaPor: nombreAdminActual(),
               ...(reactivarPorCaducidad
                 ? {
                     estado: "pendiente_pago_individual",

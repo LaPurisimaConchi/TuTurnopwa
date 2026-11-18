@@ -6,6 +6,7 @@ import BotonVolver from "./BotonVolver";
 import EditorTurnos from "./components/EditorTurnos";
 import OcupacionProximosDias from "./components/OcupacionProximosDias";
 import { cargarConfigEspacio, guardarConfigEspacio } from "./configuracionEspacio";
+import { normalizarTelefonoWhatsapp, telefonoVisible } from "./utils/configEspacio";
 import { DIAS } from "./utils/fichaTaller";
 
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
@@ -21,6 +22,7 @@ const aTexto = (config) => ({
   horasCambioReserva: String(config.horasCambioReserva),
   horasCambioBono: String(config.horasCambioBono),
   diasVentanaReprogramar: String(config.diasVentanaReprogramar),
+  telefonoWhatsapp: telefonoVisible(config.telefonoWhatsapp),
   horariosDefecto: { ...config.horariosDefecto },
 });
 
@@ -87,6 +89,11 @@ export default function AdminEspacio() {
       return setError("Los días por delante para reprogramar deben estar entre 1 y 730.");
     }
 
+    const telefonoWhatsapp = normalizarTelefonoWhatsapp(form.telefonoWhatsapp);
+    if (!telefonoWhatsapp) {
+      return setError("El WhatsApp del taller debe ser un teléfono español de 9 cifras (por ejemplo, 644 671 664).");
+    }
+
     setGuardando(true);
     try {
       const guardada = await guardarConfigEspacio({
@@ -97,6 +104,7 @@ export default function AdminEspacio() {
         horasCambioReserva,
         horasCambioBono,
         diasVentanaReprogramar,
+        telefonoWhatsapp,
         horariosDefecto: form.horariosDefecto,
       });
       setForm(aTexto(guardada));
@@ -212,6 +220,27 @@ export default function AdminEspacio() {
                     tiempo se libera.
                   </p>
                 </div>
+              </div>
+            </section>
+
+            <section className={seccion}>
+              <h2 className="text-lg font-semibold text-tinta">Contacto</h2>
+              <div>
+                <label htmlFor="esp-whatsapp" className={label}>
+                  WhatsApp del taller
+                </label>
+                <input
+                  id="esp-whatsapp"
+                  type="tel"
+                  inputMode="tel"
+                  className={input}
+                  value={form.telefonoWhatsapp}
+                  onChange={(e) => cambiar("telefonoWhatsapp", e.target.value)}
+                />
+                <p className={ayuda}>
+                  Es el número de toda la web: el botón verde, el perfil («Contacto» y «Mi
+                  pieza»), las reservas de grupo y los cambios de fecha.
+                </p>
               </div>
             </section>
 
