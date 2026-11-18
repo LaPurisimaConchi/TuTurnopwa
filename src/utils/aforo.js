@@ -27,8 +27,11 @@ export function reservaVigente(data = {}, ahoraMs = Date.now()) {
   return estado === "pendiente" && Number.isFinite(hasta) && hasta > ahoraMs;
 }
 
+// Los grupos guardan `metodo: "grupo"` y el método del taller en `metodoTaller`
 export const usaTorno = (data = {}) =>
-  data.incluyeTorno === true || normalizarMetodo(data) === "torno";
+  data.incluyeTorno === true ||
+  normalizarMetodo(data) === "torno" ||
+  normalizarMetodo({ metodo: data.metodoTaller }) === "torno";
 
 // Orden de llegada: las reservas antiguas, sin marca de creación, van primero
 export const ordenDeReserva = (data = {}, clave = "") =>

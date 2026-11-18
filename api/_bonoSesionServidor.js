@@ -21,7 +21,7 @@ import {
 } from "../src/utils/cambioFecha.js";
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
-import { sesionBonoRepetida } from "../src/utils/estadoBono.js";
+import { motivoFechaFueraDeBono, rangoFechasBono, sesionBonoRepetida } from "../src/utils/estadoBono.js";
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,6 +31,8 @@ const DIA = 24 * HORA;
 
 // Con un bono se puede elegir cualquier fecha futura mientras el bono no caduque (sin el
 // margen de 24 h ni la ventana de 90 días de las reservas normales). Sin caducidad, un año.
+// La ventana solo acota el recorrido: el inicio y la caducidad exactos del bono los
+// comprueba motivoFechaFueraDeBono (los mismos que al reservar con UsarBono).
 function reglasDeFecha(bono, ahoraMs) {
   const caduca = /^\d{4}-\d{2}-\d{2}$/.test(String(bono?.fechaCaducidadBono || ""))
     ? inicioClaseMs(bono.fechaCaducidadBono, "23:59")
@@ -105,12 +107,15 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
 
   // Datos de la sesión actual y si se puede cambiar (para la pantalla común /reprogramar)
   if (accion === "opciones") {
+    const { desde: validoDesde, hasta: validoHasta } = rangoFechasBono(bono);
     const resumen = {
       tipo: "bono",
       clase: String(reserva.clase || bono.clase || ""),
       fecha: sesion.fecha,
       turno: limpiarTurno(sesion.turno),
       plazas: 1,
+      validoDesde,
+      validoHasta,
       antelacionHoras: horas,
       cambiosRestantes: yaReprogramada ? 0 : 1,
       puedeCambiar: !fueraDePlazo && !yaReprogramada,
@@ -136,7 +141,7 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
         reserva: { ...reserva, plazas: 1 },
         ahoraMs,
         ...reglasDeFecha(bono, ahoraMs),
-      }),
+      }).filter((o) => !motivoFechaFueraDeBono(bono, o.fecha)),
     };
   }
 
@@ -216,6 +221,8 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
     ...reglasDeFecha(bono, ahoraMs),
   });
   if (motivo) return fallo(409, motivo, { codigo: "fecha_no_valida" });
+  const fueraDeBono = motivoFechaFueraDeBono(bono, fecha);
+  if (fueraDeBono) return fallo(409, fueraDeBono, { codigo: "fuera_de_bono" });
   const bonosSnap = await db.ref(`usuarios/${uid}/bonos`).get();
   if (sesionBonoRepetida(bonosSnap.val(), fecha, turno, { exceptoReservaId: reservaId })) {
     return fallo(409, "Ya tienes una clase reservada ese día en ese turno.", { codigo: "repetida" });

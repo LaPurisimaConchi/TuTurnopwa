@@ -277,7 +277,10 @@ email:
       procesado: grupo.procesado ?? false,
       notasInternas: mapaNotasTemp[(grupo.orderId || grupoSnap.key) || ""] || 0,
       reprogramada: false,
-      cancelada: grupo.cancelada === true || grupo.cancelada === "true",
+      cancelada:
+        grupo.cancelada === true ||
+        grupo.cancelada === "true" ||
+        grupo.estado === "Cancelada",
     });
   });
 }
@@ -383,8 +386,11 @@ email:
   return datosActivos.filter((r) => {
     const estadoVisible = getEstadoVisible(r);
 
+    // Las pendientes de pago (carritos sin terminar) no salen; las canceladas sí, para
+    // que se puedan consultar con el filtro «Cancelada»
     const esReservaConfirmada =
       r.tipoRegistro === "tarjeta_regalo" ||
+      r.cancelada ||
       (r.estado === "Confirmada" && r.estadoPago === "pagado");
 
     if (!esReservaConfirmada) return false;

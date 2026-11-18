@@ -40,6 +40,38 @@ export const obtenerEstadoVisibleBono = (bono) => {
 
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+// Carpetas de reservas de los bonos de siempre (como en UsarBono); los del panel usan
+// el reservasPath de su ficha y, si no tienen, su id
+export const CARPETA_BONO_ANTIGUO = {
+  modelamano4clases: "ModelaAManoYDecoraTusPiezasFavoritas",
+  tornodesdecero4clases: "TornoAlfareroEmpezarDesdeCero",
+  tornodecoracion4clases: "TornoAlfareroYDecoracion",
+  tornoperfeccionamiento6clases: "TornoAlfareroPerfeccionaLoQueYaSabes",
+};
+
+export const carpetaReservasBono = (claseId, ficha = null) =>
+  String(ficha?.reservasPath || CARPETA_BONO_ANTIGUO[claseId] || claseId || "");
+
+// Datos del bono al devolverle la clase de una sesión (la sesión se quita de la lista).
+// null si esa sesión ya no está en el bono (nada que devolver).
+export function bonoSinSesion(bono, claveSesion, actualizadoEn = new Date().toISOString()) {
+  const sesiones = bono?.sesionesConsumidas && typeof bono.sesionesConsumidas === "object" ? bono.sesionesConsumidas : {};
+  if (!sesiones[claveSesion]) return null;
+
+  const { [claveSesion]: _quitada, ...resto } = sesiones;
+  const restantes = Number(bono.clasesRestantes || 0) + 1;
+  const estado = String(bono.estadoBono || "").toLowerCase();
+
+  return {
+    ...bono,
+    clasesRestantes: restantes,
+    clasesConsumidas: Math.max(Number(bono.clasesConsumidas || 0) - 1, 0),
+    estadoBono: estado === "agotado" ? "activo" : bono.estadoBono || "activo",
+    sesionesConsumidas: Object.keys(resto).length ? resto : null,
+    actualizadoEn,
+  };
+}
+
 // Días que dura un bono desde su primera clase si la ficha no dice otra cosa
 export const DIAS_CADUCIDAD_BONO = 31;
 

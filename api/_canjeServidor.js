@@ -17,6 +17,7 @@ import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import {
+  CARPETA_BONO_ANTIGUO,
   datosPrimeraSesionBono,
   diasCaducidadBono,
   fechaCaducidadBono,
@@ -37,13 +38,9 @@ const MAX_CLASES_BONO = 20;
 const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
 const texto = (valor, max = 200) => String(valor ?? "").slice(0, max);
 
-// Carpetas de reservas de los bonos de siempre (como en UsarBono)
-export const CARPETA_BONO_ANTIGUO = {
-  modelamano4clases: "ModelaAManoYDecoraTusPiezasFavoritas",
-  tornodesdecero4clases: "TornoAlfareroEmpezarDesdeCero",
-  tornodecoracion4clases: "TornoAlfareroYDecoracion",
-  tornoperfeccionamiento6clases: "TornoAlfareroPerfeccionaLoQueYaSabes",
-};
+// Carpetas de reservas de los bonos de siempre (viven en src/utils/estadoBono.js,
+// compartidas con el panel); se reexportan para api/_bonoSesionServidor.js
+export { CARPETA_BONO_ANTIGUO };
 
 const tarjetaUsada = (t) =>
   t?.usado === true ||

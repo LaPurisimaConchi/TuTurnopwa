@@ -2,9 +2,9 @@
 // Reglas del cambio de fecha que hace el propio cliente sin iniciar sesión
 // (número de reserva + email). Sin React ni Firebase: lo usa api/cambiar-fecha.js
 // y la pantalla /gestionar-reserva para mostrar los mismos plazos.
-import { esReservaValida, normalizarMetodo } from "./plazasOcupadas.js";
+import { esReservaValida } from "./plazasOcupadas.js";
 import { esTurnoConsulta, limpiarTurno, turnosDisponiblesEnFecha } from "./turnosFecha.js";
-import { contarFranja, plazasLibresFranja } from "./aforo.js";
+import { contarFranja, plazasLibresFranja, usaTorno } from "./aforo.js";
 import { bloqueoAfectaTurno } from "./rangosHora.js";
 import { edicionesDeClase } from "./monografico.js";
 import { CONFIG_ESPACIO_DEFECTO } from "./configEspacio.js";
@@ -201,7 +201,7 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs(), config = CONFI
 // son los snapshots de /reservas y /reservasGrupos.
 export function plazasLibresParaReserva({ reservas, grupos, config, reserva, fecha, turno }) {
   const ocupadas = contarFranja(reservas, grupos, fecha, turno);
-  const conTorno = reserva?.incluyeTorno === true || normalizarMetodo(reserva) === "torno";
+  const conTorno = usaTorno(reserva || {});
 
   return plazasLibresFranja(ocupadas, config, { conTorno }).reservables;
 }

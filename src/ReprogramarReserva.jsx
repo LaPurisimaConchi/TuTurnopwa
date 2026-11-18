@@ -155,6 +155,16 @@ export default function ReprogramarReserva() {
               <p>
                 <strong>Se puede hasta:</strong> {reserva.antelacionHoras} horas antes de la clase
               </p>
+              {esBono && (reserva.validoDesde || reserva.validoHasta) && (
+                <p>
+                  <strong>Tu bono vale:</strong>{" "}
+                  {reserva.validoDesde && reserva.validoHasta
+                    ? `del ${fechaDMA(reserva.validoDesde)} al ${fechaDMA(reserva.validoHasta)}`
+                    : reserva.validoHasta
+                    ? `hasta el ${fechaDMA(reserva.validoHasta)}`
+                    : `desde el ${fechaDMA(reserva.validoDesde)}`}
+                </p>
+              )}
             </div>
 
             {!puedeCambiar ? (
@@ -174,6 +184,8 @@ export default function ReprogramarReserva() {
                     setTurno("");
                   }}
                   estadoDia={(iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-taller" })}
+                  desde={esBono ? reserva.validoDesde || "" : ""}
+                  hasta={esBono ? reserva.validoHasta || "" : ""}
                 />
                 {opciones.length === 0 && (
                   <p className="mt-2 text-sm text-red-600">No hay días con plazas disponibles ahora mismo.</p>
