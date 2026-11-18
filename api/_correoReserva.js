@@ -9,6 +9,8 @@
 // Enviar el correo nunca debe romper el pago ni la reserva: todo error se registra y se traga.
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { asegurarCodigo, formatearCodigo } from "./_codigosReserva.js";
+import { horasAntelacionDe } from "../src/utils/cambioFecha.js";
+import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 
 export const REMITENTE_POR_DEFECTO = "La Purísima Conchi <onboarding@resend.dev>";
 
@@ -148,7 +150,7 @@ function contenidoPorTipo(tipo, datos) {
       ["Importe", importe],
       codigoReserva,
     ],
-    nota: "Si necesitas cambiar la fecha de tu reserva, entra en «Gestionar reserva» e introduce tu código de reserva y el email con el que reservaste (con al menos 72 horas de antelación). No hace falta iniciar sesión.",
+    nota: `Si necesitas cambiar la fecha de tu reserva, entra en «Gestionar reserva» e introduce tu código de reserva y el email con el que reservaste (con al menos ${datos.horasAntelacion ?? 24} horas de antelación). No hace falta iniciar sesión.`,
     enlace: { ruta: "/gestionar-reserva", texto: "Cambiar la fecha" },
   };
 }
@@ -184,6 +186,7 @@ async function codigoDeLaCompra({ tipo, reserva, orderId, uid }) {
 }
 
 export function construirCorreo({ tipo = "reserva", datos, nombre }) {
+  const horasAntelacion = Number.isFinite(Number(datos.horasAntelacion)) ? Number(datos.horasAntelacion) : 24;
   const { asunto, titulo, intro, filas: todas, nota, enlace } = contenidoPorTipo(tipo, datos);
   const filas = todas.filter(([, valor]) => valor);
 
@@ -218,7 +221,7 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
         ${botonPerfil}
         <div style="margin-top:24px;padding:14px 16px;background:#fff7ed;border-radius:8px;font-size:13px;line-height:1.5;">
           <strong style="color:${COLOR_MARCA};">Cambios y cancelaciones</strong><br>
-          No se realizan devoluciones de dinero. Si no puedes venir, puedes reprogramar tu clase avisando con al menos <strong>72 horas de antelación</strong> o ceder tu plaza a otra persona sin coste.
+          No se realizan devoluciones de dinero. Si no puedes venir, puedes reprogramar tu clase avisando con al menos <strong>${horasAntelacion} horas de antelación</strong> o ceder tu plaza a otra persona sin coste.
         </div>
         <p style="margin:20px 0 0;font-size:12px;line-height:1.6;color:#7a736a;text-align:center;">
           La Purísima Conchi · C/ Israel, local 5, 14009 Córdoba<br>
@@ -237,7 +240,7 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
     ...filas.map(([etiqueta, valor]) => `${etiqueta}: ${valor}`),
     ...(nota ? ["", nota] : []),
     "",
-    "Cambios y cancelaciones: no se realizan devoluciones. Puedes reprogramar avisando con al menos 72 horas de antelación o ceder tu plaza sin coste.",
+    `Cambios y cancelaciones: no se realizan devoluciones. Puedes reprogramar avisando con al menos ${horasAntelacion} horas de antelación o ceder tu plaza sin coste.`,
     "",
     "La Purísima Conchi · C/ Israel, local 5, 14009 Córdoba",
     `+34 644 67 16 64 · ${EMAIL_ESTUDIO}`,
@@ -275,9 +278,15 @@ export async function enviarCorreoReserva({ reserva, uid, orderId, tipo = "reser
 
     const codigoReserva = await codigoDeLaCompra({ tipo, reserva, orderId, uid });
 
+    const espacio = await adminDb.ref("configuracionEspacio").get();
+    const horasAntelacion = horasAntelacionDe(
+      { ...reserva, desdeBono: reserva.desdeBono || tipo === "bono" },
+      normalizarConfigEspacio(espacio.exists() ? espacio.val() : null)
+    );
+
     const { asunto, html, texto } = construirCorreo({
       tipo,
-      datos: { ...reserva, orderId, codigoReserva },
+      datos: { ...reserva, orderId, codigoReserva, horasAntelacion },
       nombre,
     });
 

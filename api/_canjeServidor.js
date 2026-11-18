@@ -30,7 +30,7 @@ const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
 const texto = (valor, max = 200) => String(valor ?? "").slice(0, max);
 
 // Carpetas de reservas de los bonos de siempre (como en UsarBono)
-const CARPETA_BONO_ANTIGUO = {
+export const CARPETA_BONO_ANTIGUO = {
   modelamano4clases: "ModelaAManoYDecoraTusPiezasFavoritas",
   tornodesdecero4clases: "TornoAlfareroEmpezarDesdeCero",
   tornodecoracion4clases: "TornoAlfareroYDecoracion",

@@ -2,9 +2,11 @@ import React from "react";
 import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
+import { useConfigEspacio } from "./configuracionEspacio";
 
 export default function PoliticaCancelacion() {
   const navigate = useNavigate();
+  const { config } = useConfigEspacio();
 
   return (
     <div className="text-tinta px-4 py-8 font-sans">
@@ -45,7 +47,8 @@ export default function PoliticaCancelacion() {
           <ul className="list-disc list-inside ml-4 mt-2">
             <li>
               <strong>Reprogramar tu clase</strong> a otra fecha disponible,
-              avisando con al menos <strong>72 horas de antelación</strong>. Puedes
+              avisando con al menos <strong>{config.horasCambioReserva} horas de antelación</strong>
+              ({config.horasCambioBono} horas en las clases de un bono). Puedes
               hacerlo tú mismo, sin iniciar sesión, desde{" "}
               <a href="/gestionar-reserva" className="underline">
                 Cambiar la fecha de mi reserva

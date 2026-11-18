@@ -90,6 +90,7 @@ import RegalarTaller from "./RegalarTaller.jsx";
 import PaginaGrupos from "./PaginaGrupos.jsx";
 import AdminPaginasEspeciales from "./AdminPaginasEspeciales.jsx";
 import UsarBono from "./UsarBono";
+import ReprogramarReserva from "./ReprogramarReserva";
 import ReservarSiguienteSesion from "./ReservarSiguienteSesion";
 
 // Nuevo Admin
@@ -188,6 +189,7 @@ function App() {
             element={<RutaTaller claseId="clasesueltacontinuidad"><ClaseSueltaContinuidad /></RutaTaller>}
           />
 
+          <Route path="/reprogramar/:tipo/:id" element={<AccesoCompra requiereCuenta><ReprogramarReserva /></AccesoCompra>} />
           <Route path="/usar-bono/:bonoId" element={<AccesoCompra requiereCuenta><UsarBono /></AccesoCompra>} />
           <Route
             path="/reservar-siguiente-sesion/:orderId"

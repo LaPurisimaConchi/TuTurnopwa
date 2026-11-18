@@ -6,7 +6,12 @@ import { ref, get } from "firebase/database";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import Footer from "./Footer";
 import BarraDeslizable from "./components/BarraDeslizable";
-import { sesionesPendientes as cargarSesionesPendientes } from "./utils/canjeServidor";
+import {
+  sesionesPendientes as cargarSesionesPendientes,
+  cancelarSesionBono,
+} from "./utils/canjeServidor";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { ahoraMadridMs, horasAntelacionDe, inicioClaseMs } from "./utils/cambioFecha";
 import PantallaConVolver from "./PantallaConVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
@@ -267,8 +272,60 @@ export function SesionPorReservar({ sesion: p, hoy, onReservar }) {
   );
 }
 
+const HORA_MS = 3_600_000;
+
+// ¿Se puede reprogramar esta reserva desde el perfil? Reservas normales pagadas: no
+// monográficos (otra edición) ni bonos (se gestionan en la pestaña Bonos), y una sola vez.
+// La primera sesión de un taller de varias sesiones sí.
+function sePuedeReprogramar(reserva) {
+  if (!reserva || esReservaCancelada(reserva)) return false;
+  if (reserva.edicionId || reserva.desdeBono) return false;
+  if (!reserva.orderId) return false;
+  const estado = String(reserva.estado || "").toLowerCase();
+  const pago = String(reserva.estadoPago || "").toLowerCase();
+  if (estado !== "confirmada" || pago !== "pagado") return false;
+  return Number(reserva.numCambiosCliente || 0) < 1 && !reserva.reprogramada;
+}
+
+// Horas que faltan para la clase menos el plazo (negativo: ya no se puede)
+const horasDeMargen = (reserva, config) =>
+  (inicioClaseMs(reserva.fecha, reserva.turno) - ahoraMadridMs()) / HORA_MS - horasAntelacionDe(reserva, config);
+
+// Reprogramar una reserva normal: abre la pantalla común /reprogramar
+function BotonReprogramar({ reserva, config }) {
+  const navigate = useNavigate();
+  if (!sePuedeReprogramar(reserva)) return null;
+
+  const horas = horasAntelacionDe(reserva, config);
+  if (!(horasDeMargen(reserva, config) >= 0)) {
+    return (
+      <p className="mt-3 text-xs text-tinta-suave">
+        Ya no se puede reprogramar: hay que avisar con al menos {horas} horas de antelación.
+      </p>
+    );
+  }
+
+  const abrir = () =>
+    navigate(
+      `/reprogramar/reserva/${encodeURIComponent(reserva.orderId)}${
+        reserva.sesionCurso ? `?sesion=${Number(reserva.sesionCurso)}` : ""
+      }`
+    );
+
+  return (
+    <div className="mt-3">
+      <button type="button" onClick={abrir} className={botonContorno}>
+        Reprogramar
+      </button>
+      <p className="mt-1 text-center text-xs text-tinta-suave">
+        Se puede hasta {horas} horas antes de la clase.
+      </p>
+    </div>
+  );
+}
+
 // Una reserva en las listas: fecha destacada, taller y turno
-function FilaReserva({ reserva, historial = false }) {
+function FilaReserva({ reserva, historial = false, config }) {
   const cancelada = esReservaCancelada(reserva);
   return (
     <li className={tarjetaItem}>
@@ -285,11 +342,12 @@ function FilaReserva({ reserva, historial = false }) {
 
       {historial && <AvisoCancelacion reserva={reserva} />}
       {(!historial || !cancelada) && <AvisoReprogramacion reserva={reserva} />}
+      {!historial && <BotonReprogramar reserva={reserva} config={config} />}
     </li>
   );
 }
 
-function ReservaDestacada({ reserva }) {
+function ReservaDestacada({ reserva, config }) {
   return (
     <div className="rounded-2xl border border-terracota/40 bg-terracota-suave/40 p-4 text-tinta">
       <p className="text-xs font-semibold uppercase tracking-wider text-terracota mb-1">
@@ -302,12 +360,84 @@ function ReservaDestacada({ reserva }) {
       </p>
       <AvisoReprogramacion reserva={reserva} />
       <AvisoCancelacion reserva={reserva} />
+      <BotonReprogramar reserva={reserva} config={config} />
     </div>
+  );
+}
+
+// Sesiones futuras de un bono que se pueden gestionar (llevan el id de su reserva)
+function sesionesGestionables(bono) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return Object.entries(bono?.sesionesConsumidas || {})
+    .map(([clave, s]) => ({ clave, ...s }))
+    .filter((s) => s.reservaId && s.fecha && s.fecha >= hoy)
+    .sort((a, b) => `${a.fecha} ${a.turno}`.localeCompare(`${b.fecha} ${b.turno}`));
+}
+
+function SesionBono({ bono, sesion, config, onCambio }) {
+  const navigate = useNavigate();
+  const [cancelando, setCancelando] = useState(false);
+  const margen = horasDeMargen({ ...sesion, desdeBono: true }, config);
+  const horas = config.horasCambioBono;
+  const enPlazo = margen >= 0;
+
+  const cancelar = async () => {
+    if (
+      !window.confirm(
+        `¿Cancelar la sesión del ${fechaDMA(sesion.fecha)} (${sesion.turno})? La clase volverá a tu bono.`
+      )
+    ) {
+      return;
+    }
+    setCancelando(true);
+    try {
+      await cancelarSesionBono({ bonoId: bono.bonoId, reservaId: sesion.reservaId });
+      onCambio();
+    } catch (e) {
+      console.error("Error al cancelar la sesión del bono:", e);
+      alert(e?.message || "No se pudo cancelar la sesión.");
+    } finally {
+      setCancelando(false);
+    }
+  };
+
+  return (
+    <li className="rounded-lg border border-linea bg-white px-3 py-2">
+      <p className="text-sm font-semibold">
+        {fechaDMA(sesion.fecha)} · {sesion.turno}
+      </p>
+      {enPlazo ? (
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/reprogramar/bono/${bono.bonoId}?reserva=${encodeURIComponent(sesion.reservaId)}`)}
+            className="rounded-full border border-terracota px-3 py-2 text-xs font-semibold text-terracota hover:bg-terracota-suave transition"
+          >
+            Reprogramar
+          </button>
+          <button
+            type="button"
+            onClick={cancelar}
+            disabled={cancelando}
+            className="rounded-full border border-linea px-3 py-2 text-xs font-semibold text-tinta-suave hover:bg-arena transition disabled:opacity-60"
+          >
+            {cancelando ? "Cancelando…" : "Cancelar"}
+          </button>
+        </div>
+      ) : (
+        <p className="mt-1 text-xs text-tinta-suave">
+          Ya no se puede reprogramar ni cancelar: hay que avisar con al menos {horas} horas de antelación.
+        </p>
+      )}
+    </li>
   );
 }
 
 export default function PerfilUsuario() {
   const navigate = useNavigate();
+  const { config: configEspacio } = useConfigEspacio();
+  // Sube al cancelar una sesión de bono para volver a cargar los datos
+  const [version, setVersion] = useState(0);
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -445,7 +575,7 @@ export default function PerfilUsuario() {
     });
 
     return () => unsubscribe();
-  }, [navigate]);
+  }, [navigate, version]);
 
   const handleLogout = () => {
     if (
@@ -577,7 +707,7 @@ export default function PerfilUsuario() {
             {pestana === "reservas" && (
               <div className="space-y-5">
                 {reservaActiva ? (
-                  <ReservaDestacada reserva={reservaActiva} />
+                  <ReservaDestacada reserva={reservaActiva} config={configEspacio} />
                 ) : (
                   <div className={tarjetaItem}>
                     <p className="text-tinta-suave">No tienes reservas activas.</p>
@@ -608,7 +738,7 @@ export default function PerfilUsuario() {
                   {reservasActivas.length > 0 ? (
                     <ul className="grid gap-2">
                       {reservasActivas.map((r, i) => (
-                        <FilaReserva key={i} reserva={r} />
+                        <FilaReserva key={i} reserva={r} config={configEspacio} />
                       ))}
                     </ul>
                   ) : (
@@ -666,6 +796,25 @@ export default function PerfilUsuario() {
                           <p className="mt-2 text-tinta-suave">
                             {fechaDMA(bono.fechaInicio) || "—"} → {fechaDMA(bono.fechaCaducidadBono) || "—"}
                           </p>
+
+                          {sesionesGestionables(bono).length > 0 && (
+                            <div className="mt-3">
+                              <p className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-1.5">
+                                Sesiones reservadas
+                              </p>
+                              <ul className="grid gap-2">
+                                {sesionesGestionables(bono).map((sesion) => (
+                                  <SesionBono
+                                    key={sesion.clave}
+                                    bono={bono}
+                                    sesion={sesion}
+                                    config={configEspacio}
+                                    onCambio={() => setVersion((v) => v + 1)}
+                                  />
+                                ))}
+                              </ul>
+                            </div>
+                          )}
 
                           {estadoVisible === "Activo" && (
                             <button

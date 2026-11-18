@@ -16,7 +16,7 @@ import { adminDb } from "./_firebaseAdmin.js";
 import { applyCors } from "./_cors.js";
 import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.js";
 import {
-  ANTELACION_HORAS,
+  horasAntelacionDe,
   MAX_CAMBIOS_CLIENTE,
   TURNOS_GRUPO,
   ahoraMadridMs,
@@ -124,7 +124,7 @@ async function emailDeLaReserva(reserva) {
 }
 
 // --- Datos que se enseñan al cliente ---------------------------------------
-const resumenDe = (reserva, evaluacion, { tipo, codigo }) => ({
+const resumenDe = (reserva, evaluacion, { tipo, codigo, configEspacio }) => ({
   tipo,
   codigo: formatearCodigo(codigo),
   clase: reserva.clase || "",
@@ -136,7 +136,7 @@ const resumenDe = (reserva, evaluacion, { tipo, codigo }) => ({
   fechaOriginal: reserva.fechaOriginal || "",
   puedeCambiar: evaluacion.ok,
   motivo: evaluacion.motivo,
-  antelacionHoras: ANTELACION_HORAS,
+  antelacionHoras: horasAntelacionDe(reserva, configEspacio),
   cambiosRestantes: Math.max(MAX_CAMBIOS_CLIENTE - Number(reserva.numCambiosCliente || 0), 0),
   recuperacion: evaluacion.recuperacion === true,
   motivoCancelacion: evaluacion.recuperacion ? reserva.motivoCancelacion || "" : "",
@@ -247,10 +247,10 @@ async function anotarCambio({ actualizaciones, orderId, uid, seguimiento, reserv
 }
 
 // --- Rama de grupos ----------------------------------------------------------
-async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res }) {
+async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res, config }) {
   const { id, grupo, codigo } = encontrada;
-  const evaluacion = evaluarCambioGrupo(grupo, ahoraMs);
-  const resumen = (reserva, ev) => resumenDe(reserva, ev, { tipo: "grupo", codigo });
+  const evaluacion = evaluarCambioGrupo(grupo, ahoraMs, config);
+  const resumen = (reserva, ev) => resumenDe(reserva, ev, { tipo: "grupo", codigo, configEspacio: config });
 
   if (accion === "buscar") {
     if (!evaluacion.ok) {
@@ -261,7 +261,7 @@ async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res }) {
     return res.status(200).json({
       ok: true,
       reserva: resumen(grupo, evaluacion),
-      opciones: opcionesDeCambioGrupo({ grupo, bloqueos, ahoraMs }),
+      opciones: opcionesDeCambioGrupo({ grupo, bloqueos, config, ahoraMs }),
     });
   }
 
@@ -275,7 +275,7 @@ async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res }) {
   }
 
   const bloqueos = (await adminDb.ref("bloqueosFechas").get()).val() || {};
-  const motivo = motivoFechaNoValida({ fecha: nuevaFecha, turno: nuevoTurno, ahoraMs, bloqueos });
+  const motivo = motivoFechaNoValida({ fecha: nuevaFecha, turno: nuevoTurno, ahoraMs, bloqueos, config });
   if (motivo) return res.status(409).json({ ok: false, error: motivo });
 
   if (nuevaFecha === grupo.fecha && nuevoTurno === limpiarTurno(grupo.turno)) {
@@ -321,12 +321,12 @@ async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res }) {
 
 // --- Rama de monográficos ---------------------------------------------------
 // Una reserva de monográfico son varias sesiones (una por reserva, mismo pedido). Solo
-// se puede pasar a otra edición entera. Cuenta el primer día para el plazo de 72 h.
-async function resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res }) {
+// se puede pasar a otra edición entera. Cuenta el primer día para el plazo de antelación.
+async function resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res, config }) {
   const { segmentos, reserva, codigo } = encontrada;
   const orderId = reserva.orderId;
-  const evaluacion = evaluarCambio(reserva, ahoraMs);
-  const resumen = (r, ev) => resumenDe(r, ev, { tipo: "individual", codigo });
+  const evaluacion = evaluarCambio(reserva, ahoraMs, config);
+  const resumen = (r, ev) => resumenDe(r, ev, { tipo: "individual", codigo, configEspacio: config });
 
   const contexto = await contextoDeLaClase(segmentos, reserva);
   if (!contexto.clase) {
@@ -475,7 +475,7 @@ function limitesDeSesion(sesiones, numero, dias) {
   };
 }
 
-async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res }) {
+async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res, config }) {
   const { segmentos, reserva, codigo } = encontrada;
   const orderId = reserva.orderId;
 
@@ -494,7 +494,7 @@ async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res }) {
   if (!sesiones.length) return res.status(409).json({ ok: false, error: sinOnline });
 
   const lista = sesiones.map((s, indice) => {
-    const ev = evaluarCambio(s.reserva, ahoraMs);
+    const ev = evaluarCambio(s.reserva, ahoraMs, config);
     return {
       diasDesdeAnterior: indice > 0 ? diasEntre[indice - 1] || 0 : 0,
       sesion: Number(s.reserva.sesionCurso),
@@ -510,12 +510,12 @@ async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res }) {
   const elegida = sesiones.find((s) => Number(s.reserva.sesionCurso) === numero) || null;
 
   if (accion === "buscar") {
-    const base = resumenDe(sesiones[0].reserva, { ok: false, motivo: "" }, { tipo: "individual", codigo });
+    const base = resumenDe(sesiones[0].reserva, { ok: false, motivo: "" }, { tipo: "individual", codigo, configEspacio: config });
     if (!elegida) {
       return res.status(200).json({ ok: true, reserva: base, sesiones: lista, diasEntreSesiones: diasEntre, opciones: [] });
     }
 
-    const ev = evaluarCambio(elegida.reserva, ahoraMs);
+    const ev = evaluarCambio(elegida.reserva, ahoraMs, config);
     const { min, max } = limitesDeSesion(sesiones, numero, diasEntre);
     const opciones = ev.ok
       ? opcionesDeCambio({ ...contexto, reserva: elegida.reserva, ahoraMs })
@@ -524,7 +524,7 @@ async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res }) {
 
     return res.status(200).json({
       ok: true,
-      reserva: resumenDe(elegida.reserva, ev, { tipo: "individual", codigo }),
+      reserva: resumenDe(elegida.reserva, ev, { tipo: "individual", codigo, configEspacio: config }),
       sesiones: lista,
       diasEntreSesiones: diasEntre,
       sesionElegida: numero,
@@ -540,25 +540,52 @@ async function resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res }) {
     cuerpo,
     ahoraMs,
     res,
+    config,
     limites: limitesDeSesion(sesiones, numero, diasEntre),
     sinSesiones: true,
   });
 }
 
 // --- Rama de reservas individuales ------------------------------------------
-async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, limites = null, sinSesiones = false }) {
+// Al mover la primera sesión, la fecha desde la que se puede reservar la siguiente la sigue
+function ajustesPrimeraSesion(reserva, nuevaFecha, clase) {
+  const siguiente = reserva?.segundaSesion;
+  if (reserva?.sesionCurso || !siguiente || typeof siguiente !== "object") return {};
+
+  const dias = diasEntreSesionesDe(clase || {}, Number(reserva.sesionesCurso) || 2)[0] || 0;
+  return {
+    fechaPrimeraSesion: nuevaFecha,
+    segundaSesion: {
+      ...siguiente,
+      ...(siguiente.reservada !== true && dias ? { fechaDisponible: sumarDias(nuevaFecha, dias) } : {}),
+    },
+  };
+}
+
+// Primera sesión de un taller de varias sesiones reservada sola: si la siguiente ya está
+// reservada, la primera no puede pasar de la fecha que deja los días mínimos hasta ella
+function limitesDePrimeraSesion(reserva, clase) {
+  const siguiente = reserva?.segundaSesion;
+  if (reserva?.sesionCurso || !siguiente || typeof siguiente !== "object") return null;
+  if (siguiente.reservada !== true || !esFechaISO(siguiente.fechaReserva)) return null;
+
+  const dias = diasEntreSesionesDe(clase || {}, Number(reserva.sesionesCurso) || 2)[0] || 0;
+  return { min: "", max: sumarDias(siguiente.fechaReserva, -dias), diasAntes: 0, diasDespues: dias };
+}
+
+async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, config, limites = null, sinSesiones = false }) {
   if (encontrada.reserva?.edicionId) {
-    return resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res });
+    return resolverEdicion({ accion, encontrada, cuerpo, ahoraMs, res, config });
   }
 
   if (encontrada.reserva?.sesionCurso && !sinSesiones) {
-    return resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res });
+    return resolverSesiones({ accion, encontrada, cuerpo, ahoraMs, res, config });
   }
 
   const { segmentos, reserva, codigo } = encontrada;
   const orderId = reserva.orderId;
-  const evaluacion = evaluarCambio(reserva, ahoraMs);
-  const resumen = (r, ev) => resumenDe(r, ev, { tipo: "individual", codigo });
+  const evaluacion = evaluarCambio(reserva, ahoraMs, config);
+  const resumen = (r, ev) => resumenDe(r, ev, { tipo: "individual", codigo, configEspacio: config });
 
   if (accion === "buscar") {
     if (!evaluacion.ok) {
@@ -572,10 +599,13 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, li
         .json({ ok: true, reserva: resumen(reserva, { ok: false, motivo: sinOnline }), opciones: [] });
     }
 
+    const tope = limites || limitesDePrimeraSesion(reserva, contexto.clase);
     return res.status(200).json({
       ok: true,
       reserva: resumen(reserva, evaluacion),
-      opciones: opcionesDeCambio({ ...contexto, reserva, ahoraMs }),
+      opciones: opcionesDeCambio({ ...contexto, reserva, ahoraMs }).filter(
+        (o) => !tope || ((!tope.min || o.fecha >= tope.min) && (!tope.max || o.fecha <= tope.max))
+      ),
     });
   }
 
@@ -596,9 +626,11 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, li
     turno: nuevoTurno,
     ahoraMs,
     bloqueos: contexto.bloqueos,
+    config,
   });
   if (motivo) return res.status(409).json({ ok: false, error: motivo });
 
+  limites = limites || limitesDePrimeraSesion(reserva, contexto.clase);
   if (limites && ((limites.min && nuevaFecha < limites.min) || (limites.max && nuevaFecha > limites.max))) {
     const antes = limites.min && nuevaFecha < limites.min;
     return res.status(409).json({
@@ -653,7 +685,7 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, li
   });
 
   const actualizaciones = {
-    [rutaNueva]: { ...reserva, ...seguimiento },
+    [rutaNueva]: { ...reserva, ...seguimiento, ...ajustesPrimeraSesion(reserva, nuevaFecha, contexto.clase) },
     [segmentos.join("/")]: null,
     [`codigosReserva/${codigo}/ruta`]: rutaNueva,
   };
@@ -739,7 +771,15 @@ export default async function handler(req, res) {
     const datosReserva = encontrada.tipo === "grupo" ? encontrada.grupo : encontrada.reserva;
     if (!(await emailDeLaReserva(datosReserva)).includes(email)) return noEncontrada();
 
-    const contexto = { accion, encontrada, cuerpo, ahoraMs: ahoraMadridMs(), res };
+    const espacio = await adminDb.ref("configuracionEspacio").get();
+    const contexto = {
+      accion,
+      encontrada,
+      cuerpo,
+      ahoraMs: ahoraMadridMs(),
+      res,
+      config: normalizarConfigEspacio(espacio.exists() ? espacio.val() : null),
+    };
 
     return encontrada.tipo === "grupo" ? await resolverGrupo(contexto) : await resolverIndividual(contexto);
   } catch (error) {

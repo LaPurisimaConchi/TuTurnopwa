@@ -1,6 +1,6 @@
 // src/AdminEspacio.jsx
-// Ajustes del espacio: aforo total, tope de torno, mínimo para reservar en grupo y
-// horarios por defecto de los talleres nuevos. Se guardan en configuracionEspacio.
+// Ajustes del espacio: aforo total, tope de torno, mínimo para reservar en grupo,
+// plazos de cambio/cancelación y horarios por defecto de los talleres nuevos. Se guardan en configuracionEspacio.
 import React, { useEffect, useState } from "react";
 import BotonVolver from "./BotonVolver";
 import EditorTurnos from "./components/EditorTurnos";
@@ -18,6 +18,9 @@ const aTexto = (config) => ({
   maxTorno: String(config.maxTorno),
   minPersonasGrupo: String(config.minPersonasGrupo),
   minutosReserva: String(config.minutosReserva),
+  horasCambioReserva: String(config.horasCambioReserva),
+  horasCambioBono: String(config.horasCambioBono),
+  diasVentanaReprogramar: String(config.diasVentanaReprogramar),
   horariosDefecto: { ...config.horariosDefecto },
 });
 
@@ -57,6 +60,9 @@ export default function AdminEspacio() {
     const maxTorno = entero(form.maxTorno);
     const minPersonasGrupo = entero(form.minPersonasGrupo);
     const minutosReserva = entero(form.minutosReserva);
+    const horasCambioReserva = entero(form.horasCambioReserva);
+    const horasCambioBono = entero(form.horasCambioBono);
+    const diasVentanaReprogramar = entero(form.diasVentanaReprogramar);
 
     if (!(aforoTotal >= 1 && aforoTotal <= 500)) {
       return setError("El aforo total debe ser un número entre 1 y 500.");
@@ -70,6 +76,16 @@ export default function AdminEspacio() {
     if (!(minutosReserva >= 1 && minutosReserva <= 120)) {
       return setError("Los minutos de reserva de plaza deben estar entre 1 y 120.");
     }
+    const horasValidas = [horasCambioReserva, horasCambioBono].every(
+      (h) => h >= 0 && h <= 720
+    );
+    if (!horasValidas) {
+      return setError("Las horas de antelación deben ser un número entre 0 y 720.");
+    }
+
+    if (!(diasVentanaReprogramar >= 1 && diasVentanaReprogramar <= 730)) {
+      return setError("Los días por delante para reprogramar deben estar entre 1 y 730.");
+    }
 
     setGuardando(true);
     try {
@@ -78,6 +94,9 @@ export default function AdminEspacio() {
         maxTorno,
         minPersonasGrupo,
         minutosReserva,
+        horasCambioReserva,
+        horasCambioBono,
+        diasVentanaReprogramar,
         horariosDefecto: form.horariosDefecto,
       });
       setForm(aTexto(guardada));
@@ -197,6 +216,67 @@ export default function AdminEspacio() {
             </section>
 
             <section className={seccion}>
+              <h2 className="text-lg font-semibold text-tinta">Reprogramar reservas</h2>
+              <p className="text-sm text-tinta-suave">
+                Horas mínimas de antelación (antes de que empiece la clase) para que un
+                cliente pueda reprogramar su reserva. Las reservas normales solo se reprograman; las de bono también se pueden cancelar.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="esp-horas-reserva" className={label}>
+                    Reprogramar una reserva (horas)
+                  </label>
+                  <input
+                    id="esp-horas-reserva"
+                    type="number"
+                    min="0"
+                    max="720"
+                    className={input}
+                    value={form.horasCambioReserva}
+                    onChange={(e) => cambiar("horasCambioReserva", e.target.value)}
+                  />
+                  <p className={ayuda}>Reservas normales y talleres monográficos. Por defecto, 24 horas.</p>
+                </div>
+
+                <div>
+                  <label htmlFor="esp-horas-bono" className={label}>
+                    Reprogramar o cancelar una reserva de bono (horas)
+                  </label>
+                  <input
+                    id="esp-horas-bono"
+                    type="number"
+                    min="0"
+                    max="720"
+                    className={input}
+                    value={form.horasCambioBono}
+                    onChange={(e) => cambiar("horasCambioBono", e.target.value)}
+                  />
+                  <p className={ayuda}>Clases reservadas con un bono. Por defecto, 3 horas.</p>
+                </div>
+
+                <div>
+                  <label htmlFor="esp-dias-ventana" className={label}>
+                    Días por delante para elegir la nueva fecha
+                  </label>
+                  <input
+                    id="esp-dias-ventana"
+                    type="number"
+                    min="1"
+                    max="730"
+                    className={input}
+                    value={form.diasVentanaReprogramar}
+                    onChange={(e) => cambiar("diasVentanaReprogramar", e.target.value)}
+                  />
+                  <p className={ayuda}>
+                    Hasta cuántos días en el futuro se puede reprogramar una reserva normal. Por
+                    defecto, 90 días. Las clases de un bono no tienen este límite.
+                  </p>
+                </div>
+              </div>
+            </section>
+
+            <section className={seccion}>
               <h2 className="text-lg font-semibold text-tinta">Horarios por defecto</h2>
               <p className="text-sm text-tinta-suave">
                 Se ponen solos al crear un taller nuevo. Los talleres que ya existen no
@@ -222,13 +302,23 @@ export default function AdminEspacio() {
               </div>
             </section>
 
-            <button
-              type="submit"
-              disabled={guardando}
-              className="w-full sm:w-auto px-6 py-3 rounded-full bg-mostaza-borde text-tinta font-bold hover:bg-[#d3a825] disabled:opacity-60"
-            >
-              {guardando ? "Guardando…" : "Guardar ajustes"}
-            </button>
+            {/* Barra fija abajo: el botón siempre a mano, aunque la página sea larga */}
+            <div className="sticky bottom-0 z-10 -mx-4 px-4 py-3 bg-crema/95 backdrop-blur border-t border-linea flex items-center justify-between gap-3">
+              <p className="text-sm min-w-0 truncate" role="status">
+                {mensaje ? (
+                  <span className="text-green-800 font-semibold">✓ {mensaje}</span>
+                ) : (
+                  <span className="text-tinta-suave hidden sm:inline">Los cambios se aplican al guardar.</span>
+                )}
+              </p>
+              <button
+                type="submit"
+                disabled={guardando}
+                className="shrink-0 w-full sm:w-auto px-8 py-3 rounded-full bg-terracota text-white font-bold text-base shadow-md hover:bg-terracota-oscuro active:scale-[0.98] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {guardando ? "Guardando…" : "Guardar ajustes"}
+              </button>
+            </div>
           </form>
         )}
 

@@ -56,6 +56,18 @@ export function reservarConBono({ bonoId, fecha, turno }) {
   return llamar({ tipo: "usarBono", bonoId, fecha, turno });
 }
 
+// Cancela (la clase vuelve al bono) o reprograma una sesión ya reservada con un bono
+export function cancelarSesionBono({ bonoId, reservaId }) {
+  return llamar({ tipo: "gestionarSesionBono", accion: "cancelar", bonoId, reservaId });
+}
+
+export const opcionesSesionBono = ({ bonoId, reservaId }) =>
+  llamar({ tipo: "gestionarSesionBono", accion: "opciones", bonoId, reservaId });
+
+export function reprogramarSesionBono({ bonoId, reservaId, fecha, turno }) {
+  return llamar({ tipo: "gestionarSesionBono", accion: "reprogramar", bonoId, reservaId, fecha, turno });
+}
+
 // Mensaje para enseñar si el canje falla
 export function mensajeErrorCanje(error) {
   if (error?.codigo === "tarjeta_usada") return MENSAJE_TARJETA_USADA;
