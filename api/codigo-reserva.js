@@ -11,6 +11,7 @@
 //      { tipo: "restablecerContrasena", email }  (sin sesión: correo de «has olvidado tu contraseña»)
 //      { tipo: "verificarEmail" }  (correo para confirmar el email de la cuenta)
 //      { tipo: "usarBono", bonoId, fecha, turno }
+//      { tipo: "gestionarSesionBono", accion: "cancelar"|"reprogramar", bonoId, reservaId, fecha?, turno? }
 //      { tipo: "sesionesPendientes" }  |  { tipo: "siguienteSesion", orderId, fecha, turno }
 //      { tipo: "prepararPago", pedido: "reserva"|"bono"|"grupo"|"tarjeta_regalo", orderId, … }
 // "pedido" sirve tanto para una reserva individual como para un grupo pagado de una vez.
@@ -38,6 +39,7 @@ import { esReservaValida } from "../src/utils/plazasOcupadas.js";
 import { reservarConAforo } from "./_reservarServidor.js";
 import { registrarCancelacion } from "./_cancelacionReserva.js";
 import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
+import { gestionarSesionBono } from "./_bonoSesionServidor.js";
 import { reservarSiguienteSesion, sesionesPendientes } from "./_sesionesServidor.js";
 import { esTokenAdministrador } from "../src/utils/administradores.js";
 import { cuentaActiva } from "./_cuentaActiva.js";
@@ -152,6 +154,18 @@ export default async function handler(req, res) {
     if (cuerpo.tipo === "usarBono") {
       const { status, ...resto } = await usarBono(adminDb, uid, {
         bonoId: cuerpo.bonoId,
+        fecha: cuerpo.fecha,
+        turno: cuerpo.turno,
+      });
+      return res.status(status).json(resto);
+    }
+
+    // Cancelar o reprogramar desde el perfil una sesión reservada con un bono
+    if (cuerpo.tipo === "gestionarSesionBono") {
+      const { status, ...resto } = await gestionarSesionBono(adminDb, uid, {
+        accion: cuerpo.accion,
+        bonoId: cuerpo.bonoId,
+        reservaId: cuerpo.reservaId,
         fecha: cuerpo.fecha,
         turno: cuerpo.turno,
       });

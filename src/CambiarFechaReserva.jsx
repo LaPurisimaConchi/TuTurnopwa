@@ -8,6 +8,7 @@ import Icono from "./components/Icono";
 import { Link, useSearchParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import CalendarioReserva from "./components/CalendarioReserva";
+import { useConfigEspacio } from "./configuracionEspacio";
 
 const WHATSAPP_BERTO = "34644671664";
 
@@ -145,6 +146,7 @@ function ContactoTaller({ texto = "Escríbenos" }) {
 
 export default function CambiarFechaReserva() {
   const [params] = useSearchParams();
+  const { config: configEspacio } = useConfigEspacio();
   const [codigo, setCodigo] = useState(params.get("codigo") || "");
   const [email, setEmail] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -360,7 +362,7 @@ export default function CambiarFechaReserva() {
                 <ul className="mt-4 space-y-1 text-xs text-tinta-suave">
                   <li>• Puedes cambiar la fecha una vez.</li>
                   <li>
-                    • Se puede hasta 72 horas antes de la clase (
+                    • Se puede hasta {configEspacio.horasCambioReserva} horas antes de la clase (en bonos, {configEspacio.horasCambioBono} horas) (
                     <Link to="/politicacancelacion" className="underline text-terracota">
                       política de cancelación
                     </Link>

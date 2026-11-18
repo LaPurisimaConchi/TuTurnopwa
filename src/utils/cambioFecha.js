@@ -7,9 +7,11 @@ import { esTurnoConsulta, limpiarTurno, turnosDisponiblesEnFecha } from "./turno
 import { contarFranja, plazasLibresFranja } from "./aforo.js";
 import { bloqueoAfectaTurno } from "./rangosHora.js";
 import { edicionesDeClase } from "./monografico.js";
+import { CONFIG_ESPACIO_DEFECTO } from "./configEspacio.js";
 
-// Política de cancelación: se puede reprogramar avisando con 72 h de antelación
-export const ANTELACION_HORAS = 72;
+// Política de cancelación: las horas de antelación las fija el panel (Espacio) y son
+// distintas para una reserva normal y una de bono
+export const ANTELACION_HORAS = CONFIG_ESPACIO_DEFECTO.horasCambioReserva;
 // La nueva clase debe empezar con este margen, para que el taller pueda prepararla
 export const MARGEN_NUEVA_CLASE_HORAS = 24;
 export const MAX_CAMBIOS_CLIENTE = 1;
@@ -77,6 +79,15 @@ export function inicioClaseMs(fecha, turno = "") {
   return Date.UTC(anio, mes - 1, dia, hora ? Number(hora[1]) : 0, hora ? Number(hora[2]) : 0);
 }
 
+// Horas mínimas de antelación para reprogramar esta reserva: las de bono tienen su plazo;
+// el resto (monográficos incluidos) usa el de las reservas normales
+export function horasAntelacionDe(reserva, config = CONFIG_ESPACIO_DEFECTO) {
+  if (reserva?.desdeBono) {
+    return config?.horasCambioBono ?? CONFIG_ESPACIO_DEFECTO.horasCambioBono;
+  }
+  return config?.horasCambioReserva ?? CONFIG_ESPACIO_DEFECTO.horasCambioReserva;
+}
+
 const pareceReservaDirecta = (obj) =>
   !!obj &&
   typeof obj === "object" &&
@@ -119,7 +130,7 @@ export function buscarReservaEnArbol(reservas, orderId) {
 }
 
 // ¿Puede el cliente cambiar esta reserva él mismo? Si no, el motivo se le enseña.
-export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
+export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs(), config = CONFIG_ESPACIO_DEFECTO) {
   const cambiosHechos = Number(reserva?.numCambiosCliente || 0);
 
   if (
@@ -127,7 +138,7 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
     String(reserva?.estado || "").toLowerCase() === "cancelada"
   ) {
     // Cancelada por el estudio: se puede volver a reservar con el código, sin el
-    // plazo de 72 h ni el límite de cambios (no es un cambio del cliente)
+    // plazo de antelación ni el límite de cambios (no es un cambio del cliente)
     if (reserva?.cancelacionEstudio === true && !reserva?.recuperada) {
       const hasta = String(reserva?.recuperableHasta || "");
       if (esFechaISO(hasta) && hasta >= fechaDeMs(ahoraMs)) {
@@ -145,15 +156,13 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
     return { ok: false, motivo: "Esta reserva no está confirmada y pagada." };
   }
 
-  // Bonos y talleres de dos sesiones tienen otras fechas ligadas a la reserva, salvo los
-  // de varias sesiones reservadas de una vez: cada sesión se cambia por separado
-  if (
-    !reserva?.sesionCurso &&
-    (reserva?.desdeBono || reserva?.segundaSesion || reserva?.tipoTaller === "dos_sesiones")
-  ) {
+  // Las clases de un bono tienen su fecha ligada al bono y se gestionan desde el perfil.
+  // La primera sesión de un taller de varias sesiones sí se cambia (api/cambiar-fecha.js
+  // respeta los días mínimos con la segunda, si ya está reservada)
+  if (reserva?.desdeBono) {
     return {
       ok: false,
-      motivo: "Esta reserva forma parte de un bono o de un taller de dos sesiones. Escríbenos y la cambiamos.",
+      motivo: "Esta reserva forma parte de un bono: reprograma la clase desde tu perfil, en la pestaña Bonos.",
     };
   }
 
@@ -169,10 +178,11 @@ export function evaluarCambio(reserva, ahoraMs = ahoraMadridMs()) {
     return { ok: false, motivo: "No se puede leer la fecha de la reserva. Escríbenos y la cambiamos." };
   }
 
-  if (inicio - ahoraMs < ANTELACION_HORAS * HORA) {
+  const horas = horasAntelacionDe(reserva, config);
+  if (inicio - ahoraMs < horas * HORA) {
     return {
       ok: false,
-      motivo: `Los cambios se piden con al menos ${ANTELACION_HORAS} horas de antelación y a tu clase le queda menos.`,
+      motivo: `Los cambios se piden con al menos ${horas} horas de antelación y a tu clase le queda menos.`,
     };
   }
 
@@ -206,7 +216,7 @@ export function opcionesDeCambioEdicion({
     .filter((edicion) => edicion.id !== reserva?.edicionId)
     .map((edicion) => {
       const [primera] = edicion.fechas;
-      if (motivoFechaNoValida({ fecha: primera.fecha, turno: primera.turno, ahoraMs, bloqueos })) return null;
+      if (motivoFechaNoValida({ fecha: primera.fecha, turno: primera.turno, ahoraMs, bloqueos, config })) return null;
       if (edicion.fechas.some((f) => bloqueoAfectaTurno(bloqueos?.[f.fecha], f.turno))) return null;
 
       const libres = Math.min(
@@ -228,16 +238,27 @@ export function opcionesDeCambioEdicion({
 }
 
 // Por qué un día no se puede elegir (o "" si está bien)
-export function motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos = {} }) {
+// `margenHoras` y `ventanaDias` se cambian para los bonos (cualquier fecha futura)
+export function motivoFechaNoValida({
+  fecha,
+  turno,
+  ahoraMs,
+  bloqueos = {},
+  margenHoras = MARGEN_NUEVA_CLASE_HORAS,
+  config = null,
+  ventanaDias = config?.diasVentanaReprogramar ?? DIAS_VENTANA,
+}) {
   if (!esFechaISO(fecha)) return "La fecha no es válida.";
 
   const inicio = inicioClaseMs(fecha, turno);
-  if (Number.isNaN(inicio) || inicio - ahoraMs < MARGEN_NUEVA_CLASE_HORAS * HORA) {
-    return `La nueva clase debe empezar dentro de, al menos, ${MARGEN_NUEVA_CLASE_HORAS} horas.`;
+  if (Number.isNaN(inicio) || inicio - ahoraMs < margenHoras * HORA) {
+    return margenHoras > 0
+      ? `La nueva clase debe empezar dentro de, al menos, ${margenHoras} horas.`
+      : "La nueva clase debe ser en el futuro.";
   }
 
-  if (inicio - ahoraMs > DIAS_VENTANA * DIA) {
-    return `Solo se puede elegir una fecha de los próximos ${DIAS_VENTANA} días.`;
+  if (inicio - ahoraMs > ventanaDias * DIA) {
+    return `Solo se puede elegir una fecha de los próximos ${ventanaDias} días.`;
   }
 
   if (bloqueoAfectaTurno(bloqueos?.[fecha], turno)) return "Ese día no hay taller.";
@@ -262,18 +283,20 @@ export function opcionesDeCambio({
   fechasHabilitadas,
   reservasGrupos,
   ahoraMs = ahoraMadridMs(),
+  margenHoras = MARGEN_NUEVA_CLASE_HORAS,
+  ventanaDias = config?.diasVentanaReprogramar ?? DIAS_VENTANA,
 }) {
   const plazas = Number(reserva?.plazas || 1);
   const opciones = [];
   const [anio, mes, dia] = fechaDeMs(ahoraMs).split("-").map(Number);
   const hoy = Date.UTC(anio, mes - 1, dia);
 
-  for (let i = 0; i <= DIAS_VENTANA; i += 1) {
+  for (let i = 0; i <= ventanaDias; i += 1) {
     const fecha = fechaDeMs(hoy + i * DIA);
     const turnos = [];
 
     turnosElegibles({ clase, fecha, fechasHabilitadas, reservasGrupos }).forEach((turno) => {
-      if (motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos })) return;
+      if (motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias })) return;
       if (fecha === reserva.fecha && turno === limpiarTurno(reserva.turno)) return;
 
       const libres = plazasLibresParaReserva({ reservas, grupos, config, reserva, fecha, turno });
@@ -292,7 +315,7 @@ export function opcionesDeCambio({
 // cambio se aplica y queda marcado para que Berto lo revise.
 export const TURNOS_GRUPO = ["11:30-14:30", "17:30-20:30"];
 
-export function evaluarCambioGrupo(grupo, ahoraMs = ahoraMadridMs()) {
+export function evaluarCambioGrupo(grupo, ahoraMs = ahoraMadridMs(), config = CONFIG_ESPACIO_DEFECTO) {
   const estado = String(grupo?.estado || "").toLowerCase();
 
   if (grupo?.cancelada === true || estado.includes("cancelada")) {
@@ -316,26 +339,28 @@ export function evaluarCambioGrupo(grupo, ahoraMs = ahoraMadridMs()) {
     return { ok: false, motivo: "No se puede leer la fecha de la reserva. Escríbenos y la cambiamos." };
   }
 
-  if (inicio - ahoraMs < ANTELACION_HORAS * HORA) {
+  const horas = horasAntelacionDe(grupo, config);
+  if (inicio - ahoraMs < horas * HORA) {
     return {
       ok: false,
-      motivo: `Los cambios se piden con al menos ${ANTELACION_HORAS} horas de antelación y a vuestra reserva le queda menos.`,
+      motivo: `Los cambios se piden con al menos ${horas} horas de antelación y a vuestra reserva le queda menos.`,
     };
   }
 
   return { ok: true, motivo: "" };
 }
 
-export function opcionesDeCambioGrupo({ grupo, bloqueos, ahoraMs = ahoraMadridMs() }) {
+export function opcionesDeCambioGrupo({ grupo, bloqueos, config = null, ahoraMs = ahoraMadridMs() }) {
+  const ventanaDias = config?.diasVentanaReprogramar ?? DIAS_VENTANA;
   const [anio, mes, dia] = fechaDeMs(ahoraMs).split("-").map(Number);
   const hoy = Date.UTC(anio, mes - 1, dia);
   const opciones = [];
 
-  for (let i = 0; i <= DIAS_VENTANA; i += 1) {
+  for (let i = 0; i <= ventanaDias; i += 1) {
     const fecha = fechaDeMs(hoy + i * DIA);
     const turnos = TURNOS_GRUPO.filter(
       (turno) =>
-        !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos }) &&
+        !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, ventanaDias }) &&
         !(fecha === grupo.fecha && turno === grupo.turno)
     ).map((turno) => ({ turno, libres: null }));
 

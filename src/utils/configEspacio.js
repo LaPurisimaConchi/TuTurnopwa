@@ -19,6 +19,11 @@ export const CONFIG_ESPACIO_DEFECTO = {
   minPersonasGrupo: 3,
   // Minutos que una reserva pendiente de pago guarda su plaza
   minutosReserva: 15,
+  // Horas mínimas de antelación para reprogramar (las reservas no se cancelan)
+  horasCambioReserva: 24,
+  horasCambioBono: 3,
+  // Hasta cuántos días por delante se puede elegir la nueva fecha al reprogramar una reserva
+  diasVentanaReprogramar: 90,
   horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((d) => [d, ""])),
 };
 
@@ -39,6 +44,14 @@ export function normalizarConfigEspacio(raw) {
     maxTorno: entero(datos.maxTorno, CONFIG_ESPACIO_DEFECTO.maxTorno),
     minPersonasGrupo: entero(datos.minPersonasGrupo, CONFIG_ESPACIO_DEFECTO.minPersonasGrupo, 2, 45),
     minutosReserva: entero(datos.minutosReserva, CONFIG_ESPACIO_DEFECTO.minutosReserva, 1, 120),
+    horasCambioReserva: entero(datos.horasCambioReserva, CONFIG_ESPACIO_DEFECTO.horasCambioReserva, 0, 720),
+    diasVentanaReprogramar: entero(
+      datos.diasVentanaReprogramar,
+      CONFIG_ESPACIO_DEFECTO.diasVentanaReprogramar,
+      1,
+      730
+    ),
+    horasCambioBono: entero(datos.horasCambioBono, CONFIG_ESPACIO_DEFECTO.horasCambioBono, 0, 720),
     horariosDefecto: Object.fromEntries(
       DIAS_CONFIG.map((dia) => {
         const valor = horarios[dia];
