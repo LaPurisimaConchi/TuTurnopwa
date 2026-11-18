@@ -181,5 +181,15 @@ con las nuevas, el código viejo no puede cobrar.
 - las reservas pendientes antiguas siguen sin contar para el aforo.
 
 ## PDF de tarjeta regalo gestionables
-- [ ] Las reglas nuevas (`plantillasTarjetaRegalo`, `plantillasTarjetaRegaloPdf`) se despliegan con el resto; `npm run probar-reglas` las cubre.
-- [ ] Tras desplegar: subir/sustituir/borrar un PDF en `/admin-tarjetas-regalo`, comprar una tarjeta de prueba y comprobar que el correo trae el botón de descarga que abre `/tarjeta-regalo-pdf/{id}`.
+- [ ] **Las reglas no se despliegan solas con Vercel**: hay que publicarlas a mano en Firebase. Las nuevas
+  (`plantillasTarjetaRegalo` y `plantillasTarjetaRegaloPdf`) van con el resto de reglas del paso a producción.
+  Sin ellas, el panel de PDF da «No se pudo guardar el PDF» (`permission_denied`) y la descarga usa los
+  tres PDF originales.
+- [ ] Ojo: `.firebaserc` apunta por defecto a **producción** (`la-purisima-conchi`). En staging se despliega
+  siempre con el proyecto explícito: `npx firebase-tools deploy --only database --project la-purisima-conchi-staging`.
+  En producción, solo cuando toque y tras guardar las reglas actuales (ver más arriba).
+- [ ] `npm run probar-reglas` cubre las rutas nuevas (0 fallos antes de desplegar).
+- [ ] Variables de Vercel (Production): `RESEND_API_KEY` y `CORREO_URL_BASE` (sin esta última el correo no
+  lleva los botones de PDF). Sin PDF gestionado, el correo enlaza la tarjeta clásica de `public/`.
+- [ ] Tras desplegar: subir, sustituir y borrar un PDF en `/admin-tarjetas-regalo` (cuenta admin con correo
+  verificado), comprar una tarjeta de prueba y comprobar que el correo trae los botones de PDF y que descargan.
