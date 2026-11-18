@@ -4,6 +4,34 @@
 // marca desdeBono. Es idempotente (Redsys puede repetir el aviso) y, si no hay
 // reserva (pedidos hechos antes de existir), no hace nada.
 import { adminDb } from "./_firebaseAdmin.js";
+import { bonoSinSesion } from "../src/utils/estadoBono.js";
+
+// La reserva de la primera sesión ya no existe (se borró al caducar la plaza antes de
+// que llegara el pago): la clase vuelve al bono, para que no quede una sesión sin
+// reserva, y una nota interna lo explica. Idempotente: si la sesión ya no está, no hace nada.
+async function devolverPrimeraSesion(db, uid, orderId, ruta, paidAt) {
+  const reservaId = String(ruta || "").split("/").pop();
+  if (!uid || !reservaId) return;
+
+  const bonoRef = db.ref(`usuarios/${uid}/bonos/${orderId}`);
+  let devuelta = null;
+  const resultado = await bonoRef.transaction((bono) => {
+    if (bono === null) return bono; // primera pasada sin datos: Firebase repite con el valor real
+    const sesiones = bono?.sesionesConsumidas || {};
+    const clave = Object.keys(sesiones).find((k) => String(sesiones[k]?.reservaId || "") === reservaId);
+    const nuevo = clave ? bonoSinSesion(bono, clave, paidAt) : null;
+    if (!nuevo) return; // nada que devolver: no se escribe
+    devuelta = sesiones[clave];
+    return nuevo;
+  });
+  if (!resultado.committed || !devuelta) return;
+
+  await bonoRef.child("notasInternas").push({
+    texto: `La reserva de la primera sesión (${devuelta.fecha || "—"} · ${devuelta.turno || "—"}) ya no existía al confirmarse el pago: la clase ha vuelto al bono para reservarla desde el perfil.`,
+    fecha: paidAt,
+  });
+  console.warn("Primera sesión de bono sin reserva: clase devuelta al bono", { orderId, ruta });
+}
 
 function buscarReserva(nodo, orderId, ruta = "reservas") {
   if (!nodo || typeof nodo !== "object") return null;
@@ -33,6 +61,8 @@ export async function confirmarPrimeraSesionBono({ orderId, uid, paidAt, rutas =
     const reserva = snap?.exists() ? snap.val() : null;
     if (reserva && String(reserva.orderId || "") === String(orderId) && reserva.desdeBono) {
       hallada = { ruta, reserva };
+    } else if (ruta && !snap?.exists()) {
+      await devolverPrimeraSesion(db, uid, String(orderId), ruta, paidAt);
     }
   } else {
     const snapshot = await db.ref("reservas").get();

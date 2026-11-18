@@ -3,9 +3,15 @@ import { ref, get, push, remove, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { nombreAdminActual } from "./utils/nombreAdmin";
 import BotonVolver from "./BotonVolver";
+import CambioFechaGrupoAdmin from "./components/CambioFechaGrupoAdmin";
+import { useConfigEspacio } from "./configuracionEspacio";
 import { useLocation } from "react-router-dom";
 
 import { fechaDMA } from "./utils/formatoFecha";
+
+const grupoCancelado = (r) => r.cancelada === true || r.estado === "Cancelada";
+const grupoPagado = (r) => String(r.estadoPago || "").toLowerCase() === "pagado";
+
 const AdminReservasGrupos = () => {
   const location = useLocation();
 
@@ -20,8 +26,12 @@ const [telefonoManual, setTelefonoManual] = useState({});
 const [metodoManual, setMetodoManual] = useState({});
 const [guardandoManual, setGuardandoManual] = useState({});
 const [editandoFechaGrupo, setEditandoFechaGrupo] = useState({});
-const [fechaGrupoEditada, setFechaGrupoEditada] = useState({});
 const [guardandoFechaGrupo, setGuardandoFechaGrupo] = useState({});
+// Bloqueos y ocupación para el calendario del cambio de fecha (se leen al abrirlo)
+const [contextoCambio, setContextoCambio] = useState(null);
+const { config: configEspacio } = useConfigEspacio();
+const [metodoPagoGrupo, setMetodoPagoGrupo] = useState({});
+const [guardandoEstadoGrupo, setGuardandoEstadoGrupo] = useState({});
 const [editandoPlazoPago, setEditandoPlazoPago] = useState({});
 const [plazoPagoEditado, setPlazoPagoEditado] = useState({});
 const [guardandoPlazoPago, setGuardandoPlazoPago] = useState({});
@@ -401,61 +411,157 @@ const registrarPagoManual = async (r) => {
     }));
   }
 };
+// Cambios en el grupo y una nota interna que los explica, en una sola escritura
+const actualizarGrupo = async (r, campos, textoNota) => {
+  const actualizacion = {};
+  Object.entries(campos).forEach(([campo, valor]) => {
+    actualizacion[`reservasGrupos/${r.id}/${campo}`] = valor;
+  });
+
+  let nota = null;
+  if (r.orderId && textoNota) {
+    const notaRef = push(ref(dbRealtime, `reservasNotas/${r.orderId}/notasInternas`));
+    nota = { id: notaRef.key, texto: textoNota, fecha: new Date().toLocaleString("es-ES") };
+    actualizacion[`reservasNotas/${r.orderId}/notasInternas/${nota.id}`] = {
+      texto: nota.texto,
+      fecha: nota.fecha,
+    };
+  }
+
+  await update(ref(dbRealtime), actualizacion);
+
+  setReservas((prev) =>
+    prev.map((grupo) =>
+      grupo.id === r.id
+        ? {
+            ...grupo,
+            ...campos,
+            ...(nota ? { notasInternas: [...(grupo.notasInternas || []), nota] } : {}),
+          }
+        : grupo
+    )
+  );
+};
+
 const cancelarGrupoManual = async (r) => {
+  const pagado = grupoPagado(r);
   const confirmar = window.confirm(
-    "¿Seguro que quieres cancelar esta reserva de grupo? El enlace de pago dejará de funcionar."
+    pagado
+      ? "¿Seguro que quieres cancelar esta reserva de grupo? Está pagada: la cancelación no devuelve el dinero y sus plazas quedan libres."
+      : "¿Seguro que quieres cancelar esta reserva de grupo? Sus plazas quedan libres y, si tenía enlace de pago, dejará de funcionar."
   );
 
   if (!confirmar) return;
 
   try {
-    const ahoraISO = new Date().toISOString();
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: true }));
+    const admin = nombreAdminActual();
 
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/estado`), "Cancelada");
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/estadoPago`), "cancelado");
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/cancelada`), true);
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/canceladaEn`), ahoraISO);
-    await set(
-      ref(dbRealtime, `reservasGrupos/${r.id}/motivoCancelacion`),
-      "Cancelada manualmente desde admin"
+    await actualizarGrupo(
+      r,
+      {
+        estado: "Cancelada",
+        // Una reserva pagada sigue constando como pagada (no hay devolución)
+        estadoPago: pagado ? r.estadoPago : "cancelado",
+        cancelada: true,
+        canceladaEn: new Date().toISOString(),
+        canceladaPor: admin,
+        motivoCancelacion: `Cancelada desde el panel por ${admin}`,
+      },
+      `Reserva de grupo cancelada por ${admin}.`
     );
-
-    setReservas((prev) =>
-      prev.map((grupo) =>
-        grupo.id === r.id
-          ? {
-              ...grupo,
-              estado: "Cancelada",
-              estadoPago: "cancelado",
-              cancelada: true,
-              canceladaEn: ahoraISO,
-              motivoCancelacion: "Cancelada manualmente desde admin",
-            }
-          : grupo
-      )
-    );
+    setContextoCambio(null);
 
     alert("Reserva de grupo cancelada correctamente.");
   } catch (error) {
     console.error("Error al cancelar grupo:", error);
     alert("No se pudo cancelar la reserva de grupo.");
+  } finally {
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: false }));
   }
 };
 
-const guardarFechaGrupo = async (r) => {
-  const nuevaFecha = fechaGrupoEditada[r.id];
-
-  if (
-    !nuevaFecha ||
-    nuevaFecha === r.fecha ||
-    r.cancelada ||
-    r.estado === "Cancelada"
-  ) {
+// Grupo de pago completo cobrado fuera de la web (efectivo, Bizum, transferencia)
+const marcarGrupoPagado = async (r) => {
+  const metodo = metodoPagoGrupo[r.id] || "";
+  if (!metodo) {
+    alert("Elige cómo se ha pagado.");
     return;
   }
 
   const confirmar = window.confirm(
-    `¿Seguro que quieres cambiar la fecha de este grupo del ${fechaDMA(r.fecha) || "—"} al ${fechaDMA(nuevaFecha)}?`
+    `¿Marcar este grupo como pagado (${metodo}, ${Number(r.precioTotal || 0)}€)? La reserva queda confirmada y ocupa sus plazas.`
+  );
+  if (!confirmar) return;
+
+  try {
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: true }));
+    const admin = nombreAdminActual();
+
+    await actualizarGrupo(
+      r,
+      {
+        estado: "Confirmada",
+        estadoPago: "pagado",
+        pagoManual: true,
+        metodoPagoManual: metodo,
+        pagadoManualEn: new Date().toISOString(),
+        pagadoManualPor: admin,
+      },
+      `Grupo marcado como pagado (${metodo}) por ${admin}.`
+    );
+    setContextoCambio(null);
+
+    alert("Grupo marcado como pagado.");
+  } catch (error) {
+    console.error("Error al marcar el grupo como pagado:", error);
+    alert("No se pudo marcar el grupo como pagado.");
+  } finally {
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: false }));
+  }
+};
+
+// Bloqueos y ocupación que necesita el calendario del cambio de fecha
+const cargarContextoCambio = async () => {
+  setContextoCambio({ cargando: true });
+  try {
+    const [bloqueosSnap, reservasSnap, gruposSnap] = await Promise.all([
+      get(ref(dbRealtime, "bloqueosFechas")),
+      get(ref(dbRealtime, "reservas")),
+      get(ref(dbRealtime, "reservasGrupos")),
+    ]);
+    setContextoCambio({
+      cargando: false,
+      bloqueos: bloqueosSnap.val() || {},
+      reservas: reservasSnap,
+      grupos: gruposSnap,
+    });
+  } catch (error) {
+    console.error("Error al cargar el calendario de grupos:", error);
+    setContextoCambio({ cargando: false, error: "No se ha podido cargar el calendario. Inténtalo de nuevo." });
+  }
+};
+
+const abrirCambioFecha = (r) => {
+  setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: true }));
+  if (!contextoCambio || contextoCambio.error) cargarContextoCambio();
+};
+
+const guardarFechaGrupo = async (r, nuevaFecha, nuevoTurno) => {
+  const turnoFinal = nuevoTurno || r.turno || "";
+
+  if (
+    !nuevaFecha ||
+    (nuevaFecha === r.fecha && turnoFinal === r.turno) ||
+    grupoCancelado(r)
+  ) {
+    return;
+  }
+
+  const antes = `${fechaDMA(r.fecha) || "—"} · ${r.turno || "—"}`;
+  const ahoraTexto = `${fechaDMA(nuevaFecha)} · ${turnoFinal || "—"}`;
+  const confirmar = window.confirm(
+    `¿Seguro que quieres cambiar este grupo del ${antes} al ${ahoraTexto}?`
   );
 
   if (!confirmar) return;
@@ -464,65 +570,29 @@ const guardarFechaGrupo = async (r) => {
     setGuardandoFechaGrupo((prev) => ({ ...prev, [r.id]: true }));
 
     const ahora = new Date();
-    const fechaCambio = ahora.toLocaleString("es-ES");
-    const actualizacion = {
-      [`reservasGrupos/${r.id}/fecha`]: nuevaFecha,
-      [`reservasGrupos/${r.id}/fechaAnterior`]: r.fecha || "",
-      [`reservasGrupos/${r.id}/fechaOriginal`]: r.fechaOriginal || r.fecha || "",
-      [`reservasGrupos/${r.id}/ultimaFechaAnterior`]: r.fecha || "",
-      [`reservasGrupos/${r.id}/fechaReprogramada`]: nuevaFecha,
-      [`reservasGrupos/${r.id}/reprogramada`]: true,
-      [`reservasGrupos/${r.id}/reprogramadaEn`]: fechaCambio,
-      [`reservasGrupos/${r.id}/reprogramadaPor`]: nombreAdminActual(),
-      [`reservasGrupos/${r.id}/actualizadoEn`]: ahora.toISOString(),
-    };
-    let notaInterna;
-    let notaInternaId;
+    const admin = nombreAdminActual();
 
-    if (r.orderId) {
-      notaInterna = {
-        texto: `Fecha de reserva de grupo cambiada por ${nombreAdminActual()}. Antes: ${fechaDMA(r.fecha) || "—"}. Ahora: ${fechaDMA(nuevaFecha)}.`,
-        fecha: fechaCambio,
-      };
-      const nuevaNotaRef = push(
-        ref(dbRealtime, `reservasNotas/${r.orderId}/notasInternas`)
-      );
-      notaInternaId = nuevaNotaRef.key;
-      actualizacion[
-        `reservasNotas/${r.orderId}/notasInternas/${notaInternaId}`
-      ] = notaInterna;
-    }
-
-    await update(ref(dbRealtime), actualizacion);
-
-    setReservas((prev) =>
-      prev.map((grupo) =>
-        grupo.id === r.id
-          ? {
-              ...grupo,
-              fecha: nuevaFecha,
-              fechaAnterior: r.fecha || "",
-              fechaOriginal: r.fechaOriginal || r.fecha || "",
-              ultimaFechaAnterior: r.fecha || "",
-              fechaReprogramada: nuevaFecha,
-              reprogramada: true,
-              reprogramadaEn: fechaCambio,
-              reprogramadaPor: nombreAdminActual(),
-              actualizadoEn: ahora.toISOString(),
-              ...(notaInterna
-                ? {
-                    notasInternas: [
-                      ...(grupo.notasInternas || []),
-                      { id: notaInternaId, ...notaInterna },
-                    ],
-                  }
-                : {}),
-            }
-          : grupo
-      )
+    await actualizarGrupo(
+      r,
+      {
+        fecha: nuevaFecha,
+        turno: turnoFinal,
+        fechaAnterior: r.fecha || "",
+        turnoAnterior: r.turno || "",
+        fechaOriginal: r.fechaOriginal || r.fecha || "",
+        turnoOriginal: r.turnoOriginal || r.turno || "",
+        ultimaFechaAnterior: r.fecha || "",
+        fechaReprogramada: nuevaFecha,
+        reprogramada: true,
+        reprogramadaEn: ahora.toLocaleString("es-ES"),
+        reprogramadaPor: admin,
+        actualizadoEn: ahora.toISOString(),
+      },
+      `Fecha de reserva de grupo cambiada por ${admin}. Antes: ${antes}. Ahora: ${ahoraTexto}.`
     );
+    // La ocupación ha cambiado: el calendario se vuelve a leer la próxima vez
+    setContextoCambio(null);
     setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: false }));
-    setFechaGrupoEditada((prev) => ({ ...prev, [r.id]: "" }));
     alert("Fecha de la reserva de grupo actualizada correctamente.");
   } catch (error) {
     console.error("Error al cambiar la fecha de la reserva de grupo:", error);
@@ -675,8 +745,10 @@ const guardarPlazoPago = async (r) => {
         (r.estadoPago || "").toLowerCase() === "pendiente"
     ).length;
 
+    // Una pagada que luego se cancela sigue en los ingresos (no hay devolución), pero
+    // no cuenta como reserva pagada en curso
     const pagadas = reservasFiltradas.filter(
-      (r) => (r.estadoPago || "").toLowerCase() === "pagado"
+      (r) => (r.estadoPago || "").toLowerCase() === "pagado" && !grupoCancelado(r)
     ).length;
 
     const ingresosEstimados = reservasFiltradas.reduce((acc, r) => {
@@ -800,80 +872,16 @@ const guardarPlazoPago = async (r) => {
                           <p style={styles.cardSubtitulo}>
                             {fechaDMA(r.fecha) || "—"} · {r.turno || "—"}
                           </p>
-                          {!editandoFechaGrupo[r.id] &&
-                            !r.cancelada &&
-                            r.estado !== "Cancelada" && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setFechaGrupoEditada((prev) => ({
-                                    ...prev,
-                                    [r.id]: r.fecha || "",
-                                  }));
-                                  setEditandoFechaGrupo((prev) => ({
-                                    ...prev,
-                                    [r.id]: true,
-                                  }));
-                                }}
-                                style={styles.botonCambiarFecha}
-                              >
-                                Cambiar fecha
-                              </button>
-                            )}
+                          {!editandoFechaGrupo[r.id] && !grupoCancelado(r) && (
+                            <button
+                              type="button"
+                              onClick={() => abrirCambioFecha(r)}
+                              style={styles.botonCambiarFecha}
+                            >
+                              Cambiar fecha
+                            </button>
+                          )}
                         </div>
-                        {editandoFechaGrupo[r.id] && (
-                          <div style={styles.editarFechaGrupo}>
-                            <label style={styles.label} htmlFor={`fecha-grupo-${r.id}`}>
-                              Nueva fecha
-                            </label>
-                            <input
-                              id={`fecha-grupo-${r.id}`}
-                              type="date"
-                              value={fechaGrupoEditada[r.id] || ""}
-                              onChange={(event) =>
-                                setFechaGrupoEditada((prev) => ({
-                                  ...prev,
-                                  [r.id]: event.target.value,
-                                }))
-                              }
-                              style={styles.input}
-                              disabled={guardandoFechaGrupo[r.id]}
-                            />
-                            <div style={styles.accionesFechaGrupo}>
-                              <button
-                                type="button"
-                                onClick={() => guardarFechaGrupo(r)}
-                                style={styles.botonGuardar}
-                                disabled={
-                                  guardandoFechaGrupo[r.id] ||
-                                  !fechaGrupoEditada[r.id] ||
-                                  fechaGrupoEditada[r.id] === r.fecha
-                                }
-                              >
-                                {guardandoFechaGrupo[r.id]
-                                  ? "Guardando..."
-                                  : "Guardar fecha"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditandoFechaGrupo((prev) => ({
-                                    ...prev,
-                                    [r.id]: false,
-                                  }));
-                                  setFechaGrupoEditada((prev) => ({
-                                    ...prev,
-                                    [r.id]: "",
-                                  }));
-                                }}
-                                style={styles.botonSecundario}
-                                disabled={guardandoFechaGrupo[r.id]}
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       <div style={styles.badges}>
@@ -884,6 +892,19 @@ const guardarPlazoPago = async (r) => {
                         )}
                       </div>
                     </div>
+
+                    {editandoFechaGrupo[r.id] && !grupoCancelado(r) && (
+                      <CambioFechaGrupoAdmin
+                        grupo={r}
+                        contexto={contextoCambio}
+                        config={configEspacio}
+                        guardando={!!guardandoFechaGrupo[r.id]}
+                        onGuardar={(fecha, turno) => guardarFechaGrupo(r, fecha, turno)}
+                        onCancelar={() =>
+                          setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: false }))
+                        }
+                      />
+                    )}
 
                     <div style={styles.infoGrid}>
                       <div style={styles.infoBox}>
@@ -1031,18 +1052,6 @@ const guardarPlazoPago = async (r) => {
       Copiar enlace
     </button>
 
-    {r.estadoPago !== "pagado" && r.estado !== "Cancelada" && (
-      <button
-        type="button"
-        onClick={() => cancelarGrupoManual(r)}
-        style={{
-  ...styles.btnCancelarGrupo,
-  ...(isMobile ? styles.btnCancelarGrupoMobile : {}),
-}}
-      >
-        Cancelar grupo
-      </button>
-    )}
   </div>
 )}
                       </div>
@@ -1069,7 +1078,66 @@ const guardarPlazoPago = async (r) => {
 )}
 </div>
                     </div>
-                    {r.modoPago === "individual" && r.estadoPago !== "pagado" && (
+
+                    {grupoCancelado(r) ? (
+                      <div style={styles.notasBox}>
+                        <strong>Reserva cancelada</strong>
+                        <p style={styles.textoBloque}>
+                          {r.motivoCancelacion || "Cancelada."}
+                          {r.canceladaEn
+                            ? ` · ${new Date(r.canceladaEn).toLocaleString("es-ES")}`
+                            : ""}
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={styles.notasBox}>
+                        <strong>Gestión del grupo</strong>
+                        {r.modoPago !== "individual" && !grupoPagado(r) && (
+                          <>
+                            <p style={styles.textoBloque}>
+                              Si el grupo ha pagado fuera de la web, márcalo como pagado para confirmarlo.
+                            </p>
+                            <div style={styles.accionesFechaGrupo}>
+                              <select
+                                value={metodoPagoGrupo[r.id] || ""}
+                                onChange={(e) =>
+                                  setMetodoPagoGrupo((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                }
+                                style={{ ...styles.input, width: "auto" }}
+                                aria-label="Cómo se ha pagado"
+                              >
+                                <option value="">Cómo se ha pagado</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="bizum">Bizum</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="tarjeta en el estudio">Tarjeta en el estudio</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => marcarGrupoPagado(r)}
+                                style={styles.botonGuardar}
+                                disabled={guardandoEstadoGrupo[r.id] || !metodoPagoGrupo[r.id]}
+                              >
+                                Marcar como pagado
+                              </button>
+                            </div>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => cancelarGrupoManual(r)}
+                          style={{
+                            ...styles.btnCancelarGrupo,
+                            ...(isMobile ? styles.btnCancelarGrupoMobile : {}),
+                          }}
+                          disabled={guardandoEstadoGrupo[r.id]}
+                        >
+                          Cancelar grupo
+                        </button>
+                      </div>
+                    )}
+
+                    {r.modoPago === "individual" && r.estadoPago !== "pagado" && !grupoCancelado(r) && (
   <div style={styles.notasBox}>
     <strong>Registrar pago manual</strong>
 

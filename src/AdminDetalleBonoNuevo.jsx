@@ -5,7 +5,8 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
 import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
-import { motivoFechaFueraDeBono } from "./utils/estadoBono";
+import { bonoSinSesion, carpetaReservasBono, motivoFechaFueraDeBono } from "./utils/estadoBono";
+import { esReservaValida } from "./utils/plazasOcupadas";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -74,6 +75,10 @@ const AdminDetalleBonoNuevo = () => {
   const [guardandoCaducidad, setGuardandoCaducidad] = useState(false);
   const [anadiendoClase, setAnadiendoClase] = useState(false);
   const [descontandoClase, setDescontandoClase] = useState(false);
+  // Estado de la reserva de cada sesión: "ok", "falta", "cancelada" o "pendiente"
+  const [estadoReservas, setEstadoReservas] = useState({});
+  const [rutasReservas, setRutasReservas] = useState({});
+  const [devolviendoSesion, setDevolviendoSesion] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -199,6 +204,172 @@ useEffect(() => {
 
     cargarNotas();
   }, [uid, bonoId]);
+
+  // Cada sesión del bono debería tener su reserva confirmada en reservas/…: si falta o
+  // está cancelada, la clase sigue gastada sin que el cliente tenga plaza
+  const claveSesiones = (bono?.sesiones || []).map((s) => `${s.clave}|${s.fecha}|${s.turno}|${s.reservaId}`).join(",");
+  useEffect(() => {
+    if (!bono?.sesiones?.length) {
+      setEstadoReservas({});
+      return;
+    }
+    let activo = true;
+
+    (async () => {
+      try {
+        const fichaSnap = bono.claseId ? await get(ref(dbRealtime, `clases/${bono.claseId}`)) : null;
+        const carpeta = carpetaReservasBono(bono.claseId, fichaSnap?.exists() ? fichaSnap.val() : null);
+        const estados = {};
+        const rutas = {};
+
+        await Promise.all(
+          bono.sesiones.map(async (s) => {
+            if (!carpeta || !s.fecha || !s.turno || !s.reservaId) {
+              estados[s.clave] = "falta";
+              return;
+            }
+            // La reserva va bajo el turno o, en pantallas antiguas, un nivel más (método)
+            const buscar = async (turno) => {
+              const base = `reservas/${carpeta}/${s.fecha}/${turno}`;
+              const snap = await get(ref(dbRealtime, base));
+              if (!snap.exists()) return null;
+              if (snap.child(s.reservaId).exists()) {
+                return { ruta: `${base}/${s.reservaId}`, datos: snap.child(s.reservaId).val() };
+              }
+              let hallada = null;
+              snap.forEach((nivel) => {
+                if (!hallada && nivel.child(s.reservaId).exists()) {
+                  hallada = { ruta: `${base}/${nivel.key}/${s.reservaId}`, datos: nivel.child(s.reservaId).val() };
+                }
+              });
+              return hallada;
+            };
+            const turnos = [...new Set([s.turno, s.turno.replaceAll(" a ", "-").replace(/\s+/g, "")])];
+            let hallada = null;
+            for (const turno of turnos) {
+              hallada = await buscar(turno);
+              if (hallada) break;
+            }
+            const reserva = hallada?.datos || null;
+            if (hallada) rutas[s.clave] = hallada.ruta;
+            estados[s.clave] = !reserva
+              ? "falta"
+              : reserva.cancelada === true || reserva.estado === "Cancelada"
+              ? "cancelada"
+              : esReservaValida(reserva)
+              ? "ok"
+              : "pendiente";
+          })
+        );
+        if (activo) {
+          setEstadoReservas(estados);
+          setRutasReservas(rutas);
+        }
+      } catch (error) {
+        console.error("Error al comprobar las reservas del bono:", error);
+      }
+    })();
+
+    return () => {
+      activo = false;
+    };
+    // claveSesiones resume las sesiones: así no se repite la lectura en cada render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bono?.claseId, claveSesiones]);
+
+  // El bono está pagado pero la reserva de la sesión se quedó pendiente (pedidos
+  // anteriores a confirmarla con el pago): se confirma aquí, también en el perfil
+  const confirmarReservaSesion = async (sesion) => {
+    const ruta = rutasReservas[sesion.clave];
+    if (!uid || !ruta) return;
+    const confirmar = window.confirm(
+      `¿Confirmar la reserva del ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}? ` +
+        "Pasa a contar en el aforo de esa franja y el cliente la verá confirmada."
+    );
+    if (!confirmar) return;
+
+    try {
+      setDevolviendoSesion(sesion.clave);
+      const ahora = new Date().toISOString();
+      const campos = { estado: "Confirmada", estadoPago: "pagado", procesado: true, confirmadaPorAdmin: true, actualizadoEn: ahora };
+      const cambios = {};
+      Object.entries(campos).forEach(([k, v]) => {
+        cambios[`${ruta}/${k}`] = v;
+      });
+      const listaSnap = await get(ref(dbRealtime, `usuarios/${uid}/listaReservas`));
+      listaSnap.forEach((item) => {
+        if (String(item.val()?.reservaId || "") === sesion.reservaId) {
+          ["estado", "estadoPago", "actualizadoEn"].forEach((k) => {
+            cambios[`usuarios/${uid}/listaReservas/${item.key}/${k}`] = campos[k];
+          });
+        }
+      });
+      const notaId = push(ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}/notasInternas`)).key;
+      const nota = {
+        texto: `Reserva de la sesión ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"} confirmada desde el panel (estaba sin confirmar).`,
+        fecha: ahora,
+      };
+      cambios[`usuarios/${uid}/bonos/${bonoId}/notasInternas/${notaId}`] = nota;
+      await update(ref(dbRealtime), cambios);
+      setEstadoReservas((prev) => ({ ...prev, [sesion.clave]: "ok" }));
+      setNotasInternas((prev) => [{ id: notaId, ...nota }, ...prev]);
+    } catch (error) {
+      console.error("Error al confirmar la reserva de la sesión:", error);
+      alert("No se pudo confirmar la reserva.");
+    } finally {
+      setDevolviendoSesion("");
+    }
+  };
+
+  // Quita del bono una sesión sin reserva y le devuelve la clase
+  const devolverSesion = async (sesion) => {
+    if (!uid || !bonoId) return;
+    const confirmar = window.confirm(
+      `¿Devolver al bono la clase del ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}? ` +
+        "Esa sesión no tiene una reserva confirmada; el cliente podrá reservarla de nuevo desde su perfil."
+    );
+    if (!confirmar) return;
+
+    try {
+      setDevolviendoSesion(sesion.clave);
+      const bonoRef = ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}`);
+      const inicialSnap = await get(bonoRef);
+      if (!inicialSnap.exists()) throw new Error("No se encontró el bono en la base de datos.");
+      const inicial = inicialSnap.val();
+      const actualizadoEn = new Date().toISOString();
+      let primeraEjecucion = true;
+
+      const resultado = await runTransaction(bonoRef, (bonoActual) => {
+        const datos = bonoActual || (primeraEjecucion ? inicial : null);
+        primeraEjecucion = false;
+        if (!datos) return;
+        return bonoSinSesion(datos, sesion.clave, actualizadoEn) || undefined;
+      });
+      if (!resultado.committed) throw new Error("Esa sesión ya no estaba en el bono.");
+
+      const actualizado = resultado.snapshot.val() || {};
+      const nota = {
+        texto: `Clase devuelta al bono por falta de reserva: ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}.`,
+        fecha: actualizadoEn,
+      };
+      const notaRef = await push(ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}/notasInternas`), nota);
+
+      setNotasInternas((prev) => [{ id: notaRef.key, ...nota }, ...prev]);
+      setBono((actual) => ({
+        ...actual,
+        clasesConsumidas: Number(actualizado.clasesConsumidas || 0),
+        clasesRestantes: Number(actualizado.clasesRestantes || 0),
+        estadoBono: actualizado.estadoBono || "activo",
+        actualizadoEn,
+        sesiones: actual.sesiones.filter((s) => s.clave !== sesion.clave),
+      }));
+    } catch (error) {
+      console.error("Error al devolver la clase al bono:", error);
+      alert(`No se pudo devolver la clase. ${error instanceof Error ? error.message : ""}`);
+    } finally {
+      setDevolviendoSesion("");
+    }
+  };
 
   const estadoVisible = useMemo(() => obtenerEstadoVisibleBono(bono), [bono]);
 
@@ -697,11 +868,16 @@ useEffect(() => {
                       (otra, j) => j !== i && otra.fecha === sesion.fecha && otra.turno === sesion.turno
                     );
                     const pasada = sesion.fecha < hoyMadrid();
+                    const reserva = estadoReservas[sesion.clave];
+                    const sinReserva = reserva === "falta" || reserva === "cancelada" || reserva === "pendiente";
                     const avisos = [
                       sesion.primera && "Primera sesión",
                       pasada && "Ya pasada",
                       fuera && "Fuera de la validez del bono",
                       repetida && "Repetida (mismo día y turno)",
+                      reserva === "falta" && "Sin reserva",
+                      reserva === "cancelada" && "Reserva cancelada",
+                      reserva === "pendiente" && "Reserva sin confirmar",
                     ].filter(Boolean);
                     return (
                       <div
@@ -714,10 +890,30 @@ useEffect(() => {
                         <span
                           style={{
                             ...styles.filaValor,
-                            color: fuera || repetida ? "#b42318" : styles.filaValor.color,
+                            color: fuera || repetida || sinReserva ? "#b42318" : styles.filaValor.color,
                           }}
                         >
                           {avisos.join(" · ") || "Reservada"}
+                          {reserva === "pendiente" && rutasReservas[sesion.clave] && (
+                            <button
+                              type="button"
+                              onClick={() => confirmarReservaSesion(sesion)}
+                              disabled={devolviendoSesion === sesion.clave}
+                              style={{ ...styles.botonAccionSecundario, marginLeft: 8 }}
+                            >
+                              Confirmar la reserva
+                            </button>
+                          )}
+                          {sinReserva && (
+                            <button
+                              type="button"
+                              onClick={() => devolverSesion(sesion)}
+                              disabled={devolviendoSesion === sesion.clave}
+                              style={{ ...styles.botonAccionSecundario, marginLeft: 8 }}
+                            >
+                              {devolviendoSesion === sesion.clave ? "Guardando..." : "Devolver la clase al bono"}
+                            </button>
+                          )}
                         </span>
                       </div>
                     );
