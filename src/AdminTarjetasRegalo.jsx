@@ -3,6 +3,9 @@ import { ref, get } from "firebase/database";
 import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import Icono from "./components/Icono";
+import "./AdminDashboard.css";
+import { formatearEuros } from "./utils/estadisticasAdmin";
 import GestionPlantillasTarjetaRegalo from "./components/GestionPlantillasTarjetaRegalo";
 
 const AdminTarjetasRegalo = () => {
@@ -181,39 +184,25 @@ const AdminTarjetasRegalo = () => {
           Vista general de todas las tarjetas regalo compradas.
         </p>
 
-        <div
-          style={{
-            ...styles.statsGrid,
-            ...(isMobile ? styles.statsGridMobile : {}),
-          }}
-        >
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Total tarjetas</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : totalTarjetas}
-            </p>
-          </div>
-
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Pagadas</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : totalPagadas}
-            </p>
-          </div>
-
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Canjeadas</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : totalCanjeadas}
-            </p>
-          </div>
-
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Ingresos estimados</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : `${ingresosEstimados}€`}
-            </p>
-          </div>
+        <div className="pa-grid" aria-busy={cargando}>
+          {[
+            { etiqueta: "Total tarjetas", icono: "regalo", tono: "terracota", valor: totalTarjetas },
+            { etiqueta: "Pagadas", icono: "confirmado", tono: "verde", valor: totalPagadas },
+            { etiqueta: "Canjeadas", icono: "bono", tono: "azul", valor: totalCanjeadas },
+            { etiqueta: "Ingresos estimados", icono: "euro", tono: "mostaza", valor: formatearEuros(ingresosEstimados) },
+          ].map(({ etiqueta, icono, tono, valor }) => (
+            <div key={etiqueta} className="pa-card">
+              <div className="pa-card-cabecera">
+                <span aria-hidden="true" className={`pa-card-icono pa-card-icono--${tono}`}>
+                  <Icono nombre={icono} tamano={24} />
+                </span>
+                <p className="pa-card-label">{etiqueta}</p>
+              </div>
+              <p className="pa-card-valor">
+                {cargando ? <span className="pa-skeleton" role="status" aria-label="Cargando" /> : valor}
+              </p>
+            </div>
+          ))}
         </div>
 
         <GestionPlantillasTarjetaRegalo />
