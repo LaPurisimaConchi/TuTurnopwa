@@ -222,6 +222,9 @@ export default function ReservarSiguienteSesion() {
               </p>
             ) : (
               <>
+                <p className="text-sm text-tinta bg-crema border border-linea rounded-lg px-3 py-2">
+                  Antes de reservar, habla con el taller para confirmar que todo está listo para la siguiente sesión.
+                </p>
                 {errorContexto && (
                   <p className="text-sm text-red-600" role="alert">
                     No se ha podido comprobar la disponibilidad. Recarga la página e inténtalo de nuevo.

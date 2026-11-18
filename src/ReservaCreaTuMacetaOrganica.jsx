@@ -545,7 +545,7 @@ if (turnosConfig) {
                 <p>
                   La primera sesión se reserva ahora. La segunda se habilitará
                   a partir de 4 semanas después de la primera, y antes deberás
-                  contactar con el taller para confirmar que tu pieza ya está lista.
+                  contactar con el taller para confirmar que todo está listo para la siguiente sesión.
                 </p>
               </div>
 

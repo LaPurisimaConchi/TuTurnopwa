@@ -676,7 +676,7 @@ export function FormularioReserva({ claseId, clase }) {
               <p>
                 La primera sesión se reserva ahora. Las siguientes se habilitan a partir de{" "}
                 {textoDias(diasEntreSesiones[0])} después de la primera, y antes deberás contactar con el
-                taller para confirmar que tu pieza ya está lista.
+                taller para confirmar que todo está listo para la siguiente sesión.
               </p>
             </div>
           )}

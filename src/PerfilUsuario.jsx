@@ -249,6 +249,12 @@ export function SesionPorReservar({ sesion: p, hoy, onReservar }) {
         </p>
       )}
 
+      {yaSePuede && (
+        <p className="mt-2 text-xs text-tinta-suave">
+          Antes de reservar, habla con el taller para confirmar que todo está listo para la siguiente sesión.
+        </p>
+      )}
+
       <button
         type="button"
         disabled={!yaSePuede}
