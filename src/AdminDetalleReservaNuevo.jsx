@@ -8,7 +8,7 @@ import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BotonVolver from "./BotonVolver";
 import CalendarioReserva from "./components/CalendarioReserva";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -1228,7 +1228,7 @@ useEffect(() => {
                 ? textoIncluido
                 : `${reserva.precioTotal} €`
             )}
-            {dato("Fecha de pago", reserva.timestamp)}
+            {dato("Fecha de pago", fechaHoraLegible(reserva.timestamp))}
             {dato(
               "Origen",
               origen.detalle ? `${origen.etiqueta} · ${origen.detalle}` : origen.etiqueta

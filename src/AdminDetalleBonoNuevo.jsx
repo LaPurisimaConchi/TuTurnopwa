@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -525,7 +525,7 @@ useEffect(() => {
                       </div>
                     </div>
                   ) : (
-                    <span style={styles.valorGrande}>{bono.fechaInicio || "—"}</span>
+                    <span style={styles.valorGrande}>{fechaDMA(bono.fechaInicio) || "—"}</span>
                   )}
                 </div>
 
@@ -725,7 +725,7 @@ useEffect(() => {
   }}
 >
                   <span style={styles.filaLabel}>Creado en</span>
-                  <span style={styles.filaValor}>{bono.creadoEn || "—"}</span>
+                  <span style={styles.filaValor}>{fechaHoraLegible(bono.creadoEn) || "—"}</span>
                 </div>
 
                 <div
@@ -735,7 +735,7 @@ useEffect(() => {
   }}
 >
                   <span style={styles.filaLabel}>Actualizado en</span>
-                  <span style={styles.filaValor}>{bono.actualizadoEn || "—"}</span>
+                  <span style={styles.filaValor}>{fechaHoraLegible(bono.actualizadoEn) || "—"}</span>
                 </div>
               </div>
             </div>

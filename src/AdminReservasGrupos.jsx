@@ -877,7 +877,10 @@ const guardarPlazoPago = async (r) => {
 
                       <div style={styles.badges}>
                         <span style={styles.badgeEstado}>{r.estado || "—"}</span>
-                        <span style={styles.badgePago}>{r.estadoPago || "—"}</span>
+                        {/* "Pendiente" de reserva y de pago a la vez: se muestra una sola vez */}
+                        {String(r.estadoPago || "").toLowerCase() !== String(r.estado || "").toLowerCase() && (
+                          <span style={styles.badgePago}>Pago: {r.estadoPago || "—"}</span>
+                        )}
                       </div>
                     </div>
 

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { fechaDMA } from "./utils/formatoFecha";
 
 const AdminHistorialNuevo = () => {
   const [reservas, setReservas] = useState([]);
@@ -285,7 +286,7 @@ useEffect(() => {
               <tbody>
                 {reservasFiltradas.map((r, index) => (
                   <tr key={`${r.id}-${index}`}>
-                    <td style={styles.td}>{r.fecha}</td>
+                    <td style={styles.td}>{fechaDMA(r.fecha)}</td>
                     <td style={styles.td}>{r.turno}</td>
                     <td style={styles.td}>{r.clase}</td>
                     <td style={styles.td}>{r.metodo}</td>

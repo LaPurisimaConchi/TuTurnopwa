@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
@@ -23,6 +23,7 @@ export default function Registro() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
   const [error, setError] = useState("");
   const [emailEnviado, setEmailEnviado] = useState("");
   const [correoFallido, setCorreoFallido] = useState(false);
@@ -61,7 +62,7 @@ export default function Registro() {
     return;
   }
 
-  if (!telefonoLimpio) {
+  if (!telefono.trim()) {
     setError("El teléfono es obligatorio.");
     return;
   }
@@ -74,6 +75,11 @@ export default function Registro() {
 
   if (password !== confirmar) {
     setError("Las contraseñas no coinciden.");
+    return;
+  }
+
+  if (!aceptaPrivacidad) {
+    setError("Para crear la cuenta tienes que aceptar la política de privacidad.");
     return;
   }
 
@@ -105,6 +111,7 @@ export default function Registro() {
         email: emailLimpio,
         invitado: false,
         fechaRegistro: new Date().toISOString(),
+        privacidadAceptadaEn: new Date().toISOString(),
       });
     } else {
       // update y no set: las reglas dan permiso campo a campo (bonos y tarjetas
@@ -115,6 +122,7 @@ export default function Registro() {
         telefono: telefonoLimpio,
         email: emailLimpio,
         fechaRegistro: new Date().toISOString(),
+        privacidadAceptadaEn: new Date().toISOString(),
         reservas: 0,
       });
     }
@@ -280,6 +288,23 @@ export default function Registro() {
             required
           />
         </div>
+
+        <label className="flex items-start gap-2 text-sm text-tinta">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={aceptaPrivacidad}
+            onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+            required
+          />
+          <span>
+            He leído y acepto la{" "}
+            <Link to="/politica-privacidad" target="_blank" className="text-terracota underline">
+              política de privacidad
+            </Link>
+            .
+          </span>
+        </label>
 
         <button
           type="submit"

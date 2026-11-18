@@ -195,7 +195,8 @@ export default function ReprogramarReserva() {
 
               <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 <p>
-                  Solo se puede reprogramar <strong>una vez</strong>. No se descuenta ninguna clase ni se cobra nada más.
+                  Solo se puede reprogramar <strong>una vez</strong>.{" "}
+                  {esBono ? "No se descuenta otra clase del bono ni se cobra nada más." : "El cambio no tiene coste."}
                 </p>
               </div>
 

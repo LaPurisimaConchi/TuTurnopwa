@@ -7,6 +7,7 @@ import Icono from "./components/Icono";
 import "./AdminDashboard.css";
 import { formatearEuros } from "./utils/estadisticasAdmin";
 import GestionPlantillasTarjetaRegalo from "./components/GestionPlantillasTarjetaRegalo";
+import { fechaDMA } from "./utils/formatoFecha";
 
 const AdminTarjetasRegalo = () => {
   const navigate = useNavigate();
@@ -286,7 +287,7 @@ const AdminTarjetasRegalo = () => {
                 <div style={styles.cardTop}>
                   <div>
                     <p style={styles.cardTitulo}>{t.clase}</p>
-                    <p style={styles.cardFecha}>{t.fecha}</p>
+                    <p style={styles.cardFecha}>{fechaDMA(t.fecha)}</p>
                   </div>
 
                   <div style={styles.cardPrecio}>{t.precioTotal}€</div>
@@ -368,7 +369,7 @@ const AdminTarjetasRegalo = () => {
                     onClick={() => irADetalle(t.orderId)}
                     style={styles.trClickable}
                   >
-                    <td style={styles.td}>{t.fecha}</td>
+                    <td style={styles.td}>{fechaDMA(t.fecha)}</td>
                     <td style={styles.td}>{t.codigo || "—"}</td>
                     <td style={styles.td}>{t.clase}</td>
                     <td style={styles.td}>

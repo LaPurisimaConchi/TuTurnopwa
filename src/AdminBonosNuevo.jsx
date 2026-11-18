@@ -271,7 +271,7 @@ telefonoUsuario:
               >
                 <div style={styles.cardTop}>
                   <div>
-                    <p style={styles.cardFecha}>{bono.fechaInicio || "—"}</p>
+                    <p style={styles.cardFecha}>{fechaDMA(bono.fechaInicio) || "—"}</p>
                     <p style={styles.cardTurno}>
                       Caduca: {fechaDMA(bono.fechaCaducidadBono) || "—"}
                     </p>
@@ -351,7 +351,7 @@ telefonoUsuario:
                     style={styles.trClickable}
                     onClick={() => irADetalleBono(bono)}
                   >
-                    <td style={styles.tdInicio}>{bono.fechaInicio || "—"}</td>
+                    <td style={styles.tdInicio}>{fechaDMA(bono.fechaInicio) || "—"}</td>
                     <td style={styles.tdClase}>{bono.clase}</td>
                    <td style={styles.tdUsuario}>
   <strong>

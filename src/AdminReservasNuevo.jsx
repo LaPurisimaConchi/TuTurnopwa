@@ -605,7 +605,7 @@ const limpiarFiltros = () => {
               >
                 <div style={styles.cardTop}>
                   <div>
-                    <p style={styles.cardFecha}>{r.fecha}</p>
+                    <p style={styles.cardFecha}>{fechaDMA(r.fecha)}</p>
                     <p style={styles.cardTurno}>
                       {mostrandoTarjetas ? r.codigo || "—" : r.turno}
                     </p>
