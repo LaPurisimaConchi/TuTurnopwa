@@ -200,7 +200,7 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
   const botonesPdf = (datos.pdfs || [])
     .map(
       (pdf) =>
-        `<p style="text-align:center;margin:12px 0 0;"><a href="${escapar(pdf.url)}" style="display:inline-block;background:#ffffff;color:${COLOR_MARCA};text-decoration:none;padding:11px 22px;border:2px solid ${COLOR_MARCA};border-radius:999px;font-size:15px;font-weight:bold;">Descargar PDF: ${escapar(pdf.nombre)}</a></p>`
+        `<p style="text-align:center;margin:12px 0 0;"><a href="${escapar(pdf.url)}" style="display:inline-block;background:#ffffff;color:${COLOR_MARCA};text-decoration:none;padding:11px 22px;border:2px solid ${COLOR_MARCA};border-radius:999px;font-size:15px;font-weight:bold;">${escapar(pdf.nombre)}</a></p>`
     )
     .join("");
   const destino = enlace || { ruta: "/perfil", texto: "Ver mis reservas" };
