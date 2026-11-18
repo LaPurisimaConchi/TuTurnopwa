@@ -50,11 +50,35 @@ function buscar(nodo, filtro, ruta = "reservas", halladas = []) {
 const pendiente = (r) =>
   r.segundaSesion && typeof r.segundaSesion === "object" && r.segundaSesion.reservada !== true && esReservaValida(r);
 
+// Fecha a partir de la que se puede reservar la siguiente sesión: se calcula con los días
+// que fija la ficha del taller ahora (no con la que se guardó al reservar), así cambiar
+// el ajuste vale también para las reservas ya hechas. Sin ficha, la guardada.
+function fechaDisponibleDe(r, clase) {
+  const guardada = String(r.segundaSesion.fechaDisponible || "");
+  if (!clase || !FECHA.test(String(r.fecha || ""))) return guardada;
+  const total = Math.max(sesionesDeTaller(clase), 2);
+  const hueco = diasEntreSesionesDe(clase, total)[Math.max((Number(r.sesionCurso) || 1) - 1, 0)];
+  return hueco ? sumarDias(r.fecha, hueco) : guardada;
+}
+
+async function clasesDe(db, ids) {
+  const mapa = {};
+  await Promise.all(
+    [...new Set(ids.filter(Boolean))].map(async (id) => {
+      const snap = await db.ref(`clases/${id}`).get();
+      mapa[id] = snap.exists() ? snap.val() : null;
+    })
+  );
+  return mapa;
+}
+
 // --- tipo "sesionesPendientes" --------------------------------------------------
 
 export async function sesionesPendientes(db, uid) {
   const snap = await db.ref("reservas").get();
   const hallazgos = buscar(snap.exists() ? snap.val() : {}, (r) => r.uid === uid && pendiente(r));
+
+  const clases = await clasesDe(db, hallazgos.map(({ reserva: r }) => String(r.claseId || "")));
 
   return {
     ok: true,
@@ -66,7 +90,7 @@ export async function sesionesPendientes(db, uid) {
       claseId: String(r.claseId || ""),
       numeroSesion: (Number(r.sesionCurso) || 1) + 1,
       fechaSesionAnterior: String(r.fecha || ""),
-      fechaDisponible: String(r.segundaSesion.fechaDisponible || ""),
+      fechaDisponible: fechaDisponibleDe(r, clases[String(r.claseId || "")]),
       plazas: Number(r.plazas || 1),
     })),
   };
@@ -109,7 +133,8 @@ export async function reservarSiguienteSesion(db, uid, { orderId, fecha, turno }
     return fallo(409, "Esta reserva no está confirmada y pagada.", { codigo: "no_valida" });
   }
 
-  const disponible = String(origen.segundaSesion.fechaDisponible || "");
+  const claseOrigen = (await clasesDe(db, [String(origen.claseId || "")]))[String(origen.claseId || "")];
+  const disponible = fechaDisponibleDe(origen, claseOrigen);
   // Solo se puede reservar cuando ya ha llegado la fecha de habilitación (como en la
   // pantalla) y en una fecha igual o posterior a ella
   const hoy = hoyMadrid();

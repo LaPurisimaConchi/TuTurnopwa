@@ -997,7 +997,8 @@ export default function AdminTallerForm() {
                   </div>
                   <p className="text-xs text-tinta-suave mt-1">
                     Cada sesión tiene que caer al menos esos días después de la anterior. Por defecto 28
-                    (4 semanas), para dar tiempo a que la pieza esté lista.
+                    (4 semanas). Antes de reservar la siguiente sesión, la persona tendrá que hablar con el taller
+                    para confirmar que todo está listo.
                   </p>
                 </div>
               )}

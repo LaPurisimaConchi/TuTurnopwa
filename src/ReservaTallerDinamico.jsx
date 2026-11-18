@@ -141,12 +141,10 @@ export function FormularioReserva({ claseId, clase }) {
   const conVariante = variantes.length > 0;
   const rutaReservas = clase.reservasPath || claseId;
   const sesiones = Number(clase.sesiones || 1);
-  // Talleres de varias sesiones: se reservan todas ahora (cada una en su día y turno) o solo
-  // la primera, dejando el resto para más adelante
+  // Talleres de varias sesiones: solo se reserva la primera; el resto se reserva más adelante
   const sesionesTotales = sesionesDeTaller(clase);
   const diasEntreSesiones = diasEntreSesionesDe(clase); // uno por hueco entre sesiones
-  const todosIguales = diasEntreSesiones.every((d) => d === diasEntreSesiones[0]);
-  const [modoSesiones, setModoSesiones] = useState("todas"); // todas | mas_adelante
+  const modoSesiones = "mas_adelante"; // las sesiones siguientes se reservan después
   const [extras, setExtras] = useState([]); // sesiones 2, 3…: [{ fecha, turno }]
   const [extrasListos, setExtrasListos] = useState({});
   const nombreClase = clase.nombre || "Taller";
@@ -675,43 +673,11 @@ export function FormularioReserva({ claseId, clase }) {
               <p>
                 <strong>Incluye {sesiones} sesiones.</strong>
               </p>
-              {sesionesTotales > 1 ? (
-                <div className="mt-2 space-y-2" role="radiogroup" aria-label="Cómo reservar las sesiones">
-                  <label className="flex items-start gap-2">
-                    <input
-                      type="radio"
-                      name="modoSesiones"
-                      className="mt-1"
-                      checked={modoSesiones === "todas"}
-                      onChange={() => setModoSesiones("todas")}
-                    />
-                    <span>
-                      <strong>Reservar todas las sesiones ahora.</strong> Eliges el día y el turno de cada
-                      una ({todosIguales ? `con al menos ${diasEntreSesiones[0]} días entre ellas` : "respetando el tiempo mínimo que se indica en cada una"}) y se paga todo junto.
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-2">
-                    <input
-                      type="radio"
-                      name="modoSesiones"
-                      className="mt-1"
-                      checked={modoSesiones === "mas_adelante"}
-                      onChange={() => setModoSesiones("mas_adelante")}
-                    />
-                    <span>
-                      <strong>Reservar solo la primera y el resto más adelante.</strong> Las siguientes
-                      se habilitan a partir de {textoDias(diasEntreSesiones[0])} después; antes tendrás que
-                      contactar con el taller para confirmar que tu pieza está lista.
-                    </span>
-                  </label>
-                </div>
-              ) : (
-                <p>
-                  La primera sesión se reserva ahora. La segunda se habilitará a
-                  partir de 4 semanas después de la primera, y antes deberás
-                  contactar con el taller para confirmar que tu pieza ya está lista.
-                </p>
-              )}
+              <p>
+                La primera sesión se reserva ahora. Las siguientes se habilitan a partir de{" "}
+                {textoDias(diasEntreSesiones[0])} después de la primera, y antes deberás contactar con el
+                taller para confirmar que todo está listo para la siguiente sesión.
+              </p>
             </div>
           )}
 

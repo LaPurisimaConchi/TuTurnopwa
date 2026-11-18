@@ -12,6 +12,7 @@ import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { diasEntreSesionesDe, sumarDias } from "./utils/sesionesTaller";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const CLASE_ID = "setsake";
 const RESERVAS_PATH_KEY = "CreaTuSetSake";
@@ -20,11 +21,6 @@ const RESERVAS_PATH_KEY = "CreaTuSetSake";
 const MAX_TORNO_FALLBACK = 12;
 const MAX_TOTALES_FALLBACK = 45;
 
-const sumar28Dias = (fechaISO) => {
-  const d = new Date(fechaISO + "T12:00:00");
-  d.setDate(d.getDate() + 28);
-  return d.toISOString().slice(0, 10);
-};
 
 const normalizarTurnos = (turnosRaw) => {
   if (!turnosRaw) return [];
@@ -419,7 +415,7 @@ export default function ReservaCreaTuSetSake() {
     try {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
-      const fechaDisponibleSegundaSesion = sumar28Dias(fecha);
+      const fechaDisponibleSegundaSesion = sumarDias(fecha, diasEntreSesionesDe(claseConfig || {}, 2)[0]);
 
       const reserva = {
         clase: claseConfig?.nombre || "Crea tu set de sake",
@@ -552,7 +548,7 @@ export default function ReservaCreaTuSetSake() {
                 <p>
                   La primera sesión se reserva ahora. La segunda se habilitará
                   a partir de 4 semanas después de la primera, y antes deberás
-                  contactar con el taller para confirmar que tu pieza ya está lista.
+                  contactar con el taller para confirmar que todo está listo para la siguiente sesión.
                 </p>
               </div>
 
@@ -734,7 +730,7 @@ export default function ReservaCreaTuSetSake() {
                   </p>
                   <p>
                     <strong>Segunda sesión disponible a partir de:</strong>{" "}
-                    {sumar28Dias(fecha)}
+                    {sumarDias(fecha, diasEntreSesionesDe(claseConfig || {}, 2)[0])}
                   </p>
                 </div>
               )}
