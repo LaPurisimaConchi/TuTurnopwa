@@ -25,7 +25,7 @@ import {
   precioGrupoPorPersona,
   precioPorPersona,
 } from "../src/utils/precioPedido.js";
-import { datosPrimeraSesionBono } from "../src/utils/estadoBono.js";
+import { datosPrimeraSesionBono, diasCaducidadBono, fechaCaducidadBono } from "../src/utils/estadoBono.js";
 import { edicionPorId, esMonografico } from "../src/utils/monografico.js";
 import { sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
@@ -51,12 +51,6 @@ const texto = (valor, max = 200) =>
     .slice(0, max);
 
 const redondear = (euros) => Math.round(Number(euros) * 100) / 100;
-
-const sumarUnMes = (fechaISO) => {
-  const d = new Date(`${fechaISO}T12:00:00`);
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().slice(0, 10);
-};
 
 const pendiente = (r) => String(r?.estado || "").toLowerCase() === "pendiente";
 
@@ -212,7 +206,8 @@ async function pedidoDeBono(db, uid, orderId, cuerpo) {
   );
   const nombre = nombreDeTaller(ficha, claseId) || "Bono mensual";
   const ahora = new Date().toISOString();
-  const fechaFinMes = sumarUnMes(fechaInicio);
+  // Caduca los días que diga la ficha del bono (31 por defecto) después de la primera clase
+  const fechaFinMes = fechaCaducidadBono(fechaInicio, diasCaducidadBono(ficha));
 
   const datosBono = {
     claseId,

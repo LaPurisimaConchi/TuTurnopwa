@@ -39,6 +39,22 @@ export const obtenerEstadoVisibleBono = (bono) => {
 };
 
 const FECHA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+// Días que dura un bono desde su primera clase si la ficha no dice otra cosa
+export const DIAS_CADUCIDAD_BONO = 31;
+
+// Días de validez de la ficha del taller (bono), entre 1 y 365
+export function diasCaducidadBono(ficha) {
+  const n = Math.round(Number(ficha?.diasCaducidad));
+  return Number.isFinite(n) && n >= 1 ? Math.min(n, 365) : DIAS_CADUCIDAD_BONO;
+}
+
+// Último día en que se puede usar el bono: la fecha de inicio más esos días
+export function fechaCaducidadBono(fechaInicio, dias = DIAS_CADUCIDAD_BONO) {
+  if (!FECHA_ISO.test(String(fechaInicio || ""))) return "";
+  const [anio, mes, dia] = fechaInicio.split("-").map(Number);
+  return new Date(Date.UTC(anio, mes - 1, dia + Number(dias))).toISOString().slice(0, 10);
+}
 const turnoLimpio = (turno) => String(turno || "").replaceAll(" a ", "-").replace(/\s+/g, "");
 
 // Fechas en las que se pueden reservar clases de un bono: desde su inicio hasta su

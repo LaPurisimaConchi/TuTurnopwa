@@ -18,6 +18,8 @@ import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import {
   datosPrimeraSesionBono,
+  diasCaducidadBono,
+  fechaCaducidadBono,
   motivoFechaFueraDeBono,
   obtenerEstadoVisibleBono,
   sesionBonoRepetida,
@@ -291,8 +293,13 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
               sesionesConsumidas: {},
             };
 
+        // La validez la calcula el servidor con la ficha del bono, no la pantalla
+        const fechaInicio = String(primeraReserva.fecha || deCliente.fechaInicio || "");
+        const caduca = fechaCaducidadBono(fechaInicio, diasCaducidadBono(clase));
+
         bonoCreado = {
           ...deCliente,
+          ...(caduca ? { fechaInicio, fechaFinMes: caduca, fechaCaducidadBono: caduca } : {}),
           bonoId: orderId,
           uid,
           clase: deCliente.clase || primeraReserva.clase || clase?.nombre || tarjeta.clase || "Bono",
