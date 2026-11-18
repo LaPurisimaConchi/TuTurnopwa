@@ -60,6 +60,8 @@ await pedir("PUT", "", "owner", {
   reservasGrupos: { "-G2": { uid: "uidB", estado: "Pendiente" } },
   tarjetasRegalo: { "794082140983": { codigo: "REGALO-X", usado: false } },
   codigosTarjetaRegalo: { "REGALO-X": "794082140983" },
+  plantillasTarjetaRegalo: { p1: { nombre: "Clásica", archivo: "clasica.pdf" } },
+  plantillasTarjetaRegaloPdf: { p1: "JVBERi0=" },
   bloqueosFechas: { "2026-12-24": { bloqueado: true, motivo: "Cerrado" } },
   clases: { Taller: { nombre: "Taller" } },
   usuariosNotas: { uidA: "nota" },
@@ -68,6 +70,11 @@ await pedir("PUT", "", "owner", {
 
 console.log("— Sin sesión");
 await caso("leer clases", true, pedir("GET", "clases", null));
+await caso("leer plantillas de tarjeta regalo", true, pedir("GET", "plantillasTarjetaRegalo", null));
+await caso("leer un PDF de tarjeta regalo", true, pedir("GET", "plantillasTarjetaRegaloPdf/p1", null));
+await caso("listar todos los PDF a la vez", false, pedir("GET", "plantillasTarjetaRegaloPdf", null));
+await caso("escribir plantilla de tarjeta regalo", false, pedir("PUT", "plantillasTarjetaRegalo/p2", null, { nombre: "X" }));
+await caso("escribir un PDF de tarjeta regalo", false, pedir("PUT", "plantillasTarjetaRegaloPdf/p2", null, "JVBERi0="));
 await caso("leer bloqueosFechas", true, pedir("GET", "bloqueosFechas", null));
 await caso("leer usuarios", false, pedir("GET", "usuarios", null));
 await caso("leer reservas", false, pedir("GET", "reservas", null));
@@ -161,6 +168,11 @@ await caso("editar bonos de un usuario", true, pedir("PUT", "usuarios/uidA/bonos
 await caso("bloquear un día", true, pedir("PUT", "bloqueosFechas/2026-12-25", ADMIN, { bloqueado: true }));
 await caso("notas de reservas", true, pedir("PUT", "reservasNotas/x", ADMIN, "n"));
 await caso("leer tarjetas regalo", true, pedir("GET", "tarjetasRegalo", ADMIN));
+await caso("subir plantilla de tarjeta regalo", true, pedir("PUT", "plantillasTarjetaRegalo/p2", ADMIN, { nombre: "Nueva", archivo: "n.pdf" }));
+await caso("subir un PDF de tarjeta regalo", true, pedir("PUT", "plantillasTarjetaRegaloPdf/p2", ADMIN, "JVBERi0="));
+await caso("PDF de tarjeta regalo no es texto", false, pedir("PUT", "plantillasTarjetaRegaloPdf/p3", ADMIN, { a: 1 }));
+await caso("PDF de tarjeta regalo demasiado grande", false, pedir("PUT", "plantillasTarjetaRegaloPdf/p3", ADMIN, "A".repeat(2800001)));
+await caso("borrar un PDF de tarjeta regalo", true, pedir("DELETE", "plantillasTarjetaRegaloPdf/p2", ADMIN));
 await caso("pago manual de grupo", true, pedir("PUT", "reservasGrupos/-G2/pagosIndividuales/p1", ADMIN, { estadoPago: "pagado_manual" }));
 await caso("editar un taller", true, pedir("PUT", "clases/Taller/nombre", ADMIN, "Taller 2"));
 await caso("leer pedidosPendientes", true, pedir("GET", "pedidosPendientes", ADMIN));

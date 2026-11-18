@@ -13,6 +13,7 @@ import {
 import { useConfigEspacio } from "./configuracionEspacio";
 import { ahoraMadridMs, horasAntelacionDe, inicioClaseMs } from "./utils/cambioFecha";
 import PantallaConVolver from "./PantallaConVolver";
+import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
 
 import { fechaDMA } from "./utils/formatoFecha";
 function obtenerFechaReserva(reserva) {
@@ -434,6 +435,7 @@ function SesionBono({ bono, sesion, config, onCambio }) {
 }
 
 export default function PerfilUsuario() {
+  const plantillasTarjeta = usePlantillasTarjetaRegalo();
   const navigate = useNavigate();
   const { config: configEspacio } = useConfigEspacio();
   // Sube al cancelar una sesión de bono para volver a cargar los datos
@@ -855,15 +857,9 @@ export default function PerfilUsuario() {
                             <span className="font-mono tracking-wider">{tarjeta.codigo || "—"}</span>
                           </p>
                           <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                            <a href="/tarjetas-regalo/postal regalo.pdf" download className={botonSecundario}>
-                              Tarjeta clásica
-                            </a>
-                            <a href="/tarjetas-regalo/regalo papa noel.pdf" download className={botonSecundario}>
-                              Navidad 1
-                            </a>
-                            <a href="/tarjetas-regalo/regalo reyes.pdf" download className={botonSecundario}>
-                              Navidad 2
-                            </a>
+                            {plantillasTarjeta.map((plantilla) => (
+                              <BotonPlantilla key={plantilla.id} plantilla={plantilla} className={botonSecundario} />
+                            ))}
                           </div>
                         </li>
                       );
