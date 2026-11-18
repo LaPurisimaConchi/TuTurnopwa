@@ -5,7 +5,7 @@ import { plantillasOPorDefecto, PLANTILLAS_POR_DEFECTO } from "../utils/plantill
 
 // Descarga un PDF gestionado: lo lee de la base de datos y lo baja como archivo.
 // Los PDF por defecto (estáticos) se bajan directamente con un enlace.
-async function descargarGestionado(plantilla) {
+export async function descargarPlantillaGestionada(plantilla) {
   const snap = await get(ref(dbRealtime, `plantillasTarjetaRegaloPdf/${plantilla.id}`));
   if (!snap.exists()) throw new Error("PDF no disponible");
   const bytes = Uint8Array.from(atob(snap.val()), (c) => c.charCodeAt(0));
@@ -49,7 +49,7 @@ export function BotonPlantilla({ plantilla, className, style, children }) {
       type="button"
       className={className}
       style={style}
-      onClick={() => descargarGestionado(plantilla).catch(() => setError(true))}
+      onClick={() => descargarPlantillaGestionada(plantilla).catch(() => setError(true))}
     >
       {error ? "No disponible, inténtalo de nuevo" : children || plantilla.nombre}
     </button>

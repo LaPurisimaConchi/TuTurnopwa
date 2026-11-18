@@ -182,4 +182,4 @@ con las nuevas, el código viejo no puede cobrar.
 
 ## PDF de tarjeta regalo gestionables
 - [ ] Las reglas nuevas (`plantillasTarjetaRegalo`, `plantillasTarjetaRegaloPdf`) se despliegan con el resto; `npm run probar-reglas` las cubre.
-- [ ] Tras desplegar: subir/sustituir/borrar un PDF en `/admin-tarjetas-regalo`, comprar una tarjeta de prueba y comprobar que el correo trae el PDF adjunto. Sin PDF subido se adjunta el clásico (necesita `CORREO_URL_BASE`).
+- [ ] Tras desplegar: subir/sustituir/borrar un PDF en `/admin-tarjetas-regalo`, comprar una tarjeta de prueba y comprobar que el correo trae el botón de descarga que abre `/tarjeta-regalo-pdf/{id}`.

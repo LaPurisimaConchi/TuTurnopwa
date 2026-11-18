@@ -62,6 +62,7 @@ import TornoAlfareroPerfeccionaLoQueYaSabes from "./TornoAlfareroPerfeccionaLoQu
 import EspecialPintaTuPieza from "./EspecialPintaTuPieza";
 import PintaTuPieza from "./PintaTuPieza";
 import ComprarTarjetaRegalo from "./ComprarTarjetaRegalo";
+import DescargarTarjetaRegalo from "./DescargarTarjetaRegalo";
 import ClaseSueltaContinuidad from "./ClaseSueltaContinuidad";
 
 
@@ -182,6 +183,7 @@ function App() {
           />
           <Route path="/especial-pinta-tu-pieza" element={<RutaTaller claseId="especialpintatupieza"><EspecialPintaTuPieza /></RutaTaller>} />
           <Route path="/pinta-tu-pieza" element={<RutaTaller claseId="pintatupieza"><PintaTuPieza /></RutaTaller>} />
+          <Route path="/tarjeta-regalo-pdf/:id" element={<DescargarTarjetaRegalo />} />
           <Route path="/comprar-tarjeta-regalo" element={<ComprarTarjetaRegalo />} />
           <Route path="/reserva-con-tarjeta-regalo" element={<Navigate to="/gestionar-reserva?tab=tarjeta" replace />} />
           <Route
