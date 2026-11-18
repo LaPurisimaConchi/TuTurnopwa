@@ -197,12 +197,15 @@ export function construirCorreo({ tipo = "reserva", datos, nombre }) {
   const logo = base
     ? `<img src="${escapar(base)}/img/logoPCsin.png" alt="La Purísima Conchi" height="64" style="display:block;margin:0 auto 16px;height:64px;width:auto;">`
     : `<div style="text-align:center;font-size:18px;font-weight:bold;color:${COLOR_MARCA};margin-bottom:16px;">La Purísima Conchi</div>`;
-  const botonesPdf = (datos.pdfs || [])
-    .map(
-      (pdf) =>
-        `<p style="text-align:center;margin:12px 0 0;"><a href="${escapar(pdf.url)}" style="display:inline-block;background:#ffffff;color:${COLOR_MARCA};text-decoration:none;padding:11px 22px;border:2px solid ${COLOR_MARCA};border-radius:999px;font-size:15px;font-weight:bold;">${escapar(pdf.nombre)}</a></p>`
-    )
-    .join("");
+  // Botones de PDF en horizontal (inline-block con margen: se apilan solos en pantallas estrechas)
+  const botonesPdf = (datos.pdfs || []).length
+    ? `<p style="text-align:center;margin:16px 0 0;">${datos.pdfs
+        .map(
+          (pdf) =>
+            `<a href="${escapar(pdf.url)}" style="display:inline-block;background:#ffffff;color:${COLOR_MARCA};text-decoration:none;padding:11px 22px;margin:4px;border:2px solid ${COLOR_MARCA};border-radius:999px;font-size:15px;font-weight:bold;">${escapar(pdf.nombre)}</a>`
+        )
+        .join("")}</p>`
+    : "";
   const destino = enlace || { ruta: "/perfil", texto: "Ver mis reservas" };
   const botonPerfil = base
     ? `<p style="text-align:center;margin:24px 0 0;"><a href="${escapar(base)}${destino.ruta}" style="display:inline-block;background:${COLOR_MARCA};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:999px;font-size:15px;font-weight:bold;">${escapar(destino.texto)}</a></p>`
