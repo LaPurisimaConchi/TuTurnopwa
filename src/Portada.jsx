@@ -108,14 +108,26 @@ export default function Portada() {
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
-              className="sm:col-span-2 flex items-center justify-center gap-2 rounded-2xl border border-terracota bg-white hover:bg-terracota-suave px-4 py-3 font-semibold text-terracota-oscuro transition"
-            >
-              <Icono nombre="regalo" />
-              Canjear código de tarjeta regalo
-            </button>
+            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/gestionar-reserva?tab=tarjeta")}
+                className="flex items-center justify-center gap-2 rounded-2xl border border-terracota bg-white hover:bg-terracota-suave px-4 py-3 font-semibold text-terracota-oscuro transition"
+              >
+                <Icono nombre="regalo" />
+                Canjear código de tarjeta regalo
+              </button>
+
+              <a
+                href="https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 rounded-2xl border border-terracota bg-white hover:bg-terracota-suave px-4 py-3 font-semibold text-terracota-oscuro transition"
+              >
+                <Icono nombre="taller" />
+                Ver si mi pieza está lista
+              </a>
+            </div>
           </div>
         </div>
       </section>
