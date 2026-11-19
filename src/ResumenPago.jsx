@@ -180,7 +180,8 @@ export default function ResumenPago() {
       try {
         setCargando(true);
         await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId: orderIdFromState });
-        navigate("/pago/exito");
+        // Sin pago: la confirmación lo dice y enseña el código de esta reserva
+        navigate("/pago/exito", { state: { desdeTarjeta: true, orderId: orderIdFromState } });
       } catch (error) {
         console.error("Error al confirmar la reserva con tarjeta regalo:", error);
         alert(mensajeErrorCanje(error));
@@ -201,14 +202,15 @@ export default function ResumenPago() {
       const orderId = orderIdFromState || orderIdNuevo;
 
       // El servidor crea el pedido con su importe (el único que se firma para el TPV)
+      const tipoPedido = desdeCompraTarjeta
+        ? "tarjeta_regalo"
+        : tipo === "bono"
+        ? "bono"
+        : tipo === "grupo"
+        ? "grupo"
+        : "reserva";
       const preparado = await prepararPago({
-        pedido: desdeCompraTarjeta
-          ? "tarjeta_regalo"
-          : tipo === "bono"
-          ? "bono"
-          : tipo === "grupo"
-          ? "grupo"
-          : "reserva",
+        pedido: tipoPedido,
         orderId,
         claseId: claseId || "",
         opcionId: opcionId || "",
@@ -235,7 +237,7 @@ export default function ResumenPago() {
         return;
       }
 
-      irAlTPV(orderId);
+      irAlTPV(orderId, tipoPedido);
     } catch (error) {
       console.error("Error al preparar el pago:", error);
       alert(error?.message || "No se pudo preparar el pago.");
@@ -333,28 +335,24 @@ export default function ResumenPago() {
               checked={aceptaPoliticas}
               onChange={(e) => setAceptaPoliticas(e.target.checked)}
             />
+            {/* Se abren en otra pestaña: salir de aquí cerraría la compra del invitado */}
             <span>
               He leído y acepto las{" "}
-              <span
-                className="text-red-500 underline cursor-pointer"
-                onClick={() => navigate("/condiciones-pago")}
-              >
+              <a href="/condicionesuso" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
                 Condiciones de Uso
-              </span>
+              </a>
               ,{" "}
-              <span
-                className="text-red-500 underline cursor-pointer"
-                onClick={() => navigate("/politicacancelacion")}
-              >
+              <a href="/condiciones-pago" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
+                Condiciones de Pago
+              </a>
+              ,{" "}
+              <a href="/politicacancelacion" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
                 Política de Cancelación
-              </span>{" "}
+              </a>{" "}
               y{" "}
-              <span
-                className="text-red-500 underline cursor-pointer"
-                onClick={() => navigate("/politica-piezas")}
-              >
+              <a href="/politica-piezas" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
                 Política sobre roturas de piezas
-              </span>
+              </a>
               .
             </span>
           </label>

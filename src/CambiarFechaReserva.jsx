@@ -335,7 +335,7 @@ export default function CambiarFechaReserva() {
                       className={`${campo} font-mono tracking-widest uppercase`}
                     />
                     <span className="block mt-1 text-xs font-normal text-tinta-suave">
-                      Lo ves al terminar de reservar, en la pantalla de confirmación.
+                      Lo ves al terminar de reservar, en la pantalla de confirmación y en el correo.
                     </span>
                   </label>
 
@@ -362,12 +362,13 @@ export default function CambiarFechaReserva() {
                 <ul className="mt-4 space-y-1 text-xs text-tinta-suave">
                   <li>• Puedes cambiar la fecha una vez.</li>
                   <li>
-                    • Se puede hasta {configEspacio.horasCambioReserva} horas antes de la clase (en bonos, {configEspacio.horasCambioBono} horas) (
+                    • Se puede hasta {configEspacio.horasCambioReserva} horas antes de la clase (
                     <Link to="/politicacancelacion" className="underline text-terracota">
                       política de cancelación
                     </Link>
                     ).
                   </li>
+                  <li>• Las clases de un bono se cambian desde tu perfil, en «Bonos».</li>
                 </ul>
               </Tarjeta>
             )}

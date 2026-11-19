@@ -29,7 +29,7 @@ export default function CondicionesPago() {
 
         <p className="mb-4">
           En <strong>La Purísima Conchi</strong> los pagos se procesan a través de la plataforma segura
-          <strong> Redsys</strong>, proveedor homologado que utiliza cifrado de extremo a extremo
+          <strong> Redsys</strong>, proveedor homologado que utiliza conexiones cifradas
           para garantizar la protección de tus datos personales y financieros.
         </p>
 
@@ -45,7 +45,9 @@ export default function CondicionesPago() {
           Si ocurre algún problema durante el proceso de pago (cobros duplicados, error en la
           operación, etc.), puedes contactar con nosotros escribiendo a:
           <br />
-          <strong>pagos@tuturnoapp.es</strong>
+          <a href="mailto:lapurisimaconchioficial@gmail.com" className="underline">
+            <strong>lapurisimaconchioficial@gmail.com</strong>
+          </a>
         </p>
 
         <h3 className="text-xl font-semibold mt-6 mb-2"><Icono nombre="error" className="mr-1.5" />Reembolsos</h3>
@@ -58,7 +60,7 @@ export default function CondicionesPago() {
         <h3 className="text-xl font-semibold mt-6 mb-2"><Icono nombre="calendario" className="mr-1.5" />Última actualización</h3>
         <p className="mb-4">
           Este texto ha sido actualizado por última vez el{" "}
-          <strong>27 de mayo de 2025</strong>.
+          <strong>19 de noviembre de 2026</strong>.
         </p>
       </div>
     </div>
