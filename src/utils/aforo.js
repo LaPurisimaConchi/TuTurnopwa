@@ -8,7 +8,7 @@
 // las reservas pendientes de pago que aún guardan su plaza (`reservadaHasta` en el
 // futuro). Las pendientes sin ese campo (pantallas antiguas) no cuentan, como antes.
 import { esReservaValida, normalizarMetodo } from "./plazasOcupadas.js";
-import { turnosSeSolapan } from "./rangosHora.js";
+import { bloqueoAfectaTurno, turnosSeSolapan } from "./rangosHora.js";
 
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -174,4 +174,31 @@ export function plazasLibresFranja({ total = 0, torno = 0 }, config, { conTorno 
     torno: libresTorno,
     reservables: conTorno ? Math.min(libresTotal, libresTorno) : libresTotal,
   };
+}
+
+// Plazas ya ocupadas (reservas vigentes y grupos confirmados) en unos días y, si el
+// bloqueo es por horas, solo en los turnos que tocan esos rangos. Para avisar antes
+// de bloquear: el bloqueo no cancela ni avisa a quien ya ha reservado.
+// Devuelve { plazas, porFecha: { "2026-11-25": plazas } }.
+export function plazasEnBloqueo(reservas, reservasGrupos, fechas = [], rangos = [], ahoraMs = Date.now()) {
+  const lista = [...fechas].sort();
+  if (!lista.length) return { plazas: 0, porFecha: {} };
+
+  const dias = new Set(lista);
+  const bloqueo = { bloqueado: true, turnosBloqueados: rangos };
+  const porFecha = {};
+  let plazas = 0;
+
+  recorrerOcupacion(
+    reservas,
+    reservasGrupos,
+    (e) => {
+      if (!dias.has(e.fecha) || !bloqueoAfectaTurno(bloqueo, e.turno)) return;
+      plazas += e.plazas;
+      porFecha[e.fecha] = (porFecha[e.fecha] || 0) + e.plazas;
+    },
+    { desde: lista[0], ahoraMs }
+  );
+
+  return { plazas, porFecha };
 }

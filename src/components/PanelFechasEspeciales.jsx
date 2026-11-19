@@ -8,10 +8,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ref, update, remove, get } from "firebase/database";
 import { dbRealtime } from "../firebase";
 import EditorTurnos from "./EditorTurnos";
-import { ocupacionPorFranja } from "../utils/aforo";
+import { plazasEnBloqueo } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
 import { leerTurnos } from "../utils/fichaTaller";
-import { bloqueoAfectaTurno, rangosBloqueados } from "../utils/rangosHora";
+import { rangosBloqueados } from "../utils/rangosHora";
 
 // Todas las fechas AAAA-MM-DD entre inicio y fin, ambas incluidas
 export function fechasDelRango(inicio, fin) {
@@ -90,17 +90,7 @@ export default function PanelFechasEspeciales({
       get(ref(dbRealtime, "reservas")),
       get(ref(dbRealtime, "reservasGrupos")),
     ]);
-    const porFranja = ocupacionPorFranja(reservas, grupos, fechas[0]);
-    const bloqueo = { bloqueado: true, turnosBloqueados: rangos };
-    let plazas = 0;
-
-    fechas.forEach((f) => {
-      Object.entries(porFranja[f] || {}).forEach(([turno, { total }]) => {
-        if (bloqueoAfectaTurno(bloqueo, turno)) plazas += total;
-      });
-    });
-
-    return plazas;
+    return plazasEnBloqueo(reservas, grupos, fechas, rangos).plazas;
   };
 
   const bloquear = async () => {
