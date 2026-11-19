@@ -9,8 +9,10 @@ import { pedirCodigoReserva } from "../utils/codigoReserva";
 const REINTENTOS = 5;
 const ESPERA_MS = 3000;
 
-// soloCodigo: sin la explicación de cambiar la fecha (tarjetas regalo, que no tienen fecha)
-export default function CodigoReserva({ tipo, grupoId, orderId, className = "", soloCodigo = false }) {
+// soloCodigo: sin la explicación de cambiar la fecha (tarjetas regalo, que no tienen fecha);
+// se presenta como la referencia de la compra, para no confundirlo con el código del regalo.
+// esBono: las clases de un bono se cambian desde el perfil, no con el código.
+export default function CodigoReserva({ tipo, grupoId, orderId, className = "", soloCodigo = false, esBono = false }) {
   const [codigo, setCodigo] = useState("");
   const [copiado, setCopiado] = useState(false);
 
@@ -54,7 +56,9 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "", 
 
   return (
     <div className={`bg-mostaza-suave border border-mostaza rounded-xl p-4 text-sm text-tinta ${className}`}>
-      <p className="font-semibold text-base text-tinta mb-1">Tu código de reserva</p>
+      <p className="font-semibold text-base text-tinta mb-1">
+        {soloCodigo ? "Referencia de tu compra" : "Tu código de reserva"}
+      </p>
       <div className="flex items-center gap-3 flex-wrap">
         <span className="font-mono text-2xl tracking-widest font-bold text-tinta select-all">{codigo}</span>
         <button
@@ -66,7 +70,19 @@ export default function CodigoReserva({ tipo, grupoId, orderId, className = "", 
         </button>
       </div>
       {soloCodigo ? (
-        <p className="mt-2">Es el mismo código que te hemos enviado por correo; guárdalo por si necesitas contactar con nosotros.</p>
+        <p className="mt-2">
+          No es el código del regalo. Es la referencia que te hemos enviado por correo: guárdala por si necesitas
+          contactar con nosotros sobre esta compra.
+        </p>
+      ) : esBono ? (
+        <p className="mt-2">
+          Guárdalo por si necesitas contactar con nosotros. Las clases del bono se reservan, se cambian y se
+          cancelan desde{" "}
+          <Link to="/perfil" className="underline text-terracota">
+            tu perfil, en «Bonos»
+          </Link>
+          .
+        </p>
       ) : (
       <p className="mt-2">
         Guárdalo: con este código y tu email podrás{" "}

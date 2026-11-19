@@ -18,6 +18,7 @@ import {
   variantesDelTaller,
 } from "./catalogoTalleres";
 import { edicionesReservables, esMonografico } from "./utils/monografico";
+import { diasCaducidadBono } from "./utils/estadoBono";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 
 const NOTA_TARIFAS =
@@ -305,6 +306,16 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 </ul>
                 <p className="text-xs text-tinta-suave mt-2">
                   Los días con plaza se ven en el calendario al reservar.
+                </p>
+              </div>
+            )}
+
+            {esBono && (
+              <div className="mb-4">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">Validez</h2>
+                {/* La misma regla con la que caduca el bono (src/utils/estadoBono.js) */}
+                <p className="text-sm text-tinta">
+                  {diasCaducidadBono(clase)} días desde tu primera clase, que eliges al comprarlo.
                 </p>
               </div>
             )}

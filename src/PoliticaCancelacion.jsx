@@ -46,14 +46,19 @@ export default function PoliticaCancelacion() {
           </p>
           <ul className="list-disc list-inside ml-4 mt-2">
             <li>
-              <strong>Reprogramar tu clase</strong> a otra fecha disponible,
-              avisando con al menos <strong>{config.horasCambioReserva} horas de antelación</strong>
-              ({config.horasCambioBono} horas en las clases de un bono). Puedes
-              hacerlo tú mismo, sin iniciar sesión, desde{" "}
+              <strong>Reprogramar tu clase</strong> a otra fecha disponible, una sola vez,
+              avisando con al menos <strong>{config.horasCambioReserva} horas de antelación</strong>.
+              Puedes hacerlo tú mismo, sin iniciar sesión, desde{" "}
               <a href="/gestionar-reserva" className="underline">
                 Cambiar la fecha de mi reserva
               </a>{" "}
-              con tu código de reserva y tu email.
+              con tu código de reserva y tu email, o desde tu perfil si tienes cuenta.
+            </li>
+            <li>
+              Las <strong>clases de un bono</strong> se reprograman (una vez por clase) o se cancelan
+              desde tu perfil, en «Bonos», con al menos{" "}
+              <strong>{config.horasCambioBono} horas de antelación</strong> y dentro de la validez del
+              bono. Si cancelas, la clase vuelve a tu bono.
             </li>
             <li>
               <strong>Ceder tu plaza a otra persona</strong> sin coste adicional.

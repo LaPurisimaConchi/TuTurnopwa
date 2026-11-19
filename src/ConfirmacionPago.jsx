@@ -11,6 +11,7 @@ import {
   conservarSesionInvitado,
 } from "./utils/invitado";
 import CodigoReserva from "./components/CodigoReserva";
+import { leerTipoPagoEnCurso } from "./utils/pagoServidor";
 import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
 
 const ConfirmacionPago = () => {
@@ -24,9 +25,14 @@ const ConfirmacionPago = () => {
   const [errorCarga, setErrorCarga] = useState("");
   const [esInvitado, setEsInvitado] = useState(false);
   const [orderIdReserva, setOrderIdReserva] = useState("");
+  // Compra de un bono (su primera clase llega a listaReservas marcada desdeBono)
+  const [esBono, setEsBono] = useState(false);
+  // Reserva hecha canjeando una tarjeta regalo: no hay pago
+  const esCanje = !!(location.state?.desdeTarjeta || location.state?.usandoTarjetaRegalo);
 
   // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
   useEffect(() => {
+    leerTipoPagoEnCurso(); // el pago ha ido bien: se olvida lo que estaba en curso
     cancelarCierreSesionInvitado();
     cerrarCompraInvitado();
     // Al salir de aquí se cierra la sesión de invitado: no queda perfil en la web
@@ -88,13 +94,15 @@ const ConfirmacionPago = () => {
 
           // Reserva recién pagada: su código se enseña más abajo
           const fechaUltima = obtenerFechaComparable(ultimaReserva);
+          const reciente = !!(ultimaReserva?.orderId && fechaUltima && ahora - fechaUltima <= DOS_HORAS);
           setOrderIdReserva(
             reservaConTarjeta
               ? String(location.state.orderId)
-              : ultimaReserva?.orderId && fechaUltima && ahora - fechaUltima <= DOS_HORAS
+              : reciente
               ? String(ultimaReserva.orderId)
               : ""
           );
+          setEsBono(!reservaConTarjeta && reciente && ultimaReserva?.desdeBono === true);
         }
       } catch (error) {
         console.error("Error al cargar la confirmación del pago:", error);
@@ -160,10 +168,13 @@ const ConfirmacionPago = () => {
               </p>
 
               <p style={{ ...styles.label, marginBottom: 8 }}>
-                <strong>Código:</strong>
+                <strong>Código para regalar:</strong>
               </p>
 
               <div style={styles.codigoBox}>{tarjeta.codigo || "—"}</div>
+              <p style={{ ...styles.label, marginTop: 8, fontSize: "0.85rem" }}>
+                Es el que tiene que escribir la persona que recibe el regalo al canjearlo.
+              </p>
 
               {tarjeta.nombreDestinatario ? (
                 <p style={{ ...styles.label, marginTop: 14 }}>
@@ -195,7 +206,7 @@ const ConfirmacionPago = () => {
 
             <div style={styles.botones}>
               <button onClick={copiarCodigo} style={styles.botonPrincipal}>
-                Copiar código
+                Copiar código para regalar
               </button>
 
               {!esInvitado && (
@@ -223,10 +234,14 @@ const ConfirmacionPago = () => {
           </>
         ) : (
           <>
-            <h1 style={styles.title}>¡Pago realizado con éxito!</h1>
+            <h1 style={styles.title}>{esCanje ? "¡Reserva confirmada!" : "¡Pago realizado con éxito!"}</h1>
 
             <p style={styles.text}>
-              Gracias por tu reserva. Te esperamos en el taller con muchas ganas.
+              {esCanje
+                ? "Has reservado con tu tarjeta regalo, así que no se ha cobrado nada. Te esperamos en el taller con muchas ganas."
+                : esBono
+                ? "Tu bono ya está activo y tu primera clase, reservada. Las demás clases las reservas desde tu perfil, en «Bonos»."
+                : "Gracias por tu reserva. Te esperamos en el taller con muchas ganas."}
             </p>
 
             {location.state?.pagoSimuladoPorAdministrador ? (
@@ -239,7 +254,7 @@ const ConfirmacionPago = () => {
             {errorCarga ? <p style={styles.errorText}>{errorCarga}</p> : null}
 
             {orderIdReserva ? (
-              <CodigoReserva tipo="pedido" orderId={orderIdReserva} className="my-4 text-left" />
+              <CodigoReserva tipo="pedido" orderId={orderIdReserva} esBono={esBono} className="my-4 text-left" />
             ) : null}
 
             <div style={styles.botones}>

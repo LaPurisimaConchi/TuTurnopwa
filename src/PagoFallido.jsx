@@ -2,11 +2,12 @@
 // Vuelta del TPV cuando el pago no se completa (cancelado o rechazado). No se ha
 // cobrado nada y la plaza apartada se libera sola pasados los minutos de reserva,
 // así que se ofrece volver a reservar desde el principio o escribir al taller.
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Icono from "./components/Icono";
 import { useNavigate } from "react-router-dom";
 import { useConfigEspacio } from "./configuracionEspacio";
 import { enlaceWhatsapp } from "./utils/configEspacio";
+import { leerTipoPagoEnCurso } from "./utils/pagoServidor";
 import {
   cancelarCierreSesionInvitado,
   cerrarCompraInvitado,
@@ -16,6 +17,10 @@ import {
 const PagoFallido = () => {
   const navigate = useNavigate();
   const { config } = useConfigEspacio();
+  // Lo que se estaba pagando (lo guarda irAlTPV); vacío = el texto de una reserva
+  const [tipoPago] = useState(leerTipoPagoEnCurso);
+  const esTarjeta = tipoPago === "tarjeta_regalo";
+  const esBono = tipoPago === "bono";
 
   // La compra ha terminado: la siguiente vuelve a pedir los datos al invitado
   useEffect(() => {
@@ -32,25 +37,34 @@ const PagoFallido = () => {
           El pago no se ha completado
         </h1>
         <p className="text-sm mb-2">
-          No se ha hecho ningún cargo en tu tarjeta y la reserva no se ha confirmado.
+          {esTarjeta
+            ? "No se ha hecho ningún cargo en tu tarjeta y la tarjeta regalo no se ha creado."
+            : esBono
+            ? "No se ha hecho ningún cargo en tu tarjeta y el bono no se ha comprado."
+            : "No se ha hecho ningún cargo en tu tarjeta y la reserva no se ha confirmado."}
         </p>
         <p className="text-sm text-tinta-suave mb-6">
-          La plaza que tenías apartada se libera sola en unos {config.minutosReserva} minutos.
-          Si quieres, vuelve a elegir el taller y la fecha para intentarlo de nuevo.
+          {esTarjeta
+            ? "Si quieres, vuelve a elegir el taller que quieres regalar para intentarlo de nuevo."
+            : esBono
+            ? `La primera clase que habías elegido se libera sola en unos ${config.minutosReserva} minutos. Si quieres, vuelve a elegir el bono y la fecha para intentarlo de nuevo.`
+            : `La plaza que tenías apartada se libera sola en unos ${config.minutosReserva} minutos. Si quieres, vuelve a elegir el taller y la fecha para intentarlo de nuevo.`}
         </p>
 
         <div className="flex flex-col gap-3">
           <button
             type="button"
-            onClick={() => navigate("/portada")}
+            onClick={() => navigate(esTarjeta ? "/regalar-taller" : "/portada")}
             className="bg-terracota hover:bg-terracota-oscuro text-white font-bold py-3 rounded-full"
           >
-            Volver a reservar
+            {esTarjeta ? "Volver a la tarjeta regalo" : "Volver a reservar"}
           </button>
           <a
             href={enlaceWhatsapp(
               config.telefonoWhatsapp,
-              "Hola, he intentado pagar una reserva y el pago no se ha completado."
+              esTarjeta
+                ? "Hola, he intentado pagar una tarjeta regalo y el pago no se ha completado."
+                : "Hola, he intentado pagar una reserva y el pago no se ha completado."
             )}
             target="_blank"
             rel="noopener noreferrer"
