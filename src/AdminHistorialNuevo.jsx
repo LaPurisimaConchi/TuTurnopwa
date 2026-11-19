@@ -3,6 +3,8 @@ import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { fechaDMA } from "./utils/formatoFecha";
+import { CARPETA_BONO_ANTIGUO } from "./utils/estadoBono";
+import { esReservaValida } from "./utils/plazasOcupadas";
 
 const AdminHistorialNuevo = () => {
   const [reservas, setReservas] = useState([]);
@@ -27,12 +29,19 @@ useEffect(() => {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const [clasesSnap, reservasSnap] = await Promise.all([
+        const [clasesSnap, reservasSnap, gruposSnap] = await Promise.all([
           get(ref(dbRealtime, "clases")),
           get(ref(dbRealtime, "reservas")),
+          get(ref(dbRealtime, "reservasGrupos")),
         ]);
 
         const mapaClases = {};
+        // Carpeta de reservas → id del taller: los talleres migrados guardan sus
+        // reservas en su carpeta antigua (reservasPath) y los bonos de siempre en la suya
+        const tallerDeCarpeta = {};
+        Object.entries(CARPETA_BONO_ANTIGUO).forEach(([claseId, carpeta]) => {
+          tallerDeCarpeta[carpeta] = claseId;
+        });
         const listaClases = [];
 
         if (clasesSnap.exists()) {
@@ -46,6 +55,8 @@ useEffect(() => {
               nombre,
               orden,
             };
+            tallerDeCarpeta[claseId] = claseId;
+            if (claseData.reservasPath) tallerDeCarpeta[claseData.reservasPath] = claseId;
 
             listaClases.push({
               id: claseId,
@@ -59,8 +70,9 @@ useEffect(() => {
 
         if (reservasSnap.exists()) {
           reservasSnap.forEach((claseSnap) => {
-            const claseKey = claseSnap.key;
-            if (!mapaClases[claseKey]) return;
+            const carpeta = claseSnap.key;
+            // Las carpetas que no son de ningún taller actual también salen (con su nombre)
+            const claseKey = tallerDeCarpeta[carpeta] || carpeta;
 
             claseSnap.forEach((fechaSnap) => {
               const fechaKey = fechaSnap.key;
@@ -80,7 +92,7 @@ useEffect(() => {
                         reserva.orderId ||
                         reserva.id ||
                         `${claseKey}-${fechaKey}-${turnoKey}-${Math.random()}`,
-                      claseId: reserva.claseId || claseKey,
+                      claseId: tallerDeCarpeta[reserva.claseId] || reserva.claseId || claseKey,
                       clase:
                         reserva.clase ||
                         mapaClases[claseKey]?.nombre ||
@@ -88,10 +100,12 @@ useEffect(() => {
                       fecha: reserva.fecha || fechaKey,
                       turno: reserva.turno || turnoKey,
                       metodo:
-                        reserva.metodo || reserva.tipoClase || metodoPorDefecto,
+                        reserva.metodo || reserva.modalidad || reserva.tipoClase || metodoPorDefecto,
                       plazas: Number(reserva.plazas || 1),
                       estado: reserva.estado || "—",
                       estadoPago: reserva.estadoPago || "—",
+                      cancelada: reserva.cancelada === true || reserva.estado === "Cancelada",
+                      desdeBono: reserva.desdeBono === true,
                       precioTotal: Number(
                         reserva.precioTotal ||
                           reserva.precioUnitario ||
@@ -118,6 +132,29 @@ useEffect(() => {
                   });
                 });
               });
+            });
+          });
+        }
+
+        // Reservas de grupo (reservasGrupos), como en el listado de reservas
+        if (gruposSnap.exists()) {
+          gruposSnap.forEach((grupoSnap) => {
+            const grupo = grupoSnap.val();
+            if (!grupo || typeof grupo !== "object" || !grupo.fecha) return;
+
+            datos.push({
+              id: grupo.orderId || grupoSnap.key,
+              claseId: grupo.tallerId || "reserva-grupo",
+              clase: grupo.clase || "Reserva de grupo",
+              fecha: grupo.fecha,
+              turno: grupo.turno || "—",
+              metodo: "grupo",
+              plazas: Number(grupo.plazas || 1),
+              estado: grupo.estado || "—",
+              estadoPago: grupo.estadoPago || "—",
+              cancelada: grupo.cancelada === true || grupo.estado === "Cancelada",
+              desdeBono: false,
+              precioTotal: Number(grupo.precioTotal || grupo.precio || 0),
             });
           });
         }
@@ -154,14 +191,16 @@ useEffect(() => {
 
     return reservas.filter((r) => {
       const fecha = new Date(`${r.fecha}T00:00:00`);
-      const esCancelada = r.estado === "Cancelada";
-      const esPasada = fecha < hoy && !esCancelada;
+      const esCancelada = r.cancelada;
+      // Pasadas: las que se celebraron (confirmadas y pagadas); los pagos que no se
+      // completaron no son reservas y no salen
+      const esPasada = fecha < hoy && !esCancelada && esReservaValida(r);
 
       let cumpleVista = true;
 
       if (vista === "pasadas") cumpleVista = esPasada;
       if (vista === "canceladas") cumpleVista = esCancelada;
-      if (vista === "todas") cumpleVista = true;
+      if (vista === "todas") cumpleVista = esPasada || esCancelada;
 
       const cumpleClase = !filtroClase || r.claseId === filtroClase;
       const cumpleFecha = !filtroFecha || r.fecha === filtroFecha;

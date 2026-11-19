@@ -5,7 +5,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { dbRealtime } from "./firebase";
 import { nombreAdminActual } from "./utils/nombreAdmin";
-import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
+import { contarFranja, plazasLibresFranja, reservaVigente, turnosCompartenPlazas, usaTorno } from "./utils/aforo";
+import { useConfigEspacio } from "./configuracionEspacio";
 import BotonVolver from "./BotonVolver";
 import CalendarioReserva from "./components/CalendarioReserva";
 
@@ -32,9 +33,9 @@ const AdminDetalleReservaNuevo = () => {
   const [fechasHabilitadas, setFechasHabilitadas] = useState({});
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [nuevoTurno, setNuevoTurno] = useState("");
-  const [ocupadasTornoNuevaFecha, setOcupadasTornoNuevaFecha] = useState(0);
-  const [ocupadasModeladoNuevaFecha, setOcupadasModeladoNuevaFecha] =
-    useState(0);
+  // Snapshots de /reservas y /reservasGrupos para contar el aforo real
+  const [ocupacion, setOcupacion] = useState(null);
+  const { config: configEspacio } = useConfigEspacio();
   const [guardandoReprogramacion, setGuardandoReprogramacion] = useState(false);
 
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
@@ -319,24 +320,23 @@ useEffect(() => {
     buscarReserva();
   }, [orderId]);
 
+  // Ocupación de todo el espacio (reservas y grupos) para las plazas libres al reprogramar.
+  // Se vuelve a leer al cambiar de reserva o tras guardar un cambio.
+  const [versionOcupacion, setVersionOcupacion] = useState(0);
   useEffect(() => {
-    if (!nuevaFecha) {
-      setOcupadasTornoNuevaFecha(0);
-      setOcupadasModeladoNuevaFecha(0);
-      return;
-    }
-
-    contarPlazasPorMetodo(nuevaFecha)
-      .then(({ torno, modelado }) => {
-        setOcupadasTornoNuevaFecha(torno);
-        setOcupadasModeladoNuevaFecha(modelado);
+    let activo = true;
+    Promise.all([get(ref(dbRealtime, "reservas")), get(ref(dbRealtime, "reservasGrupos"))])
+      .then(([reservas, grupos]) => {
+        if (activo) setOcupacion({ reservas, grupos });
       })
       .catch((error) => {
-        console.error("Error al contar plazas para reprogramación:", error);
-        setOcupadasTornoNuevaFecha(0);
-        setOcupadasModeladoNuevaFecha(0);
+        console.error("Error al leer la ocupación para reprogramar:", error);
+        if (activo) setOcupacion(null);
       });
-  }, [nuevaFecha]);
+    return () => {
+      activo = false;
+    };
+  }, [orderId, versionOcupacion]);
 
   const guardarNotaInterna = async () => {
     const texto = nuevaNota.trim();
@@ -472,7 +472,6 @@ useEffect(() => {
     if (turnosDeFecha(fechaISO).length === 0) return { estado: "sin-taller" };
     return { estado: "disponible" };
   };
-  const metodoOriginal = (reserva?.metodo || "").toLowerCase();
 
   const turnosDisponiblesReprogramacion = useMemo(() => {
     if (!nuevaFecha) return [];
@@ -498,48 +497,30 @@ useEffect(() => {
     return turnosDisponiblesReprogramacion.length === 0;
   }, [nuevaFecha, turnosDisponiblesReprogramacion]);
 
-  const maxTornoReprogramacion = Number(claseConfig?.plazas?.maxTorno || 12);
-  const maxTotalesReprogramacion = Number(
-    claseConfig?.plazas?.maxTotales || claseConfig?.plazas?.plazasTotales || 45
-  );
-
-  const plazasTotalesOcupadasNuevaFecha =
-    ocupadasTornoNuevaFecha + ocupadasModeladoNuevaFecha;
-
-  const plazasPropiasSiMismaFecha =
-    nuevaFecha === reserva?.fecha ? Number(reserva?.plazas || 1) : 0;
-
-  const ocupadasTornoAjustadas =
-    metodoOriginal === "torno"
-      ? Math.max(ocupadasTornoNuevaFecha - plazasPropiasSiMismaFecha, 0)
-      : ocupadasTornoNuevaFecha;
-
-  const ocupadasTotalesAjustadas = Math.max(
-    plazasTotalesOcupadasNuevaFecha - plazasPropiasSiMismaFecha,
-    0
-  );
-
+  // Plazas libres del turno elegido con el aforo real del espacio (src/utils/aforo.js):
+  // todos los talleres y los grupos, las plazas guardadas mientras alguien paga y los
+  // turnos que se solapan. Si esta reserva ya ocupa esa franja, sus plazas no cuentan.
+  // null mientras no hay turno elegido o no se ha leído la ocupación.
   const plazasDisponiblesReprogramacion = useMemo(() => {
-    if (!metodoOriginal) return 0;
+    if (!ocupacion || !nuevaFecha || !nuevoTurno || !reserva) return null;
 
-    if (metodoOriginal === "torno") {
-      return Math.max(
-        Math.min(
-          maxTornoReprogramacion - ocupadasTornoAjustadas,
-          maxTotalesReprogramacion - ocupadasTotalesAjustadas
-        ),
-        0
-      );
-    }
+    const turno = normalizarTurnoParaRuta(nuevoTurno);
+    const ocupadas = contarFranja(ocupacion.reservas, ocupacion.grupos, nuevaFecha, turno);
+    const conTorno = usaTorno(reserva);
+    const plazasPropias = Number(reserva.plazas || 1);
+    const yaCuenta =
+      reservaVigente(reserva) &&
+      nuevaFecha === reserva.fecha &&
+      turnosCompartenPlazas(turno, normalizarTurnoParaRuta(reserva.turno || ""));
+    const ajustadas = yaCuenta
+      ? {
+          total: Math.max(ocupadas.total - plazasPropias, 0),
+          torno: Math.max(ocupadas.torno - (conTorno ? plazasPropias : 0), 0),
+        }
+      : ocupadas;
 
-    return Math.max(maxTotalesReprogramacion - ocupadasTotalesAjustadas, 0);
-  }, [
-    metodoOriginal,
-    maxTornoReprogramacion,
-    maxTotalesReprogramacion,
-    ocupadasTornoAjustadas,
-    ocupadasTotalesAjustadas,
-  ]);
+    return plazasLibresFranja(ajustadas, configEspacio, { conTorno }).reservables;
+  }, [ocupacion, nuevaFecha, nuevoTurno, reserva, configEspacio]);
 
   const hayCambiosReales =
     nuevaFecha !== reserva?.fecha ||
@@ -553,6 +534,7 @@ useEffect(() => {
     !!nuevoTurno &&
     !fechaBloqueadaReprogramacion &&
     !diaNoDisponibleReprogramacion &&
+    plazasDisponiblesReprogramacion !== null &&
     plazasDisponiblesReprogramacion >= Number(reserva?.plazas || 1) &&
     hayCambiosReales &&
     !reservaYaCancelada;
@@ -762,6 +744,7 @@ useEffect(() => {
         rutaMetodo: metodoNormalizado,
         reservaKey: nuevaReservaRef.key,
       }));
+      setVersionOcupacion((v) => v + 1);
 
       alert("Reserva reprogramada correctamente.");
     } catch (error) {
@@ -1081,6 +1064,7 @@ useEffect(() => {
     !!nuevaFecha &&
     !fechaBloqueadaReprogramacion &&
     !diaNoDisponibleReprogramacion &&
+    plazasDisponiblesReprogramacion !== null &&
     plazasDisponiblesReprogramacion < plazasReserva;
 
   return (
@@ -1326,8 +1310,17 @@ useEffect(() => {
                     </div>
 
                     <p style={faltaSitio ? styles.textoError : styles.textoVacio}>
-                      Plazas libres en ese día: <strong>{plazasDisponiblesReprogramacion}</strong>
-                      {faltaSitio ? ` (esta reserva necesita ${plazasReserva})` : ""}
+                      {!nuevoTurno ? (
+                        "Elige un turno para ver las plazas libres."
+                      ) : plazasDisponiblesReprogramacion === null ? (
+                        "Comprobando plazas libres..."
+                      ) : (
+                        <>
+                          Plazas libres en ese turno: <strong>{plazasDisponiblesReprogramacion}</strong>
+                          {usaTorno(reserva) ? " (contando los tornos)" : ""}
+                          {faltaSitio ? ` (esta reserva necesita ${plazasReserva})` : ""}
+                        </>
+                      )}
                     </p>
                   </>
                 )}

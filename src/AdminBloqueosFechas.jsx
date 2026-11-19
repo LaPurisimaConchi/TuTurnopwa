@@ -4,6 +4,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { plazasEnBloqueo } from "./utils/aforo";
 const AdminBloqueosFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -82,10 +83,34 @@ useEffect(() => {
       return;
     }
 
+    const fechas = generarRangoFechas(fechaInicio, fechaFin);
+
+    // Avisa si ya hay gente reservada: bloquear no cancela las reservas ni avisa al cliente
+    try {
+      const [reservasSnap, gruposSnap] = await Promise.all([
+        get(ref(dbRealtime, "reservas")),
+        get(ref(dbRealtime, "reservasGrupos")),
+      ]);
+      const { plazas, porFecha } = plazasEnBloqueo(reservasSnap, gruposSnap, fechas);
+      if (plazas > 0) {
+        const detalle = Object.keys(porFecha)
+          .sort()
+          .map((f) => `• ${fechaDMA(f)}: ${porFecha[f]} plaza${porFecha[f] !== 1 ? "s" : ""}`)
+          .join("\n");
+        const seguir = window.confirm(
+          `Ya hay ${plazas} plaza${plazas !== 1 ? "s" : ""} reservada${plazas !== 1 ? "s" : ""} en esas fechas:\n${detalle}\n\n` +
+            "Bloquear no cancela esas reservas ni avisa a los clientes: solo impide reservas nuevas. " +
+            "Si hay que cancelarlas, hazlo desde el detalle de cada reserva. ¿Bloquear igualmente?"
+        );
+        if (!seguir) return;
+      }
+    } catch (error) {
+      console.warn("No se pudieron comprobar las reservas existentes:", error);
+    }
+
     try {
       setGuardando(true);
 
-      const fechas = generarRangoFechas(fechaInicio, fechaFin);
       const updates = {};
 
       fechas.forEach((fecha) => {

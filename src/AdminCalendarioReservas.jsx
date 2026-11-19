@@ -182,7 +182,7 @@ datos.push({
   clase: reserva.clase || claseKey || "Clase",
   fecha: fechaFinal,
   turno: reserva.turno || turnoKey || "—",
-  metodo: reserva.metodo || reserva.tipoClase || metodoKey || "—",
+  metodo: reserva.metodo || reserva.modalidad || reserva.tipoClase || metodoKey || "—",
   plazas: Number(reserva.plazas || 1),
   estadoPago: reserva.estadoPago || "—",
   precioTotal: Number(reserva.precioTotal || reserva.precio || 0),
@@ -251,11 +251,12 @@ datos.push({
                   const nivelVal = nivelSnap.val();
 
                   if (pareceReservaDirecta(nivelVal)) {
+                    // Reserva directamente bajo el turno: su clave es el id de la
+                    // reserva, no un método (antes salía "-P6kf…" como método)
                     procesarReserva(nivelVal, {
                       claseKey,
                       fechaKey,
                       turnoKey,
-                      metodoKey: nivelSnap.key,
                     });
                     return;
                   }
@@ -624,7 +625,8 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             )}
 
             <p style={styles.reservaMeta}>
-              {r.turno} · {r.metodo} · {r.plazas} plaza{r.plazas !== 1 ? "s" : ""}
+              {r.turno}
+              {r.metodo && r.metodo !== "—" ? ` · ${r.metodo}` : ""} · {r.plazas} plaza{r.plazas !== 1 ? "s" : ""}
             </p>
             {(r.nombre || r.telefono) && (
               <p style={styles.reservaContacto}>
