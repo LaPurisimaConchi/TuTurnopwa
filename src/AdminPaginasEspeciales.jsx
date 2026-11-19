@@ -1,8 +1,7 @@
 // src/AdminPaginasEspeciales.jsx
 // Talleres recomendados que salen en las páginas «Regalar un taller» y
 // «Reservas para grupos». Se marcan y se ordenan aquí.
-import React, { useEffect, useState } from "react";
-import Icono from "./components/Icono";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
 import { cargarTalleres } from "./catalogoTalleres";
@@ -34,11 +33,47 @@ function Recomendados({ pagina, talleres }) {
   const elegidos = ids.filter((id) => porId.has(id));
   const disponibles = talleres.filter((t) => !ids.includes(t.id));
 
-  const mover = (i, delta) => {
-    const copia = [...elegidos];
-    const j = i + delta;
-    if (j < 0 || j >= copia.length) return;
-    [copia[i], copia[j]] = [copia[j], copia[i]];
+  // Drag and drop: el elemento arrastrado se recoloca en vivo y deja un hueco
+  // punteado; el resto se desliza a su nuevo sitio (técnica FLIP).
+  const [arrastrando, setArrastrando] = useState(null);
+  const nodos = useRef(new Map());
+  const posiciones = useRef(new Map());
+
+  const medir = () => {
+    posiciones.current = new Map(
+      [...nodos.current].map(([id, el]) => [id, el.getBoundingClientRect().top])
+    );
+  };
+
+  useLayoutEffect(() => {
+    nodos.current.forEach((el, id) => {
+      const antes = posiciones.current.get(id);
+      if (antes === undefined) return;
+      const delta = antes - el.getBoundingClientRect().top;
+      if (!delta) return;
+      el.style.transition = "none";
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect();
+      el.style.transition = "transform 200ms ease";
+      el.style.transform = "";
+    });
+    // Las posiciones solo valen para el render que las provocó; si no se
+    // limpian, cualquier otro render (p. ej. al guardar) repite la animación.
+    posiciones.current = new Map();
+  });
+
+  const sobre = (e, destino) => {
+    e.preventDefault();
+    if (!arrastrando || arrastrando === destino) return;
+    const desde = elegidos.indexOf(arrastrando);
+    const hasta = elegidos.indexOf(destino);
+    const r = e.currentTarget.getBoundingClientRect();
+    const mitad = r.top + r.height / 2;
+    // Solo intercambia al pasar la mitad del elemento, para evitar parpadeos.
+    if ((desde < hasta && e.clientY < mitad) || (desde > hasta && e.clientY > mitad)) return;
+    medir();
+    const copia = elegidos.filter((x) => x !== arrastrando);
+    copia.splice(hasta, 0, arrastrando);
     setIds(copia);
     setMensaje("");
   };
@@ -78,14 +113,30 @@ function Recomendados({ pagina, talleres }) {
             </p>
           ) : (
             <ol className="space-y-2">
-              {elegidos.map((id, i) => (
+              {elegidos.map((id) => (
                 <li
                   key={id}
-                  className="flex items-center gap-2 rounded-xl border border-linea bg-crema px-3 py-2"
+                  ref={(el) => {
+                    if (el) nodos.current.set(id, el);
+                    else nodos.current.delete(id);
+                  }}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", id);
+                    setArrastrando(id);
+                  }}
+                  onDragOver={(e) => sobre(e, id)}
+                  onDrop={(e) => e.preventDefault()}
+                  onDragEnd={() => setArrastrando(null)}
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 cursor-grab active:cursor-grabbing select-none ${
+                    arrastrando === id
+                      ? "border-dashed border-terracota bg-[#f7eccc] [&>*]:opacity-0"
+                      : "border-linea bg-crema"
+                  }`}
                 >
+                  <span className="text-tinta-suave" aria-hidden="true">⋮⋮</span>
                   <span className="flex-1 font-medium text-tinta">{porId.get(id).nombre}</span>
-                  <button type="button" className={botonMini} disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir"><Icono nombre="arriba" /></button>
-                  <button type="button" className={botonMini} disabled={i === elegidos.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar"><Icono nombre="abajo" /></button>
                   <button
                     type="button"
                     className={botonMini}
@@ -154,7 +205,7 @@ export default function AdminPaginasEspeciales() {
       <div>
         <h1 className="text-2xl font-bold text-tinta">Páginas de regalo y grupos</h1>
         <p className="text-sm text-tinta-suave mt-1">
-          Elige qué talleres recomiendas en cada página y en qué orden salen. Solo se muestran los
+          Elige qué talleres recomiendas en cada página y arrástralos para cambiar el orden. Solo se muestran los
           talleres activos.
         </p>
       </div>
