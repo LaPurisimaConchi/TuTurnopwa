@@ -3,6 +3,7 @@ import { ref, get } from "firebase/database";
 import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 const AdminUsuariosNuevo = () => {
   const [usuarios, setUsuarios] = useState([]);
@@ -170,10 +171,10 @@ useEffect(() => {
   }}
 >
                   <div>
-                    <h2 style={styles.nombre}>{usuario.nombre}</h2>
+                    <h2 style={styles.nombre}>{usuario.nombre}<EtiquetaInvitado invitado={usuario.invitado} /></h2>
                     <p style={styles.email}>{usuario.email}</p>
                     {usuario.invitado && (
-                      <p style={styles.email}>Compra sin registro (invitado)</p>
+                      <p style={styles.email}>Compra sin registro: no tiene cuenta</p>
                     )}
                   </div>
 

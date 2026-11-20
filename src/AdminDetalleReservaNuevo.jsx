@@ -11,6 +11,7 @@ import BotonVolver from "./BotonVolver";
 import CalendarioReserva from "./components/CalendarioReserva";
 
 import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -84,6 +85,7 @@ useEffect(() => {
               nombre: user.nombre || user.name || user.displayName || "",
               telefono: user.telefono || user.phone || user.telefonoUsuario || "",
               email: user.email || "",
+              invitado: user.invitado === true,
             };
           });
         }
@@ -136,6 +138,7 @@ useEffect(() => {
                         r.precioTotal || r.precioUnitario || r.precio || 0
                       ),
                       uid: r.uid || "",
+                      invitado: datosUsuario.invitado === true,
                       nombre:
                         r.nombre || r.nombreUsuario || datosUsuario.nombre || "",
                       telefono:
@@ -1156,7 +1159,7 @@ useEffect(() => {
         <div style={{ ...styles.rejilla, ...(isMobile ? styles.rejillaMobile : {}) }}>
           <section style={styles.tarjeta}>
             <h2 style={styles.tarjetaTitulo}>Cliente</h2>
-            {dato("Nombre", reserva.nombre)}
+            {dato("Nombre", reserva.nombre, <EtiquetaInvitado invitado={reserva.invitado} />)}
             {dato(
               "Teléfono",
               reserva.telefono ? (

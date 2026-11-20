@@ -146,6 +146,13 @@ const AdminDashboard = () => {
                   <p className="pa-card-label">{etiqueta}</p>
                 </div>
                 <p className="pa-card-valor">{valor(campo, formato)}</p>
+                {campo === "usuariosTotales" && (
+                  <p className="pa-card-nota">
+                    {stats && !cargando
+                      ? `${stats.usuariosTotales - stats.usuariosInvitados} registrados · ${stats.usuariosInvitados} invitados`
+                      : null}
+                  </p>
+                )}
                 {campo === "reservasTotales" && (
                   <p className="pa-card-nota">
                     {stats && !cargando

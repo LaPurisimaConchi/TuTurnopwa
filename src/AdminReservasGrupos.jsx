@@ -8,6 +8,7 @@ import { useConfigEspacio } from "./configuracionEspacio";
 import { useLocation } from "react-router-dom";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 const grupoCancelado = (r) => r.cancelada === true || r.estado === "Cancelada";
 const grupoPagado = (r) => String(r.estadoPago || "").toLowerCase() === "pagado";
@@ -100,9 +101,10 @@ useEffect(() => {
   useEffect(() => {
     const cargarReservas = async () => {
       try {
-        const [reservasSnap, notasSnap] = await Promise.all([
+        const [reservasSnap, notasSnap, usuariosSnap] = await Promise.all([
           get(ref(dbRealtime, "reservasGrupos")),
           get(ref(dbRealtime, "reservasNotas")),
+          get(ref(dbRealtime, "usuarios")),
         ]);
 
         const mapaNotas = {};
@@ -149,6 +151,7 @@ useEffect(() => {
             datos.push({
               id: reservaSnap.key,
               ...r,
+              invitado: r.uid ? usuariosSnap.child(r.uid).child("invitado").val() === true : false,
               notasInternas: mapaNotas[r.orderId] || [],
             });
           });
@@ -1063,7 +1066,7 @@ const guardarPlazoPago = async (r) => {
     </p>
   )}
 
-  <p><strong>Nombre:</strong> {r.nombreReserva}</p>
+  <p><strong>Nombre:</strong> {r.nombreReserva}<EtiquetaInvitado invitado={r.invitado} /></p>
   <p><strong>Teléfono:</strong> {r.telefono}</p>
   <p><strong>Email:</strong> {r.email || "—"}</p>
   {r.telefono && (

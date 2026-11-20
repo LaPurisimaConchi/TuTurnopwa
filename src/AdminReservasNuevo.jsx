@@ -5,6 +5,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 const AdminReservasNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -86,6 +87,7 @@ const AdminReservasNuevo = () => {
       nombre: user.nombre || user.name || user.displayName || "",
       telefono: user.telefono || user.phone || user.telefonoUsuario || "",
       email: user.email || "",
+      invitado: user.invitado === true,
     };
   });
 }
@@ -189,6 +191,7 @@ const AdminReservasNuevo = () => {
                             0
                         ),
                         uid: reserva.uid || "",
+                        invitado: datosUsuario.invitado === true,
                         nombre:
   reserva.nombre ||
   reserva.nombreUsuario ||
@@ -640,6 +643,7 @@ const limpiarFiltros = () => {
   <>
     <p style={styles.cardTexto}>
       <strong>Cliente:</strong> {r.nombre || "Sin nombre"}
+      <EtiquetaInvitado invitado={r.invitado} />
       {r.telefono ? ` · ${r.telefono}` : ""}
     </p>
 
@@ -743,6 +747,7 @@ const limpiarFiltros = () => {
 </td>
 <td style={styles.tdCliente}>
   <strong>{r.nombre || "Sin nombre"}</strong>
+  <EtiquetaInvitado invitado={r.invitado} />
   <br />
   <span>{r.telefono || "Sin teléfono"}</span>
 

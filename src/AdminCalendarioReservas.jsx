@@ -9,6 +9,7 @@ import { ocupacionPorFranja, sumarSolapadas } from "./utils/aforo";
 import { cargarConfigEspacio } from "./configuracionEspacio";
 import { fechaDMA } from "./utils/formatoFecha";
 import { useNavigate } from "react-router-dom";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 
 
@@ -141,6 +142,7 @@ if (usuariosSnap.exists()) {
       nombre: user.nombre || user.name || user.displayName || "",
       telefono: user.telefono || user.phone || user.telefonoUsuario || "",
       email: user.email || "",
+      invitado: user.invitado === true,
     };
   });
 }
@@ -187,6 +189,7 @@ datos.push({
   estadoPago: reserva.estadoPago || "—",
   precioTotal: Number(reserva.precioTotal || reserva.precio || 0),
   uid: reserva.uid || "",
+  invitado: datosUsuario.invitado === true,
   nombre:
     reserva.nombre ||
     reserva.nombreUsuario ||
@@ -320,6 +323,7 @@ if (!esGrupoConfirmado && !esGrupoIndividualEnProceso) return;
   estadoPago: grupo.estadoPago || "—",
   precioTotal: Number(grupo.precioTotal || grupo.precio || 0),
   uid: grupo.uid || "",
+  invitado: datosUsuario.invitado === true,
   nombre:
     grupo.nombre ||
     grupo.nombreUsuario ||
@@ -631,6 +635,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             {(r.nombre || r.telefono) && (
               <p style={styles.reservaContacto}>
                 {r.nombre || "Sin nombre"}
+                <EtiquetaInvitado invitado={r.invitado} />
                 {r.telefono ? ` · ${r.telefono}` : ""}
               </p>
             )}

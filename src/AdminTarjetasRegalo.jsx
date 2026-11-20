@@ -8,6 +8,7 @@ import "./AdminDashboard.css";
 import { formatearEuros } from "./utils/estadisticasAdmin";
 import GestionPlantillasTarjetaRegalo from "./components/GestionPlantillasTarjetaRegalo";
 import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 const AdminTarjetasRegalo = () => {
   const navigate = useNavigate();
@@ -66,6 +67,7 @@ const AdminTarjetasRegalo = () => {
             const userData = userSnap.val() || {};
             const nombreUsuario = userData.nombre || "";
             const emailUsuario = userData.email || "";
+            const invitado = userData.invitado === true;
 
             const tarjetasUsuario = userData.tarjetasRegalo || {};
 
@@ -89,6 +91,7 @@ const AdminTarjetasRegalo = () => {
                 estadoPago: t.estadoPago || "—",
                 precioTotal: Number(t.precioTotal || 0),
                 uid: uid,
+                invitado,
                 orderId: orderIdReal,
                 procesado: t.procesado ?? false,
                 codigo: t.codigo || "",
@@ -325,6 +328,7 @@ const AdminTarjetasRegalo = () => {
                     <span style={styles.cardLabel}>Usuario</span>
                     <span style={styles.cardValue}>
                       {t.nombreUsuario || t.emailUsuario || t.uid}
+                      <EtiquetaInvitado invitado={t.invitado} />
                     </span>
                   </div>
 
@@ -377,6 +381,7 @@ const AdminTarjetasRegalo = () => {
                     </td>
                     <td style={styles.td}>
                       {t.nombreUsuario || t.emailUsuario || t.uid}
+                      <EtiquetaInvitado invitado={t.invitado} />
                     </td>
                     <td style={styles.td}>{t.plazas}</td>
                     <td style={styles.td}>{t.estado}</td>
