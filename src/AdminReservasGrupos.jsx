@@ -7,7 +7,8 @@ import CambioFechaGrupoAdmin from "./components/CambioFechaGrupoAdmin";
 import { useConfigEspacio } from "./configuracionEspacio";
 import { useLocation } from "react-router-dom";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
+import { calcularDiasAbiertos } from "./utils/diasAbiertos";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 const grupoCancelado = (r) => r.cancelada === true || r.estado === "Cancelada";
@@ -528,16 +529,29 @@ const marcarGrupoPagado = async (r) => {
 const cargarContextoCambio = async () => {
   setContextoCambio({ cargando: true });
   try {
-    const [bloqueosSnap, reservasSnap, gruposSnap] = await Promise.all([
+    const [bloqueosSnap, reservasSnap, gruposSnap, clasesSnap, habilitadasSnap] = await Promise.all([
       get(ref(dbRealtime, "bloqueosFechas")),
       get(ref(dbRealtime, "reservas")),
       get(ref(dbRealtime, "reservasGrupos")),
+      get(ref(dbRealtime, "clases")),
+      get(ref(dbRealtime, "fechasHabilitadas")),
     ]);
+    const fechasHabilitadas = habilitadasSnap.val() || {};
+    const clases = clasesSnap.val() || {};
     setContextoCambio({
       cargando: false,
       bloqueos: bloqueosSnap.val() || {},
       reservas: reservasSnap,
       grupos: gruposSnap,
+      clases,
+      fechasHabilitadas,
+      diasAbiertos: calcularDiasAbiertos({
+        reservas: reservasSnap,
+        grupos: gruposSnap,
+        clases,
+        fechasHabilitadas,
+        desde: hoyMadrid(),
+      }),
     });
   } catch (error) {
     console.error("Error al cargar el calendario de grupos:", error);

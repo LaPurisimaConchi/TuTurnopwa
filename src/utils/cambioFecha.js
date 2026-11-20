@@ -4,6 +4,7 @@
 // y la pantalla /gestionar-reserva para mostrar los mismos plazos.
 import { esReservaValida } from "./plazasOcupadas.js";
 import { esTurnoConsulta, limpiarTurno, turnosDisponiblesEnFecha } from "./turnosFecha.js";
+import { puedeAbrirDia } from "./diasAbiertos.js";
 import { contarFranja, plazasLibresFranja, usaTorno } from "./aforo.js";
 import { bloqueoAfectaTurno } from "./rangosHora.js";
 import { edicionesDeClase } from "./monografico.js";
@@ -274,8 +275,11 @@ export function motivoFechaNoValida({
 }
 
 // Turnos que se pueden elegir en una fecha, sin mirar el aforo
-export function turnosElegibles({ clase, fecha, fechasHabilitadas, reservasGrupos }) {
-  const turnos = turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, reservasGrupos });
+// Un día sin horario solo se ofrece si ya está abierto (`diasAbiertos`) o si la reserva
+// que se mueve (`plazas` personas) llega al mínimo del taller para abrirlo.
+export function turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos = {}, plazas = 0 }) {
+  const diaAbierto = !!diasAbiertos?.[fecha] || puedeAbrirDia(clase, plazas);
+  const turnos = turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, diaAbierto });
   return esTurnoConsulta(turnos) ? [] : turnos.map(limpiarTurno);
 }
 
@@ -288,7 +292,7 @@ export function opcionesDeCambio({
   clase,
   bloqueos,
   fechasHabilitadas,
-  reservasGrupos,
+  diasAbiertos = {},
   ahoraMs = ahoraMadridMs(),
   margenHoras = MARGEN_NUEVA_CLASE_HORAS,
   ventanaDias = config?.diasVentanaReprogramar ?? DIAS_VENTANA,
@@ -302,7 +306,7 @@ export function opcionesDeCambio({
     const fecha = fechaDeMs(hoy + i * DIA);
     const turnos = [];
 
-    turnosElegibles({ clase, fecha, fechasHabilitadas, reservasGrupos }).forEach((turno) => {
+    turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos, plazas }).forEach((turno) => {
       if (motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias })) return;
       if (fecha === reserva.fecha && turno === limpiarTurno(reserva.turno)) return;
 
@@ -317,10 +321,12 @@ export function opcionesDeCambio({
 }
 
 // --- Reservas de grupo -------------------------------------------------------
-// Los turnos de grupo son fijos (los mismos que ofrece ReservaGrupos.jsx). No hay
-// aforo que comprobar: la fecha de un grupo se acuerda con el taller, así que el
-// cambio se aplica y queda marcado para que Berto lo revise.
-export const TURNOS_GRUPO = ["11:30-14:30", "17:30-20:30"];
+// Un grupo reserva en los turnos de su taller (los del horario del día o, en un día
+// sin horario, los de días abiertos), igual que una reserva normal. No hay aforo que
+// comprobar: la fecha de un grupo se acuerda con el taller, así que el cambio se
+// aplica y queda marcado para que Berto lo revise.
+export const turnosDeGrupo = ({ grupo, clase, fecha, fechasHabilitadas, diasAbiertos }) =>
+  turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos, plazas: Number(grupo?.plazas || 1) });
 
 export function evaluarCambioGrupo(grupo, ahoraMs = ahoraMadridMs(), config = CONFIG_ESPACIO_DEFECTO) {
   const estado = String(grupo?.estado || "").toLowerCase();
@@ -357,7 +363,15 @@ export function evaluarCambioGrupo(grupo, ahoraMs = ahoraMadridMs(), config = CO
   return { ok: true, motivo: "" };
 }
 
-export function opcionesDeCambioGrupo({ grupo, bloqueos, config = null, ahoraMs = ahoraMadridMs() }) {
+export function opcionesDeCambioGrupo({
+  grupo,
+  clase,
+  bloqueos,
+  fechasHabilitadas = {},
+  diasAbiertos = {},
+  config = null,
+  ahoraMs = ahoraMadridMs(),
+}) {
   const ventanaDias = config?.diasVentanaReprogramar ?? DIAS_VENTANA;
   const [anio, mes, dia] = fechaDeMs(ahoraMs).split("-").map(Number);
   const hoy = Date.UTC(anio, mes - 1, dia);
@@ -365,7 +379,7 @@ export function opcionesDeCambioGrupo({ grupo, bloqueos, config = null, ahoraMs 
 
   for (let i = 0; i <= ventanaDias; i += 1) {
     const fecha = fechaDeMs(hoy + i * DIA);
-    const turnos = TURNOS_GRUPO.filter(
+    const turnos = turnosDeGrupo({ grupo, clase, fecha, fechasHabilitadas, diasAbiertos }).filter(
       (turno) =>
         !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, ventanaDias }) &&
         !(fecha === grupo.fecha && turno === grupo.turno)

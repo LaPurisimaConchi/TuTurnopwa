@@ -8,6 +8,7 @@ import { auth, dbRealtime } from "../firebase";
 import { contarPlazasPorMetodo } from "./contarPlazasDia";
 import { plazasDeTurno, turnosConReservas } from "./plazasOcupadas";
 import { contarFranja, ocupacionPorFranja } from "./aforo";
+import { calcularDiasAbiertos } from "./diasAbiertos";
 import { hoyMadrid } from "./formatoFecha";
 import { cargarConfigEspacio } from "../configuracionEspacio";
 import { esAdministrador } from "./administradores";
@@ -30,22 +31,36 @@ const leerNodo = async (ruta) => {
   }
 };
 
-// Fechas bloqueadas, fechas habilitadas y reservas de grupo
+// Fechas bloqueadas, fechas habilitadas, reservas de grupo y días sin horario abiertos
 export async function cargarContextoReserva() {
   if (!(await leeBaseDeDatos())) {
-    const { fechasBloqueadas, fechasHabilitadas, reservasGrupos } = await pedirApi({
+    const { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos } = await pedirApi({
       tipo: "contexto",
     });
-    return { fechasBloqueadas, fechasHabilitadas, reservasGrupos };
+    return { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos: diasAbiertos || {} };
   }
 
-  const [fechasBloqueadas, fechasHabilitadas, reservasGrupos] = await Promise.all([
+  const [fechasBloqueadas, fechasHabilitadas, reservasGrupos, reservas, grupos, clases] = await Promise.all([
     leerNodo("bloqueosFechas"),
     leerNodo("fechasHabilitadas"),
     leerNodo("reservasGrupos"),
+    get(ref(dbRealtime, "reservas")),
+    get(ref(dbRealtime, "reservasGrupos")),
+    leerNodo("clases"),
   ]);
 
-  return { fechasBloqueadas, fechasHabilitadas, reservasGrupos };
+  return {
+    fechasBloqueadas,
+    fechasHabilitadas,
+    reservasGrupos,
+    diasAbiertos: calcularDiasAbiertos({
+      reservas,
+      grupos,
+      clases,
+      fechasHabilitadas,
+      desde: hoyMadrid(),
+    }),
+  };
 }
 
 // Plazas ocupadas por método (torno / modelado) en una fecha

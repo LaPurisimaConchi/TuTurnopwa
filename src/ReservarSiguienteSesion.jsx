@@ -26,7 +26,7 @@ export default function ReservarSiguienteSesion() {
   const {
     fechasBloqueadas,
     fechasHabilitadas,
-    reservasGrupos,
+    diasAbiertos,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -88,7 +88,7 @@ export default function ReservarSiguienteSesion() {
     fecha,
     fechasBloqueadas,
     fechasHabilitadas,
-    reservasGrupos,
+    diasAbiertos,
   });
 
   // Plazas libres del turno elegido (las mismas que reservó la primera sesión)
@@ -251,7 +251,7 @@ export default function ReservarSiguienteSesion() {
                     setTurno("");
                   }}
                   estadoDia={(iso) =>
-                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
+                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
                   }
                   cargando={!contextoCargado}
                   fechaBloqueada={fechaBloqueada}

@@ -10,7 +10,7 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import { cargarFranja, cargarOcupacion } from "./utils/disponibilidad";
+import { cargarFranja } from "./utils/disponibilidad";
 import { plazasLibresFranja } from "./utils/aforo";
 import { reservarEnServidor } from "./utils/reservaServidor";
 import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
@@ -105,11 +105,11 @@ export function FormularioReserva({ claseId, clase }) {
     fechasBloqueadas,
     fechasHabilitadas,
     reservasGrupos,
+    diasAbiertos,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
 
-  const [ocupacion, setOcupacion] = useState({});
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
   const [metodo, setMetodo] = useState("");
@@ -153,19 +153,6 @@ export function FormularioReserva({ claseId, clase }) {
     const unsubscribe = onAuthStateChanged(getAuth(), setUser);
     return () => unsubscribe();
   }, []);
-
-  // Fechas y turnos con reservas: un día de grupo con alguna reserva se abre a todos
-  useEffect(() => {
-    let cancelado = false;
-    cargarOcupacion(conMetodo ? "" : rutaReservas)
-      .then((datos) => {
-        if (!cancelado) setOcupacion(datos);
-      })
-      .catch((error) => console.error("Error al cargar las reservas existentes:", error));
-    return () => {
-      cancelado = true;
-    };
-  }, [conMetodo, rutaReservas]);
 
   // Tarjeta regalo de una variante concreta (tipo de pieza, tamaño…) o de un
   // método concreto (torno y modelado con distinto precio)
@@ -255,16 +242,14 @@ export function FormularioReserva({ claseId, clase }) {
     fechaBloqueada,
     diaNoDisponible,
     diaSoloGrupo,
-    turnosAbiertos,
   } =
     useDiaDeReserva({
       clase,
       fecha,
       fechasBloqueadas,
       fechasHabilitadas,
-      reservasGrupos,
       conGrupo: true,
-      ocupacion,
+      diasAbiertos,
     });
 
   const turnoConsulta = esTurnoConsulta(turnosDisponibles);
@@ -326,7 +311,7 @@ export function FormularioReserva({ claseId, clase }) {
   };
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos, conGrupo: true, ocupacion });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, conGrupo: true, diasAbiertos });
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
@@ -587,9 +572,7 @@ export function FormularioReserva({ claseId, clase }) {
   // con el mínimo global de grupo se sugiere reservar como grupo
   const minHabilitar = minPersonasHabilitar(clase);
   const minGrupo = configEspacio.minPersonasGrupo;
-  const faltanPersonasGrupo =
-    diaSoloGrupo && !turnosAbiertos.includes(turno) && plazasNum < minHabilitar;
-  // El aviso solo sale con un turno elegido: hasta entonces no se sabe si ya está abierto
+  const faltanPersonasGrupo = diaSoloGrupo && plazasNum < minHabilitar;
   const avisarMinimo = faltanPersonasGrupo && !!turno;
   const mostrarSugerencia = !desdeTarjeta && plazasNum >= minGrupo;
   const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
@@ -749,8 +732,7 @@ export function FormularioReserva({ claseId, clase }) {
                     fecha={extraDe(i).fecha}
                     turno={extraDe(i).turno}
                     onCambiar={(valor) => cambiarExtra(i, valor)}
-                    contexto={{ fechasBloqueadas, fechasHabilitadas, reservasGrupos }}
-                    ocupacion={ocupacion}
+                    contexto={{ fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos }}
                     conTorno={metodo === "torno"}
                     plazas={plazasNum}
                     cargando={!contextoCargado}
@@ -924,8 +906,8 @@ export function FormularioReserva({ claseId, clase }) {
 
           {avisarMinimo && (
             <p className="text-sm text-red-600 font-medium">
-              Para abrir este turno hacen falta al menos {minHabilitar} personas (ahora tienes{" "}
-              {plazasNum}). Sube las plazas o elige otro turno u otro día.
+              Este día está cerrado: para abrirlo hacen falta al menos {minHabilitar} personas (ahora tienes{" "}
+              {plazasNum}). Sube las plazas o elige otro día.
             </p>
           )}
 

@@ -146,6 +146,13 @@ con las nuevas, el código viejo no puede cobrar.
 - [ ] **Espacio y aforo** en `/admin-espacio`. Ahora el servidor rechaza las reservas que superan el
   aforo común a todos los talleres y grupos. Sin configurar, aplica 45 plazas por franja, 12 de
   torno, grupo mínimo de 3 y 15 minutos para pagar. Revisa los valores reales antes de abrir reservas.
+- [ ] **Turnos de días abiertos**: un día sin horario se abre con una reserva del mínimo de personas del
+  taller (`minPersonasGrupo` de su ficha) y ofrece los «turnos de días abiertos» de la ficha
+  (`clases/{id}/turnos`). Revisa en `/admin-taller` que cada taller tenga turnos válidos (formato
+  `17:30-20:30`; sin turnos, el taller no puede abrir días). En staging había dos talleres de torno con
+  turnos como `viernes-tarde`/`otro-horario`: si en producción pasa lo mismo, abre y guarda la ficha
+  (se recalculan con el horario semanal). Opcional: fija el valor por defecto en `/admin-espacio`
+  («Turnos de días abiertos»). No hay reglas nuevas que desplegar.
 - [ ] **Categorías** (opcional, de un solo sentido, se puede repetir). Hasta entonces, las cuatro de
   siempre salen del código.
   ```bash

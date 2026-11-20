@@ -12,9 +12,10 @@ import {
   cargarTalleres,
   MAX_PERSONAS_GRUPO,
   metodosDelTaller,
+  minPersonasHabilitar,
   variantesDelTaller,
 } from "./catalogoTalleres";
-import { useContextoReserva } from "./utils/turnosTaller";
+import { estadoDiaTaller, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
 import { useConfigEspacio } from "./configuracionEspacio";
 import BloqueoReserva from "./BloqueoReserva";
 import PantallaReserva from "./components/PantallaReserva";
@@ -25,15 +26,8 @@ import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { leerDatosContacto } from "./utils/invitado";
 
 import { fechaDMA } from "./utils/formatoFecha";
-import { turnoYaEmpezado } from "./utils/cambioFecha";
 
 const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
-
-// Los grupos reservan en estos turnos, sea cual sea el horario habitual del taller
-const TURNOS_GRUPO = ["11:30-14:30", "17:30-20:30"];
-
-// Un grupo puede reservar cualquier día que no esté cerrado desde el panel
-const CLASE_GRUPOS = { horarios: {} };
 
 // Lo que se puede elegir de un taller: tipo/tamaño (variante) o método, cada uno con
 // su precio. Sin ninguno de los dos, el taller tiene un único precio.
@@ -69,8 +63,13 @@ export default function ReservaGrupos() {
   const navigate = useNavigate();
   const { config: configEspacio } = useConfigEspacio();
   const location = useLocation();
-  const { fechasBloqueadas, error: errorContexto, cargado: contextoCargado } =
-    useContextoReserva();
+  const {
+    fechasBloqueadas,
+    fechasHabilitadas,
+    diasAbiertos,
+    error: errorContexto,
+    cargado: contextoCargado,
+  } = useContextoReserva();
 
   const [talleres, setTalleres] = useState([]);
   const [cargandoTalleres, setCargandoTalleres] = useState(true);
@@ -186,15 +185,40 @@ export default function ReservaGrupos() {
       : taller.nombre
     : "";
 
+  // Los grupos reservan en el horario del taller: sus turnos del día o, en un día sin
+  // horario, los de días abiertos. Un día cerrado se abre con el mínimo de personas
+  // que fija el taller en su ficha.
+  const minAbrir = taller ? minPersonasHabilitar(taller) : 0;
   const estadoDia = (iso) => {
-    const bloqueo = fechasBloqueadas?.[iso];
-    if (bloqueo?.bloqueado) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
-    // Hoy, cuando ya han empezado todos los turnos de grupo, el día no se ofrece
-    return TURNOS_GRUPO.every((t) => turnoYaEmpezado(iso, t)) ? { estado: "sin-taller" } : { estado: "disponible" };
+    if (!taller) return { estado: "sin-taller" };
+    const estado = estadoDiaTaller({
+      clase: taller,
+      fecha: iso,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      conGrupo: true,
+      diasAbiertos,
+    });
+    return estado.estado === "solo-grupo" && Number(personas) >= estado.minimo
+      ? { estado: "disponible" }
+      : estado;
   };
-  // Los turnos que ya han empezado no se ofrecen
-  const turnosGrupoDelDia = fecha ? TURNOS_GRUPO.filter((t) => !turnoYaEmpezado(fecha, t)) : TURNOS_GRUPO;
-  const fechaBloqueada = fecha && fechasBloqueadas?.[fecha]?.bloqueado ? fechasBloqueadas[fecha] : null;
+  const {
+    turnosDisponibles: turnosDelDia,
+    fechaBloqueada: bloqueoDia,
+    fechaHabilitadaManual,
+    diaNoDisponible,
+    diaSoloGrupo,
+  } = useDiaDeReserva({
+    clase: taller,
+    fecha,
+    fechasBloqueadas,
+    fechasHabilitadas,
+    conGrupo: true,
+    diasAbiertos,
+  });
+  const fechaBloqueada = fecha && bloqueoDia ? bloqueoDia : null;
+  const faltanPersonasDia = diaSoloGrupo && Number(personas) < minAbrir;
 
   const whatsappUrl = `https://wa.me/34${configEspacio.telefonoWhatsapp}?text=${construirMensajeWhatsApp({
     nombre: nombreReserva,
@@ -220,6 +244,8 @@ export default function ReservaGrupos() {
     !fecha ||
     !!fechaBloqueada ||
     !horario ||
+    diaNoDisponible ||
+    faltanPersonasDia ||
     (pedirContacto && (!nombreReserva.trim() || !telefono.trim())) ||
     !nombreGrupo.trim() ||
     personasNum < MIN_PERSONAS ||
@@ -252,6 +278,14 @@ export default function ReservaGrupos() {
     if (fechaBloqueada) {
       alert(
         `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${fechaBloqueada.motivo || "día bloqueado"}.`
+      );
+      return;
+    }
+    if (diaNoDisponible || faltanPersonasDia) {
+      alert(
+        faltanPersonasDia
+          ? `Ese día está cerrado: para abrirlo hacen falta al menos ${minAbrir} personas.`
+          : "Ese día no hay taller. Elige otro día."
       );
       return;
     }
@@ -436,8 +470,10 @@ export default function ReservaGrupos() {
               estadoDia={estadoDia}
               cargando={!contextoCargado}
               fechaBloqueada={fechaBloqueada}
-              clase={CLASE_GRUPOS}
-              producto="Este día"
+              fechaHabilitadaManual={fechaHabilitadaManual}
+              diaNoDisponible={diaNoDisponible}
+              clase={taller}
+              producto="Este taller"
             />
           </div>
 
@@ -447,7 +483,7 @@ export default function ReservaGrupos() {
               etiqueta="Selecciona el turno:"
               value={horario}
               onChange={setHorario}
-              turnos={turnosGrupoDelDia}
+              turnos={turnosDelDia}
               deshabilitado={!fecha || !!fechaBloqueada}
               placeholder={!fecha ? "-- Primero selecciona el día --" : "-- Elige turno --"}
             />
@@ -476,6 +512,12 @@ export default function ReservaGrupos() {
               <p className="text-xs text-tinta-suave mt-1">
                 Mínimo {MIN_PERSONAS} personas. Máximo {MAX_PERSONAS} plazas.
               </p>
+              {faltanPersonasDia && (
+                <p className="text-sm text-red-600 font-medium mt-1">
+                  Ese día está cerrado: para abrirlo hacen falta al menos {minAbrir} personas (ahora{" "}
+                  {personasNum}).
+                </p>
+              )}
             </div>
 
             <div>

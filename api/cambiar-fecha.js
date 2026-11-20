@@ -18,7 +18,7 @@ import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.
 import {
   horasAntelacionDe,
   MAX_CAMBIOS_CLIENTE,
-  TURNOS_GRUPO,
+  turnosDeGrupo,
   ahoraMadridMs,
   esFechaISO,
   evaluarCambio,
@@ -41,6 +41,8 @@ import {
   normalizarCodigo,
 } from "./_codigosReserva.js";
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
+import { calcularDiasAbiertos } from "../src/utils/diasAbiertos.js";
+import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 import { escribirConAforo } from "./_reservarServidor.js";
 import { diasEntreSesionesDe, fechaMinimaSiguiente, sumarDias } from "../src/utils/sesionesTaller.js";
@@ -147,13 +149,14 @@ async function contextoDeLaClase(segmentos, reserva) {
   const carpeta = segmentos[1];
   const claseId = reserva.claseId || carpeta;
 
-  const [clase, bloqueos, habilitadas, grupos, reservas, espacio] = await Promise.all([
+  const [clase, bloqueos, habilitadas, grupos, reservas, espacio, clases] = await Promise.all([
     adminDb.ref(`clases/${claseId}`).get(),
     adminDb.ref("bloqueosFechas").get(),
     adminDb.ref("fechasHabilitadas").get(),
     adminDb.ref("reservasGrupos").get(),
     adminDb.ref("reservas").get(),
     adminDb.ref("configuracionEspacio").get(),
+    adminDb.ref("clases").get(),
   ]);
 
   return {
@@ -162,6 +165,14 @@ async function contextoDeLaClase(segmentos, reserva) {
     bloqueos: bloqueos.val() || {},
     fechasHabilitadas: habilitadas.val() || {},
     reservasGrupos: grupos.val() || {},
+    // Días sin horario abiertos por una reserva con el mínimo de personas
+    diasAbiertos: calcularDiasAbiertos({
+      reservas,
+      grupos,
+      clases: clases.val() || {},
+      fechasHabilitadas: habilitadas.val() || {},
+      desde: hoyMadrid(),
+    }),
     // Snapshots y configuración para el aforo real (src/utils/aforo.js)
     grupos,
     config: normalizarConfigEspacio(espacio.exists() ? espacio.val() : null),
@@ -257,11 +268,22 @@ async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res, config 
       return res.status(200).json({ ok: true, reserva: resumen(grupo, evaluacion), opciones: [] });
     }
 
-    const bloqueos = (await adminDb.ref("bloqueosFechas").get()).val() || {};
+    const contexto = await contextoDeLaClase([], { claseId: grupo.tallerId || "" });
+    if (!contexto.clase) {
+      return res.status(200).json({ ok: true, reserva: resumen(grupo, { ok: false, motivo: sinOnline }), opciones: [] });
+    }
     return res.status(200).json({
       ok: true,
       reserva: resumen(grupo, evaluacion),
-      opciones: opcionesDeCambioGrupo({ grupo, bloqueos, config, ahoraMs }),
+      opciones: opcionesDeCambioGrupo({
+        grupo,
+        clase: contexto.clase,
+        bloqueos: contexto.bloqueos,
+        fechasHabilitadas: contexto.fechasHabilitadas,
+        diasAbiertos: contexto.diasAbiertos,
+        config,
+        ahoraMs,
+      }),
     });
   }
 
@@ -270,13 +292,26 @@ async function resolverGrupo({ accion, encontrada, cuerpo, ahoraMs, res, config 
   const nuevaFecha = String(cuerpo.fecha || "");
   const nuevoTurno = limpiarTurno(cuerpo.turno || "");
 
-  if (!esFechaISO(nuevaFecha) || !TURNOS_GRUPO.includes(nuevoTurno)) {
+  if (!esFechaISO(nuevaFecha) || !nuevoTurno) {
     return res.status(400).json({ ok: false, error: "Elige una fecha y un turno." });
   }
 
-  const bloqueos = (await adminDb.ref("bloqueosFechas").get()).val() || {};
+  const contexto = await contextoDeLaClase([], { claseId: grupo.tallerId || "" });
+  if (!contexto.clase) return res.status(409).json({ ok: false, error: sinOnline });
+  const bloqueos = contexto.bloqueos;
   const motivo = motivoFechaNoValida({ fecha: nuevaFecha, turno: nuevoTurno, ahoraMs, bloqueos, config });
   if (motivo) return res.status(409).json({ ok: false, error: motivo });
+  if (
+    !turnosDeGrupo({
+      grupo,
+      clase: contexto.clase,
+      fecha: nuevaFecha,
+      fechasHabilitadas: contexto.fechasHabilitadas,
+      diasAbiertos: contexto.diasAbiertos,
+    }).includes(nuevoTurno)
+  ) {
+    return res.status(409).json({ ok: false, error: "Ese turno no está disponible ese día." });
+  }
 
   if (nuevaFecha === grupo.fecha && nuevoTurno === limpiarTurno(grupo.turno)) {
     return res.status(409).json({ ok: false, error: "Elige una fecha o un turno distinto al actual." });
@@ -645,7 +680,8 @@ async function resolverIndividual({ accion, encontrada, cuerpo, ahoraMs, res, co
     clase: contexto.clase,
     fecha: nuevaFecha,
     fechasHabilitadas: contexto.fechasHabilitadas,
-    reservasGrupos: contexto.reservasGrupos,
+    diasAbiertos: contexto.diasAbiertos,
+    plazas: Number(reserva.plazas || 1),
   });
   if (!turnosDelDia.includes(nuevoTurno)) {
     return res.status(409).json({ ok: false, error: "Ese turno no está disponible ese día." });

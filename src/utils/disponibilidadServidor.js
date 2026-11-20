@@ -8,6 +8,7 @@
 //   tipo=franja&fecha=…&turno=…                            → aforo real: plazas de la franja
 //   tipo=franjas                                           → plazas de todas las franjas desde hoy
 import { contarFranja, ocupacionPorFranja } from "./aforo.js";
+import { calcularDiasAbiertos } from "./diasAbiertos.js";
 import { hoyMadrid } from "./formatoFecha.js";
 import { normalizarConfigEspacio } from "./configEspacio.js";
 import {
@@ -29,19 +30,30 @@ const mal = (error) => ({ codigo: 400, cuerpo: { ok: false, error } });
 
 export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer) {
   if (tipo === "contexto") {
-    const [bloqueos, habilitadas, grupos] = await Promise.all([
+    const [bloqueos, habilitadas, grupos, reservas, clases] = await Promise.all([
       leer("bloqueosFechas"),
       leer("fechasHabilitadas"),
       leer("reservasGrupos"),
+      leer("reservas"),
+      leer("clases"),
     ]);
+    const habilitadasPublicas = habilitacionesPublicas(habilitadas.val() || {});
 
     return {
       codigo: 200,
       cuerpo: {
         ok: true,
         fechasBloqueadas: bloqueosPublicos(bloqueos.val() || {}),
-        fechasHabilitadas: habilitacionesPublicas(habilitadas.val() || {}),
+        fechasHabilitadas: habilitadasPublicas,
         reservasGrupos: gruposPublicos(grupos.val() || {}),
+        // Días sin horario abiertos por una reserva con el mínimo de personas (solo fechas)
+        diasAbiertos: calcularDiasAbiertos({
+          reservas,
+          grupos,
+          clases: clases.val() || {},
+          fechasHabilitadas: habilitadasPublicas,
+          desde: hoyMadrid(),
+        }),
       },
     };
   }

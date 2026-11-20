@@ -37,7 +37,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
   const {
     fechasBloqueadas,
     fechasHabilitadas,
-    reservasGrupos,
+    diasAbiertos,
     cargado: contextoCargado,
   } = useContextoReserva();
 
@@ -80,7 +80,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
       fecha: fechaInicio,
       fechasBloqueadas,
       fechasHabilitadas,
-      reservasGrupos,
+      diasAbiertos,
     });
 
   const esTorno = /torno/i.test(modalidad);
@@ -384,7 +384,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
               setTurno("");
             }}
             estadoDia={(iso) =>
-              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
+              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
             }
             cargando={!contextoCargado}
             fechaBloqueada={fechaBloqueada}

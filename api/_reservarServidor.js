@@ -16,6 +16,8 @@ import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
+import { calcularDiasAbiertos, puedeAbrirDia, tallerTieneHorarioEnFecha } from "../src/utils/diasAbiertos.js";
+import { limpiarTurno, turnosDiasAbiertos } from "../src/utils/turnosFecha.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
 import { diasEntreSesionesDe, motivoSesionesNoValidas, sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 
@@ -103,11 +105,32 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
     return fallo(400, "Reserva no válida");
   }
 
-  const [claseSnap, bloqueosSnap, espacioSnap] = await Promise.all([
+  const [claseSnap, bloqueosSnap, espacioSnap, habilitadasSnap] = await Promise.all([
     db.ref(`clases/${claseId}`).get(),
     db.ref("bloqueosFechas").get(),
     db.ref("configuracionEspacio").get(),
+    db.ref("fechasHabilitadas").get(),
   ]);
+  const fechasHabilitadas = habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {};
+  // Días sin horario abiertos por otras reservas: se calculan solo si hace falta
+  let diasAbiertosCache = null;
+  const diasAbiertos = async () => {
+    if (!diasAbiertosCache) {
+      const [reservas, grupos, clases] = await Promise.all([
+        db.ref("reservas").get(),
+        db.ref("reservasGrupos").get(),
+        db.ref("clases").get(),
+      ]);
+      diasAbiertosCache = calcularDiasAbiertos({
+        reservas,
+        grupos,
+        clases: clases.val() || {},
+        fechasHabilitadas,
+        desde: hoyMadrid(),
+      });
+    }
+    return diasAbiertosCache;
+  };
 
   const clase = claseSnap.exists() ? claseSnap.val() : null;
   const activa = clase && (clase.estado ? clase.estado === "activa" : clase.activa !== false);
@@ -213,6 +236,21 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
     }
     if (bloqueoAfectaTurno(bloqueos[fecha], turno)) {
       return fallo(409, "Ese día no está disponible", { codigo: "bloqueado", fecha, turno });
+    }
+
+    // Día sin horario del taller: solo se reserva si ya está abierto por otra reserva o
+    // si esta llega al mínimo de personas del taller (y entonces lo abre)
+    if (clase.dinamica === true && !esMonografico(clase) && !tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) {
+      if (!turnosDiasAbiertos(clase).includes(limpiarTurno(turno))) {
+        return fallo(409, "Ese día no hay taller.", { codigo: "dia_cerrado", fecha, turno });
+      }
+      if (!puedeAbrirDia(clase, plazas) && !(await diasAbiertos())[fecha]) {
+        return fallo(409, "Ese día está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.", {
+          codigo: "dia_cerrado",
+          fecha,
+          turno,
+        });
+      }
     }
 
     const torno = item.torno === true || reservaUsaTorno(metodo);

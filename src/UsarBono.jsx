@@ -51,7 +51,7 @@ export default function UsarBono() {
   const {
     fechasBloqueadas,
     fechasHabilitadas,
-    reservasGrupos,
+    diasAbiertos,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -123,7 +123,7 @@ export default function UsarBono() {
       fecha: fechaSesion,
       fechasBloqueadas,
       fechasHabilitadas,
-      reservasGrupos,
+      diasAbiertos,
     });
 
   // Plazas libres del turno elegido
@@ -295,7 +295,7 @@ export default function UsarBono() {
                     setTurno("");
                   }}
                   estadoDia={(iso) =>
-                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos })
+                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
                   }
                   cargando={!contextoCargado}
                   fechaBloqueada={fechaBloqueada}

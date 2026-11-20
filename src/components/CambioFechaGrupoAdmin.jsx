@@ -3,10 +3,10 @@
 // mismo calendario que el resto de pantallas (CalendarioReserva): los días cerrados
 // desde el panel salen en rojo, los bloqueos por horas quitan solo los turnos que
 // tocan y cada turno enseña las plazas libres del espacio (aforo común y tope de torno).
-// Los turnos son los de grupo (los mismos que ofrece ReservaGrupos.jsx).
+// Los turnos son los de su taller (los mismos que ofrece ReservaGrupos.jsx).
 import { useState } from "react";
 import CalendarioReserva from "./CalendarioReserva";
-import { TURNOS_GRUPO, turnoYaEmpezado } from "../utils/cambioFecha";
+import { turnoYaEmpezado, turnosDeGrupo } from "../utils/cambioFecha";
 import { bloqueoAfectaTurno } from "../utils/rangosHora";
 import { contarFranja, plazasLibresFranja, turnosCompartenPlazas, usaTorno } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
@@ -25,14 +25,26 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
 
-  const { cargando = true, error = "", bloqueos = {}, reservas = null, grupos = null } = contexto || {};
+  const {
+    cargando = true,
+    error = "",
+    bloqueos = {},
+    reservas = null,
+    grupos = null,
+    clases = {},
+    fechasHabilitadas = {},
+    diasAbiertos = {},
+  } = contexto || {};
   const plazas = Math.max(1, Number(grupo.plazas || 1));
   const conTorno = usaTorno(grupo);
-  const turnosPosibles = grupo.turno && !TURNOS_GRUPO.includes(grupo.turno) ? [...TURNOS_GRUPO, grupo.turno] : TURNOS_GRUPO;
+  const clase = clases?.[grupo.tallerId] || null;
 
-  // Turnos que se pueden elegir un día: sin bloqueo que los toque y sin haber empezado
+  // Turnos que se pueden elegir un día: los de su taller, sin bloqueo que los toque y
+  // sin haber empezado
   const turnosDe = (iso) =>
-    turnosPosibles.filter((t) => !bloqueoAfectaTurno(bloqueos?.[iso], t) && !turnoYaEmpezado(iso, t));
+    turnosDeGrupo({ grupo, clase, fecha: iso, fechasHabilitadas, diasAbiertos }).filter(
+      (t) => !bloqueoAfectaTurno(bloqueos?.[iso], t) && !turnoYaEmpezado(iso, t)
+    );
 
   const estadoDia = (iso) => {
     if (turnosDe(iso).length > 0) return { estado: "disponible" };
