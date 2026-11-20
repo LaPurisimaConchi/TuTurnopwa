@@ -112,6 +112,16 @@ function contarClasesActivas(clasesSnap) {
   return activas;
 }
 
+// Usuarios que compraron sin registrarse (`usuarios/{uid}/invitado: true`)
+function contarInvitados(snap) {
+  let invitados = 0;
+  if (!snap?.exists()) return invitados;
+  snap.forEach((usuarioSnap) => {
+    if (usuarioSnap.val()?.invitado === true) invitados += 1;
+  });
+  return invitados;
+}
+
 function contarHijos(snap) {
   if (!snap?.exists()) return 0;
   const valor = snap.val();
@@ -160,6 +170,7 @@ export function calcularEstadisticas({
     ...resultado,
     clasesActivas: contarClasesActivas(clasesSnap),
     usuariosTotales: contarHijos(usuariosSnap),
+    usuariosInvitados: contarInvitados(usuariosSnap),
   };
 }
 

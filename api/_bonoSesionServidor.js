@@ -20,6 +20,8 @@ import {
   turnosElegibles,
 } from "../src/utils/cambioFecha.js";
 import { limpiarTurno } from "../src/utils/turnosFecha.js";
+import { calcularDiasAbiertos } from "../src/utils/diasAbiertos.js";
+import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
 import { motivoFechaFueraDeBono, rangoFechasBono, sesionBonoRepetida } from "../src/utils/estadoBono.js";
 
@@ -45,11 +47,12 @@ const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
 
 // Lo que necesitan las reglas de cambio de fecha (src/utils/cambioFecha.js) del taller
 async function contextoDeLaClase(db, claseSnap, carpeta) {
-  const [bloqueos, habilitadas, grupos, reservas] = await Promise.all([
+  const [bloqueos, habilitadas, grupos, reservas, clases] = await Promise.all([
     db.ref("bloqueosFechas").get(),
     db.ref("fechasHabilitadas").get(),
     db.ref("reservasGrupos").get(),
     db.ref("reservas").get(),
+    db.ref("clases").get(),
   ]);
   return {
     carpeta,
@@ -57,6 +60,14 @@ async function contextoDeLaClase(db, claseSnap, carpeta) {
     bloqueos: bloqueos.val() || {},
     fechasHabilitadas: habilitadas.val() || {},
     reservasGrupos: grupos.val() || {},
+    // Un bono usa los días sin horario ya abiertos, pero no puede abrirlos
+    diasAbiertos: calcularDiasAbiertos({
+      reservas,
+      grupos,
+      clases: clases.val() || {},
+      fechasHabilitadas: habilitadas.val() || {},
+      desde: hoyMadrid(),
+    }),
     grupos,
     reservas,
   };
@@ -227,7 +238,7 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
   if (sesionBonoRepetida(bonosSnap.val(), fecha, turno, { exceptoReservaId: reservaId })) {
     return fallo(409, "Ya tienes una clase reservada ese día en ese turno.", { codigo: "repetida" });
   }
-  if (!turnosElegibles({ clase: contexto.clase, fecha, fechasHabilitadas: contexto.fechasHabilitadas, reservasGrupos: contexto.reservasGrupos }).includes(turno)) {
+  if (!turnosElegibles({ clase: contexto.clase, fecha, fechasHabilitadas: contexto.fechasHabilitadas, diasAbiertos: contexto.diasAbiertos }).includes(turno)) {
     return fallo(409, "Ese turno no está disponible ese día.", { codigo: "bloqueado" });
   }
 

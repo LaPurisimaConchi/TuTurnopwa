@@ -53,6 +53,7 @@ export function recorrerOcupacion(reservas, reservasGrupos, alEncontrar, { desde
       orden: ordenDeReserva(data, id),
       clave: id,
       orderId: data.orderId || "",
+      claseId: String(data.claseId || ""),
     });
   };
 
@@ -96,6 +97,7 @@ export function recorrerOcupacion(reservas, reservasGrupos, alEncontrar, { desde
         orden: ordenDeReserva(grupo, grupoSnap.key),
         clave: grupoSnap.key,
         orderId: grupo.orderId || "",
+        claseId: String(grupo.tallerId || ""),
       });
     });
   }

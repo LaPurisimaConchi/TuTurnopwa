@@ -19,14 +19,13 @@ export default function SesionExtraReserva({
   turno,
   onCambiar, // ({ fecha, turno })
   contexto, // { fechasBloqueadas, fechasHabilitadas, reservasGrupos }
-  ocupacion = {},
   conTorno = false,
   plazas = 1,
   cargando = false,
   onListo,
 }) {
   const { config } = useConfigEspacio();
-  const { fechasBloqueadas, fechasHabilitadas, reservasGrupos } = contexto;
+  const { fechasBloqueadas, fechasHabilitadas, diasAbiertos } = contexto;
   const [franja, setFranja] = useState(null);
   const [errorPlazas, setErrorPlazas] = useState(false);
 
@@ -35,13 +34,12 @@ export default function SesionExtraReserva({
     fecha,
     fechasBloqueadas,
     fechasHabilitadas,
-    reservasGrupos,
     conGrupo: false,
-    ocupacion,
+    diasAbiertos,
   });
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, reservasGrupos, conGrupo: false, ocupacion });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, conGrupo: false, diasAbiertos });
 
   useEffect(() => {
     if (!fecha || !turno) {

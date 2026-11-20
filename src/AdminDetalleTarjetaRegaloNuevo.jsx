@@ -5,6 +5,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 const AdminDetalleTarjetaRegaloNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -43,6 +44,7 @@ useEffect(() => {
             const uid = userSnap.key;
             const userData = userSnap.val() || {};
             const nombreUsuario = userData.nombre || "";
+            const invitado = userData.invitado === true;
             const emailUsuario = userData.email || "";
             const tarjetasUsuario = userData.tarjetasRegalo || {};
 
@@ -79,6 +81,7 @@ useEffect(() => {
                   numeroClases: Number(t.numeroClases || 0),
                   procesado: t.procesado ?? false,
                   nombreUsuario,
+                  invitado,
                   emailUsuario,
                 };
               }
@@ -267,7 +270,7 @@ useEffect(() => {
               {tarjeta.uid}
             </span>
           </p>
-          <p><strong>Nombre comprador:</strong> {tarjeta.nombreUsuario || "—"}</p>
+          <p><strong>Nombre comprador:</strong> {tarjeta.nombreUsuario || "—"}<EtiquetaInvitado invitado={tarjeta.invitado} /></p>
           <p><strong>Email comprador:</strong> {tarjeta.emailUsuario || "—"}</p>
           <p><strong>Order ID:</strong> {tarjeta.orderId}</p>
           <p><strong>Procesado:</strong> {tarjeta.procesado ? "Sí" : "No"}</p>

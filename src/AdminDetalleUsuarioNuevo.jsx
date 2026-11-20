@@ -6,6 +6,7 @@ import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { obtenerEstadoVisibleBono } from "./utils/estadoBono";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 function formatearFechaNota(fecha) {
   if (!fecha) return "Sin fecha";
 
@@ -69,6 +70,7 @@ useEffect(() => {
           nombre: data.nombre || data.displayName || "Sin nombre",
           email: data.email || "Sin email",
           telefono: data.telefono || data.phoneNumber || "",
+          invitado: data.invitado === true,
         });
 
         let lista = [];
@@ -241,7 +243,7 @@ useEffect(() => {
         <h1 style={styles.titulo}>Detalle de usuario</h1>
 
         <div style={styles.card}>
-          <p><strong>Nombre:</strong> {usuario.nombre}</p>
+          <p><strong>Nombre:</strong> {usuario.nombre}<EtiquetaInvitado invitado={usuario.invitado} /></p>
           <p><strong>Email:</strong> {usuario.email}</p>
           <p><strong>Teléfono:</strong> {usuario.telefono || "—"}</p>
           <p><strong>UID:</strong> {usuario.uid}</p>

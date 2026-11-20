@@ -25,6 +25,8 @@ export const CONFIG_ESPACIO_DEFECTO = {
   // Hasta cuántos días por delante se puede elegir la nueva fecha al reprogramar una reserva
   diasVentanaReprogramar: 90,
   horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((d) => [d, ""])),
+  // Turnos por defecto de los días abiertos de un taller nuevo (separados por comas)
+  turnosDiasAbiertosDefecto: "",
   // WhatsApp del taller (9 cifras, sin prefijo): botón flotante, perfil, grupos…
   telefonoWhatsapp: "644671664",
 };
@@ -72,6 +74,14 @@ export function normalizarConfigEspacio(raw) {
     horasCambioBono: entero(datos.horasCambioBono, CONFIG_ESPACIO_DEFECTO.horasCambioBono, 0, 720),
     telefonoWhatsapp:
       normalizarTelefonoWhatsapp(datos.telefonoWhatsapp) || CONFIG_ESPACIO_DEFECTO.telefonoWhatsapp,
+    turnosDiasAbiertosDefecto: (() => {
+      const valor = datos.turnosDiasAbiertosDefecto;
+      return Array.isArray(valor)
+        ? valor.join(", ")
+        : valor && typeof valor === "object"
+        ? Object.values(valor).join(", ")
+        : String(valor || "");
+    })(),
     horariosDefecto: Object.fromEntries(
       DIAS_CONFIG.map((dia) => {
         const valor = horarios[dia];

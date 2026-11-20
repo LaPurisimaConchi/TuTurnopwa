@@ -223,7 +223,11 @@ export default function AdminTallerForm() {
       setForm((prev) =>
         DIAS.some(([dia]) => prev.horarios[dia])
           ? prev
-          : { ...prev, horarios: { ...prev.horarios, ...config.horariosDefecto } }
+          : {
+              ...prev,
+              horarios: { ...prev.horarios, ...config.horariosDefecto },
+              turnos: prev.turnos || config.turnosDiasAbiertosDefecto || "",
+            }
       );
     });
     return () => {
@@ -339,6 +343,13 @@ export default function AdminTallerForm() {
             : prev.ediciones,
       };
     });
+
+  // Sin turnos de días abiertos ni horario semanal, el taller no puede abrir días
+  const sinTurnosParaAbrir = useMemo(() => {
+    const propios = leerTurnos(form.turnos).filter((t) => !turnoInvalido(t));
+    const semanales = DIAS.flatMap(([dia]) => leerTurnos(form.horarios[dia])).filter((t) => !turnoInvalido(t));
+    return form.tipoProducto !== "bono" && propios.length === 0 && semanales.length === 0;
+  }, [form.turnos, form.horarios, form.tipoProducto]);
 
   const turnosInvalidos = useMemo(
     () =>
@@ -1503,7 +1514,7 @@ export default function AdminTallerForm() {
 
               <div>
                 <label htmlFor="taller-turnos" className={label}>
-                  Turnos para fechas especiales (opcional)
+                  Turnos de días abiertos (opcional)
                 </label>
                 <EditorTurnos
                   id="taller-turnos"
@@ -1512,9 +1523,17 @@ export default function AdminTallerForm() {
                   onChange={(valor) => cambiar("turnos", valor)}
                 />
                 <p className="text-xs text-tinta-suave mt-1">
-                  Son los turnos que se abren cuando habilitas una fecha fuera del
-                  horario habitual. Sin ninguno, se usan los del horario semanal.
+                  Son los turnos que se ofrecen en un día sin horario cuando se abre: con una
+                  reserva que llega al mínimo de personas del taller (o al habilitar la fecha
+                  desde administración). Sin ninguno, se usan los del horario semanal. Si el
+                  taller no tiene ningún turno válido, no podrá abrir días.
                 </p>
+                {sinTurnosParaAbrir && (
+                  <p className="text-sm text-red-600 mt-1">
+                    Este taller no tiene turnos válidos: no podrá abrir días sin horario. Añade
+                    turnos aquí o en el horario semanal.
+                  </p>
+                )}
               </div>
 
                 </>

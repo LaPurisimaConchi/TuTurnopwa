@@ -24,6 +24,7 @@ const aTexto = (config) => ({
   diasVentanaReprogramar: String(config.diasVentanaReprogramar),
   telefonoWhatsapp: telefonoVisible(config.telefonoWhatsapp),
   horariosDefecto: { ...config.horariosDefecto },
+  turnosDiasAbiertosDefecto: config.turnosDiasAbiertosDefecto,
 });
 
 export default function AdminEspacio() {
@@ -106,6 +107,7 @@ export default function AdminEspacio() {
         diasVentanaReprogramar,
         telefonoWhatsapp,
         horariosDefecto: form.horariosDefecto,
+        turnosDiasAbiertosDefecto: form.turnosDiasAbiertosDefecto,
       });
       setForm(aTexto(guardada));
       setVersion((v) => v + 1);
@@ -328,6 +330,23 @@ export default function AdminEspacio() {
                     />
                   </div>
                 ))}
+              </div>
+
+              <div className="pt-3">
+                <label htmlFor="esp-turnos-dias-abiertos" className="text-sm font-semibold">
+                  Turnos de días abiertos
+                </label>
+                <EditorTurnos
+                  id="esp-turnos-dias-abiertos"
+                  textoVacio="Los del horario semanal de cada taller"
+                  value={form.turnosDiasAbiertosDefecto}
+                  onChange={(valor) => cambiar("turnosDiasAbiertosDefecto", valor)}
+                />
+                <p className={ayuda}>
+                  Los turnos que ofrece un taller en un día sin horario que se abre con una reserva
+                  del mínimo de personas (o que habilitas desde administración). Se ponen solos al
+                  crear un taller nuevo; después se cambian en la ficha de cada taller.
+                </p>
               </div>
             </section>
 
