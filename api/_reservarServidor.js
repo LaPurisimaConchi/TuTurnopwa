@@ -99,6 +99,42 @@ export async function escribirConAforo(db, preparadas, config, ahoraMs, alExito 
   return { ok: true };
 }
 
+// Días abiertos (src/utils/diasAbiertos.js), calculados solo si alguien los pide y una vez
+export function diasAbiertosPerezosos(db, fechasHabilitadas) {
+  let cache = null;
+  return async () => {
+    if (!cache) {
+      const [reservas, grupos, clases] = await Promise.all([
+        db.ref("reservas").get(),
+        db.ref("reservasGrupos").get(),
+        db.ref("clases").get(),
+      ]);
+      cache = calcularDiasAbiertos({
+        reservas,
+        grupos,
+        clases: clases.val() || {},
+        fechasHabilitadas,
+        desde: hoyMadrid(),
+      });
+    }
+    return cache;
+  };
+}
+
+// Un taller del panel solo da clase los días de su horario; un día sin horario se reserva
+// únicamente si ya está abierto por otra reserva o si esta llega al mínimo de personas del
+// taller. Devuelve el motivo si no se puede, o "" si sí. `diasAbiertos` es la función de
+// diasAbiertosPerezosos.
+export async function motivoDiaCerrado({ clase, fecha, turno, plazas, fechasHabilitadas, diasAbiertos }) {
+  if (!clase || clase.dinamica !== true || esMonografico(clase)) return "";
+  if (tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) return "";
+  if (!turnosDiasAbiertos(clase).includes(limpiarTurno(turno))) return "Ese día no hay taller.";
+  if (!puedeAbrirDia(clase, plazas) && !(await diasAbiertos())[fecha]) {
+    return "Ese día está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.";
+  }
+  return "";
+}
+
 export async function reservarConAforo(db, uid, claseId, items, { edicionId = "" } = {}) {
   if (!ID.test(String(claseId || ""))) return fallo(400, "Taller no válido");
   if (!Array.isArray(items) || !items.length || items.length > MAX_FRANJAS) {
@@ -113,24 +149,7 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
   ]);
   const fechasHabilitadas = habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {};
   // Días sin horario abiertos por otras reservas: se calculan solo si hace falta
-  let diasAbiertosCache = null;
-  const diasAbiertos = async () => {
-    if (!diasAbiertosCache) {
-      const [reservas, grupos, clases] = await Promise.all([
-        db.ref("reservas").get(),
-        db.ref("reservasGrupos").get(),
-        db.ref("clases").get(),
-      ]);
-      diasAbiertosCache = calcularDiasAbiertos({
-        reservas,
-        grupos,
-        clases: clases.val() || {},
-        fechasHabilitadas,
-        desde: hoyMadrid(),
-      });
-    }
-    return diasAbiertosCache;
-  };
+  const diasAbiertos = diasAbiertosPerezosos(db, fechasHabilitadas);
 
   const clase = claseSnap.exists() ? claseSnap.val() : null;
   const activa = clase && (clase.estado ? clase.estado === "activa" : clase.activa !== false);
@@ -240,18 +259,8 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
 
     // Día sin horario del taller: solo se reserva si ya está abierto por otra reserva o
     // si esta llega al mínimo de personas del taller (y entonces lo abre)
-    if (clase.dinamica === true && !esMonografico(clase) && !tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) {
-      if (!turnosDiasAbiertos(clase).includes(limpiarTurno(turno))) {
-        return fallo(409, "Ese día no hay taller.", { codigo: "dia_cerrado", fecha, turno });
-      }
-      if (!puedeAbrirDia(clase, plazas) && !(await diasAbiertos())[fecha]) {
-        return fallo(409, "Ese día está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.", {
-          codigo: "dia_cerrado",
-          fecha,
-          turno,
-        });
-      }
-    }
+    const cerrado = await motivoDiaCerrado({ clase, fecha, turno, plazas, fechasHabilitadas, diasAbiertos });
+    if (cerrado) return fallo(409, cerrado, { codigo: "dia_cerrado", fecha, turno });
 
     const torno = item.torno === true || reservaUsaTorno(metodo);
     const carpeta = metodo

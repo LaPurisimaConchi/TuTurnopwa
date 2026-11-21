@@ -432,6 +432,18 @@ const actualizarGrupo = async (r, campos, textoNota) => {
     };
   }
 
+  // La copia del grupo en el perfil de la persona (si la tiene) debe cambiar igual:
+  // si no, un grupo cancelado o movido seguiría activo en «Mis reservas».
+  if (r.uid && r.orderId) {
+    const lista = await get(ref(dbRealtime, `usuarios/${r.uid}/listaReservas`));
+    lista.forEach((item) => {
+      if (item.val()?.orderId !== r.orderId) return;
+      Object.entries(campos).forEach(([campo, valor]) => {
+        actualizacion[`usuarios/${r.uid}/listaReservas/${item.key}/${campo}`] = valor;
+      });
+    });
+  }
+
   await update(ref(dbRealtime), actualizacion);
 
   setReservas((prev) =>
