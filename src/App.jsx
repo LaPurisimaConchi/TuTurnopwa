@@ -28,6 +28,7 @@ import CondicionesPago from "./CondicionesPago.jsx";
 import ResumenPago from "./ResumenPago.jsx";
 import ConfirmacionPago from "./ConfirmacionPago.jsx";
 import PagoFallido from "./PagoFallido.jsx";
+import NoEncontrada from "./NoEncontrada.jsx";
 import GestionarReserva from "./GestionarReserva";
 
 // Clases y secciones principales
@@ -463,7 +464,7 @@ function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/portada" replace />} />
+          <Route path="*" element={<NoEncontrada />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -27,6 +27,8 @@ const ConfirmacionPago = () => {
   const [orderIdReserva, setOrderIdReserva] = useState("");
   // Compra de un bono (su primera clase llega a listaReservas marcada desdeBono)
   const [esBono, setEsBono] = useState(false);
+  // Pago de prueba del administrador (no pasa por el TPV)
+  const esPagoSimulado = !!location.state?.pagoSimuladoPorAdministrador;
   // Reserva hecha canjeando una tarjeta regalo: no hay pago
   const esCanje = !!(location.state?.desdeTarjeta || location.state?.usandoTarjetaRegalo);
 
@@ -115,6 +117,11 @@ const ConfirmacionPago = () => {
     return () => unsubscribe();
   }, [location.state]);
 
+  // Abrir /pago/exito a mano no es haber pagado: solo se celebra el pago si hay una
+  // tarjeta o una reserva reciente en la cuenta, un canje o un pago simulado. Si el aviso
+  // del TPV aún no ha llegado, se dice que puede tardar unos segundos.
+  const sinPagoReciente = !cargando && !esTarjetaRegalo && !esCanje && !esPagoSimulado && !orderIdReserva;
+
   const copiarCodigo = async () => {
     if (!tarjeta?.codigo) return;
 
@@ -130,9 +137,31 @@ const ConfirmacionPago = () => {
   return (
     <div style={styles.body}>
       <div style={styles.container}>
-        <div style={styles.check}><Icono nombre="check" tamano={32} /></div>
+        {sinPagoReciente ? null : <div style={styles.check}><Icono nombre="check" tamano={32} /></div>}
 
-        {cargando ? (
+        {sinPagoReciente ? (
+          <>
+            <h1 style={styles.title}>No encontramos ningún pago reciente</h1>
+            <p style={styles.text}>
+              Si acabas de pagar, tu reserva puede tardar unos segundos en aparecer: revisa tu
+              perfil o el correo de confirmación. Si no has pagado, no se ha cobrado nada.
+            </p>
+            {errorCarga ? <p style={styles.errorText}>{errorCarga}</p> : null}
+            <div style={styles.botones}>
+              <button onClick={() => window.location.reload()} style={styles.botonPrincipal}>
+                Comprobar de nuevo
+              </button>
+              {!esInvitado && (
+                <button onClick={() => navigate("/perfil")} style={styles.botonSecundario}>
+                  Ver mi perfil
+                </button>
+              )}
+              <button onClick={() => navigate("/portada")} style={styles.botonSecundario}>
+                Ir al inicio
+              </button>
+            </div>
+          </>
+        ) : cargando ? (
           <>
             <h1 style={styles.title}>Comprobando pago...</h1>
             <p style={styles.text}>Estamos preparando la información.</p>
@@ -279,7 +308,7 @@ const ConfirmacionPago = () => {
           </>
         )}
 
-        {!cargando && esInvitado ? (
+        {!cargando && !sinPagoReciente && esInvitado ? (
           <div style={styles.avisoInvitado}>
             <p style={styles.avisoInvitadoTexto}>
               {esTarjetaRegalo
