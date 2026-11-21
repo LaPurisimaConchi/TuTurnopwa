@@ -94,7 +94,8 @@ if (PINTA.has(c)) return 25;
 
 /* ----------------- Componente ----------------- */
 export default function ResumenPago() {
-  const { state = {} } = useLocation();
+  // Sin datos (se abre la dirección a mano o se recarga) el state es null, no undefined
+  const state = useLocation().state || {};
   const navigate = useNavigate();
 
   const {
@@ -244,6 +245,26 @@ export default function ResumenPago() {
     } finally {
       setCargando(false);
     }
+  }
+
+  // Esta pantalla solo tiene sentido con lo que le pasa la reserva o la compra
+  if (!clase && !grupoId && !datosBono && !subtipo) {
+    return (
+      <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-6">
+        <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6 text-[#333] text-center">
+          <h1 className="text-[1.6rem] text-tinta font-semibold mb-4">No hay nada que pagar</h1>
+          <p className="mb-6">
+            Esta pantalla se abre al terminar una reserva. Elige un taller para empezar de nuevo.
+          </p>
+          <button
+            onClick={() => navigate("/portada")}
+            className="bg-mostaza text-tinta font-semibold rounded-full px-6 py-2"
+          >
+            Ver talleres
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
