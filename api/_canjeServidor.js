@@ -9,7 +9,7 @@
 // Una tarjeta solo se canjea una vez: se «reclama» con una transacción (dos pestañas
 // o un doble clic no pasan las dos) y se marca usada en la misma escritura que
 // confirma la reserva. Si algo falla antes, la reclamación se libera.
-import { escribirConAforo, fallo } from "./_reservarServidor.js";
+import { diasAbiertosPerezosos, escribirConAforo, fallo, motivoDiaCerrado } from "./_reservarServidor.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
@@ -25,7 +25,8 @@ import {
   obtenerEstadoVisibleBono,
   sesionBonoRepetida,
 } from "../src/utils/estadoBono.js";
-import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
+import { turnoYaEmpezado, turnosElegibles } from "../src/utils/cambioFecha.js";
+import { esMonografico } from "../src/utils/monografico.js";
 
 const ID = /^[A-Za-z0-9_-]{1,60}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -238,6 +239,33 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
     if (pendientes.some((r) => Number(r.reserva.plazas || 1) > plazasTarjeta)) {
       await liberar(db, tarjeta.id, uid);
       return fallo(409, `Esta tarjeta regalo es para ${plazasTarjeta} plaza(s).`, { codigo: "plazas" });
+    }
+
+    // El navegador puede dejar reservas pendientes sin pasar por el servidor: antes de
+    // confirmarlas se vuelve a comprobar que su día de taller está abierto
+    const habilitadas = (await db.ref("fechasHabilitadas").get()).val() || {};
+    const abiertos = diasAbiertosPerezosos(db, habilitadas);
+    const clasesCache = {};
+    for (const { reserva } of pendientes) {
+      if (reserva.desdeBono === true) continue; // un bono usa días abiertos, no los abre
+      const id = String(reserva.claseId || "");
+      if (!ID.test(id)) continue;
+      if (!(id in clasesCache)) {
+        const snap = await db.ref(`clases/${id}`).get();
+        clasesCache[id] = snap.exists() ? snap.val() : null;
+      }
+      const cerrado = await motivoDiaCerrado({
+        clase: clasesCache[id],
+        fecha: String(reserva.fecha || ""),
+        turno: String(reserva.turno || ""),
+        plazas: Number(reserva.plazas || 1),
+        fechasHabilitadas: habilitadas,
+        diasAbiertos: abiertos,
+      });
+      if (cerrado) {
+        await liberar(db, tarjeta.id, uid);
+        return fallo(409, cerrado, { codigo: "dia_cerrado", fecha: reserva.fecha, turno: reserva.turno });
+      }
     }
 
     const codigoTarjeta = String(tarjeta.codigo || "");
@@ -472,6 +500,16 @@ export async function usarBono(db, uid, { bonoId, fecha, turno } = {}) {
   const bloqueos = bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {};
   if (bloqueoAfectaTurno(bloqueos[fecha], turno)) {
     return fallo(409, "Ese día no está disponible", { codigo: "bloqueado" });
+  }
+
+  // Un bono usa los días sin horario ya abiertos por otras reservas, pero no puede abrirlos
+  if (clase?.dinamica === true && !esMonografico(clase)) {
+    const habilitadas = (await db.ref("fechasHabilitadas").get()).val() || {};
+    const abiertos = await diasAbiertosPerezosos(db, habilitadas)();
+    const turnos = turnosElegibles({ clase, fecha, fechasHabilitadas: habilitadas, diasAbiertos: abiertos });
+    if (!turnos.includes(turno)) {
+      return fallo(409, "Ese día está cerrado o ese turno no está disponible.", { codigo: "dia_cerrado" });
+    }
   }
 
   const config = normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null);

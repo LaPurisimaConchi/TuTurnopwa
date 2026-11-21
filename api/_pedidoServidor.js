@@ -31,6 +31,9 @@ import { sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { reservasDelPedido } from "./_canjeServidor.js";
+import { diasAbiertosPerezosos, motivoDiaCerrado } from "./_reservarServidor.js";
+import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
+import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 
 // 12 dígitos: el número de pedido que se manda a Redsys (api/crear-sesion.js)
 export const PEDIDO_PAGO = /^\d{12}$/;
@@ -294,6 +297,33 @@ async function pedidoDeGrupo(db, uid, orderId, cuerpo) {
   if (!Number.isInteger(plazas) || plazas < 1 || plazas > MAX_PLAZAS_RESERVA) {
     return fallo(400, "Número de personas no válido.");
   }
+
+  // El navegador crea la reserva de grupo él solo: aquí se comprueba lo que la web ya exige
+  const [espacioSnap, bloqueosSnap, claseSnap, habilitadasSnap] = await Promise.all([
+    db.ref("configuracionEspacio").get(),
+    db.ref(`bloqueosFechas/${texto(grupo.fecha, 10)}`).get(),
+    db.ref(`clases/${tallerId}`).get(),
+    db.ref("fechasHabilitadas").get(),
+  ]);
+  const config = normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null);
+  if (plazas < config.minPersonasGrupo) {
+    return fallo(409, `Una reserva de grupo necesita al menos ${config.minPersonasGrupo} personas.`, {
+      codigo: "minimo_grupo",
+    });
+  }
+  if (bloqueosSnap.exists() && bloqueoAfectaTurno(bloqueosSnap.val(), String(grupo.turno || ""))) {
+    return fallo(409, "Ese día no está disponible.", { codigo: "bloqueado" });
+  }
+  const habilitadas = habilitadasSnap.val() || {};
+  const cerrado = await motivoDiaCerrado({
+    clase: claseSnap.exists() ? claseSnap.val() : null,
+    fecha: texto(grupo.fecha, 10),
+    turno: String(grupo.turno || ""),
+    plazas,
+    fechasHabilitadas: habilitadas,
+    diasAbiertos: diasAbiertosPerezosos(db, habilitadas),
+  });
+  if (cerrado) return fallo(409, cerrado, { codigo: "dia_cerrado" });
 
   const unidad = precioGrupoPorPersona(ficha, grupo.opcionTaller, grupo.metodoTaller);
   if (!(unidad > 0)) return fallo(409, "No se ha podido calcular el precio del grupo.", { codigo: "sin_precio" });
