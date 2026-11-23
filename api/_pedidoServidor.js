@@ -162,6 +162,9 @@ async function pedidoDeReserva(db, uid, orderId) {
       clase: nombreDeTaller(ficha, claseId) || texto(principal.clase),
       claseId,
       metodo: texto(principal.metodo),
+      // La opción elegida (variante de la ficha), para que el pedido la recuerde
+      subtipo: texto(principal.nombreTipoPieza),
+      tipoPieza: texto(principal.tipoPieza),
       fecha: texto(principal.fecha, 10),
       turno: texto(principal.turno, 60),
       plazas,

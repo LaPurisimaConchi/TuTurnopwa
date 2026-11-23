@@ -149,6 +149,10 @@ con las nuevas, el código viejo no puede cobrar.
 - [ ] **Grupos cancelados o movidos desde el panel antes de este cambio** (siguen activos en el perfil del
   cliente). Simulacro y, si cuadra, aplicar (se puede repetir):
   `node scripts/sincronizar-grupos-perfil.mjs --project la-purisima-conchi [--aplicar]`
+- [ ] **Opción elegida en el perfil y contador de reservas**: completa las reservas antiguas del perfil con su
+  opción («tumba», «mediana»…) y borra el contador numérico `usuarios/{uid}/reservas` (nadie lo lee). Simulacro y,
+  si cuadra, aplicar (se puede repetir):
+  `node scripts/completar-perfil-reservas.mjs --project la-purisima-conchi [--aplicar]`
 - [ ] **Reglas**: `usuarios/{uid}/listaReservas` ya solo la escriben el servidor y el panel (el cliente no
   puede fabricarse reservas en su perfil). Va en el despliegue de reglas del paso 2.
 - [ ] **Turnos de días abiertos**: un día sin horario se abre con una reserva del mínimo de personas del

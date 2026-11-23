@@ -411,9 +411,6 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
 
       const clave = claveLista || db.ref(`usuarios/${uid}/listaReservas`).push().key;
       escritura[`usuarios/${uid}/listaReservas/${clave}`] = entrada;
-
-      const usuario = await db.ref(`usuarios/${uid}/reservas`).get();
-      if (!claveLista) escritura[`usuarios/${uid}/reservas`] = (Number(usuario.val()) || 0) + 1;
     }
 
     await db.ref().update(escritura);

@@ -20,16 +20,6 @@ const RESERVAS_PATH_KEY = "CreaTuGranCentroMesa";
 const MAX_TORNO_FALLBACK = 12;
 const MAX_TOTALES_FALLBACK = 45;
 
-const actualizarContadorReservas = async (uid) => {
-  const userRef = ref(dbRealtime, "usuarios/" + uid);
-  const snapshot = await get(userRef);
-  if (snapshot.exists()) {
-    const datos = snapshot.val();
-    const nuevasReservas = (datos.reservas || 0) + 1;
-    await update(userRef, { reservas: nuevasReservas });
-  }
-};
-
 const normalizarTurnos = (turnosRaw) => {
   if (!turnosRaw) return [];
 
@@ -452,8 +442,6 @@ export default function ReservaCreaTuGranCentroMesa() {
 
         return;
       }
-
-      await actualizarContadorReservas(user.uid);
 
       navigate("/resumen-pago", {
         state: {
