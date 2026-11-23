@@ -4,6 +4,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { preguntar } from "./utils/avisos";
 const AdminHabilitarFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -145,7 +146,7 @@ setFechaEditando(null);
 };
 
   const eliminarHabilitacion = async (fecha) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       `¿Seguro que quieres quitar la habilitación de la fecha ${fechaDMA(fecha)}?`
     );
 

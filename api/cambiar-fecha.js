@@ -12,7 +12,7 @@
 // Se lee y escribe con firebase-admin (ni /reservas ni los nodos de apoyo son
 // públicos) y todas las reglas se comprueban aquí, nunca en el navegador:
 // src/utils/cambioFecha.js.
-import { adminDb } from "./_firebaseAdmin.js";
+import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { applyCors } from "./_cors.js";
 import { consumirIntento, hash, ipDe, limiteAlcanzado } from "./_limiteIntentos.js";
 import {
@@ -123,6 +123,18 @@ async function emailDeLaReserva(reserva) {
   }
 
   return emails.map(normalizarEmail).filter(Boolean);
+}
+
+// uid de quien llama si trae una sesión de Firebase cuyo email es el de la petición ("" si no)
+async function uidDeLaSesion(req, email) {
+  const token = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
+  if (!token) return "";
+  try {
+    const decodificado = await adminAuth.verifyIdToken(token);
+    return normalizarEmail(decodificado.email) === email ? decodificado.uid : "";
+  } catch {
+    return "";
+  }
 }
 
 // --- Datos que se enseñan al cliente ---------------------------------------
@@ -789,7 +801,13 @@ export default async function handler(req, res) {
       error: "Demasiados intentos. Espera unos minutos e inténtalo de nuevo.",
     };
 
-    if (!(await consumirIntento(adminDb, LIMITES, `ip_${hash(ipDe(req))}`, 30, 15 * 60_000))) {
+    // Quien llega con su sesión (reprogramar desde el perfil) cuenta por su cuenta, no por
+    // su IP: así una red compartida (una oficina, un wifi público) no se bloquea entre sí
+    const uidSesion = await uidDeLaSesion(req, email);
+    const limiteOk = uidSesion
+      ? await consumirIntento(adminDb, LIMITES, `uid_${hash(uidSesion)}`, 60, 15 * 60_000)
+      : await consumirIntento(adminDb, LIMITES, `ip_${hash(ipDe(req))}`, 30, 15 * 60_000);
+    if (!limiteOk) {
       return res.status(429).json(demasiados);
     }
 

@@ -7,6 +7,7 @@ import BotonVolver from "./BotonVolver";
 import { fechaDMA } from "./utils/formatoFecha";
 import { obtenerEstadoVisibleBono } from "./utils/estadoBono";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
 function formatearFechaNota(fecha) {
   if (!fecha) return "Sin fecha";
 
@@ -197,7 +198,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 

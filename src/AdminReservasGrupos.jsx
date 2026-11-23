@@ -12,6 +12,7 @@ import { calcularDiasAbiertos } from "./utils/diasAbiertos";
 import Icono from "./components/Icono";
 import "./AdminDashboard.css";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
 
 const grupoCancelado = (r) => r.cancelada === true || r.estado === "Cancelada";
 const grupoPagado = (r) => String(r.estadoPago || "").toLowerCase() === "pagado";
@@ -241,7 +242,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (orderId, notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -463,7 +464,7 @@ const actualizarGrupo = async (r, campos, textoNota) => {
 
 const cancelarGrupoManual = async (r) => {
   const pagado = grupoPagado(r);
-  const confirmar = window.confirm(
+  const confirmar = await preguntar(
     pagado
       ? "¿Seguro que quieres cancelar esta reserva de grupo? Está pagada: la cancelación no devuelve el dinero y sus plazas quedan libres."
       : "¿Seguro que quieres cancelar esta reserva de grupo? Sus plazas quedan libres y, si tenía enlace de pago, dejará de funcionar."
@@ -507,7 +508,7 @@ const marcarGrupoPagado = async (r) => {
     return;
   }
 
-  const confirmar = window.confirm(
+  const confirmar = await preguntar(
     `¿Marcar este grupo como pagado (${metodo}, ${Number(r.precioTotal || 0)}€)? La reserva queda confirmada y ocupa sus plazas.`
   );
   if (!confirmar) return;
@@ -591,7 +592,7 @@ const guardarFechaGrupo = async (r, nuevaFecha, nuevoTurno) => {
 
   const antes = `${fechaDMA(r.fecha) || "—"} · ${r.turno || "—"}`;
   const ahoraTexto = `${fechaDMA(nuevaFecha)} · ${turnoFinal || "—"}`;
-  const confirmar = window.confirm(
+  const confirmar = await preguntar(
     `¿Seguro que quieres cambiar este grupo del ${antes} al ${ahoraTexto}?`
   );
 
@@ -652,7 +653,7 @@ const guardarPlazoPago = async (r) => {
     return;
   }
 
-  const confirmar = window.confirm(
+  const confirmar = await preguntar(
     `¿Quieres ampliar el plazo de pago hasta ${nuevaFechaLimite.toLocaleString("es-ES")}?`
   );
   if (!confirmar) return;

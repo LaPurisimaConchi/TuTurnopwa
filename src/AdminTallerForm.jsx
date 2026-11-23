@@ -47,6 +47,7 @@ import {
   reducirImagen,
 } from "./utils/imagenes";
 import { obtenerEstadoVisibleBono } from "./utils/bonos";
+import { preguntar } from "./utils/avisos";
 
 const MAX_IMAGENES = 8;
 
@@ -613,7 +614,7 @@ export default function AdminTallerForm() {
         return;
       }
 
-      const confirmado = window.confirm(
+      const confirmado = await preguntar(
         `¿Borrar «${form.nombre || idEditar}» definitivamente?\n\nSe eliminan su ficha, sus fotos y sus notas internas. Las reservas pasadas se conservan. No se puede deshacer.`
       );
       if (!confirmado) return;

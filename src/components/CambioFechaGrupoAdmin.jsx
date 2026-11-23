@@ -10,6 +10,7 @@ import { turnoYaEmpezado, turnosDeGrupo } from "../utils/cambioFecha";
 import { bloqueoAfectaTurno } from "../utils/rangosHora";
 import { contarFranja, plazasLibresFranja, turnosCompartenPlazas, usaTorno } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
+import { preguntar } from "../utils/avisos";
 
 const fechaLarga = (iso) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("es-ES", {
@@ -74,11 +75,11 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
   const faltaSitio = libres !== null && libres < plazas;
   const hayCambio = !!fecha && !!turno && (fecha !== grupo.fecha || turno !== grupo.turno);
 
-  const guardar = () => {
+  const guardar = async () => {
     if (!hayCambio) return;
     if (
       faltaSitio &&
-      !window.confirm(
+      !await preguntar(
         `En ese turno quedan ${libres} plazas libres y el grupo es de ${plazas} personas. ¿Cambiar la fecha igualmente?`
       )
     ) {

@@ -16,6 +16,7 @@ import PantallaConVolver from "./PantallaConVolver";
 import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
 
 import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
+import { preguntar } from "./utils/avisos";
 function obtenerFechaReserva(reserva) {
   if (!reserva) return null;
 
@@ -412,7 +413,7 @@ function SesionBono({ bono, sesion, config, onCambio }) {
 
   const cancelar = async () => {
     if (
-      !window.confirm(
+      !await preguntar(
         `¿Cancelar la sesión del ${fechaDMA(sesion.fecha)} (${sesion.turno})? La clase volverá a tu bono.`
       )
     ) {
@@ -610,10 +611,10 @@ export default function PerfilUsuario() {
     return () => unsubscribe();
   }, [navigate, version]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (
       esInvitado &&
-      !window.confirm(
+      !await preguntar(
         "Estás como invitado. Si cierras la sesión no podrás volver a ver estas reservas desde la app (el taller las conserva). ¿Cerrar sesión igualmente?"
       )
     ) {

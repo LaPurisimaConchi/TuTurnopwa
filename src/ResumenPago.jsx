@@ -8,6 +8,7 @@ import { irAlTPV, prepararPago } from "./utils/pagoServidor";
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 import { euros } from "./utils/formatoPrecio";
+import { useConfigEspacio } from "./configuracionEspacio";
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
   return str
@@ -98,6 +99,7 @@ export default function ResumenPago() {
   // Sin datos (se abre la dirección a mano o se recarga) el state es null, no undefined
   const state = useLocation().state || {};
   const navigate = useNavigate();
+  const { config: configEspacio } = useConfigEspacio();
 
   const {
     desdeTarjeta,
@@ -379,6 +381,13 @@ export default function ResumenPago() {
             </span>
           </label>
         </div>
+
+        {!(desdeTarjeta || desdeTarjetaRegalo) && (
+          <p className="text-xs text-tinta-suave text-left mb-3">
+            Pagarás en la página segura de tu banco. Si cancelas allí, vuelve a esta web: tu plaza
+            se guarda {configEspacio.minutosReserva} minutos.
+          </p>
+        )}
 
         <button
           onClick={handleConfirmarPago}

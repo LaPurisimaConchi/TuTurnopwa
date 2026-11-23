@@ -84,7 +84,7 @@ export default function ReservaTallerDinamico() {
     return (
       <PantallaReserva>
         <p className="text-center text-red-600 py-8">
-          Este taller no está disponible para reservar ahora mismo.
+          Este taller no existe o no se puede reservar ahora mismo.
         </p>
       </PantallaReserva>
     );

@@ -12,6 +12,7 @@ import CalendarioReserva from "./components/CalendarioReserva";
 
 import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -380,7 +381,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -594,7 +595,7 @@ useEffect(() => {
     const turnoNormalizado = normalizarTurnoParaRuta(nuevoTurno);
     const turnoAnteriorNormalizado = normalizarTurnoParaRuta(reserva.turno);
 
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       `¿Seguro que quieres reprogramar esta reserva del ${fechaDMA(reserva.fecha)} (${turnoAnteriorNormalizado}) al ${fechaDMA(nuevaFecha)} (${turnoNormalizado})?`
     );
 
@@ -816,7 +817,7 @@ useEffect(() => {
   };
 
   const quitarReprogramacion = async () => {
-    if (!window.confirm("¿Quitar la opción de volver a reservar? El código dejará de recuperar esta reserva.")) {
+    if (!await preguntar("¿Quitar la opción de volver a reservar? El código dejará de recuperar esta reserva.")) {
       return;
     }
     setQuitandoReprogramacion(true);
@@ -849,7 +850,7 @@ useEffect(() => {
   const cancelarReserva = async () => {
     if (!reserva || reservaYaCancelada) return;
 
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres cancelar esta reserva? La reserva quedará guardada en la base de datos como cancelada."
     );
 

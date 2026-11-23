@@ -10,6 +10,7 @@ import {
   estadoMigracion,
   migrarTaller,
 } from "./migracion/migrarTalleres";
+import { preguntar } from "./utils/avisos";
 
 export default function AdminMigrarTalleres() {
   const categorias = useCategorias({ incluirOcultas: true });
@@ -74,7 +75,7 @@ export default function AdminMigrarTalleres() {
   };
 
   const handleMigrarTodos = async () => {
-    const confirmado = window.confirm(
+    const confirmado = await preguntar(
       `Se van a migrar ${pendientes.length} talleres y a copiar sus fotos a la base de datos. Puede tardar un par de minutos. ¿Continuar?`
     );
     if (!confirmado) return;
@@ -89,7 +90,7 @@ export default function AdminMigrarTalleres() {
   };
 
   const handleDeshacer = async (taller) => {
-    const confirmado = window.confirm(
+    const confirmado = await preguntar(
       `¿Volver «${taller.nombre}» a su página de siempre? Se conservan la ficha y las fotos, pero deja de poder editarse, ocultarse y borrarse desde el panel.`
     );
     if (!confirmado) return;

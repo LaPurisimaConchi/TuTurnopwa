@@ -8,6 +8,7 @@ import {
   nombreArchivoPdf,
   formatearTamano,
 } from "../utils/plantillasTarjetaRegalo";
+import { preguntar } from "../utils/avisos";
 
 const leerBase64 = (archivo) =>
   new Promise((resolve, reject) => {
@@ -99,7 +100,7 @@ export default function GestionPlantillasTarjetaRegalo() {
   };
 
   const borrar = async (plantilla) => {
-    if (!window.confirm(`¿Borrar «${plantilla.nombre}»? Dejará de poder descargarse y de enviarse por correo.`)) return;
+    if (!await preguntar(`¿Borrar «${plantilla.nombre}»? Dejará de poder descargarse y de enviarse por correo.`)) return;
     setOcupado(true);
     try {
       await remove(ref(dbRealtime, `plantillasTarjetaRegalo/${plantilla.id}`));

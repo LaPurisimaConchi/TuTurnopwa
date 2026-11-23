@@ -17,6 +17,7 @@ import {
   ordenarCategorias,
   unirCategorias,
 } from "./categoriasTalleres";
+import { preguntar } from "./utils/avisos";
 
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
 const label = "block font-bold text-sm mb-1 text-tinta";
@@ -113,8 +114,8 @@ export default function AdminCategorias() {
   const handleMigrar = (ids, textoOk) =>
     ejecutar(() => migrarCategoriasDeSiempre(ids), textoOk);
 
-  const handleBorrar = (categoria) => {
-    if (!window.confirm(`¿Borrar la categoría «${categoria.titulo}»? No se puede deshacer.`)) {
+  const handleBorrar = async (categoria) => {
+    if (!await preguntar(`¿Borrar la categoría «${categoria.titulo}»? No se puede deshacer.`)) {
       return;
     }
     ejecutar(() => borrarCategoria(categoria.id), "Categoría borrada.");
