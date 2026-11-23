@@ -8,7 +8,7 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$campo": {
-          ".write": "auth != null && auth.uid === $uid && $campo !== 'bonos' && $campo !== 'tarjetasRegalo' && $campo !== 'cuentaAnterior'"
+          ".write": "auth != null && auth.uid === $uid && $campo !== 'bonos' && $campo !== 'tarjetasRegalo' && $campo !== 'cuentaAnterior' && $campo !== 'listaReservas'"
         }
       }
     },

@@ -89,7 +89,8 @@ await caso("set de su perfil entero", false, pedir("PUT", "usuarios/uidA", ANON_
 await caso("escribir sus bonos", false, pedir("PUT", "usuarios/uidA/bonos/b1/clasesRestantes", ANON_A, 99));
 await caso("update de perfil con bonos", false, pedir("PATCH", "usuarios/uidA", ANON_A, { nombre: "A", bonos: { b2: { clasesRestantes: 9 } } }));
 await caso("escribir sus tarjetasRegalo", false, pedir("PUT", "usuarios/uidA/tarjetasRegalo/t1", ANON_A, { usado: false }));
-await caso("añadir a su listaReservas", true, pedir("PUT", "usuarios/uidA/listaReservas/-L1", ANON_A, { clase: "x" }));
+await caso("añadir a su listaReservas (solo servidor y admin)", false, pedir("PUT", "usuarios/uidA/listaReservas/-L1", ANON_A, { clase: "x", estado: "Confirmada" }));
+await caso("update de perfil con listaReservas", false, pedir("PATCH", "usuarios/uidA", ANON_A, { listaReservas: { "-L2": { estado: "Confirmada" } } }));
 await caso("escribir el perfil de otro", false, pedir("PUT", "usuarios/uidB/nombre", ANON_A, "hack"));
 await caso("borrar /usuarios", false, pedir("DELETE", "usuarios", ANON_A));
 
@@ -165,6 +166,7 @@ await caso("leer /reservas", true, pedir("GET", "reservas", ADMIN));
 await caso("leer /usuarios", true, pedir("GET", "usuarios", ADMIN));
 await caso("confirmar una reserva", true, pedir("PATCH", `${F}/-Existente`, ADMIN, { estado: "Cancelada" }));
 await caso("editar bonos de un usuario", true, pedir("PUT", "usuarios/uidA/bonos/b1/clasesRestantes", ADMIN, 3));
+await caso("el panel actualiza la listaReservas de un cliente", true, pedir("PUT", "usuarios/uidA/listaReservas/-L1/estado", ADMIN, "Cancelada"));
 await caso("bloquear un día", true, pedir("PUT", "bloqueosFechas/2026-12-25", ADMIN, { bloqueado: true }));
 await caso("notas de reservas", true, pedir("PUT", "reservasNotas/x", ADMIN, "n"));
 await caso("leer tarjetas regalo", true, pedir("GET", "tarjetasRegalo", ADMIN));
