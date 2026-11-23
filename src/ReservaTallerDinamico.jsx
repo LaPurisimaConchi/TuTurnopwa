@@ -606,6 +606,11 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
   const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
   if (conVariante && varianteId) parametrosGrupo.set("variante", varianteId);
   if (conMetodo && !conVariante && metodo) parametrosGrupo.set("metodo", metodo);
+  // El día y el turno ya elegidos también valen para el grupo
+  if (fecha && turno) {
+    parametrosGrupo.set("fecha", fecha);
+    parametrosGrupo.set("turno", turno);
+  }
   const destinoGrupo = `/reserva-grupos?${parametrosGrupo.toString()}`;
 
   // Lo elegido en la página del taller (o en la tarjeta regalo) no se puede cambiar aquí
