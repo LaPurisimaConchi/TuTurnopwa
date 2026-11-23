@@ -17,7 +17,7 @@ import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import { calcularDiasAbiertos, puedeAbrirDia, tallerTieneHorarioEnFecha } from "../src/utils/diasAbiertos.js";
-import { limpiarTurno, turnosDiasAbiertos } from "../src/utils/turnosFecha.js";
+import { limpiarTurno, normalizarTurnos, turnosDiasAbiertos, turnosDisponiblesEnFecha } from "../src/utils/turnosFecha.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
 import { diasEntreSesionesDe, motivoSesionesNoValidas, sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 
@@ -127,7 +127,17 @@ export function diasAbiertosPerezosos(db, fechasHabilitadas) {
 // diasAbiertosPerezosos.
 export async function motivoDiaCerrado({ clase, fecha, turno, plazas, fechasHabilitadas, diasAbiertos }) {
   if (!clase || clase.dinamica !== true || esMonografico(clase)) return "";
-  if (tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) return "";
+  if (tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) {
+    // Un día con horario solo admite los turnos de ese día (el navegador manda el turno)
+    const turnosDelDia = normalizarTurnos(
+      turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas })
+    ).map(limpiarTurno);
+    const soloConsulta = turnosDelDia.length === 1 && turnosDelDia[0].toLowerCase().includes("consultar");
+    if (turnosDelDia.length && !soloConsulta && !turnosDelDia.includes(limpiarTurno(turno))) {
+      return "Ese turno no existe ese día.";
+    }
+    return "";
+  }
   if (!turnosDiasAbiertos(clase).includes(limpiarTurno(turno))) return "Ese día no hay taller.";
   if (!puedeAbrirDia(clase, plazas) && !(await diasAbiertos())[fecha]) {
     return "Ese día está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.";

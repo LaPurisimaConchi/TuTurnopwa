@@ -146,6 +146,11 @@ con las nuevas, el código viejo no puede cobrar.
 - [ ] **Espacio y aforo** en `/admin-espacio`. Ahora el servidor rechaza las reservas que superan el
   aforo común a todos los talleres y grupos. Sin configurar, aplica 45 plazas por franja, 12 de
   torno, grupo mínimo de 3 y 15 minutos para pagar. Revisa los valores reales antes de abrir reservas.
+- [ ] **Grupos cancelados o movidos desde el panel antes de este cambio** (siguen activos en el perfil del
+  cliente). Simulacro y, si cuadra, aplicar (se puede repetir):
+  `node scripts/sincronizar-grupos-perfil.mjs --project la-purisima-conchi [--aplicar]`
+- [ ] **Reglas**: `usuarios/{uid}/listaReservas` ya solo la escriben el servidor y el panel (el cliente no
+  puede fabricarse reservas en su perfil). Va en el despliegue de reglas del paso 2.
 - [ ] **Turnos de días abiertos**: un día sin horario se abre con una reserva del mínimo de personas del
   taller (`minPersonasGrupo` de su ficha) y ofrece los «turnos de días abiertos» de la ficha
   (`clases/{id}/turnos`). Revisa en `/admin-taller` que cada taller tenga turnos válidos (formato

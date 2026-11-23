@@ -161,8 +161,7 @@ TuTurnopwa/
 │   ├── pago-admin.js         # Confirma pagos simulados con autenticación admin
 │   ├── _firmaRedsys.js       # Firma HMAC_SHA256_V1 (sesión y aviso del TPV)
 │   ├── _firebaseAdmin.js     # Inicialización Admin SDK
-│   ├── _cors.js
-│   └── ping.js
+│   └── _cors.js
 ├── docs/                     # Manuales de usuario/admin (HTML)
 ├── public/
 │   ├── manifest.json         # PWA manifest

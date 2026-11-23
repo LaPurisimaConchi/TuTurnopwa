@@ -89,6 +89,43 @@ useEffect(() => {
           });
         }
 
+        // Sin copia en el perfil del comprador, la tarjeta de verdad está en /tarjetasRegalo
+        if (!encontrada) {
+          const raizSnap = await get(ref(dbRealtime, `tarjetasRegalo/${orderId}`));
+          if (raizSnap.exists()) {
+            const t = raizSnap.val() || {};
+            const uid = String(t.uidComprador || "");
+            const comprador = usuariosSnap.exists() ? usuariosSnap.val()?.[uid] || {} : {};
+            encontrada = {
+              id: orderId,
+              uid,
+              orderId,
+              clase: t.clase || "Tarjeta regalo",
+              codigo: t.codigo || "",
+              fechaCompra: typeof t.fechaCompra === "string" ? t.fechaCompra : "—",
+              fecha:
+                typeof t.fechaCompra === "string" && t.fechaCompra.length >= 10
+                  ? t.fechaCompra.slice(0, 10)
+                  : "—",
+              estado: t.estadoCanje || "pendiente",
+              estadoPago: t.estadoPago || "—",
+              precioTotal: Number(t.precioTotal || 0),
+              precioUnitario: Number(t.precioUnitario || t.precio || t.precioTotal || 0),
+              plazas: Number(t.plazas || 1),
+              nombreDestinatario: t.nombreDestinatario || "",
+              emailDestinatario: t.emailDestinatario || "",
+              mensajePersonalizado: t.mensajePersonalizado || "",
+              subtipo: t.subtipo || "",
+              tipo: t.tipo || "",
+              numeroClases: Number(t.numeroClases || 0),
+              procesado: t.procesado ?? false,
+              nombreUsuario: comprador.nombre || "",
+              invitado: comprador.invitado === true,
+              emailUsuario: comprador.email || "",
+            };
+          }
+        }
+
         setTarjeta(encontrada);
 
         const listaNotas = [];

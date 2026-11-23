@@ -104,7 +104,13 @@ export default async function handler(req, res) {
     const token = String(req.headers.authorization || "").match(/^Bearer\s+(.+)$/i)?.[1];
     if (!token) return res.status(401).json({ ok: false, error: "Autenticación requerida" });
 
-    const decodificado = await adminAuth.verifyIdToken(token);
+    let decodificado;
+    try {
+      decodificado = await adminAuth.verifyIdToken(token);
+    } catch {
+      // Token caducado o falso: es un fallo de sesión, no del servidor
+      return res.status(401).json({ ok: false, error: "Sesión no válida. Vuelve a iniciar sesión.", codigo: "sesion_no_valida" });
+    }
     const { uid } = decodificado;
     const cuerpo = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
 

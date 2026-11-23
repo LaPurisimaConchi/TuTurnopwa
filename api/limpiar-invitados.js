@@ -11,8 +11,9 @@
 // que empezaron hace más de un día: ya no limitan nada.
 //
 // Antes de eso borra las reservas pendientes de pago cuya plaza guardada caducó hace
-// más de DIAS_PENDIENTES días (reservadaHasta, ver api/_reservarServidor.js): ya no
-// cuentan para el aforo y, si no se borraran, mantendrían vivos a sus invitados.
+// más de DIAS_PENDIENTES días (reservadaHasta, ver api/_reservarServidor.js; las antiguas, sin
+// él, desde su fecha de creación): ya no cuentan para el aforo y, si no se borraran,
+// mantendrían vivos a sus invitados.
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
 import { limpiarLimites } from "./_limiteIntentos.js";
 
@@ -34,7 +35,9 @@ function pendientesCaducadas(valor, limiteMs, ruta = "reservas", destino = []) {
       const pendiente =
         String(hijo.estado || "").toLowerCase() === "pendiente" &&
         String(hijo.estadoPago || "").toLowerCase() !== "pagado";
-      const caducada = Date.parse(hijo.reservadaHasta || "");
+      // Las pendientes antiguas (pantallas de siempre) no llevan reservadaHasta: se toma
+      // el momento en que se crearon, para que tampoco se queden para siempre
+      const caducada = Date.parse(hijo.reservadaHasta || hijo.timestamp || hijo.creadaEnMs || "");
 
       if (pendiente && Number.isFinite(caducada) && caducada < limiteMs) destino.push(rutaHijo);
     } else {

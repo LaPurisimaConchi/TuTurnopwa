@@ -37,9 +37,10 @@ const AdminTarjetasRegalo = () => {
       try {
         const datosTarjetas = [];
 
-        const [usuariosSnap, notasSnap] = await Promise.all([
+        const [usuariosSnap, notasSnap, tarjetasRaizSnap] = await Promise.all([
           get(ref(dbRealtime, "usuarios")),
           get(ref(dbRealtime, "reservasNotas")),
+          get(ref(dbRealtime, "tarjetasRegalo")),
         ]);
 
         const mapaNotas = {};
@@ -61,53 +62,61 @@ const AdminTarjetasRegalo = () => {
           });
         }
 
-        if (usuariosSnap.exists()) {
-          usuariosSnap.forEach((userSnap) => {
-            const uid = userSnap.key;
-            const userData = userSnap.val() || {};
-            const nombreUsuario = userData.nombre || "";
-            const emailUsuario = userData.email || "";
-            const invitado = userData.invitado === true;
+        const usuarios = usuariosSnap.exists() ? usuariosSnap.val() || {} : {};
+        const yaListadas = new Set();
 
-            const tarjetasUsuario = userData.tarjetasRegalo || {};
+        const agregar = (tarjetaId, tarjeta, uid) => {
+          const t = tarjeta || {};
+          const userData = usuarios[uid] || {};
+          const orderIdReal = t.orderId || tarjetaId;
 
-            Object.entries(tarjetasUsuario).forEach(([tarjetaId, tarjeta]) => {
-              const t = tarjeta || {};
-              const orderIdReal = t.orderId || tarjetaId;
+          yaListadas.add(String(tarjetaId));
+          datosTarjetas.push({
+            id: tarjetaId,
+            tipoRegistro: "tarjeta_regalo",
+            claseId: "tarjeta_regalo",
+            clase: t.clase || "Tarjeta regalo",
+            fecha:
+              typeof t.fechaCompra === "string" && t.fechaCompra.length >= 10
+                ? t.fechaCompra.slice(0, 10)
+                : "—",
+            turno: "—",
+            metodo: t.codigo || "—",
+            plazas: Number(t.plazas || 1),
+            estado: t.estadoCanje || "pendiente",
+            estadoPago: t.estadoPago || "—",
+            precioTotal: Number(t.precioTotal || 0),
+            uid: uid,
+            invitado: userData.invitado === true,
+            orderId: orderIdReal,
+            procesado: t.procesado ?? false,
+            codigo: t.codigo || "",
+            nombreDestinatario: t.nombreDestinatario || "",
+            emailDestinatario: t.emailDestinatario || "",
+            mensajePersonalizado: t.mensajePersonalizado || "",
+            subtipo: t.subtipo || "",
+            tipo: t.tipo || "",
+            numeroClases: Number(t.numeroClases || 0),
+            nombreUsuario: userData.nombre || "",
+            emailUsuario: userData.email || "",
+            notasInternas: mapaNotas[orderIdReal] || 0,
+          });
+        };
 
-              datosTarjetas.push({
-                id: tarjetaId,
-                tipoRegistro: "tarjeta_regalo",
-                claseId: "tarjeta_regalo",
-                clase: t.clase || "Tarjeta regalo",
-                fecha:
-                  typeof t.fechaCompra === "string" && t.fechaCompra.length >= 10
-                    ? t.fechaCompra.slice(0, 10)
-                    : "—",
-                turno: "—",
-                metodo: t.codigo || "—",
-                plazas: Number(t.plazas || 1),
-                estado: t.estadoCanje || "pendiente",
-                estadoPago: t.estadoPago || "—",
-                precioTotal: Number(t.precioTotal || 0),
-                uid: uid,
-                invitado,
-                orderId: orderIdReal,
-                procesado: t.procesado ?? false,
-                codigo: t.codigo || "",
-                nombreDestinatario: t.nombreDestinatario || "",
-                emailDestinatario: t.emailDestinatario || "",
-                mensajePersonalizado: t.mensajePersonalizado || "",
-                subtipo: t.subtipo || "",
-                tipo: t.tipo || "",
-                numeroClases: Number(t.numeroClases || 0),
-                nombreUsuario,
-                emailUsuario,
-                notasInternas: mapaNotas[orderIdReal] || 0,
-              });
-            });
+        // La lista de verdad es /tarjetasRegalo (la copia de cada comprador puede faltar
+        // o ir por detrás); las copias que no estén allí (muy antiguas) se añaden después
+        if (tarjetasRaizSnap.exists()) {
+          tarjetasRaizSnap.forEach((tarjetaSnap) => {
+            const t = tarjetaSnap.val() || {};
+            agregar(tarjetaSnap.key, t, String(t.uidComprador || ""));
           });
         }
+
+        Object.entries(usuarios).forEach(([uid, userData]) => {
+          Object.entries(userData?.tarjetasRegalo || {}).forEach(([tarjetaId, tarjeta]) => {
+            if (!yaListadas.has(String(tarjetaId))) agregar(tarjetaId, tarjeta, uid);
+          });
+        });
 
         datosTarjetas.sort((a, b) => {
           const fechaA = new Date(a.fecha === "—" ? 0 : `${a.fecha}T00:00:00`);
