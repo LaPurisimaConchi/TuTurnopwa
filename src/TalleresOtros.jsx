@@ -11,7 +11,7 @@ export default function TalleresOtros() {
       <BotonVolver />
 
       <div className="flex flex-col md:flex-row items-center mb-7">
-        <img
+        <img loading="lazy" decoding="async"
           src="/img/logoPCsin.png"
           alt="Logo La Purísima Conchi"
           className="h-20 w-auto mb-4 md:mb-0 md:mr-4"

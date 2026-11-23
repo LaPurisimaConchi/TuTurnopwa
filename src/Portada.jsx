@@ -42,7 +42,7 @@ export default function Portada() {
       {/* CABECERA */}
       <section className="px-4 pt-8 pb-10 md:pt-12 md:pb-14">
         <div className="w-full max-w-3xl mx-auto text-center">
-          <img
+          <img loading="lazy" decoding="async"
             src="/img/logoPCsin.png"
             alt="La Purísima Conchi"
             className="w-36 sm:w-44 md:w-52 mx-auto mb-7"
@@ -73,7 +73,7 @@ export default function Portada() {
               onClick={() => navigate("/regalar-taller")}
               className="flex items-center gap-3 text-left rounded-2xl border border-mostaza-borde bg-mostaza-suave hover:bg-mostaza/30 p-2.5 pr-4 transition"
             >
-              <img
+              <img loading="lazy" decoding="async"
                 src="/img/creatupiezafavoritaregalo.jpg"
                 alt=""
                 className="h-16 w-16 shrink-0 rounded-xl object-cover"
@@ -92,7 +92,7 @@ export default function Portada() {
               onClick={() => navigate("/grupos")}
               className="flex items-center gap-3 text-left rounded-2xl border border-[#8fbf9f] bg-[#eef6f0] hover:bg-[#ddeee3] p-2.5 pr-4 transition"
             >
-              <img
+              <img loading="lazy" decoding="async"
                 src="/img/grupos/portadagrupos.jpg"
                 alt=""
                 className="h-16 w-16 shrink-0 rounded-xl object-cover"

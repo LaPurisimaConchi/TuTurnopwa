@@ -11,6 +11,17 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          // Las librerías cambian poco: en trozos aparte se quedan en la caché del navegador
+          manualChunks: {
+            firebase: ["firebase/app", "firebase/auth", "firebase/database"],
+            react: ["react", "react-dom", "react-router-dom"],
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         "/api": {

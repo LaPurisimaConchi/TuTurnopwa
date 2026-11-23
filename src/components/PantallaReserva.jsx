@@ -10,7 +10,7 @@ export default function PantallaReserva({ children, ancho = "max-w-md" }) {
         <BotonVolver />
         {children}
         <div className="mt-8 text-center">
-          <img src="/img/logoPCsin.png" alt="La Purísima Conchi" className="w-20 mx-auto" />
+          <img loading="lazy" decoding="async" src="/img/logoPCsin.png" alt="La Purísima Conchi" className="w-20 mx-auto" />
         </div>
       </div>
     </div>

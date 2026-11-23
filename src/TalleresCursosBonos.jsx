@@ -63,7 +63,7 @@ export default function TalleresCursosBonos() {
       <BotonVolver />
 
       <div className="flex flex-col md:flex-row items-center mb-7">
-        <img
+        <img loading="lazy" decoding="async"
           src="/img/logoPCsin.png"
           alt="Logo La Purísima Conchi"
           className="h-20 w-auto mb-4 md:mb-0 md:mr-4"
@@ -118,7 +118,7 @@ export default function TalleresCursosBonos() {
               </div>
             </div>
 
-            <img
+            <img loading="lazy" decoding="async"
               src={item.imagen}
               alt={`Icono de ${item.titulo}`}
               className="w-28 h-28 object-contain mt-4 ml-auto opacity-95 hover:scale-110 transition-transform duration-300 drop-shadow-md"

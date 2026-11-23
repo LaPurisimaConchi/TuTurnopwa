@@ -57,7 +57,7 @@ export default function ImagenTaller({ src, alt = "", className = "", imgClassNa
             </div>
           )}
           {!buscando && (
-            <img
+            <img loading="lazy" decoding="async"
               ref={imgRef}
               src={src}
               alt={alt}

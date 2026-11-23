@@ -28,7 +28,7 @@ export default function PaginaPresentacion({
           <h1 className="text-3xl md:text-4xl font-serif font-semibold text-tinta">{titulo}</h1>
           <p className="text-lg text-tinta mt-3">{entradilla}</p>
         </div>
-        <img
+        <img loading="lazy" decoding="async"
           src={imagenPrincipal}
           alt={titulo}
           className="order-1 md:order-2 w-full aspect-[4/3] object-cover rounded-2xl shadow-md"

@@ -5,6 +5,7 @@ import Icono from "./components/Icono";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { NOMBRE_WEB } from "./utils/titulos";
 import BotonReserva from "./BotonReserva";
 import { FormularioReserva } from "./ReservaTallerDinamico";
 import ReservaBonoDinamico from "./ReservaBonoDinamico";
@@ -59,6 +60,11 @@ export default function TallerDinamico() {
 
     cargar();
   }, [claseId]);
+
+  // La pestaña lleva el nombre del taller
+  useEffect(() => {
+    if (clase?.nombre) document.title = `${clase.nombre} · ${NOMBRE_WEB}`;
+  }, [clase?.nombre]);
 
   if (cargando) {
     return (
@@ -231,7 +237,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                       imagenActiva === img ? "border-terracota" : "border-linea"
                     }`}
                   >
-                    <img
+                    <img loading="lazy" decoding="async"
                       src={img}
                       alt={`Miniatura ${index + 1}`}
                       className="w-full h-full object-cover"
@@ -570,7 +576,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             >
               ×
             </button>
-            <img
+            <img loading="lazy" decoding="async"
               src={imagenActiva}
               alt={`${clase.nombre} ampliada`}
               className="w-full max-h-[85vh] object-contain rounded-2xl"
