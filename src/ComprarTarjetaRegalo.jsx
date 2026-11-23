@@ -218,10 +218,11 @@ export default function ComprarTarjetaRegalo() {
             <p className="text-center text-sm text-tinta-suave">Cargando…</p>
           ) : (
           <div>
-            <label className="block font-bold text-sm mb-2">
+            <label htmlFor="opcion-regalo" className="block font-bold text-sm mb-2">
               Selecciona el taller o regalo
             </label>
             <select
+              id="opcion-regalo"
               value={opcionSeleccionadaId}
               onChange={(e) => {
                 setOpcionSeleccionadaId(e.target.value);

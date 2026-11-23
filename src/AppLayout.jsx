@@ -1,15 +1,21 @@
 // src/AppLayout.jsx
-import React from "react";
+import React, { Suspense, useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import Footer from "./Footer";
 import Header from "./Header";
 import PageContainer from "./PageContainer";
 import BotonWhatsApp from "./components/BotonWhatsApp";
 import { useGuardiaVerificacion } from "./utils/guardiaVerificacion";
+import { tituloDeRuta } from "./utils/titulos";
 
 export default function AppLayout() {
   const location = useLocation();
   useGuardiaVerificacion();
+
+  // Título de la pestaña por página (los talleres lo cambian con su nombre al cargar)
+  useEffect(() => {
+    document.title = tituloDeRuta(location.pathname);
+  }, [location.pathname]);
   const ocultarFooterEn = [];
 
   // ✅ Rutas que NO deben ir dentro de PageContainer (portada y el calendario del
@@ -24,11 +30,15 @@ export default function AppLayout() {
       <main className="flex-grow">
         {usaContenedor ? (
           <PageContainer>
-            <Outlet />
+            <Suspense fallback={<p className="py-16 text-center text-tinta-suave">Cargando…</p>}>
+              <Outlet />
+            </Suspense>
           </PageContainer>
         ) : (
           // La portada se renderiza sin contenedor para que ocupe y centre bien
-          <Outlet />
+          <Suspense fallback={<p className="py-16 text-center text-tinta-suave">Cargando…</p>}>
+            <Outlet />
+          </Suspense>
         )}
       </main>
 

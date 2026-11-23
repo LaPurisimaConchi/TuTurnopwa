@@ -1,4 +1,8 @@
+import { lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+// Salvo la portada y lo que hace falta para pintar cualquier página, cada pantalla se baja
+// cuando se entra en ella: el panel de administración no pesa en la portada.
 
 // Utilidades y layout
 import ScrollToTop from "./ScrollToTop";
@@ -9,117 +13,117 @@ import RutaCategoria from "./RutaCategoria";
 
 // Páginas principales
 import Portada from "./Portada.jsx";
-import Login from "./Login.jsx";
-import Registro from "./Registro.jsx";
-import AccionCuenta from "./AccionCuenta.jsx";
-import PerfilUsuario from "./PerfilUsuario.jsx";
-import EditarPerfil from "./EditarPerfil.jsx";
+const Login = lazy(() => import("./Login.jsx"));
+const Registro = lazy(() => import("./Registro.jsx"));
+const AccionCuenta = lazy(() => import("./AccionCuenta.jsx"));
+const PerfilUsuario = lazy(() => import("./PerfilUsuario.jsx"));
+const EditarPerfil = lazy(() => import("./EditarPerfil.jsx"));
 
 
 // Legales y políticas
-import PoliticaPiezas from "./PoliticaPiezas";
-import RecogerPieza from "./RecogerPieza";
-import AvisoLegal from "./AvisoLegal.jsx";
-import PoliticaCancelacion from "./PoliticaCancelacion.jsx";
-import CondicionesUso from "./CondicionesUso.jsx";
-import PoliticaPrivacidad from "./PoliticaPrivacidad.jsx";
-import CondicionesPago from "./CondicionesPago.jsx";
+const PoliticaPiezas = lazy(() => import("./PoliticaPiezas"));
+const RecogerPieza = lazy(() => import("./RecogerPieza"));
+const AvisoLegal = lazy(() => import("./AvisoLegal.jsx"));
+const PoliticaCancelacion = lazy(() => import("./PoliticaCancelacion.jsx"));
+const CondicionesUso = lazy(() => import("./CondicionesUso.jsx"));
+const PoliticaPrivacidad = lazy(() => import("./PoliticaPrivacidad.jsx"));
+const CondicionesPago = lazy(() => import("./CondicionesPago.jsx"));
 
 // Pagos
-import ResumenPago from "./ResumenPago.jsx";
-import ConfirmacionPago from "./ConfirmacionPago.jsx";
-import PagoFallido from "./PagoFallido.jsx";
+const ResumenPago = lazy(() => import("./ResumenPago.jsx"));
+const ConfirmacionPago = lazy(() => import("./ConfirmacionPago.jsx"));
+const PagoFallido = lazy(() => import("./PagoFallido.jsx"));
 import NoEncontrada from "./NoEncontrada.jsx";
-import GestionarReserva from "./GestionarReserva";
+const GestionarReserva = lazy(() => import("./GestionarReserva"));
 
 // Clases y secciones principales
-import Clases from "./Clases.jsx";
-import TalleresCrearPiezas from "./TalleresCrearPiezas";
-import TalleresCursosBonos from "./TalleresCursosBonos";
-import TalleresPintaDecora from "./TalleresPintaDecora";
-import TalleresOtros from "./TalleresOtros";
-import TalleresCategoria from "./TalleresCategoria";
+const Clases = lazy(() => import("./Clases.jsx"));
+const TalleresCrearPiezas = lazy(() => import("./TalleresCrearPiezas"));
+const TalleresCursosBonos = lazy(() => import("./TalleresCursosBonos"));
+const TalleresPintaDecora = lazy(() => import("./TalleresPintaDecora"));
+const TalleresOtros = lazy(() => import("./TalleresOtros"));
+const TalleresCategoria = lazy(() => import("./TalleresCategoria"));
 
 // Talleres creados desde el panel admin
-import TallerDinamico from "./TallerDinamico";
-import ReservaTallerDinamico from "./ReservaTallerDinamico";
+const TallerDinamico = lazy(() => import("./TallerDinamico"));
+const ReservaTallerDinamico = lazy(() => import("./ReservaTallerDinamico"));
 import RedirigirAFicha from "./RedirigirAFicha";
 
 // Clases
-import CreaTuBrunchBowl from "./CreaTuBrunchBowl.jsx";
-import CreaTuPiezaFavorita from "./CreaTuPiezaFavorita";
-import CreaTuCuencoRamen from "./CreaTuCuencoRamen.jsx";
-import CreaTuBandejaHogar from "./CreaTuBandejaHogar.jsx";
-import CreaTuTazaFavorita from "./CreaTuTazaFavorita.jsx";
-import CreaTuMaceta from "./CreaTuMaceta.jsx";
-import CreaTuGranCentroMesa from "./CreaTuGranCentroMesa.jsx";
-import CreaTuJarraJarronGrande from "./CreaTuJarraJarronGrande.jsx";
-import CreaTuSetMatcha from "./CreaTuSetMatcha.jsx";
-import CreaTuSetSake from "./CreaTuSetSake.jsx";
-import CreaTuTazaEscultorica from "./CreaTuTazaEscultorica";
-import CreaTuMacetaOrganica from "./CreaTuMacetaOrganica";
-import ModelaAManoYDecoraTusPiezasFavoritas from "./ModelaAManoYDecoraTusPiezasFavoritas";
-import TornoAlfareroYDecoracion from "./TornoAlfareroYDecoracion";
-import TornoAlfareroEmpezarDesdeCero from "./TornoAlfareroEmpezarDesdeCero";
-import TornoAlfareroPerfeccionaLoQueYaSabes from "./TornoAlfareroPerfeccionaLoQueYaSabes";
-import EspecialPintaTuPieza from "./EspecialPintaTuPieza";
-import PintaTuPieza from "./PintaTuPieza";
-import ComprarTarjetaRegalo from "./ComprarTarjetaRegalo";
-import DescargarTarjetaRegalo from "./DescargarTarjetaRegalo";
-import ClaseSueltaContinuidad from "./ClaseSueltaContinuidad";
+const CreaTuBrunchBowl = lazy(() => import("./CreaTuBrunchBowl.jsx"));
+const CreaTuPiezaFavorita = lazy(() => import("./CreaTuPiezaFavorita"));
+const CreaTuCuencoRamen = lazy(() => import("./CreaTuCuencoRamen.jsx"));
+const CreaTuBandejaHogar = lazy(() => import("./CreaTuBandejaHogar.jsx"));
+const CreaTuTazaFavorita = lazy(() => import("./CreaTuTazaFavorita.jsx"));
+const CreaTuMaceta = lazy(() => import("./CreaTuMaceta.jsx"));
+const CreaTuGranCentroMesa = lazy(() => import("./CreaTuGranCentroMesa.jsx"));
+const CreaTuJarraJarronGrande = lazy(() => import("./CreaTuJarraJarronGrande.jsx"));
+const CreaTuSetMatcha = lazy(() => import("./CreaTuSetMatcha.jsx"));
+const CreaTuSetSake = lazy(() => import("./CreaTuSetSake.jsx"));
+const CreaTuTazaEscultorica = lazy(() => import("./CreaTuTazaEscultorica"));
+const CreaTuMacetaOrganica = lazy(() => import("./CreaTuMacetaOrganica"));
+const ModelaAManoYDecoraTusPiezasFavoritas = lazy(() => import("./ModelaAManoYDecoraTusPiezasFavoritas"));
+const TornoAlfareroYDecoracion = lazy(() => import("./TornoAlfareroYDecoracion"));
+const TornoAlfareroEmpezarDesdeCero = lazy(() => import("./TornoAlfareroEmpezarDesdeCero"));
+const TornoAlfareroPerfeccionaLoQueYaSabes = lazy(() => import("./TornoAlfareroPerfeccionaLoQueYaSabes"));
+const EspecialPintaTuPieza = lazy(() => import("./EspecialPintaTuPieza"));
+const PintaTuPieza = lazy(() => import("./PintaTuPieza"));
+const ComprarTarjetaRegalo = lazy(() => import("./ComprarTarjetaRegalo"));
+const DescargarTarjetaRegalo = lazy(() => import("./DescargarTarjetaRegalo"));
+const ClaseSueltaContinuidad = lazy(() => import("./ClaseSueltaContinuidad"));
 
 
 // Reservas normales
-import ReservaCreaTuPiezaFavorita from "./ReservaCreaTuPiezaFavorita.jsx";
-import ReservaCreaTuBrunchBowl from "./ReservaCreaTuBrunchBowl.jsx";
-import ReservaCreaTuCuencoRamen from "./ReservaCreaTuCuencoRamen.jsx";
-import ReservaCreaTuBandejaHogar from "./ReservaCreaTuBandejaHogar.jsx";
-import ReservaCreaTuTazaFavorita from "./ReservaCreaTuTazaFavorita.jsx";
-import ReservaCreaTuMaceta from "./ReservaCreaTuMaceta.jsx";
-import ReservaCreaTuGranCentroMesa from "./ReservaCreaTuGranCentroMesa.jsx";
-import ReservaCreaTuJarraJarronGrande from "./ReservaCreaTuJarraJarronGrande.jsx";
-import ReservaCreaTuSetMatcha from "./ReservaCreaTuSetMatcha.jsx";
-import ReservaCreaTuSetSake from "./ReservaCreaTuSetSake.jsx";
-import ReservaCreaTuTazaEscultorica from "./ReservaCreaTuTazaEscultorica.jsx";
-import ReservaCreaTuMacetaOrganica from "./ReservaCreaTuMacetaOrganica.jsx";
-import ReservaModelaAManoYDecoraTusPiezasFavoritas from "./ReservaModelaAManoYDecoraTusPiezasFavoritas";
-import ReservaTornoAlfareroYDecoracion from "./ReservaTornoAlfareroYDecoracion";
-import ReservaTornoAlfareroEmpezarDesdeCero from "./ReservaTornoAlfareroEmpezarDesdeCero";
-import ReservaTornoAlfareroPerfeccionaLoQueYaSabes from "./ReservaTornoAlfareroPerfeccionaLoQueYaSabes";
-import ReservaEspecialPintaTuPieza from "./ReservaEspecialPintaTuPieza";
-import ReservaPintaTuPieza from "./ReservaPintaTuPieza";
-import ReservaClaseSueltaContinuidad from "./ReservaClaseSueltaContinuidad";
-import ReservaGrupos from "./ReservaGrupos.jsx";
-import RegalarTaller from "./RegalarTaller.jsx";
-import PaginaGrupos from "./PaginaGrupos.jsx";
-import AdminPaginasEspeciales from "./AdminPaginasEspeciales.jsx";
-import UsarBono from "./UsarBono";
-import ReprogramarReserva from "./ReprogramarReserva";
-import ReservarSiguienteSesion from "./ReservarSiguienteSesion";
+const ReservaCreaTuPiezaFavorita = lazy(() => import("./ReservaCreaTuPiezaFavorita.jsx"));
+const ReservaCreaTuBrunchBowl = lazy(() => import("./ReservaCreaTuBrunchBowl.jsx"));
+const ReservaCreaTuCuencoRamen = lazy(() => import("./ReservaCreaTuCuencoRamen.jsx"));
+const ReservaCreaTuBandejaHogar = lazy(() => import("./ReservaCreaTuBandejaHogar.jsx"));
+const ReservaCreaTuTazaFavorita = lazy(() => import("./ReservaCreaTuTazaFavorita.jsx"));
+const ReservaCreaTuMaceta = lazy(() => import("./ReservaCreaTuMaceta.jsx"));
+const ReservaCreaTuGranCentroMesa = lazy(() => import("./ReservaCreaTuGranCentroMesa.jsx"));
+const ReservaCreaTuJarraJarronGrande = lazy(() => import("./ReservaCreaTuJarraJarronGrande.jsx"));
+const ReservaCreaTuSetMatcha = lazy(() => import("./ReservaCreaTuSetMatcha.jsx"));
+const ReservaCreaTuSetSake = lazy(() => import("./ReservaCreaTuSetSake.jsx"));
+const ReservaCreaTuTazaEscultorica = lazy(() => import("./ReservaCreaTuTazaEscultorica.jsx"));
+const ReservaCreaTuMacetaOrganica = lazy(() => import("./ReservaCreaTuMacetaOrganica.jsx"));
+const ReservaModelaAManoYDecoraTusPiezasFavoritas = lazy(() => import("./ReservaModelaAManoYDecoraTusPiezasFavoritas"));
+const ReservaTornoAlfareroYDecoracion = lazy(() => import("./ReservaTornoAlfareroYDecoracion"));
+const ReservaTornoAlfareroEmpezarDesdeCero = lazy(() => import("./ReservaTornoAlfareroEmpezarDesdeCero"));
+const ReservaTornoAlfareroPerfeccionaLoQueYaSabes = lazy(() => import("./ReservaTornoAlfareroPerfeccionaLoQueYaSabes"));
+const ReservaEspecialPintaTuPieza = lazy(() => import("./ReservaEspecialPintaTuPieza"));
+const ReservaPintaTuPieza = lazy(() => import("./ReservaPintaTuPieza"));
+const ReservaClaseSueltaContinuidad = lazy(() => import("./ReservaClaseSueltaContinuidad"));
+const ReservaGrupos = lazy(() => import("./ReservaGrupos.jsx"));
+const RegalarTaller = lazy(() => import("./RegalarTaller.jsx"));
+const PaginaGrupos = lazy(() => import("./PaginaGrupos.jsx"));
+const AdminPaginasEspeciales = lazy(() => import("./AdminPaginasEspeciales.jsx"));
+const UsarBono = lazy(() => import("./UsarBono"));
+const ReprogramarReserva = lazy(() => import("./ReprogramarReserva"));
+const ReservarSiguienteSesion = lazy(() => import("./ReservarSiguienteSesion"));
 
 // Nuevo Admin
-import AdminReservasNuevo from "./AdminReservasNuevo";
-import AdminDashboard from "./AdminDashboard";
-import AdminClasesNuevo from "./AdminClasesNuevo";
-import AdminUsuariosNuevo from "./AdminUsuariosNuevo";
-import AdminCalendarioReservas from "./AdminCalendarioReservas";
-import AdminHistorialNuevo from "./AdminHistorialNuevo";
-import AdminDetalleReservaNuevo from "./AdminDetalleReservaNuevo";
-import AdminDetalleUsuarioNuevo from "./AdminDetalleUsuarioNuevo";
-import AdminDetalleClaseNuevo from "./AdminDetalleClaseNuevo";
+const AdminReservasNuevo = lazy(() => import("./AdminReservasNuevo"));
+const AdminDashboard = lazy(() => import("./AdminDashboard"));
+const AdminClasesNuevo = lazy(() => import("./AdminClasesNuevo"));
+const AdminUsuariosNuevo = lazy(() => import("./AdminUsuariosNuevo"));
+const AdminCalendarioReservas = lazy(() => import("./AdminCalendarioReservas"));
+const AdminHistorialNuevo = lazy(() => import("./AdminHistorialNuevo"));
+const AdminDetalleReservaNuevo = lazy(() => import("./AdminDetalleReservaNuevo"));
+const AdminDetalleUsuarioNuevo = lazy(() => import("./AdminDetalleUsuarioNuevo"));
+const AdminDetalleClaseNuevo = lazy(() => import("./AdminDetalleClaseNuevo"));
 import RutaAdmin from "./RutaAdmin";
-import AdminTarjetasRegalo from "./AdminTarjetasRegalo";
-import AdminReservasGrupos from "./AdminReservasGrupos";
-import AdminDetalleTarjetaRegaloNuevo from "./AdminDetalleTarjetaRegaloNuevo";
-import AdminBloqueosFechas from "./AdminBloqueosFechas";
-import AdminBonosNuevo from "./AdminBonosNuevo";
-import AdminDetalleBonoNuevo from "./AdminDetalleBonoNuevo";
-import AdminHabilitarFechas from "./AdminHabilitarFechas";
-import AdminTallerForm from "./AdminTallerForm";
-import AdminMigrarTalleres from "./AdminMigrarTalleres";
-import AdminCategorias from "./AdminCategorias";
-import AdminEspacio from "./AdminEspacio";
-import AdminOrdenarClases from "./AdminOrdenarClases";
+const AdminTarjetasRegalo = lazy(() => import("./AdminTarjetasRegalo"));
+const AdminReservasGrupos = lazy(() => import("./AdminReservasGrupos"));
+const AdminDetalleTarjetaRegaloNuevo = lazy(() => import("./AdminDetalleTarjetaRegaloNuevo"));
+const AdminBloqueosFechas = lazy(() => import("./AdminBloqueosFechas"));
+const AdminBonosNuevo = lazy(() => import("./AdminBonosNuevo"));
+const AdminDetalleBonoNuevo = lazy(() => import("./AdminDetalleBonoNuevo"));
+const AdminHabilitarFechas = lazy(() => import("./AdminHabilitarFechas"));
+const AdminTallerForm = lazy(() => import("./AdminTallerForm"));
+const AdminMigrarTalleres = lazy(() => import("./AdminMigrarTalleres"));
+const AdminCategorias = lazy(() => import("./AdminCategorias"));
+const AdminEspacio = lazy(() => import("./AdminEspacio"));
+const AdminOrdenarClases = lazy(() => import("./AdminOrdenarClases"));
 
 function App() {
   return (
