@@ -65,7 +65,14 @@ export default function RecogerPieza() {
             📞 Para consultas sobre piezas, concretar cita de recogida, preparar envíos,
             reservas, cambios de fecha y pagos:
           </p>
-          <Enlace href={enlaceWa}>Escribir por WhatsApp</Enlace>
+          <a
+            href={enlaceWa}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block rounded-2xl bg-[#25D366] hover:bg-[#1ebe5b] px-4 py-2 font-semibold text-white transition"
+          >
+            Escribir por WhatsApp
+          </a>
           <div className="rounded-xl bg-[#fbf4d8] border border-[#ead66d] p-3 space-y-1">
             <p className="font-semibold">⚠️ Importante: una sola persona de contacto por grupo</p>
             <p>✅ El grupo debe elegir una única persona responsable para comunicarse con nosotros.</p>
