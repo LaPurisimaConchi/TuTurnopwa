@@ -3,6 +3,7 @@ import { getAuth } from "firebase/auth";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
+import FaltaElegir from "./components/FaltaElegir";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 import {
   cargarTalleres,
@@ -117,6 +118,17 @@ export default function ComprarTarjetaRegalo() {
     resolverDatos.current = null;
   };
 
+  // Solo se llega desde «Regalar este taller» de la ficha, con su tipo y método ya elegidos:
+  // sin ellos (o con un taller que no se puede regalar) se da un error, no una lista suelta
+  const faltaDeLaUrl = (() => {
+    if (!modoTaller) return "";
+    const distintos = (campo) => new Set(opcionesDelTaller.map((op) => op[campo]).filter(Boolean)).size > 1;
+    if (distintos("tipoPieza") && !varianteParam) return "el tipo o tamaño";
+    if (distintos("metodo") && !metodoParam) return "el método";
+    return "";
+  })();
+  const tallerSinOpciones = !!talleres && !modoTaller;
+
   const handleContinuar = async () => {
     if (!opcionSeleccionada) {
       alert("Selecciona una opción válida para regalar.");
@@ -153,6 +165,30 @@ export default function ComprarTarjetaRegalo() {
       },
     });
   };
+
+  // Hasta saber qué talleres hay, ni la lista antigua con sus precios ni un error
+  if (!talleres) return <p className="py-16 text-center text-tinta-suave">Cargando…</p>;
+
+  if (talleres && (!tallerPreseleccionado || tallerSinOpciones)) {
+    return (
+      <FaltaElegir
+        titulo="Falta elegir el taller"
+        mensaje="La tarjeta regalo se compra desde la página del taller que quieres regalar: pulsa «Regalar este taller» allí."
+        enlace="/regalar-taller"
+        textoEnlace="Ver talleres para regalar"
+      />
+    );
+  }
+  if (talleres && faltaDeLaUrl) {
+    return (
+      <FaltaElegir
+        titulo={`Falta elegir ${faltaDeLaUrl}`}
+        mensaje={`Antes de regalar este taller tienes que elegir ${faltaDeLaUrl} en su página.`}
+        enlace={`/taller/${tallerPreseleccionado}`}
+        textoEnlace="Volver al taller"
+      />
+    );
+  }
 
   return (
     <div className="bg-crema min-h-screen px-4 py-8 font-sans">

@@ -23,6 +23,12 @@ export function hoyMadrid(ahora = new Date()) {
 // España). Una fecha sin hora sale como fechaDMA y el resto se devuelve igual.
 export function fechaHoraLegible(valor) {
   const texto = typeof valor === "string" ? valor.trim() : "";
+  // Texto guardado por el panel con toLocaleString: «19/11/2026, 15:48:20»
+  const antiguo = /^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(texto);
+  if (antiguo) {
+    const [, d, m, a, h, min] = antiguo;
+    return `${d.padStart(2, "0")}-${m.padStart(2, "0")}-${a}, ${h.padStart(2, "0")}:${min}`;
+  }
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(texto)) return fechaDMA(valor);
   const fecha = new Date(texto);
   if (Number.isNaN(fecha.getTime())) return fechaDMA(valor);

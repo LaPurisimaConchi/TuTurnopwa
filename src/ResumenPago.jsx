@@ -7,6 +7,7 @@ import { irAlTPV, prepararPago } from "./utils/pagoServidor";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
+import { euros } from "./utils/formatoPrecio";
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
   return str
@@ -226,7 +227,7 @@ export default function ResumenPago() {
       if (Math.abs(totalServidor - totalMostrado) > 0.004) {
         setPrecioServidor(totalServidor);
         alert(
-          `El precio de este pedido es ${totalServidor.toFixed(2)} €. Revísalo y vuelve a pulsar «Confirmar pago».`
+          `El precio de este pedido es ${euros(totalServidor)}. Revísalo y vuelve a pulsar «Confirmar pago».`
         );
         return;
       }
@@ -335,14 +336,14 @@ export default function ResumenPago() {
 
         {showUnit && (
           <p className="mb-1">
-            <strong>Precio unitario:</strong> {unitMostrado.toFixed(2)} €
+            <strong>Precio unitario:</strong> {euros(unitMostrado)}
           </p>
         )}
 
         <p className="mb-4">
           <strong>Precio total:</strong>{" "}
           {desdeTarjeta || desdeTarjetaRegalo ? "0.00 €" : totalMostrado > 0 ? (
-            `${totalMostrado.toFixed(2)} €`
+            `${euros(totalMostrado)}`
           ) : (
             <span className="text-red-600">— falta precio —</span>
           )}

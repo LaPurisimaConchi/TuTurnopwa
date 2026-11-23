@@ -53,7 +53,7 @@ export default function SelectorTurnoReserva({
                       : "bg-mostaza-suave border-mostaza text-tinta hover:bg-mostaza/40"
                   }`}
                 >
-                  {turno.replace("-", " – ")}
+                  {turno}
                 </button>
               );
             })}

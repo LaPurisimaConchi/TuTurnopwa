@@ -5,6 +5,8 @@
 //   "bloqueado"  → cerrado desde el panel (con su motivo)
 //   "solo-grupo" → solo con un mínimo de personas (`minimo`); se puede elegir
 //   "sin-taller" → ese día no se imparte
+//   "sin-hueco"  → no vale para esta reserva (sin plazas, fuera de plazo…): al cambiar una
+//                  reserva, el taller puede darse ese día y aun así no se puede elegir
 // Los días pasados y los que quedan fuera del rango no se pueden elegir.
 import { useMemo, useState } from "react";
 
@@ -33,6 +35,7 @@ const ESTILOS = {
   "solo-grupo":
     "bg-sky-50 border border-sky-300 text-sky-800 font-semibold hover:bg-sky-100 cursor-pointer",
   "sin-taller": "bg-crema text-gray-300 cursor-not-allowed",
+  "sin-hueco": "bg-crema text-gray-300 cursor-not-allowed",
   fuera: "text-gray-300 cursor-not-allowed",
 };
 
@@ -70,6 +73,8 @@ export default function CalendarioReserva({
 
   // Mínimo de personas de los días de grupo (para la leyenda); 0 si no hay ninguno
   let hayGrupo = 0;
+  let haySinTaller = false;
+  let haySinHueco = false;
   const celdas = [];
   for (let i = 0; i < huecosIniciales; i += 1) celdas.push(null);
   for (let dia = 1; dia <= diasDelMes; dia += 1) celdas.push(dia);
@@ -114,6 +119,8 @@ export default function CalendarioReserva({
           const fuera = iso < hoy || iso > limite || (desde && iso < desde);
           const { estado = "disponible", motivo = "", minimo = 0 } = fuera ? {} : estadoDia(iso);
           if (estado === "solo-grupo" && minimo) hayGrupo = minimo;
+          if (estado === "sin-taller") haySinTaller = true;
+          if (estado === "sin-hueco") haySinHueco = true;
           const seleccionado = iso === value;
           const elegible = !fuera && (estado === "disponible" || estado === "solo-grupo");
 
@@ -129,6 +136,8 @@ export default function CalendarioReserva({
             ? `Reserva mínima ${minimo} personas`
             : estado === "sin-taller"
             ? "No se imparte este día"
+            : estado === "sin-hueco"
+            ? "No disponible para cambiar esta reserva"
             : "Disponible";
 
           return (
@@ -164,9 +173,16 @@ export default function CalendarioReserva({
         <li className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-red-50 border border-red-200" /> Cerrado
         </li>
-        <li className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded bg-arena" /> No se imparte
-        </li>
+        {haySinTaller && (
+          <li className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-arena" /> No se imparte
+          </li>
+        )}
+        {haySinHueco && (
+          <li className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-arena" /> No disponible
+          </li>
+        )}
       </ul>
     </div>
   );

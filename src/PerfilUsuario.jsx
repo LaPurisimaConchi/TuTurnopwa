@@ -15,7 +15,7 @@ import { ahoraMadridMs, horasAntelacionDe, inicioClaseMs } from "./utils/cambioF
 import PantallaConVolver from "./PantallaConVolver";
 import { BotonPlantilla, usePlantillasTarjetaRegalo } from "./components/DescargasTarjetaRegalo";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
 function obtenerFechaReserva(reserva) {
   if (!reserva) return null;
 
@@ -47,6 +47,13 @@ function esReservaReprogramada(reserva) {
     !!reserva.ultimaFechaAnterior ||
     !!reserva.ultimoTurnoAnterior
   );
+}
+
+// «600123456» y «+34600123456» → «+34 600 123 456» (otros formatos se dejan como están)
+function telefonoLegible(valor) {
+  const limpio = String(valor || "").replace(/[\s().-]/g, "");
+  const m = /^(?:\+?34)?(\d{9})$/.exec(limpio);
+  return m ? `+34 ${m[1].slice(0, 3)} ${m[1].slice(3, 6)} ${m[1].slice(6)}` : String(valor || "");
 }
 
 function esReservaCancelada(reserva) {
@@ -108,7 +115,7 @@ function AvisoReprogramacion({ reserva }) {
 
         {reserva.reprogramadaEn && (
           <span className="text-[11px] text-[#9a8351]">
-            {reserva.reprogramadaEn}
+            {fechaHoraLegible(reserva.reprogramadaEn)}
           </span>
         )}
       </div>
@@ -470,6 +477,8 @@ export default function PerfilUsuario() {
   const [tarjetasRegalo, setTarjetasRegalo] = useState([]);
   const [bonos, setBonos] = useState([]);
   const [esInvitado, setEsInvitado] = useState(false);
+  // Hasta que llegan los datos no se enseña «Sin nombre» ni «No tienes reservas»
+  const [cargado, setCargado] = useState(false);
   const [pestana, setPestana] = useState("reservas");
   // Talleres de varias sesiones reservados solo con la primera: sesiones por reservar
   const [sesionesPend, setSesionesPend] = useState([]);
@@ -592,6 +601,7 @@ export default function PerfilUsuario() {
           console.error("No se pudieron cargar las sesiones pendientes:", errorSesiones);
           setSesionesPend([]);
         }
+        setCargado(true);
       } else {
         navigate("/login", { state: { from: { pathname: "/perfil" } }, replace: true });
       }
@@ -657,12 +667,12 @@ export default function PerfilUsuario() {
                   {inicial}
                 </span>
                 <div className="min-w-0">
-                  <p className="font-semibold truncate">{nombre || "Sin nombre"}</p>
-                  <p className="text-xs text-tinta-suave truncate">{email || "—"}</p>
+                  <p className="font-semibold truncate">{cargado ? nombre || "Sin nombre" : "Cargando…"}</p>
+                  <p className="text-xs text-tinta-suave truncate">{cargado ? email || "—" : "\u00A0"}</p>
                 </div>
               </div>
               <p className="text-sm mb-3">
-                <span className="font-semibold">Teléfono:</span> {telefono || "—"}
+                <span className="font-semibold">Teléfono:</span> {cargado ? telefonoLegible(telefono) || "—" : "…"}
               </p>
               <button onClick={() => navigate("/editar-perfil")} className={botonSecundario}>
                 Editar perfil
@@ -739,7 +749,7 @@ export default function PerfilUsuario() {
                   <ReservaDestacada reserva={reservaActiva} config={configEspacio} />
                 ) : (
                   <div className={tarjetaItem}>
-                    <p className="text-tinta-suave">No tienes reservas activas.</p>
+                    <p className="text-tinta-suave">{cargado ? "No tienes reservas activas." : "Cargando…"}</p>
                     <button onClick={() => navigate("/portada")} className={`${botonContorno} mt-3 sm:w-auto`}>
                       Reservar un taller
                     </button>
@@ -771,7 +781,7 @@ export default function PerfilUsuario() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="text-sm text-tinta-suave">No tienes más reservas futuras.</p>
+                    <p className="text-sm text-tinta-suave">{cargado ? "No tienes más reservas futuras." : "Cargando…"}</p>
                   )}
                 </div>
 
