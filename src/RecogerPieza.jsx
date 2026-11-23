@@ -1,4 +1,6 @@
 import React from "react";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { enlaceWhatsapp, telefonoVisible } from "./utils/configEspacio";
 
 const URL_ESMALTE = "https://drive.google.com/drive/folders/1Im70RbYcyCFs5pPLgq2ooHhowwtA8F0R";
 const URL_LISTAS = "https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn";
@@ -28,6 +30,9 @@ function Enlace({ href, children }) {
 }
 
 export default function RecogerPieza() {
+  const { config: configEspacio } = useConfigEspacio();
+  const enlaceWa = enlaceWhatsapp(configEspacio.telefonoWhatsapp);
+  const telefono = telefonoVisible(configEspacio.telefonoWhatsapp);
   return (
     <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
@@ -59,11 +64,25 @@ export default function RecogerPieza() {
           <p>Si tu pieza aparece publicada, puedes escribirnos para organizar su recogida.</p>
           <p>
             📞 Consultas sobre piezas, para concretar cita para recoger piezas y preparación
-            de envíos: <a className="font-semibold underline" href="tel:+34611804664">611 804 664</a>
+            de envíos: <a
+              className="font-semibold underline"
+              href={enlaceWa}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {telefono}
+            </a>
           </p>
           <p>
             📞 Reservas, cambios de fecha y pagos:{" "}
-            <a className="font-semibold underline" href="tel:+34644671664">644 671 664</a>
+            <a
+              className="font-semibold underline"
+              href={enlaceWa}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {telefono}
+            </a>
           </p>
           <div className="rounded-xl bg-[#fbf4d8] border border-[#ead66d] p-3 space-y-1">
             <p className="font-semibold">⚠️ Importante: una sola persona de contacto por grupo</p>
