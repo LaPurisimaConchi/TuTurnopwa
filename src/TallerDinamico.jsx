@@ -1,12 +1,13 @@
 // src/TallerDinamico.jsx
 // Página de un taller creado desde el panel admin (clases/{id} con dinamica: true)
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Icono from "./components/Icono";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonReserva from "./BotonReserva";
-import { resumenHorarios } from "./utils/turnosTaller";
+import { FormularioReserva } from "./ReservaTallerDinamico";
+import ReservaBonoDinamico from "./ReservaBonoDinamico";
 import PantallaConVolver from "./PantallaConVolver";
 import {
   cargarGaleria,
@@ -95,6 +96,7 @@ export default function TallerDinamico() {
 // La página del taller, ya con sus datos cargados
 export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [imagenActiva, setImagenActiva] = useState(imagenes[0] || "");
   const [modalAbierto, setModalAbierto] = useState(false);
   const esBono = clase.tipoProducto === "bono";
@@ -111,7 +113,13 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const incluye =
     !secciones.length && Array.isArray(clase.incluye) ? clase.incluye.filter(Boolean) : [];
   const mostrarAvisos = clase.mostrarAvisos !== false;
-  const horarios = resumenHorarios(clase);
+
+  // Los talleres y los bonos se reservan aquí mismo, en el panel de reserva de la
+  // ficha. Los monográficos (ediciones con fechas fijas) siguen con su pantalla
+  const reservaEnFicha = !esMonografico(clase);
+  const desdeTarjeta = !!(location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo);
+  const panelRef = useRef(null);
+  const [panelVisible, setPanelVisible] = useState(false);
 
   // Lo que se elige aquí y llega marcado a la reserva: el tipo o tamaño (variante)
   // y/o el método. Con variantes, el método no cambia el precio pero sí se elige.
@@ -131,9 +139,16 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
       },
   ].filter(Boolean);
 
-  const [elegidas, setElegidas] = useState(() =>
-    Object.fromEntries(grupos.map((g) => [g.clave, g.opciones[0]?.id || ""]))
-  );
+  // (?variante= / ?metodo= vienen de enlaces antiguos a la reserva o de «volver»)
+  const [elegidas, setElegidas] = useState(() => {
+    const url = new URLSearchParams(location.search);
+    return Object.fromEntries(
+      grupos.map((g) => {
+        const deUrl = g.opciones.find((o) => o.id === url.get(g.clave))?.id;
+        return [g.clave, deUrl || g.opciones[0]?.id || ""];
+      })
+    );
+  });
 
   // Con opciones que elegir, reservar necesita que haya una elegida en cada grupo
   // Precio según lo elegido (tipo o tamaño + extra del método); si no se puede
@@ -161,6 +176,27 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const destinoReserva = `/reservar/${claseId}${
     parametros.toString() ? `?${parametros.toString()}` : ""
   }`;
+
+  const irAReserva = () =>
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Al llegar desde un enlace de reserva (#reservar) se baja hasta el panel
+  useEffect(() => {
+    if (!reservaEnFicha || location.hash !== "#reservar") return;
+    const temporizador = setTimeout(irAReserva, 100);
+    return () => clearTimeout(temporizador);
+  }, [reservaEnFicha, location.hash]);
+
+  // La barra de «Reservar ahora» del móvil sobra cuando el panel ya está a la vista
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || typeof IntersectionObserver === "undefined") return;
+    const observador = new IntersectionObserver(([entrada]) => setPanelVisible(entrada.isIntersecting), {
+      threshold: 0.05,
+    });
+    observador.observe(panel);
+    return () => observador.disconnect();
+  }, [reservaEnFicha]);
 
   return (
     <PantallaConVolver recortar={false}>
@@ -225,7 +261,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               </p>
             )}
 
-            {grupos.length > 0 && (
+            {grupos.length > 0 && !(reservaEnFicha && desdeTarjeta) && (
               <div className="mt-3 mb-5 space-y-4 rounded-2xl bg-crema border border-linea p-4">
                 {grupos.map((grupo) => (
                   <div key={grupo.clave} role="radiogroup" aria-label={grupo.etiqueta}>
@@ -265,7 +301,9 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                   </div>
                 ))}
                 <p className="text-xs text-tinta-suave">
-                  Lo que elijas llegará marcado a la reserva; allí también puedes cambiarlo.
+                  {reservaEnFicha
+                    ? "Lo que elijas se aplica a la reserva de más abajo."
+                    : "Lo que elijas llegará marcado a la reserva; allí también puedes cambiarlo."}
                 </p>
               </div>
             )}
@@ -292,23 +330,6 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               </div>
             )}
 
-            {!esMonografico(clase) && horarios.length > 0 && (
-              <div className="mb-4">
-                <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
-                  Horarios
-                </h2>
-                <ul className="text-sm text-tinta space-y-1">
-                  {horarios.map((fila) => (
-                    <li key={fila.dias}>
-                      <strong>{fila.dias}:</strong> {fila.turnos}
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-tinta-suave mt-2">
-                  Los días con plaza se ven en el calendario al reservar.
-                </p>
-              </div>
-            )}
 
             {esBono && (
               <div className="mb-4">
@@ -321,20 +342,35 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
             )}
 
             <div className="mt-3">
-              <div className="hidden md:block">
-                <BotonReserva
-                  destino={destinoReserva}
-                  className="shrink-0 !py-3 !mb-3"
-                  texto={esBono ? "Comprar bono" : "Reservar ahora"}
-                  disabled={faltaOpcion}
-                />
-              </div>
+              {reservaEnFicha ? (
+                <div id="reservar" ref={panelRef} className="scroll-mt-20">
+                  {esBono ? (
+                    <ReservaBonoDinamico incrustado claseId={claseId} clase={clase} />
+                  ) : (
+                    <FormularioReserva
+                      incrustado
+                      claseId={claseId}
+                      clase={clase}
+                      eleccion={{ variante: elegidas.variante, metodo: elegidas.metodo }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="hidden md:block">
+                  <BotonReserva
+                    destino={destinoReserva}
+                    className="shrink-0 !py-3 !mb-3"
+                    texto={esBono ? "Comprar bono" : "Reservar ahora"}
+                    disabled={faltaOpcion}
+                  />
+                </div>
+              )}
               {faltaOpcion && (
                 <p className="text-xs text-tinta-suave mb-3" role="status">
                   Elige una opción de «{grupoSinElegir.etiqueta}» para poder reservar.
                 </p>
               )}
-              {exigeCuenta(clase) && (
+              {exigeCuenta(clase) && !reservaEnFicha && (
                 <p className="text-xs text-tinta-suave mt-2 mb-4">
                   {esBono
                     ? "Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil."
@@ -491,19 +527,31 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
       {/* Móvil: el precio y el botón de reservar siempre a mano, a todo el ancho de la
         pantalla. Es "sticky" dentro de la página, así que al llegar al final se queda
         sobre el pie y no lo tapa */}
-      <div className="md:hidden sticky bottom-0 z-30 -mb-6 mt-4 w-screen ml-[calc(50%-50vw)] flex items-center gap-3 border-t border-linea bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur">
+      <div
+        className={`md:hidden sticky bottom-0 z-30 ${reservaEnFicha && panelVisible ? "hidden" : ""} -mb-6 mt-4 w-screen ml-[calc(50%-50vw)] flex items-center gap-3 border-t border-linea bg-white/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur`}
+      >
         {precioMostrado > 0 && (
           <div className="shrink-0 leading-tight">
             <p className="text-[11px] text-tinta-suave">{esDesde ? "Desde" : "Precio"}</p>
             <p className="text-lg font-bold text-tinta">{formatearEuros(precioMostrado)}</p>
           </div>
         )}
-        <BotonReserva
-          destino={destinoReserva}
-          className="!mb-0 !py-3"
-          texto={esBono ? "Comprar bono" : "Reservar ahora"}
-          disabled={faltaOpcion}
-        />
+        {reservaEnFicha ? (
+          <button
+            type="button"
+            onClick={irAReserva}
+            className="w-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold px-6 py-3 rounded-full transition"
+          >
+            {esBono ? "Comprar bono" : "Reservar ahora"}
+          </button>
+        ) : (
+          <BotonReserva
+            destino={destinoReserva}
+            className="!mb-0 !py-3"
+            texto={esBono ? "Comprar bono" : "Reservar ahora"}
+            disabled={faltaOpcion}
+          />
+        )}
       </div>
 
       {modalAbierto && (
