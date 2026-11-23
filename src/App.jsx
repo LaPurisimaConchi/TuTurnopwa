@@ -18,6 +18,7 @@ import EditarPerfil from "./EditarPerfil.jsx";
 
 // Legales y políticas
 import PoliticaPiezas from "./PoliticaPiezas";
+import RecogerPieza from "./RecogerPieza";
 import AvisoLegal from "./AvisoLegal.jsx";
 import PoliticaCancelacion from "./PoliticaCancelacion.jsx";
 import CondicionesUso from "./CondicionesUso.jsx";
@@ -135,6 +136,7 @@ function App() {
           <Route path="/perfil" element={<PerfilUsuario />} />
           <Route path="/editar-perfil" element={<EditarPerfil />} />
 
+          <Route path="/recoger-pieza" element={<RecogerPieza />} />
           <Route path="/politica-piezas" element={<PoliticaPiezas />} />
           <Route path="/aviso-legal" element={<AvisoLegal />} />
           <Route path="/politicacancelacion" element={<PoliticaCancelacion />} />
