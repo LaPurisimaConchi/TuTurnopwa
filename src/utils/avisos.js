@@ -10,7 +10,7 @@ const EVENTO_AVISO = "purisima:aviso";
 const EVENTO_CONFIRMAR = "purisima:confirmar";
 
 const PARECE_ERROR =
-  /\b(no se (ha )?pod|no (es|ha sido) posible|error|falta|debes|inválid|no válid|no puedes|ya existe|selecciona|indica|elige|introduce|rellena|necesitas|demasiad|caduc)/i;
+  /\b(no se (ha )?(pud|pod|pued)|no pudo|no (es|ha sido) posible|error|falta|debes|inválid|no válid|no puedes|ya existe|selecciona|indica|elige|introduce|rellena|necesitas|demasiad|caduc)/i;
 
 export function avisar(mensaje, tipo) {
   const texto = String(mensaje ?? "").trim();
