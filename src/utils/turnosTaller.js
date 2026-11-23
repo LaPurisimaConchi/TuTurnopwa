@@ -74,13 +74,13 @@ export function resumenHorarios(clase = {}) {
 // Cómo se marca un día en el calendario: bloqueado desde el panel, disponible, o
 // "solo-grupo" (día sin horario y cerrado: se abre con una reserva del mínimo de
 // personas del taller). `diasAbiertos` son los días sin horario ya abiertos por otra
-// reserva; `conGrupo` indica que esta pantalla puede abrir días (no los bonos).
+// reserva; `permiteAbrir` indica que esta pantalla puede abrir días sin horario con una reserva del mínimo de personas del taller (los bonos no abren días).
 export function estadoDiaTaller({
   clase,
   fecha,
   fechasBloqueadas = {},
   fechasHabilitadas = {},
-  conGrupo = false,
+  permiteAbrir = false,
   diasAbiertos = {},
 }) {
   const bloqueo = fechasBloqueadas?.[fecha];
@@ -104,7 +104,7 @@ export function estadoDiaTaller({
   if (sinBloqueo.length) return { estado: "sin-taller" };
 
   // Día sin horario y cerrado: solo lo abre un taller con turnos de días abiertos
-  const turnosAbrir = conGrupo && abreDias(clase) ? turnosDiasAbiertos(clase) : [];
+  const turnosAbrir = permiteAbrir && abreDias(clase) ? turnosDiasAbiertos(clase) : [];
   if (!turnosAbrir.length) return { estado: "sin-taller" };
   if (turnosAbrir.every((t) => turnoYaEmpezado(fecha, t))) return { estado: "sin-taller" };
   if (parcial && turnosAbrir.every((t) => bloqueoAfectaTurno(bloqueo, t))) {
@@ -164,7 +164,7 @@ export function useDiaDeReserva({
   fecha,
   fechasBloqueadas = {},
   fechasHabilitadas = {},
-  conGrupo = false,
+  permiteAbrir = false,
   diasAbiertos = {},
 }) {
   const diaAbierto = !!fecha && !!diasAbiertos?.[fecha];
@@ -174,8 +174,8 @@ export function useDiaDeReserva({
   );
   // Turnos con los que un taller abre un día sin horario (solo donde se puede abrir)
   const turnosAbrir = useMemo(
-    () => (conGrupo && abreDias(clase) ? turnosDiasAbiertos(clase) : []),
-    [clase, conGrupo]
+    () => (permiteAbrir && abreDias(clase) ? turnosDiasAbiertos(clase) : []),
+    [clase, permiteAbrir]
   );
 
   const fechaHabilitadaManual = useMemo(() => {

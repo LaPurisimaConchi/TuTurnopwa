@@ -34,12 +34,12 @@ export default function SesionExtraReserva({
     fecha,
     fechasBloqueadas,
     fechasHabilitadas,
-    conGrupo: false,
+    permiteAbrir: false,
     diasAbiertos,
   });
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, conGrupo: false, diasAbiertos });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: false, diasAbiertos });
 
   useEffect(() => {
     if (!fecha || !turno) {

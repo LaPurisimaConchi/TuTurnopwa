@@ -277,7 +277,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
       fecha,
       fechasBloqueadas,
       fechasHabilitadas,
-      conGrupo: true,
+      permiteAbrir: true,
       diasAbiertos,
     });
 
@@ -340,7 +340,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
   };
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, conGrupo: true, diasAbiertos });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, diasAbiertos });
 
   const handleFechaChange = (iso) => {
     setFecha(iso);

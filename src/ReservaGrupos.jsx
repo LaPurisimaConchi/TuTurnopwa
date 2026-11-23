@@ -229,7 +229,7 @@ export default function ReservaGrupos() {
       fecha: iso,
       fechasBloqueadas,
       fechasHabilitadas,
-      conGrupo: true,
+      permiteAbrir: true,
       diasAbiertos,
     });
     return estado.estado === "solo-grupo" && Number(personas) >= estado.minimo
@@ -247,7 +247,7 @@ export default function ReservaGrupos() {
     fecha,
     fechasBloqueadas,
     fechasHabilitadas,
-    conGrupo: true,
+    permiteAbrir: true,
     diasAbiertos,
   });
   const fechaBloqueada = fecha && bloqueoDia ? bloqueoDia : null;
