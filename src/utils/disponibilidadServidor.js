@@ -1,0 +1,124 @@
+// src/utils/disponibilidadServidor.js
+// Respuesta de /api/disponibilidad, sin depender de ningún SDK: `leer(ruta)`
+// devuelve el snapshot de esa ruta. La usa la función de Vercel (firebase-admin).
+//   tipo=contexto
+//   tipo=ocupacion[&ruta=<carpeta>]                        → fechas y turnos con reservas
+//   tipo=plazas&fecha=AAAA-MM-DD[&turno=…]                → torno / modelado
+//   tipo=plazas&fecha=…&turno=…&ruta=<carpeta>             → ocupadas del taller
+//   tipo=franja&fecha=…&turno=…                            → aforo real: plazas de la franja
+//   tipo=franjas                                           → plazas de todas las franjas desde hoy
+import { contarFranja, ocupacionPorFranja } from "./aforo.js";
+import { calcularDiasAbiertos } from "./diasAbiertos.js";
+import { hoyMadrid } from "./formatoFecha.js";
+import { normalizarConfigEspacio } from "./configEspacio.js";
+import {
+  bloqueosPublicos,
+  gruposPublicos,
+  habilitacionesPublicas,
+  plazasDeTurno,
+  plazasPorMetodo,
+  turnosConReservas,
+} from "./plazasOcupadas.js";
+
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+const RUTA = /^[A-Za-z0-9_-]{1,60}$/;
+// Los turnos son claves de Firebase: "17:30-20:30", "Horario a consultar"…
+const TURNO = /^[^./$#[\]]{1,60}$/;
+const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
+
+const mal = (error) => ({ codigo: 400, cuerpo: { ok: false, error } });
+
+export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer) {
+  if (tipo === "contexto") {
+    const [bloqueos, habilitadas, grupos, reservas, clases] = await Promise.all([
+      leer("bloqueosFechas"),
+      leer("fechasHabilitadas"),
+      leer("reservasGrupos"),
+      leer("reservas"),
+      leer("clases"),
+    ]);
+    const habilitadasPublicas = habilitacionesPublicas(habilitadas.val() || {});
+
+    return {
+      codigo: 200,
+      cuerpo: {
+        ok: true,
+        fechasBloqueadas: bloqueosPublicos(bloqueos.val() || {}),
+        fechasHabilitadas: habilitadasPublicas,
+        reservasGrupos: gruposPublicos(grupos.val() || {}),
+        // Días sin horario abiertos por una reserva con el mínimo de personas (solo fechas)
+        diasAbiertos: calcularDiasAbiertos({
+          reservas,
+          grupos,
+          clases: clases.val() || {},
+          fechasHabilitadas: habilitadasPublicas,
+          desde: hoyMadrid(),
+        }),
+      },
+    };
+  }
+
+  if (tipo === "ocupacion") {
+    if (ruta && !RUTA.test(ruta)) return mal("Taller no válido");
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const reservas = await leer(ruta ? `reservas/${ruta}` : "reservas");
+    return { codigo: 200, cuerpo: { ok: true, ocupacion: turnosConReservas(reservas, hoy) } };
+  }
+
+  if (tipo === "franjas") {
+    const [reservas, grupos, espacio] = await Promise.all([
+      leer("reservas"),
+      leer("reservasGrupos"),
+      leer("configuracionEspacio"),
+    ]);
+    const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
+
+    return {
+      codigo: 200,
+      cuerpo: {
+        ok: true,
+        franjas: ocupacionPorFranja(reservas, grupos, hoyMadrid()),
+        aforoTotal: config.aforoTotal,
+        maxTorno: config.maxTorno,
+      },
+    };
+  }
+
+  if (tipo === "franja") {
+    if (!FECHA.test(fecha)) return mal("Fecha no válida");
+    if (!turno || !(TURNO.test(turno) && sinControl(turno))) return mal("Turno no válido");
+
+    const [reservas, grupos, espacio] = await Promise.all([
+      leer("reservas"),
+      leer("reservasGrupos"),
+      leer("configuracionEspacio"),
+    ]);
+    const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
+    const { total, torno } = contarFranja(reservas, grupos, fecha, turno);
+
+    return {
+      codigo: 200,
+      cuerpo: { ok: true, total, torno, aforoTotal: config.aforoTotal, maxTorno: config.maxTorno },
+    };
+  }
+
+  if (tipo === "plazas") {
+    if (!FECHA.test(fecha)) return mal("Fecha no válida");
+    if (turno && !(TURNO.test(turno) && sinControl(turno))) return mal("Turno no válido");
+
+    // Taller sin métodos: plazas ocupadas en su carpeta de reservas
+    if (ruta) {
+      if (!RUTA.test(ruta) || !turno) return mal("Faltan datos");
+
+      const snap = await leer(`reservas/${ruta}/${fecha}/${turno}`);
+      return { codigo: 200, cuerpo: { ok: true, ocupadas: plazasDeTurno(snap) } };
+    }
+
+    const reservas = await leer("reservas");
+    const { torno, modelado } = plazasPorMetodo(reservas, fecha, turno);
+    return { codigo: 200, cuerpo: { ok: true, torno, modelado } };
+  }
+
+  return mal("Tipo no válido");
+}

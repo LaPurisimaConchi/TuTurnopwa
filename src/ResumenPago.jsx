@@ -1,11 +1,14 @@
 import React, { useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
-import { ref, set, get, update, push } from "firebase/database";
-import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import { simularPagoAdmin } from "./utils/pagoAdmin";
+import { irAlTPV, prepararPago } from "./utils/pagoServidor";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
+import { euros } from "./utils/formatoPrecio";
+import { useConfigEspacio } from "./configuracionEspacio";
 /* ----------------- Utilidades ----------------- */
 function normalize(str = "") {
   return str
@@ -49,8 +52,6 @@ const PINTA = new Set([
     "crea tu pieza favorita",
     "crea tu pieza favorita desde cero",
   ]);
-  const TEARIUM = new Set(["tearum", "tea rium", "tearium"]);
-  const THE_CLUB = new Set(["the club"]);
   const BONO2 = new Set([
     "bono 2 clases",
     "2 clases 4h/mes",
@@ -82,8 +83,6 @@ const PINTA = new Set([
   if (ESPECIAL_PINTA.has(c)) return 35;
 if (PINTA.has(c)) return 25;
   if (CREA_PIEZA.has(c)) return 45;
-  if (TEARIUM.has(c)) return 25;
-  if (THE_CLUB.has(c)) return 25;
   if (BONO2.has(c)) return 70;
 
   if (BONO4.has(c)) {
@@ -97,8 +96,10 @@ if (PINTA.has(c)) return 25;
 
 /* ----------------- Componente ----------------- */
 export default function ResumenPago() {
-  const { state = {} } = useLocation();
+  // Sin datos (se abre la dirección a mano o se recarga) el state es null, no undefined
+  const state = useLocation().state || {};
   const navigate = useNavigate();
+  const { config: configEspacio } = useConfigEspacio();
 
   const {
     desdeTarjeta,
@@ -109,32 +110,28 @@ export default function ResumenPago() {
     claseId,
     subtipo,
     datosBono,
-    tipoPieza,
-    tipoTaller,
-    rutaReserva,
-    requiereMetodo,
-    requiereTipoPieza,
     precio,
+    precioUnitario: precioUnitarioState,
     fecha,
     fechaInicio,
-    fechaFinMes,
-    fechaCaducidadBono,
     turno,
     metodo,
     modalidad,
     plazas,
-    numeroClases,
-    duracionClase,
-    incluyeDecoracion,
     orderId: orderIdFromState,
-    payMethod: payMethodFromState,
     codigoTarjeta,
-    tarjetaRegaloId,
+    sesiones: sesionesElegidas,
+    opcionId,
+    grupoId,
+    incluyeCambioTorno,
   } = state;
 
   const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
 
-  const unitFromTable = useMemo(() => getUnitPrice(clase, metodo), [clase, metodo]);
+  const unitFromTable = useMemo(() => {
+    const desdeState = parseEuro(precioUnitarioState);
+    return desdeState > 0 ? desdeState : getUnitPrice(clase, metodo);
+  }, [precioUnitarioState, clase, metodo]);
 
   const totalEuros = useMemo(() => {
     const desdeState = parseEuro(precio);
@@ -142,16 +139,13 @@ export default function ResumenPago() {
     return unitFromTable * plazasNum;
   }, [precio, unitFromTable, plazasNum]);
 
-  const showUnit = unitFromTable > 0 && plazasNum > 1;
+  // El importe lo calcula el servidor al preparar el pago; si no coincide con el de la
+  // pantalla, se enseña el suyo y se pide confirmar otra vez
+  const [precioServidor, setPrecioServidor] = useState(null);
+  const totalMostrado = precioServidor ?? totalEuros;
+  const unitMostrado = precioServidor != null ? precioServidor / plazasNum : unitFromTable;
 
-  const ORIGIN =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : "https://app.lapurisimaconchi.com";
-
-  const URL_OK = new URL("/pago/exito", ORIGIN).toString();
-  const URL_KO = new URL("/pago/error", ORIGIN).toString();
-  const URL_NOTIFY = new URL("/api/notificacionTPV", ORIGIN).toString();
+  const showUnit = unitMostrado > 0 && plazasNum > 1;
 
   const [aceptaPoliticas, setAceptaPoliticas] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -165,214 +159,9 @@ export default function ResumenPago() {
     return oid;
   }
 
-  function irAPasarela({ precio, orderId, payMethod = "card" }) {
-    const amountCents = Math.max(1, Math.round(Number(precio) * 100));
-    const oid = makeOrderId(orderId);
-
-    const qs = new URLSearchParams({
-      orderId: oid,
-      amountCents: String(amountCents),
-      okUrl: URL_OK,
-      koUrl: URL_KO,
-      notifyUrl: URL_NOTIFY,
-      payMethod,
-    });
-
-    window.location.href = `/api/crear-sesion?${qs.toString()}`;
-  }
-
-  async function crearPedidoPendiente({ orderId, uid }) {
-    const pedido = {
-  orderId,
-  uid,
-  desdeTarjeta: !!desdeTarjeta,
-  desdeTarjetaRegalo: !!desdeTarjetaRegalo,
-  desdeCompraTarjeta: !!desdeCompraTarjeta,
-  tipo: tipo || "reserva",
-  esBono: tipo === "bono",
-  datosBono: datosBono || null,
-  clase: clase || "",
-  claseId: claseId || "",
-  tipoTaller: tipoTaller || "",
-  subtipo: subtipo || "",
-  tipoPieza: tipoPieza || "",
-  rutaReserva: rutaReserva || "",
-  requiereMetodo: !!requiereMetodo,
-  requiereTipoPieza: !!requiereTipoPieza,
-  precioTotal: totalEuros,
-  precioOriginal: precio || "",
-  fecha: fecha || "",
-  fechaInicio: fechaInicio || "",
-  fechaFinMes: fechaFinMes || "",
-  fechaCaducidadBono: fechaCaducidadBono || "",
-  turno: turno || "",
-  metodo: metodo || "",
-  modalidad: modalidad || "",
-  plazas: plazasNum,
-  numeroClases: numeroClases || 0,
-  duracionClase: duracionClase || "",
-  incluyeDecoracion: !!incluyeDecoracion,
-  payMethod: payMethodFromState || "card",
-  estadoPago: "pendiente",
-  procesado: false,
-  creadoEn: new Date().toISOString(),
-};
-
-    await set(ref(dbRealtime, `pedidosPendientes/${orderId}`), pedido);
-  }
-
-  async function guardarReservaEnPerfilUsuario(uid, reserva) {
-    const listaRef = ref(dbRealtime, `usuarios/${uid}/listaReservas`);
-    const listaSnap = await get(listaRef);
-
-    let yaExiste = false;
-
-    if (listaSnap.exists()) {
-      listaSnap.forEach((itemSnap) => {
-        const item = itemSnap.val();
-        if (item?.orderId === reserva.orderId) {
-          yaExiste = true;
-        }
-      });
-    }
-
-    if (!yaExiste) {
-      await push(listaRef, reserva);
-    }
-
-    const userRef = ref(dbRealtime, `usuarios/${uid}`);
-    const userSnap = await get(userRef);
-
-    if (userSnap.exists()) {
-      const datos = userSnap.val() || {};
-      const totalActual = Number(datos.reservas) || 0;
-      await update(userRef, {
-        reservas: totalActual + 1,
-      });
-    }
-  }
-
-  async function confirmarReservaConTarjeta(uid) {
-    const orderId = orderIdFromState;
-
-    if (!orderId) {
-      throw new Error("Falta el identificador de la reserva.");
-    }
-
-    const reservasRef = ref(dbRealtime, "reservas");
-    const snapshot = await get(reservasRef);
-
-    if (!snapshot.exists()) {
-      throw new Error("No se ha encontrado la reserva a confirmar.");
-    }
-
-    let encontrada = null;
-    const updates = {};
-
-    snapshot.forEach((nivel1Snap) => {
-      nivel1Snap.forEach((nivel2Snap) => {
-        nivel2Snap.forEach((nivel3Snap) => {
-          nivel3Snap.forEach((nivel4Snap) => {
-            const valorNivel4 = nivel4Snap.val();
-
-            // Caso anidado con push key final
-            if (valorNivel4 && typeof valorNivel4 === "object") {
-              Object.entries(valorNivel4).forEach(([childKey, childValue]) => {
-                if (childValue?.orderId === orderId) {
-                  const rutaBase = `reservas/${nivel1Snap.key}/${nivel2Snap.key}/${nivel3Snap.key}/${nivel4Snap.key}/${childKey}`;
-
-                  updates[`${rutaBase}/estadoPago`] = "pagado";
-                  updates[`${rutaBase}/estado`] = "Confirmada";
-                  updates[`${rutaBase}/procesado`] = true;
-                  updates[`${rutaBase}/desdeTarjeta`] = true;
-                  updates[`${rutaBase}/codigoTarjeta`] = codigoTarjeta || "";
-                  updates[`${rutaBase}/actualizadoEn`] = new Date().toISOString();
-
-                  encontrada = {
-                    ...childValue,
-                    uid,
-                    estadoPago: "pagado",
-                    estado: "Confirmada",
-                    procesado: true,
-                    desdeTarjeta: true,
-                    codigoTarjeta: codigoTarjeta || "",
-                    actualizadoEn: new Date().toISOString(),
-                  };
-                }
-              });
-            }
-
-            // Caso directo sin push extra
-            if (valorNivel4?.orderId === orderId) {
-              const rutaBase = `reservas/${nivel1Snap.key}/${nivel2Snap.key}/${nivel3Snap.key}/${nivel4Snap.key}`;
-
-              updates[`${rutaBase}/estadoPago`] = "pagado";
-              updates[`${rutaBase}/estado`] = "Confirmada";
-              updates[`${rutaBase}/procesado`] = true;
-              updates[`${rutaBase}/desdeTarjeta`] = true;
-              updates[`${rutaBase}/codigoTarjeta`] = codigoTarjeta || "";
-              updates[`${rutaBase}/actualizadoEn`] = new Date().toISOString();
-
-              encontrada = {
-                ...valorNivel4,
-                uid,
-                estadoPago: "pagado",
-                estado: "Confirmada",
-                procesado: true,
-                desdeTarjeta: true,
-                codigoTarjeta: codigoTarjeta || "",
-                actualizadoEn: new Date().toISOString(),
-              };
-            }
-          });
-        });
-      });
-    });
-
-    if (!encontrada) {
-      throw new Error("No se ha encontrado la reserva creada para esta tarjeta regalo.");
-    }
-
-    await update(ref(dbRealtime), updates);
-
-        if (tarjetaRegaloId) {
-      const ahora = new Date().toISOString();
-
-      const datosActualizacionTarjeta = {
-        usado: true,
-        fechaUso: ahora,
-        usadoPorUID: uid,
-        canjeado: true,
-        canjeadoPorUID: uid,
-        estadoCanje: "usada",
-        actualizadoEn: ahora,
-      };
-
-      await update(ref(dbRealtime, `tarjetasRegalo/${tarjetaRegaloId}`), datosActualizacionTarjeta);
-      await update(ref(dbRealtime, `usuarios/${uid}/tarjetasRegalo/${tarjetaRegaloId}`), datosActualizacionTarjeta);
-    }
-
-    await guardarReservaEnPerfilUsuario(uid, {
-      clase: encontrada.clase || clase || "",
-      claseId: encontrada.claseId || claseId || "",
-      fecha: encontrada.fecha || fecha || "",
-      turno: encontrada.turno || turno || "",
-      metodo: encontrada.metodo || metodo || "",
-      plazas: Number(encontrada.plazas || plazasNum || 1),
-      precio: 0,
-      precioUnitario: 0,
-      precioTotal: 0,
-      estado: "Confirmada",
-      estadoPago: "pagado",
-      orderId,
-      timestamp: encontrada.timestamp || new Date().toISOString(),
-      actualizadoEn: new Date().toISOString(),
-      desdeTarjeta: true,
-      codigoTarjeta: codigoTarjeta || "",
-      nombreTipoClase: encontrada.nombreTipoClase || subtipo || "",
-      tipoClase: encontrada.tipoClase || tipoPieza || "",
-    });
-  }
+  // Número de pedido de una compra sin reserva previa (tarjeta regalo): el mismo
+  // aunque se pulse otra vez el botón
+  const [orderIdNuevo] = useState(() => makeOrderId(Date.now()));
 
   async function handleConfirmarPago() {
     if (!aceptaPoliticas) return;
@@ -384,21 +173,29 @@ export default function ResumenPago() {
       return;
     }
 
+    // Con tarjeta regalo el servidor confirma la reserva pendiente de este pedido,
+    // marca la tarjeta usada y envía el correo
     if (desdeTarjeta || desdeTarjetaRegalo) {
+      if (!orderIdFromState || !codigoTarjeta) {
+        alert("Falta el identificador de la reserva o el código de la tarjeta regalo.");
+        return;
+      }
+
       try {
         setCargando(true);
-        await confirmarReservaConTarjeta(auth.currentUser.uid);
-        navigate("/pago/exito");
+        await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId: orderIdFromState });
+        // Sin pago: la confirmación lo dice y enseña el código de esta reserva
+        navigate("/pago/exito", { state: { desdeTarjeta: true, orderId: orderIdFromState } });
       } catch (error) {
         console.error("Error al confirmar la reserva con tarjeta regalo:", error);
-        alert(error?.message || "No se pudo confirmar la reserva con la tarjeta regalo.");
+        alert(mensajeErrorCanje(error));
       } finally {
         setCargando(false);
       }
       return;
     }
 
-    if (!(totalEuros > 0)) {
+    if (!(totalMostrado > 0)) {
       alert("No se ha podido calcular el precio.");
       return;
     }
@@ -406,12 +203,36 @@ export default function ResumenPago() {
     try {
       setCargando(true);
 
-      const orderId = orderIdFromState || makeOrderId(Date.now());
+      const orderId = orderIdFromState || orderIdNuevo;
 
-      await crearPedidoPendiente({
+      // El servidor crea el pedido con su importe (el único que se firma para el TPV)
+      const tipoPedido = desdeCompraTarjeta
+        ? "tarjeta_regalo"
+        : tipo === "bono"
+        ? "bono"
+        : tipo === "grupo"
+        ? "grupo"
+        : "reserva";
+      const preparado = await prepararPago({
+        pedido: tipoPedido,
         orderId,
-        uid: auth.currentUser.uid,
+        claseId: claseId || "",
+        opcionId: opcionId || "",
+        grupoId: grupoId || "",
+        plazas: plazasNum,
+        fechaInicio: fechaInicio || "",
+        turno: turno || "",
+        cambioTorno: (incluyeCambioTorno ?? datosBono?.incluyeCambioTorno) === true,
       });
+
+      const totalServidor = Number(preparado.precioTotal);
+      if (Math.abs(totalServidor - totalMostrado) > 0.004) {
+        setPrecioServidor(totalServidor);
+        alert(
+          `El precio de este pedido es ${euros(totalServidor)}. Revísalo y vuelve a pulsar «Confirmar pago».`
+        );
+        return;
+      }
 
       if (await simularPagoAdmin(orderId)) {
         navigate("/pago/exito", {
@@ -420,30 +241,53 @@ export default function ResumenPago() {
         return;
       }
 
-      irAPasarela({
-        precio: totalEuros,
-        orderId,
-        payMethod: payMethodFromState || "card",
-      });
+      irAlTPV(orderId, tipoPedido);
     } catch (error) {
-      console.error("Error al crear pedido pendiente:", error);
+      console.error("Error al preparar el pago:", error);
       alert(error?.message || "No se pudo preparar el pago.");
     } finally {
       setCargando(false);
     }
   }
 
+  // Esta pantalla solo tiene sentido con lo que le pasa la reserva o la compra
+  if (!clase && !grupoId && !datosBono && !subtipo) {
+    return (
+      <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-6">
+        <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6 text-[#333] text-center">
+          <h1 className="text-[1.6rem] text-tinta font-semibold mb-4">No hay nada que pagar</h1>
+          <p className="mb-6">
+            Esta pantalla se abre al terminar una reserva. Elige un taller para empezar de nuevo.
+          </p>
+          <button
+            onClick={() => navigate("/portada")}
+            className="bg-mostaza text-tinta font-semibold rounded-full px-6 py-2"
+          >
+            Ver talleres
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-6">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-6">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6 text-[#333] text-center">
         <BotonVolver />
 
-        <h1 className="text-[1.6rem] text-[#3b3025] font-semibold mb-4">
+        <h1 className="text-[1.6rem] text-tinta font-semibold mb-4">
           Resumen del pago
         </h1>
 
+        {desdeCompraTarjeta && (
+          <p className="mb-3 inline-block rounded-full bg-mostaza-suave border border-mostaza px-3 py-1 text-sm font-semibold text-tinta">
+            Tarjeta regalo
+          </p>
+        )}
+
         <p className="mb-2">
-          <strong>Clase:</strong> {clase || (desdeCompraTarjeta ? "Tarjeta regalo" : "-")}
+          <strong>{desdeCompraTarjeta ? "Taller que regalas:" : "Clase:"}</strong>{" "}
+          {clase || (desdeCompraTarjeta ? "Tarjeta regalo" : "-")}
         </p>
 
         {subtipo && (
@@ -452,38 +296,62 @@ export default function ResumenPago() {
           </p>
         )}
 
-        <p className="mb-2">
-          <strong>Fecha:</strong> {fecha || fechaInicio || "-"}
-        </p>
+        {desdeCompraTarjeta ? (
+          // Una tarjeta regalo no tiene fecha: la elige quien la recibe al canjearla
+          <p className="mb-2 text-sm text-tinta-suave">
+            Recibirás un código para regalar. Quien lo reciba elegirá la fecha y el turno
+            al canjearlo en la web.
+          </p>
+        ) : Array.isArray(sesionesElegidas) && sesionesElegidas.length > 1 ? (
+          <div className="mb-2">
+            <strong>Sesiones:</strong>
+            <ul className="mt-1 space-y-0.5">
+              {sesionesElegidas.map((sesion, i) => (
+                <li key={`${sesion.fecha}-${sesion.turno}`}>
+                  {i + 1}. {fechaDMA(sesion.fecha)} · {sesion.turno}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <>
+            <p className="mb-2">
+              <strong>Fecha:</strong> {fechaDMA(fecha || fechaInicio) || "-"}
+            </p>
 
-        <p className="mb-2">
-          <strong>Turno:</strong> {turno || "-"}
-        </p>
+            <p className="mb-2">
+              <strong>Turno:</strong> {turno || "-"}
+            </p>
+          </>
+        )}
 
-       <p className="mb-2">
-  <strong>Modalidad:</strong> {tipo === "grupo" ? "Reserva para grupo" : (metodo || modalidad || "-")}
-</p>
+        {!desdeCompraTarjeta && (
+          <p className="mb-2">
+            <strong>Modalidad:</strong> {tipo === "grupo" ? "Reserva para grupo" : (metodo || modalidad || "-")}
+          </p>
+        )}
 
         <p className="mb-2">
           <strong>Plazas:</strong> {plazasNum}
+          {desdeCompraTarjeta && plazasNum > 1 ? " (tarjeta regalo para varias personas)" : ""}
         </p>
 
         {showUnit && (
           <p className="mb-1">
-            <strong>Precio unitario:</strong> {unitFromTable.toFixed(2)} €
+            <strong>Precio unitario:</strong> {euros(unitMostrado)}
           </p>
         )}
 
         <p className="mb-4">
           <strong>Precio total:</strong>{" "}
-          {desdeTarjeta || desdeTarjetaRegalo ? "0.00 €" : totalEuros > 0 ? (
-            `${totalEuros.toFixed(2)} €`
+          {desdeTarjeta || desdeTarjetaRegalo ? "0.00 €" : totalMostrado > 0 ? (
+            `${euros(totalMostrado)}`
           ) : (
             <span className="text-red-600">— falta precio —</span>
           )}
         </p>
 
-        <div className="text-sm text-gray-700 text-left mb-4">
+        <div className="text-sm text-tinta text-left mb-4">
           <label className="flex items-start">
             <input
               type="checkbox"
@@ -491,45 +359,48 @@ export default function ResumenPago() {
               checked={aceptaPoliticas}
               onChange={(e) => setAceptaPoliticas(e.target.checked)}
             />
+            {/* Se abren en otra pestaña: salir de aquí cerraría la compra del invitado */}
             <span>
               He leído y acepto las{" "}
-              <span
-                className="text-red-500 underline cursor-pointer"
-                onClick={() => navigate("/condiciones-pago")}
-              >
+              <a href="/condicionesuso" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
                 Condiciones de Uso
-              </span>
+              </a>
               ,{" "}
-              <span
-                className="text-red-500 underline cursor-pointer"
-                onClick={() => navigate("/politicacancelacion")}
-              >
+              <a href="/condiciones-pago" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
+                Condiciones de Pago
+              </a>
+              ,{" "}
+              <a href="/politicacancelacion" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
                 Política de Cancelación
-              </span>{" "}
+              </a>{" "}
               y{" "}
-              <span
-                className="text-red-500 underline cursor-pointer"
-                onClick={() => navigate("/politica-piezas")}
-              >
+              <a href="/politica-piezas" target="_blank" rel="noopener noreferrer" className="text-red-500 underline">
                 Política sobre roturas de piezas
-              </span>
+              </a>
               .
             </span>
           </label>
         </div>
 
+        {!(desdeTarjeta || desdeTarjetaRegalo) && (
+          <p className="text-xs text-tinta-suave text-left mb-3">
+            Pagarás en la página segura de tu banco. Si cancelas allí, vuelve a esta web: tu plaza
+            se guarda {configEspacio.minutosReserva} minutos.
+          </p>
+        )}
+
         <button
           onClick={handleConfirmarPago}
           disabled={
             !aceptaPoliticas ||
-            (!(desdeTarjeta || desdeTarjetaRegalo) && !(totalEuros > 0)) ||
+            (!(desdeTarjeta || desdeTarjetaRegalo) && !(totalMostrado > 0)) ||
             cargando
           }
           className={`w-full py-2 px-4 rounded-xl font-bold mb-4 ${
             aceptaPoliticas &&
-            ((desdeTarjeta || desdeTarjetaRegalo) || totalEuros > 0) &&
+            ((desdeTarjeta || desdeTarjetaRegalo) || totalMostrado > 0) &&
             !cargando
-              ? "bg-yellow-600 hover:bg-yellow-500 text-white"
+              ? "bg-yellow-600 hover:bg-mostaza text-white"
               : "bg-gray-400 text-white cursor-not-allowed"
           }`}
         >

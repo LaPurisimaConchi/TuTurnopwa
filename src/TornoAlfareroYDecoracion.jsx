@@ -83,18 +83,18 @@ export default function TornoAlfareroYDecoracion() {
     return (
       <PantallaConVolver>
         <div className="bg-white text-[#333] font-sans max-w-3xl w-full shadow-md rounded-2xl overflow-hidden p-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#3b3025] mb-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-tinta mb-4">
             Este taller no está disponible ahora mismo
           </h1>
 
-          <p className="text-sm text-gray-700 leading-relaxed mb-6">
+          <p className="text-sm text-tinta leading-relaxed mb-6">
             Esta clase está temporalmente oculta o pausada y no puede reservarse
             en este momento.
           </p>
 
           <button
             onClick={() => navigate("/clases")}
-            className="px-6 py-3 rounded-full bg-[#f4c542] text-[#5c3c00] font-semibold hover:bg-[#e8b932] transition"
+            className="px-6 py-3 rounded-full bg-terracota text-white font-semibold hover:bg-terracota-oscuro transition"
           >
             Volver a talleres
           </button>
@@ -111,7 +111,7 @@ export default function TornoAlfareroYDecoracion() {
             <button
               type="button"
               onClick={() => setModalAbierto(true)}
-              className="w-full rounded-2xl overflow-hidden bg-[#f8f8f8] flex items-center justify-center min-h-[260px] sm:min-h-[320px] md:min-h-[420px]"
+              className="w-full rounded-2xl overflow-hidden bg-arena flex items-center justify-center min-h-[260px] sm:min-h-[320px] md:min-h-[420px]"
             >
               <img
                 src={imagenActiva}
@@ -127,7 +127,7 @@ export default function TornoAlfareroYDecoracion() {
                   type="button"
                   onClick={() => setImagenActiva(img)}
                   className={`shrink-0 rounded-xl overflow-hidden border-2 w-[72px] h-[72px] sm:w-[80px] sm:h-[80px] ${
-                    imagenActiva === img ? "border-[#F4C542]" : "border-[#f1e7c6]"
+                    imagenActiva === img ? "border-mostaza" : "border-linea"
                   }`}
                 >
                   <img
@@ -139,84 +139,84 @@ export default function TornoAlfareroYDecoracion() {
               ))}
             </div>
 
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-tinta-suave mt-2">
               Toca la imagen para verla en grande
             </p>
           </div>
 
           <div className="p-4 sm:p-6 flex flex-col justify-start min-w-0">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#3b3025] mb-2 leading-tight break-words">
+            <h1 className="text-2xl md:text-3xl font-bold text-tinta mb-2 leading-tight break-words">
               {nombreClase}
             </h1>
 
-            <p className="text-base text-[#6b3700] font-medium mb-1 leading-relaxed break-words">
+            <p className="text-base text-tinta font-medium mb-1 leading-relaxed break-words">
               4 clases de 3 horas al mes
             </p>
 
-            <p className="text-lg sm:text-xl font-semibold text-[#6b3700] mb-4 leading-relaxed break-words">
+            <p className="text-lg sm:text-xl font-semibold text-tinta mb-4 leading-relaxed break-words">
               {precioClase}
             </p>
 
             <BotonReserva destino="/reserva-torno-alfarero-y-decoracion" className="shrink-0" />
 
             <div className="mb-5 min-w-0">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
                 Información del producto
               </h2>
 
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-3 leading-relaxed break-words">
                 {descripcionCorta}
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 {descripcionLarga}
               </p>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Qué aprenderás
               </p>
 
-              <p className="text-sm text-gray-700 font-semibold mb-2">
+              <p className="text-sm text-tinta font-semibold mb-2">
                 Sesiones de torno (2 clases):
               </p>
 
-              <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+              <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                 <li>• Conocer y usar las herramientas esenciales para el torno alfarero.</li>
                 <li>• Aprender a centrar, abrir y levantar paredes controlando el grosor y la forma.</li>
                 <li>• Practicar el retorneado y remate de bases.</li>
                 <li>• Crear piezas utilitarias o decorativas como cuencos, tazas o pequeños jarrones.</li>
               </ul>
 
-              <p className="text-sm text-gray-700 font-semibold mb-2">
+              <p className="text-sm text-tinta font-semibold mb-2">
                 Sesiones de decoración (2 clases):
               </p>
 
-              <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+              <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                 <li>• Aplicar engobes o esmaltes sobre piezas ya bizcochadas o crudas.</li>
                 <li>• Experimentar con diferentes efectos, mezclas y acabados (brillantes, mates o satinados).</li>
                 <li>• Desarrollar tu propio estilo de color y textura sobre piezas torneadas.</li>
                 <li>• Comprender cómo los materiales reaccionan durante la cocción.</li>
               </ul>
 
-              <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-4">
-                <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+              <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-4">
+                <p className="text-sm text-tinta italic leading-relaxed break-words">
                   Este bono te permite vivir el proceso completo: desde el torno
                   hasta la pieza final decorada.
                 </p>
               </div>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Qué incluye:
               </p>
 
-              <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+              <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                 {incluyeLista.map((item, index) => (
                   <li key={index}>• {item}</li>
                 ))}
               </ul>
 
-              <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-4">
-                <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+              <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-4">
+                <p className="text-sm text-tinta italic leading-relaxed break-words">
                   En las tarifas de bono no está incluida la acción de esmaltar
                   piezas por parte del personal del estudio. Sin embargo,
                   tendrás la oportunidad de esmaltar tú mismo tus piezas,
@@ -224,71 +224,71 @@ export default function TornoAlfareroYDecoracion() {
                 </p>
               </div>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Duración y validez del bono:
               </p>
 
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-3 leading-relaxed break-words">
                 El bono está compuesto por <strong>4 sesiones de 3 horas</strong> cada una.
               </p>
 
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-3 leading-relaxed break-words">
                 Podrás asistir cuando tú decidas, dentro del mismo mes, según el
                 horario disponible.
               </p>
 
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-3 leading-relaxed break-words">
                 El mes comienza con tu primera sesión y finaliza el mismo día
                 del mes siguiente.
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 <strong>Validez del bono:</strong> 3 meses desde la fecha de compra.
               </p>
 
-              <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-4">
-                <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+              <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-4">
+                <p className="text-sm text-tinta italic leading-relaxed break-words">
                   Si lo deseas, puedes ampliar el bono con sesiones adicionales.
                   Solo tienes que comunicarlo.
                 </p>
               </div>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Resultados:
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 Aprenderás a dominar el torno y a decorar tus propias piezas
                 desde una base técnica sólida, comprendiendo todas las fases del
                 proceso cerámico.
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 Podrás crear objetos únicos, tanto funcionales como decorativos,
                 y desarrollar una autonomía real en el torno.
               </p>
             </div>
 
-            <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-5">
-              <p className="text-sm text-gray-700 italic mb-2 leading-relaxed break-words">
+            <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-5">
+              <p className="text-sm text-tinta italic mb-2 leading-relaxed break-words">
                 <strong>Política de reservas y condiciones:</strong> {notaImportanteFirebase}
               </p>
 
-              <p className="text-sm text-gray-700 italic mb-2 leading-relaxed break-words">
+              <p className="text-sm text-tinta italic mb-2 leading-relaxed break-words">
                 <strong>Política de venta:</strong> Validez 3 meses desde la
                 fecha de compra. Si las tarifas cambian, deberás abonar la
                 diferencia o elegir otro bono equivalente o superior. Si no se
                 utiliza dentro del plazo, no se reembolsará el importe.
               </p>
 
-              <p className="text-sm text-gray-700 italic mb-2 leading-relaxed break-words">
+              <p className="text-sm text-tinta italic mb-2 leading-relaxed break-words">
                 <strong>Cancelaciones:</strong> En caso de cancelación voluntaria
                 sin causa justificada, La Purísima Conchi podrá, de forma
                 excepcional, ofrecer una devolución parcial, deduciendo un 20%
                 en concepto de gastos de gestión y reserva de plaza.
               </p>
 
-              <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+              <p className="text-sm text-tinta italic leading-relaxed break-words">
                 Te recomendamos leer nuestros términos y condiciones y políticas
                 de devolución antes de realizar tu compra.
               </p>

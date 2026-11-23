@@ -1,123 +1,98 @@
 // api/crear-sesion.js
-import crypto from "crypto";
+// Firma el pago de un pedido y manda al cliente al TPV de Redsys (HTML que se envía
+// solo), o devuelve los datos firmados en JSON con mode=json.
+// Solo firma pedidos que ha preparado el servidor (api/_pedidoServidor.js, tipo
+// "prepararPago" de api/codigo-reserva.js) y con su importe: lo que mande el
+// navegador (amountCents, amount) no cuenta.
+import { adminDb } from "./_firebaseAdmin.js";
+import { firmarRedsys } from "./_firmaRedsys.js";
+import { PEDIDO_PAGO } from "./_pedidoServidor.js";
+
 export const config = { runtime: "nodejs" };
 
-// Sustituir esto por process.env.VARIABLES en producción
-const FUC = "368564464"; //process.env.REDSYS_FUC;
-const TERMINAL = "001"; //process.env.REDSYS_TERMINAL;
-const CURRENCY = "978"; //process.env.REDSYS_CURRENCY;
-const REDSYS_SECRET_KEY = process.env.REDSYS_SECRET_KEY;
-const TPV_URL = "https://sis.redsys.es/sis/realizarPago";
+// Sin variables TPV_* / APP_BASE_URL se usan los valores de producción.
+// En staging (Preview) se definen para usar el TPV de pruebas de Redsys.
+// Nombres nuevos a propósito: los REDSYS_FUC, REDSYS_URL_* antiguos de Vercel no se leen.
+const FUC = process.env.TPV_FUC || "368564464";
+const TERMINAL = process.env.TPV_TERMINAL || "001";
+const CURRENCY = "978";
+const TPV_URL = process.env.TPV_URL || "https://sis.redsys.es/sis/realizarPago";
+const APP_BASE_URL = (process.env.APP_BASE_URL || "https://app.lapurisimaconchi.com").replace(/\/+$/, "");
+// Query opcional para la URL de notificación (p. ej. el bypass de la protección de Vercel en staging)
+const NOTIFY_QUERY = process.env.TPV_NOTIFY_QUERY || "";
 
 // ---------- utils ----------
-const isHttps = (u) => typeof u === "string" && /^https:\/\//i.test(u);
-
 // Base64 estándar (NO URL) para Ds_MerchantParameters
 const jsonToStdB64 = (obj) => Buffer.from(JSON.stringify(obj), "utf8").toString("base64");
 
-// Base64URL para la firma (sin '=')
-const toBase64Url = (buf) =>
-  Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-
-// ---------- V1: HMAC_SHA256_V1 ----------
-function signV1(paramsB64, order) {
-  const key = Buffer.from(REDSYS_SECRET_KEY, "base64");
-  const iv = Buffer.alloc(8, 0);
-  const cipher = crypto.createCipheriv("des-ede3-cbc", key, iv);
-  cipher.setAutoPadding(false);
-
-  let orderPadded = order;
-  while (orderPadded.length % 8 !== 0) orderPadded += "\0";
-
-  const encrypted = Buffer.concat([
-    cipher.update(orderPadded, "utf8"),
-    cipher.final()
-  ]);
-
-  return crypto
-    .createHmac("sha256", encrypted)
-    .update(paramsB64)
-    .digest("base64");
+// Web a la que vuelve el cliente al terminar en el TPV. Nunca una ajena: la del
+// navegador solo se acepta si es el mismo dominio que recibe esta petición (un
+// Preview de Vercel, por ejemplo); si no, la de APP_BASE_URL.
+function origenDeVuelta(req, urlCliente) {
+  const host = String(req.headers?.host || "").toLowerCase();
+  try {
+    const url = new URL(String(urlCliente || ""));
+    if (url.protocol === "https:" && host && url.host.toLowerCase() === host) return `https://${host}`;
+  } catch {
+    // URL no válida: se usa la de siempre
+  }
+  return APP_BASE_URL;
 }
 
-// ---------- V2: AES-128 + HMAC-SHA512 ----------
-// function key16FromSecretTxt() {
-//   if (!REDSYS_SECRET_KEY) throw new Error("Falta REDSYS_SECRET_KEY (V2)");
-//   const txt = REDSYS_SECRET_KEY;
-//   const sixteen = txt.slice(0, 16);
-//   let k = Buffer.from(sixteen, "utf8");
-//   if (k.length < 16) k = Buffer.concat([k, Buffer.alloc(16 - k.length, 0x00)]);
-//   if (k.length > 16) k = k.subarray(0, 16);
-//   return k;
-// }
-
-// function deriveKeyV2(order) {
-//   const k16 = key16FromSecretTxt();
-//   const iv = Buffer.alloc(16, 0x00); // IV = 0
-//   const cipher = crypto.createCipheriv("aes-128-cbc", k16, iv);
-//   cipher.setAutoPadding(true);       // PKCS#7
-//   return Buffer.concat([cipher.update(String(order), "utf8"), cipher.final()]);
-// }
-
-// function signV2(paramsB64, order) {
-//   const k = deriveKeyV2(order);
-//   const digest = crypto.createHmac("sha512", k).update(paramsB64, "utf8").digest();
-//   return toBase64Url(digest); // base64url sin '='
-// }
+// Si no se puede pagar: página sencilla (o JSON con mode=json). Los mensajes son fijos.
+function noSePuedePagar(res, status, mensaje, comoJson) {
+  if (comoJson) return res.status(status).json({ ok: false, error: mensaje });
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  return res.status(status).send(`<!doctype html><html lang="es"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No se ha podido iniciar el pago</title>
+<body style="font-family:sans-serif;max-width:32rem;margin:3rem auto;padding:0 1rem;color:#333">
+  <h1 style="font-size:1.3rem">No se ha podido iniciar el pago</h1>
+  <p>${mensaje}</p>
+  <p><a href="/">Volver a la web</a></p>
+</body></html>`);
+}
 
 // ---------- handler ----------
-export default function handler(req, res) {
+export default async function handler(req, res) {
   const isGet = req.method === "GET";
   const isPost = req.method === "POST";
   if (!isGet && !isPost) return res.status(405).end();
 
   const src = isGet ? (req.query || {}) : (req.body || {});
+  const comoJson = String(src.mode || "").toLowerCase() === "json";
 
   if (!FUC) return res.status(500).send("Falta REDSYS_FUC");
 
   try {
-    const { orderId, amountCents, amount, okUrl, koUrl, notifyUrl, payMethod, mode } = src;
+    const { okUrl } = src;
+    const oid = String(src.orderId || "");
+    if (!PEDIDO_PAGO.test(oid)) {
+      return noSePuedePagar(res, 400, "El número de pedido no es válido.", comoJson);
+    }
 
-    // ORDER: numérico 4–12 dígitos → dejamos 12 dígitos
-    
-let oid = String(orderId ?? Date.now()).replace(/\D/g, "");
-if (oid.length < 4) oid = (Date.now() % 1e12).toString();
-oid = oid.padStart(12, "0").slice(-12);
+    // El importe es el del pedido que preparó el servidor
+    const snap = await adminDb.ref(`pedidosPendientes/${oid}`).get();
+    const pedido = snap.exists() ? snap.val() || {} : null;
+    if (!pedido || pedido.importeServidor !== true) {
+      return noSePuedePagar(res, 409, "No se ha encontrado este pedido. Vuelve a hacer la reserva.", comoJson);
+    }
+    if (pedido.procesado === true || String(pedido.estadoPago || "") !== "pendiente") {
+      return noSePuedePagar(res, 409, "Este pedido ya está pagado o cerrado.", comoJson);
+    }
 
-    // Importe en céntimos (>=1)
-let cents = null;
+    const centimos = Math.round(Number(pedido.precioTotal) * 100);
+    if (!Number.isInteger(centimos) || centimos < 1) {
+      return noSePuedePagar(res, 409, "Este pedido no tiene importe.", comoJson);
+    }
+    const cents = String(centimos);
 
-//  Si ya viene en céntimos
-if (amountCents != null) {
-  cents = String(parseInt(amountCents, 10));
-}
-
-// Si viene en euros
-if (!cents && amount != null) {
-  const euros = String(amount).replace(",", ".");
-  cents = String(Math.round(Number(euros) * 100));
-}
-
-if (!cents || !/^\d+$/.test(cents) || Number(cents) < 1) {
-  return res.status(400).send("amountCents/amount inválido");
-}
-   // URLs
-const URL_OK = isHttps(okUrl)
-  ? okUrl
-  : "https://app.lapurisimaconchi.com/pago/exito";
-
-const URL_KO = isHttps(koUrl)
-  ? koUrl
-  : "https://app.lapurisimaconchi.com/pago/error";
-
-const URL_NOTIFY =
-  "https://app.lapurisimaconchi.com/api/notificacionTPV";
-
-if (!isHttps(URL_OK) || !isHttps(URL_KO)) {
-  return res.status(400).send(
-    "Faltan okUrl/koUrl https (o define REDSYS_URL_OK/KO)"
-  );
-}
+    // URLs: las de vuelta, siempre de esta web; la de notificación, siempre la nuestra
+    const origen = origenDeVuelta(req, okUrl);
+    // La pantalla de éxito necesita saber qué pedido es para comprobar que está pagado
+    const URL_OK = `${origen}/pago/exito?pedido=${encodeURIComponent(oid)}`;
+    const URL_KO = `${origen}/pago/error`;
+    const URL_NOTIFY = `${APP_BASE_URL}/api/notificacionTPV${NOTIFY_QUERY ? `?${NOTIFY_QUERY}` : ""}`;
 
     // Parámetros Redsys (usar camel-case EXACTO)
     const dsJson = {
@@ -129,10 +104,8 @@ if (!isHttps(URL_OK) || !isHttps(URL_KO)) {
       Ds_Merchant_TransactionType: "0",
       Ds_Merchant_UrlOK: URL_OK,
       Ds_Merchant_UrlKO: URL_KO,
-      Ds_Merchant_PayMethods: "0", 
-      Ds_Merchant_MerchantURL: URL_NOTIFY
-      //...(URL_NOTIFY ? { Ds_Merchant_MerchantURL: URL_NOTIFY } : {}),
-      //...(payMethod === "bizum" ? { Ds_Merchant_PayMethods: "z" } : {}),
+      Ds_Merchant_PayMethods: "0",
+      Ds_Merchant_MerchantURL: URL_NOTIFY,
     };
 
     // MerchantParameters → Base64 estándar
@@ -140,61 +113,21 @@ if (!isHttps(URL_OK) || !isHttps(URL_KO)) {
 
     // Firma (V1)
     const Ds_SignatureVersion = "HMAC_SHA256_V1";
-    //const Ds_Signature = signV2(Ds_MerchantParameters, dsJson.Ds_Merchant_Order);
-    const Ds_Signature = signV1(Ds_MerchantParameters, dsJson.Ds_Merchant_Order);
+    const Ds_Signature = firmarRedsys(Ds_MerchantParameters, dsJson.Ds_Merchant_Order);
 
-    // --- Respuesta JSON para depurar ---
-    if ((mode || "").toString().toLowerCase() === "json") {
+    // --- Datos firmados en JSON (el navegador monta el formulario) ---
+    if (comoJson) {
       res.setHeader("Content-Type", "application/json; charset=utf-8");
       return res.status(200).json({
         action: TPV_URL,
         Ds_SignatureVersion,
         Ds_MerchantParameters,
         Ds_Signature,
-        parsed: dsJson,
       });
     }
 
-    // --- Modo INSPECT: formulario visible para depurar ---
-    if ((mode || "").toLowerCase() === "inspect") {
-      const short = (s) => (s ? `${s.slice(0, 24)}…${s.slice(-12)} (len ${s.length})` : "");
-      const html = `<!doctype html><html lang="es"><meta charset="utf-8">
-<title>Debug Redsys</title>
-<body style="font-family:sans-serif; max-width:900px; margin:2rem auto">
-  <h1>Debug Redsys</h1>
-  <p><strong>Action:</strong> ${TPV_URL}</p>
-
-  <h3>Previsualización (solo lectura)</h3>
-  <ul>
-    <li><b>Ds_SignatureVersion:</b> ${Ds_SignatureVersion}</li>
-    <li><b>Ds_MerchantParameters:</b> ${short(Ds_MerchantParameters)}</li>
-    <li><b>Ds_Signature:</b> ${short(Ds_Signature)}</li>
-  </ul>
-
-  <h3>Formulario que se enviará (POST)</h3>
-  <form method="post" action="${TPV_URL}" target="_self" style="display:grid; gap:1rem">
-    <label>Ds_SignatureVersion<br>
-      <input name="Ds_SignatureVersion" value="${Ds_SignatureVersion}" style="width:100%">
-    </label>
-    <label>Ds_MerchantParameters<br>
-      <textarea name="Ds_MerchantParameters" rows="8" style="width:100%">${Ds_MerchantParameters}</textarea>
-    </label>
-    <label>Ds_Signature<br>
-      <input name="Ds_Signature" value="${Ds_Signature}" style="width:100%">
-    </label>
-    <button type="submit" style="padding:.6rem 1rem">Enviar al TPV</button>
-  </form>
-
-  <hr>
-  <p><strong>MerchantParameters (JSON legible):</strong></p>
-  <pre>${JSON.stringify(dsJson, null, 2)}</pre>
-</body></html>`;
-      res.setHeader("Content-Type","text/html; charset=utf-8");
-      //console.log("Debug Redsys:", html);
-      return res.status(200).send(html);
-    }
-
     // --- HTML auto-submit por defecto ---
+    // Todo lo que se pinta es base64 o valores fijos de la configuración
     const html = `<!doctype html><html lang="es"><meta charset="utf-8">
 <title>Conectando con el banco…</title>
 <body onload="document.forms[0].submit()" style="font-family:sans-serif">

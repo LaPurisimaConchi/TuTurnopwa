@@ -1,12 +1,42 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import { useNavigate } from "react-router-dom";
 import BotonVolver from "./BotonVolver";
+import { cargarMiniatura, TALLERES_FIJOS } from "./catalogoTalleres";
+import { cargarCategorias } from "./categoriasTalleres";
+import { fechaDMA } from "./utils/formatoFecha";
+
+const IMAGENES_CLASE = {
+  clasesueltacontinuidad: "/img/clasesuelta/clase-suelta1.JPG",
+  creatubandejahogar: "/img/bandeja/bandeja1.jpg",
+  creatubrunchbowl: "/img/brunchbowl/brunch1.jpg",
+  creatucuencoramen: "/img/ramen/ramen1.jpg",
+  creatugrancentrodemesa: "/img/centrodemesa/grancentromesa1.jpg",
+  creatujarrajarrongrande: "/img/jarron/jarrajarrongrande1.jpg",
+  creatumaceta: "/img/maceta/maceta1.jpg",
+  creatupiezafavorita: "/img/creatupiezafavorita/creatupieza1.jpg",
+  creatutazafavorita: "/img/tazafavorita/taza1.jpg",
+  especialpintatupieza: "/img/especialpinta/pintatupiezaespecial1.jpg",
+  macetaorganica: "/img/macetaorganica/macetaorganica1.jpg",
+  modelamano4clases: "/img/modelamano/modelamano1.jpg",
+  pintatupieza: "/img/pintaceramica/pintatupieza1.jpg",
+  setmatcha: "/img/matcha/setmatcha1.jpg",
+  setsake: "/img/sake/setsake1.jpg",
+  tazaescultorica: "/img/tazaescultorica/tazaescultorica1.jpg",
+  tornodecoracion4clases: "/img/tornoalfarero/torno-decoracion1.jpg",
+  tornodesdecero4clases: "/img/tornodesdecero/torno-desde-cero1.jpg",
+  tornoperfeccionamiento6clases: "/img/tornoperfecciona/torno-perfecciona1.jpg",
+};
+const IMAGEN_POR_DEFECTO = "/img/logoPCsin.png";
 
 const AdminClasesNuevo = () => {
   const navigate = useNavigate();
   const [notasPorClase, setNotasPorClase] = useState({});
+  const [miniaturas, setMiniaturas] = useState({});
+  const [categorias, setCategorias] = useState([]);
+  const [filtroCategoria, setFiltroCategoria] = useState("todas");
 
     const [clases, setClases] = useState([]);
   const [resumen, setResumen] = useState({});
@@ -29,6 +59,12 @@ useEffect(() => {
 
   return () => window.removeEventListener("resize", onResize);
 }, []);
+
+  useEffect(() => {
+    cargarCategorias({ incluirOcultas: true })
+      .then(setCategorias)
+      .catch((error) => console.error("Error al cargar categorías:", error));
+  }, []);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -70,6 +106,7 @@ useEffect(() => {
 listaClases.push({
   id: claseId,
   nombre,
+  grupo: claseData.grupo || TALLERES_FIJOS[claseId]?.grupo || "",
   categoria: claseData.categoria || "Sin categoría",
   precioDesde: claseData.precioDesde || "",
   precio: claseData.precio ?? "",
@@ -78,7 +115,11 @@ listaClases.push({
   turnos: claseData.turnos || [],
   horarios: claseData.horarios || claseData.horario || {},
   estado: estadoClase,
+  orden: Number.isFinite(Number(claseData.orden ?? claseData["orden "]))
+    ? Number(claseData.orden ?? claseData["orden "])
+    : 999,
   activa: estadoClase === "activa",
+  dinamica: !!claseData.dinamica,
 });
 
             mapaResumen[claseId] = {
@@ -155,11 +196,23 @@ listaClases.push({
           });
         }
 
-        listaClases.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+        // Mismo orden que la portada: por `orden` y, si empatan, por nombre
+        listaClases.sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, "es"));
 
         setClases(listaClases);
         setResumen(mapaResumen);
         setNotasPorClase(mapaNotas);
+
+        // Fotos subidas desde el panel (talleres dinámicos o migrados)
+        Promise.all(
+          listaClases.map(async (c) => [c.id, await cargarMiniatura(c.id)])
+        ).then((pares) => {
+          const mapa = {};
+          pares.forEach(([id, src]) => {
+            if (src) mapa[id] = src;
+          });
+          setMiniaturas(mapa);
+        });
       } catch (error) {
         console.error("Error al cargar clases:", error);
         setClases([]);
@@ -186,6 +239,33 @@ listaClases.push({
     }));
   }, [clases, resumen]);
 
+  // Pestañas de filtro: las categorías con clases, más «Sin categoría» si hace falta
+  const opcionesFiltro = useMemo(() => {
+    const cuenta = {};
+    clasesConResumen.forEach((c) => {
+      cuenta[c.grupo] = (cuenta[c.grupo] || 0) + 1;
+    });
+
+    const conocidas = new Set(categorias.map((c) => c.id));
+    const opciones = categorias
+      .filter((c) => cuenta[c.id])
+      .map((c) => ({ id: c.id, titulo: c.titulo, total: cuenta[c.id] }));
+
+    const sueltas = clasesConResumen.filter((c) => !conocidas.has(c.grupo)).length;
+    if (sueltas > 0) opciones.push({ id: "sin", titulo: "Sin categoría", total: sueltas });
+
+    return opciones;
+  }, [clasesConResumen, categorias]);
+
+  const clasesFiltradas = useMemo(() => {
+    if (filtroCategoria === "todas") return clasesConResumen;
+    if (filtroCategoria === "sin") {
+      const conocidas = new Set(categorias.map((c) => c.id));
+      return clasesConResumen.filter((c) => !conocidas.has(c.grupo));
+    }
+    return clasesConResumen.filter((c) => c.grupo === filtroCategoria);
+  }, [clasesConResumen, categorias, filtroCategoria]);
+
   const formatearPrecios = (clase) => {
     if (clase.precios && Object.keys(clase.precios).length > 0) {
       return Object.entries(clase.precios)
@@ -200,6 +280,8 @@ listaClases.push({
   };
 
   const formatearPlazas = (clase) => {
+    if (clase.dinamica) return "Aforo común (ver Espacio)";
+
     const maxTorno = clase.plazas?.maxTorno;
     const maxTotales =
       clase.plazas?.maxTotales ?? clase.plazas?.plazasTotales;
@@ -473,7 +555,41 @@ listaClases.push({
           <p style={styles.subtitulo}>
             Resumen general de actividad por clase.
           </p>
+          <button
+            style={{ ...styles.boton, marginTop: 12 }}
+            onClick={() => navigate("/admin-taller")}
+          >
+            <Icono nombre="mas" className="mr-1" />Añadir taller nuevo
+          </button>
+          {clases.some((c) => !c.dinamica && c.id in TALLERES_FIJOS) && (
+            <button
+              style={{ ...styles.boton, marginTop: 12, marginLeft: 8 }}
+              onClick={() => navigate("/admin-migrar-talleres")}
+            >
+              <Icono nombre="repetir" className="mr-1" />Migrar talleres existentes al panel
+            </button>
+          )}
         </div>
+
+        {!cargando && clasesConResumen.length > 0 && (
+          <div style={styles.filtros}>
+            {[
+              { id: "todas", titulo: "Todas", total: clasesConResumen.length },
+              ...opcionesFiltro,
+            ].map((op) => (
+              <button
+                key={op.id}
+                onClick={() => setFiltroCategoria(op.id)}
+                style={{
+                  ...styles.filtro,
+                  ...(filtroCategoria === op.id ? styles.filtroActivo : {}),
+                }}
+              >
+                {op.titulo} ({op.total})
+              </button>
+            ))}
+          </div>
+        )}
 
         {cargando ? (
           <p style={styles.mensaje}>Cargando clases...</p>
@@ -486,18 +602,35 @@ listaClases.push({
     ...(isMobile ? styles.gridMobile : {}),
   }}
 >
-  {clasesConResumen.map((clase) => (
-             <div
-  key={clase.id}
-  style={{
-    ...styles.card,
-    ...(isMobile ? styles.cardMobile : {}),
-  }}
-  onClick={() =>
-    navigate(`/admin-detalle-clase?clase=${clase.id}`)
-  }
->
-                <div style={styles.cardTop}>
+  {clasesFiltradas.map((clase) => {
+    const imgEl = (
+                <img
+                  src={
+                    miniaturas[clase.id] ||
+                    IMAGENES_CLASE[clase.id] ||
+                    IMAGEN_POR_DEFECTO
+                  }
+                  alt={clase.nombre}
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = IMAGEN_POR_DEFECTO;
+                  }}
+                  style={{
+                    ...styles.imagen,
+                    ...(isMobile ? styles.imagenMobile : {}),
+                  }}
+                />
+    );
+    const topEl = (
+                <div
+                  style={{
+                    ...styles.cardTop,
+                    ...(isMobile
+                      ? { flexDirection: "column", gap: 8, marginBottom: 0 }
+                      : {}),
+                  }}
+                >
                   <div>
                     <h2 style={styles.nombre}>{clase.nombre}</h2>
                     <p style={styles.categoria}>{clase.categoria}</p>
@@ -514,10 +647,42 @@ listaClases.push({
                     {clase.reservasFuturas !== 1 ? "s" : ""}
                   </span>
                 </div>
+    );
+    return (
+             <div
+  key={clase.id}
+  style={{
+    ...styles.card,
+    ...(isMobile ? styles.cardMobile : {}),
+  }}
+>
+                {isMobile ? (
+                  <div style={styles.cabeceraMobile}>
+                    {imgEl}
+                    <div style={{ flex: 1, minWidth: 0 }}>{topEl}</div>
+                  </div>
+                ) : (
+                  imgEl
+                )}
+                <div style={styles.contenido}>
+                {!isMobile && topEl}
 
-                <div style={styles.infoBox}>
+                <div
+                  style={{
+                    ...styles.infoBox,
+                    ...(isMobile ? { gridTemplateColumns: "1fr" } : {}),
+                  }}
+                >
                   <p style={styles.linea}>
-  <strong>Estado:</strong> {clase.estado || "activa"}
+  <strong>Estado:</strong>{" "}
+  <span
+    style={{
+      ...styles.estadoEtiqueta,
+      ...(clase.activa ? styles.estadoActiva : styles.estadoOculta),
+    }}
+  >
+    {clase.activa ? <><Icono nombre="punto" tamano="0.55em" className="mr-1.5" />Activa</> : <><Icono nombre="punto" tamano="0.55em" className="mr-1.5" />Oculta</>}
+  </span>
 </p>
                   <p style={styles.linea}>
                     <strong>Reservas totales:</strong> {clase.reservasTotales}
@@ -533,7 +698,7 @@ listaClases.push({
                   </p>
                   <p style={styles.linea}>
                     <strong>Próxima fecha:</strong>{" "}
-                    {clase.proximaFecha || "Sin reservas futuras"}
+                    {fechaDMA(clase.proximaFecha) || "Sin reservas futuras"}
                   </p>
                   <p style={styles.linea}>
                     <strong>Precio base:</strong>{" "}
@@ -566,9 +731,37 @@ listaClases.push({
                       navigate(`/admin-reservas-nuevo?clase=${clase.id}`);
                     }}
                   >
-                    Ver reservas
+                    <Icono nombre="reservas" color="currentColor" className="mr-1.5" />Ver reservas
                   </button>
 
+                  <button
+                    style={styles.boton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin-taller?id=${clase.id}`);
+                    }}
+                  >
+                    <Icono nombre={clase.dinamica ? "notas" : "camara"} color="currentColor" className="mr-1.5" />{clase.dinamica ? "Editar ficha" : "Fotos y portada"}
+                  </button>
+
+                  {(clase.dinamica || TALLERES_FIJOS[clase.id]?.ruta) && (
+                    <button
+                      style={styles.boton}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(
+                          clase.dinamica ? `/taller/${clase.id}` : TALLERES_FIJOS[clase.id].ruta
+                        );
+                      }}
+                    >
+                      <Icono nombre="ojo" color="currentColor" className="mr-1.5" />Ver ficha pública
+                    </button>
+                  )}
+
+                  {/* Los talleres del panel se editan en admin-taller: precios, plazas y
+                      horarios solo se editan aquí en los que aún tienen su página a mano */}
+                  {!clase.dinamica && (
+                    <>
                                    {!editandoPrecios[clase.id] ? (
                     <button
                       style={{ ...styles.boton, }}
@@ -577,7 +770,7 @@ listaClases.push({
                         iniciarEdicionPrecios(clase);
                       }}
                     >
-                      Editar precios
+                      <Icono nombre="euro" color="currentColor" className="mr-1.5" />Editar precios
                     </button>
                   ) : (
                     <div
@@ -631,7 +824,7 @@ listaClases.push({
                         iniciarEdicionPlazas(clase);
                       }}
                     >
-                      Editar plazas
+                      <Icono nombre="usuarios" color="currentColor" className="mr-1.5" />Editar plazas
                     </button>
                   ) : (
                     <div
@@ -685,7 +878,7 @@ listaClases.push({
                         iniciarEdicionHorarios(clase);
                       }}
                     >
-                      Editar horarios
+                      <Icono nombre="calendario" color="currentColor" className="mr-1.5" />Editar horarios
                     </button>
                   ) : (
                     <div
@@ -731,9 +924,13 @@ listaClases.push({
                       </div>
                     </div>
                   )}
+                    </>
+                  )}
+                </div>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         )}
       </div>
@@ -743,8 +940,6 @@ listaClases.push({
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -766,45 +961,93 @@ const styles = {
   padding: 10,
   boxSizing: "border-box",
 },
+  filtros: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 20,
+    justifyContent: "center",
+  },
+  filtro: {
+    padding: "8px 14px",
+    backgroundColor: "#fdfaf5",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
+    borderRadius: 999,
+    fontSize: "0.92rem",
+    cursor: "pointer",
+  },
+  filtroActivo: {
+    backgroundColor: "#b36a4a",
+    borderColor: "#b36a4a",
+    fontWeight: 600,
+    color: "#ffffff",
+  },
   header: {
     textAlign: "center",
     marginBottom: 26,
   },
   gridMobile: {
-  gridTemplateColumns: "1fr",
   gap: 14,
 },
   titulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     marginTop: 8,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    display: "flex",
+    flexDirection: "column",
     gap: 18,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 22,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-    cursor: "pointer",
     transition: "0.2s",
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 20,
   },
   cardMobile: {
   padding: 14,
+  flexDirection: "column",
+  gap: 14,
 },
+  imagen: {
+    width: 220,
+    height: 220,
+    flexShrink: 0,
+    objectFit: "cover",
+    borderRadius: 16,
+    backgroundColor: "#f6efdd",
+  },
+  cabeceraMobile: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 12,
+    width: "100%",
+  },
+  imagenMobile: {
+    width: 110,
+    height: 110,
+    borderRadius: 14,
+  },
+  contenido: {
+    flex: 1,
+    minWidth: 0,
+  },
   cardTop: {
     display: "flex",
     justifyContent: "space-between",
@@ -814,18 +1057,38 @@ const styles = {
   },
   nombre: {
     margin: 0,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.15rem",
   },
   categoria: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.92rem",
   },
+  estadoEtiqueta: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+    padding: "4px 12px",
+    lineHeight: 1,
+    fontSize: "0.85rem",
+    fontWeight: 700,
+  },
+  estadoActiva: {
+    backgroundColor: "#e3f4e6",
+    color: "#1f7a33",
+    border: "1px solid #9fd3aa",
+  },
+  estadoOculta: {
+    backgroundColor: "#fdecea",
+    color: "#b3261e",
+    border: "1px solid #e8a29b",
+  },
   badge: {
-    backgroundColor: "#fff8da",
-    color: "#7a6331",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
     borderRadius: 999,
     padding: "8px 12px",
     fontSize: "0.88rem",
@@ -846,7 +1109,8 @@ const styles = {
   },
   infoBox: {
     display: "grid",
-    gap: 8,
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+    gap: "6px 24px",
     marginBottom: 16,
   },
   linea: {
@@ -863,9 +1127,9 @@ const styles = {
   boton: {
     display: "inline-block",
     padding: "12px 16px",
-    backgroundColor: "#fffaf0",
-    color: "#3d3126",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    color: "#3f3128",
+    border: "1px solid #eadfd2",
     borderRadius: 14,
     fontSize: "0.96rem",
     cursor: "pointer",
@@ -875,7 +1139,7 @@ const styles = {
     marginTop: 14,
     padding: 14,
     backgroundColor: "#fffaf3",
-    border: "1px solid #eadfbe",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     display: "grid",
     gap: 10,

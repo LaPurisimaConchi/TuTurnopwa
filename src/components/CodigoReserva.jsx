@@ -1,0 +1,97 @@
+// src/components/CodigoReserva.jsx
+// Enseña el código de la reserva y cómo usarlo para cambiar la fecha sin iniciar
+// sesión. Si la reserva no es de esta sesión o aún no está pagada no enseña nada
+// (el aviso del TPV puede tardar unos segundos: se reintenta un momento).
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { pedirCodigoReserva } from "../utils/codigoReserva";
+
+const REINTENTOS = 5;
+const ESPERA_MS = 3000;
+
+// soloCodigo: sin la explicación de cambiar la fecha (tarjetas regalo, que no tienen fecha);
+// se presenta como la referencia de la compra, para no confundirlo con el código del regalo.
+// esBono: las clases de un bono se cambian desde el perfil, no con el código.
+export default function CodigoReserva({ tipo, grupoId, orderId, className = "", soloCodigo = false, esBono = false }) {
+  const [codigo, setCodigo] = useState("");
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    if (!(tipo === "grupo" ? grupoId : orderId)) return undefined;
+
+    let cancelado = false;
+    let temporizador = null;
+
+    const cargar = async (intento) => {
+      try {
+        const valor = await pedirCodigoReserva(tipo === "grupo" ? { tipo, grupoId } : { tipo, orderId });
+        if (!cancelado) setCodigo(valor);
+      } catch (error) {
+        // 404: aún sin pagar o no es suya; se reintenta por si el TPV está tardando
+        if (!cancelado && error.status === 404 && intento < REINTENTOS) {
+          temporizador = setTimeout(() => cargar(intento + 1), ESPERA_MS);
+        }
+      }
+    };
+
+    cargar(0);
+
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+    };
+  }, [tipo, grupoId, orderId]);
+
+  if (!codigo) return null;
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // Sin portapapeles el código sigue a la vista para copiarlo a mano
+    }
+  };
+
+  return (
+    <div className={`bg-mostaza-suave border border-mostaza rounded-xl p-4 text-sm text-tinta ${className}`}>
+      <p className="font-semibold text-base text-tinta mb-1">
+        {soloCodigo ? "Referencia de tu compra" : "Tu código de reserva"}
+      </p>
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="font-mono text-2xl tracking-widest font-bold text-tinta select-all">{codigo}</span>
+        <button
+          type="button"
+          onClick={copiar}
+          className="px-3 py-1 rounded-full border border-terracota text-terracota hover:bg-terracota hover:text-white"
+        >
+          {copiado ? "¡Copiado!" : "Copiar"}
+        </button>
+      </div>
+      {soloCodigo ? (
+        <p className="mt-2">
+          No es el código del regalo. Es la referencia que te hemos enviado por correo: guárdala por si necesitas
+          contactar con nosotros sobre esta compra.
+        </p>
+      ) : esBono ? (
+        <p className="mt-2">
+          Guárdalo por si necesitas contactar con nosotros. Las clases del bono se reservan, se cambian y se
+          cancelan desde{" "}
+          <Link to="/perfil" className="underline text-terracota">
+            tu perfil, en «Bonos»
+          </Link>
+          .
+        </p>
+      ) : (
+      <p className="mt-2">
+        Guárdalo: con este código y tu email podrás{" "}
+        <Link to="/gestionar-reserva" className="underline text-terracota">
+          cambiar la fecha de tu reserva
+        </Link>{" "}
+        sin iniciar sesión.
+      </p>
+      )}
+    </div>
+  );
+}

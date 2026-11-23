@@ -1,26 +1,33 @@
 import { adminAuth, adminDb } from "./_firebaseAdmin.js";
-import { ADMIN_EMAILS } from "../src/utils/administradores.js";
+import { esTokenAdministrador } from "../src/utils/administradores.js";
+import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
+import { asegurarCodigo } from "./_codigosReserva.js";
+import { enviarCorreoReserva } from "./_correoReserva.js";
+import { marcarSobreaforo } from "./_reservarServidor.js";
+import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
+import { caducidadTarjetaNueva, generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
 
 export const config = { runtime: "nodejs" };
 
 const timestamp = () => new Date().toISOString();
 
-function findReservationUpdates(reservations, orderId, basePath = "reservas") {
-  if (!reservations || typeof reservations !== "object") return null;
+// Todas las reservas de un pedido (un monográfico reserva varios días con el mismo pedido)
+function findReservationUpdates(reservations, orderId, basePath = "reservas", encontradas = []) {
+  if (!reservations || typeof reservations !== "object") return encontradas;
 
   for (const [key, value] of Object.entries(reservations)) {
     if (!value || typeof value !== "object") continue;
 
     const path = `${basePath}/${key}`;
     if (value.orderId === orderId) {
-      return { path, reservation: value };
+      encontradas.push({ path, reservation: value });
+      continue;
     }
 
-    const match = findReservationUpdates(value, orderId, path);
-    if (match) return match;
+    findReservationUpdates(value, orderId, path, encontradas);
   }
 
-  return null;
+  return encontradas;
 }
 
 async function saveReservationToProfile(reservation, uid, orderId, paidAt) {
@@ -57,17 +64,13 @@ async function saveReservationToProfile(reservation, uid, orderId, paidAt) {
       timestamp: reservation.timestamp || paidAt,
       actualizadoEn: paidAt,
       desdeTarjeta: !!reservation.desdeTarjeta,
+      codigoReserva: reservation.codigoReserva || "",
       nombreTipoClase: reservation.nombreTipoClase || "",
       tipoClase: reservation.tipoClase || "",
+      // La opción elegida (variante de la ficha: «tumba», «mediana»…) y su nombre
+      tipoPieza: reservation.tipoPieza || "",
+      nombreTipoPieza: reservation.nombreTipoPieza || "",
     });
-
-    const userRef = adminDb.ref(`usuarios/${uid}`);
-    const userSnapshot = await userRef.get();
-    if (userSnapshot.exists()) {
-      await userRef.update({
-        reservas: (Number(userSnapshot.val()?.reservas) || 0) + 1,
-      });
-    }
   }
 }
 
@@ -126,13 +129,7 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
   const current = await tarjetaRef.get();
   if (current.exists()) return;
 
-  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code;
-  do {
-    code = `REGALO-${Array.from({ length: 6 }, () =>
-      characters.charAt(Math.floor(Math.random() * characters.length))
-    ).join("")}`;
-  } while ((await adminDb.ref(`codigosTarjetaRegalo/${code}`).get()).exists());
+  const code = await generarCodigoTarjetaRegaloUnico(adminDb);
 
   const tarjeta = {
     id: orderId,
@@ -151,6 +148,7 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
     estadoCanje: "pendiente",
     procesado: true,
     fechaCompra: paidAt,
+    fechaCaducidad: await caducidadTarjetaNueva(adminDb, paidAt),
     creadoEn: pedido.creadoEn || paidAt,
     actualizadoEn: paidAt,
     desdeTarjeta: false,
@@ -165,15 +163,23 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
   };
   if (pedido.uid) updates[`usuarios/${pedido.uid}/tarjetasRegalo/${orderId}`] = tarjeta;
   await adminDb.ref().update(updates);
+  await enviarCorreoReserva({
+    tipo: "tarjeta_regalo",
+    reserva: tarjeta,
+    uid: pedido.uid || "",
+    orderId,
+  });
 }
 
 async function confirmGroupReservation(orderId, pedido, paidAt) {
   const groupSnapshot = await adminDb.ref("reservasGrupos").get();
+  // Con pedido preparado por el servidor, solo su grupo
+  const soloGrupo = grupoDelPedido(pedido);
   const match = findReservationUpdates(
     groupSnapshot.val(),
     orderId,
     "reservasGrupos"
-  );
+  ).find((c) => soloGrupo === null || c.path === `reservasGrupos/${soloGrupo}`);
   if (!match) {
     throw new Error("No se encontró la reserva de grupo que corresponde al pedido.");
   }
@@ -203,6 +209,11 @@ async function confirmGroupReservation(orderId, pedido, paidAt) {
     orderId,
     paidAt
   );
+  await enviarCorreoReserva({
+    reserva: confirmed,
+    uid: pedido.uid || confirmed.uid,
+    orderId,
+  });
 }
 
 async function confirmOrder(orderId, pedido) {
@@ -229,9 +240,23 @@ async function confirmOrder(orderId, pedido) {
         actualizadoEn: paidAt,
       });
     }
+
+    // La primera sesión del bono se reservó con la compra
+    await confirmarPrimeraSesionBono({ orderId, uid: pedido.uid, paidAt, rutas: rutasDelPedido(pedido) });
+    await enviarCorreoReserva({
+      tipo: "bono",
+      reserva: { ...pedido.datosBono, precioTotal: pedido.precioTotal ?? pedido.datosBono.precioTotal },
+      uid: pedido.uid,
+      orderId,
+    });
   } else {
     const reservationSnapshot = await adminDb.ref("reservas").get();
-    const match = findReservationUpdates(reservationSnapshot.val(), orderId);
+    // Con pedido preparado por el servidor, solo las reservas que apuntó
+    const rutas = rutasDelPedido(pedido);
+    const coincidencias = findReservationUpdates(reservationSnapshot.val(), orderId).filter(
+      (c) => !rutas || rutas.has(c.path)
+    );
+    const match = coincidencias[0];
     if (!match) throw new Error("No se encontró la reserva que corresponde al pedido.");
 
     const confirmed = {
@@ -243,15 +268,49 @@ async function confirmOrder(orderId, pedido) {
       actualizadoEn: paidAt,
       pagadoEn: paidAt,
     };
-    await adminDb.ref(match.path).update({
+    const datosPago = {
       estadoPago: confirmed.estadoPago,
       estado: confirmed.estado,
       procesado: confirmed.procesado,
       webhookRecibidoEn: confirmed.webhookRecibidoEn,
       actualizadoEn: confirmed.actualizadoEn,
       pagadoEn: confirmed.pagadoEn,
+    };
+    const confirmacion = {};
+    coincidencias.forEach((c) => {
+      Object.entries(datosPago).forEach(([campo, valor]) => {
+        confirmacion[`${c.path}/${campo}`] = valor;
+      });
     });
+    await adminDb.ref().update(confirmacion);
+    await marcarSobreaforo(
+      adminDb,
+      coincidencias.map((c) => ({
+        ruta: c.path,
+        fecha: c.reservation.fecha,
+        turno: c.reservation.turno,
+        reservadaHasta: c.reservation.reservadaHasta,
+        torno: c.reservation.incluyeTorno === true,
+      }))
+    );
+    // Código de reserva para volver a ella sin sesión (si falla, se crea al pedirlo)
+    try {
+      const codigo = await asegurarCodigo(adminDb, {
+        clave: orderId,
+        datos: { tipo: "individual", orderId, ruta: match.path, uid: confirmed.uid || pedido.uid || "" },
+      });
+      await adminDb.ref(`${match.path}/codigoReserva`).set(codigo);
+      confirmed.codigoReserva = codigo;
+    } catch (error) {
+      console.error("No se pudo asignar el código de reserva:", error);
+    }
+
     await saveReservationToProfile(confirmed, pedido.uid || confirmed.uid, orderId, paidAt);
+    await enviarCorreoReserva({
+      reserva: confirmed,
+      uid: pedido.uid || confirmed.uid,
+      orderId,
+    });
   }
 
   await adminDb.ref(`pedidosPendientes/${orderId}`).update({
@@ -272,7 +331,7 @@ export default async function handler(req, res) {
     if (!match) return res.status(401).send("Autenticación requerida.");
 
     const decodedToken = await adminAuth.verifyIdToken(match[1]);
-    if (!ADMIN_EMAILS.includes(String(decodedToken.email || "").toLowerCase())) {
+    if (!esTokenAdministrador(decodedToken)) {
       return res.status(403).send("Solo los administradores pueden simular pagos.");
     }
 

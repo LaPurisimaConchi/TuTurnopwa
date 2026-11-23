@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { getAuth, updateProfile, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get, update } from "firebase/database";
 import PantallaConVolver from "./PantallaConVolver";
-import Footer from "./Footer";
 
 export default function EditarPerfil() {
   const navigate = useNavigate();
@@ -26,7 +25,7 @@ export default function EditarPerfil() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        navigate("/login");
+        navigate("/login", { state: { from: { pathname: "/editar-perfil" } }, replace: true });
         return;
       }
 
@@ -41,6 +40,8 @@ export default function EditarPerfil() {
           const datos = snapshot.val();
           setNombre(datos.nombre || user.displayName || "");
           setTelefono(datos.telefono || "");
+          // Invitados: su email solo está en usuarios/{uid}
+          if (!user.email) setEmail(datos.email || "");
         } else {
           setNombre(user.displayName || "");
           setTelefono("");
@@ -69,7 +70,7 @@ export default function EditarPerfil() {
       return;
     }
 
-    if (!telefonoLimpio) {
+    if (!telefono.trim()) {
       setError("El teléfono es obligatorio.");
       return;
     }
@@ -110,35 +111,51 @@ export default function EditarPerfil() {
     }
   };
 
+  const campo =
+    "w-full border border-gray-300 rounded-lg px-3 py-2 text-base outline-none focus:border-terracota";
+  const inicial = (nombre || email || "?").trim().charAt(0).toUpperCase();
+
+  const envolver = (children) => (
+    <PantallaConVolver volverA="/perfil">
+      <div className="max-w-3xl w-full mx-auto bg-white rounded-2xl shadow-md p-5 sm:p-6 text-tinta">
+        <h1 className="text-center font-serif text-tinta mb-5">
+          <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
+            Tu cuenta
+          </span>
+          <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">Editar perfil</span>
+        </h1>
+        {children}
+      </div>
+    </PantallaConVolver>
+  );
+
   if (cargando) {
     return (
-      <PantallaConVolver volverA="/perfil">
-        <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-[#3b3025]">
-          <p className="text-sm text-[#7b6d62] text-center">Cargando perfil...</p>
-        </div>
-        <Footer />
-      </PantallaConVolver>
+      envolver(<p className="text-sm text-tinta-suave text-center py-6">Cargando perfil...</p>)
     );
   }
 
-  return (
-    <PantallaConVolver volverA="/perfil">
-      <div className="max-w-md w-full mx-auto bg-[#fcfaf6] rounded-[30px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-[#eee6da] p-5 text-[#3b3025]">
-        <div className="text-center mb-6">
-          <h1 className="text-[2rem] font-serif font-bold text-[#6f3d22] mb-2">
-            Editar perfil
-          </h1>
-          <p className="text-sm text-[#7b6d62]">
-            Actualiza tus datos de contacto
+  return envolver(
+      <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-[13rem_1fr] md:gap-x-10">
+        {/* Izquierda: quién eres */}
+        <div className="bg-crema border border-linea rounded-xl p-4 text-center md:self-start">
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-terracota text-white font-serif text-3xl font-bold">
+            {inicial}
+          </span>
+          <p className="mt-3 font-semibold truncate">{nombre || "Sin nombre"}</p>
+          <p className="text-xs text-tinta-suave truncate">{email || "—"}</p>
+          <p className="mt-3 text-xs text-tinta-suave leading-relaxed">
+            Estos datos se usan para contactar contigo sobre tus reservas.
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-white rounded-2xl border border-[#efe7db] px-4 py-4 shadow-sm space-y-4"
-        >
+        {/* Derecha: formulario */}
+        <div className="space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center">
+            <div
+              role="alert"
+              className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center"
+            >
               {error}
             </div>
           )}
@@ -149,66 +166,72 @@ export default function EditarPerfil() {
             </div>
           )}
 
-          <div>
-            <label className="block font-semibold text-sm mb-1">Nombre</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-[#b36a4a]"
-              placeholder="Tu nombre"
-              required
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="perfil-nombre" className="block font-bold text-sm mb-1">
+                Nombre <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="perfil-nombre"
+                type="text"
+                autoComplete="name"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                className={campo}
+                placeholder="Tu nombre"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="perfil-telefono" className="block font-bold text-sm mb-1">
+                Teléfono <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="perfil-telefono"
+                type="tel"
+                autoComplete="tel"
+                inputMode="tel"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                className={campo}
+                placeholder="Tu teléfono"
+                required
+              />
+            </div>
           </div>
 
           <div>
-            <label className="block font-semibold text-sm mb-1">Teléfono</label>
-            <input
-              type="tel"
-              value={telefono}
-              onChange={(e) => setTelefono(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-[#b36a4a]"
-              placeholder="Tu teléfono"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-sm mb-1">
+            <label htmlFor="perfil-email" className="block font-bold text-sm mb-1">
               Correo electrónico
             </label>
             <input
+              id="perfil-email"
               type="email"
               value={email}
               readOnly
-              className="w-full border border-gray-200 bg-[#f8f6f2] text-[#7b6d62] rounded-xl px-3 py-3 text-base outline-none cursor-not-allowed"
+              className="w-full border border-gray-200 bg-arena text-tinta-suave rounded-lg px-3 py-2 text-base outline-none cursor-not-allowed"
             />
-            <p className="text-xs text-[#8e7f73] mt-1">
-              El correo no se puede modificar desde aquí.
-            </p>
+            <p className="text-xs text-tinta-suave mt-1">El correo no se puede modificar desde aquí.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={guardando}
-              className="bg-[#b36a4a] hover:bg-[#9e5c3f] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 rounded-2xl transition"
-            >
-              {guardando ? "Guardando..." : "Guardar cambios"}
-            </button>
-
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={() => navigate("/perfil")}
-              className="bg-white border border-[#d8cfc2] text-[#5f5247] font-bold py-3 rounded-2xl hover:bg-[#f8f5f0] transition"
+              className="sm:w-40 bg-white border border-terracota text-terracota hover:bg-terracota-suave font-semibold py-3 rounded-full transition"
             >
               Cancelar
             </button>
+            <button
+              type="submit"
+              disabled={guardando}
+              className="sm:w-48 bg-terracota hover:bg-terracota-oscuro disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full shadow-md transition"
+            >
+              {guardando ? "Guardando..." : "Guardar cambios"}
+            </button>
           </div>
-        </form>
-      </div>
-
-      <Footer />
-    </PantallaConVolver>
+        </div>
+      </form>
   );
 }

@@ -3,7 +3,11 @@ import { ref, get, push, remove, update } from "firebase/database";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { TALLERES_FIJOS } from "./catalogoTalleres";
+import useCategorias from "./components/useCategorias";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import { preguntar } from "./utils/avisos";
 const AdminDetalleClaseNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -21,13 +25,13 @@ const AdminDetalleClaseNuevo = () => {
   const [eliminandoNotaId, setEliminandoNotaId] = useState(null);
 
   const [nombreEditado, setNombreEditado] = useState("");
-  const [categoriaEditada, setCategoriaEditada] = useState("");
   const [descripcionCortaEditada, setDescripcionCortaEditada] = useState("");
   const [descripcionLargaEditada, setDescripcionLargaEditada] = useState("");
   const [incluyeEditado, setIncluyeEditado] = useState("");
   const [notaImportanteEditada, setNotaImportanteEditada] = useState("");
   const [estadoEditado, setEstadoEditado] = useState("activa");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const categorias = useCategorias({ incluirOcultas: true });
 
 useEffect(() => {
   const onResize = () => {
@@ -58,6 +62,8 @@ useEffect(() => {
       id,
       nombre: data.nombre || id,
       categoria: data.categoria || "Sin categoría",
+      dinamica: !!data.dinamica,
+      grupo: data.dinamica ? data.grupo || "otros" : TALLERES_FIJOS[id]?.grupo || "",
       precioDesde: data.precioDesde || "",
       precio: data.precio || "",
       descripcionCorta: data.descripcionCorta || "",
@@ -85,7 +91,6 @@ useEffect(() => {
 
       const datosActualizados = {
         nombre: nombreEditado.trim(),
-        categoria: categoriaEditada.trim(),
         descripcionCorta: descripcionCortaEditada.trim(),
         descripcionLarga: descripcionLargaEditada.trim(),
         incluye: incluyeArray,
@@ -288,7 +293,6 @@ useEffect(() => {
     if (!clase) return;
 
     setNombreEditado(clase.nombre || "");
-    setCategoriaEditada(clase.categoria || "");
     setDescripcionCortaEditada(clase.descripcionCorta || "");
     setDescripcionLargaEditada(clase.descripcionLarga || "");
     setIncluyeEditado(
@@ -337,7 +341,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -379,6 +383,10 @@ useEffect(() => {
     return <p style={styles.mensaje}>Clase no encontrada.</p>;
   }
 
+  // La categoría real sale del grupo del taller (no del texto guardado, que puede estar desfasado)
+  const tituloCategoria =
+    categorias.find((c) => c.id === clase.grupo)?.titulo || clase.categoria;
+
   return (
    <div
   style={{
@@ -396,10 +404,29 @@ useEffect(() => {
 
         <h1 style={styles.titulo}>Detalle de clase</h1>
 
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/admin-taller?id=${clase.id}`)}
+            style={styles.botonGuardar}
+          >
+            {clase.dinamica ? "Editar taller" : "Fotos y portada"}
+          </button>
+          {!clase.dinamica && (
+            <button
+              type="button"
+              onClick={() => navigate("/admin-migrar-talleres")}
+              style={styles.botonGuardar}
+            >
+              Migrar al panel
+            </button>
+          )}
+        </div>
+
         <div style={styles.card}>
           <p><strong>Nombre:</strong> {clase.nombre}</p>
           <p><strong>ID:</strong> {clase.id}</p>
-          <p><strong>Categoría:</strong> {clase.categoria}</p>
+          <p><strong>Categoría:</strong> {tituloCategoria}</p>
           <p><strong>Estado:</strong> {clase.estado || "activa"}</p>
           <p>
             <strong>Activa:</strong> {clase.activa ? "Sí" : "No"}
@@ -437,8 +464,15 @@ useEffect(() => {
           <p><strong>Nota importante:</strong> {clase.notaImportante || "—"}</p>
         </div>
 
+        {!clase.dinamica && (
         <div style={styles.bloque}>
           <h2 style={styles.subtitulo}>Editar información de la clase</h2>
+
+          <p style={{ margin: "0 0 14px 0", color: "#7a6858", lineHeight: 1.5 }}>
+            Este taller todavía tiene su página hecha a mano: su categoría no se puede cambiar
+            aquí y sus fotos se editan en «Fotos y portada». Migrándolo al panel se edita con
+            el mismo formulario que un taller nuevo (categoría, fotos, textos, precios y más).
+          </p>
 
           <div style={styles.formGrid}>
             <div style={styles.campo}>
@@ -455,8 +489,8 @@ useEffect(() => {
               <label style={styles.label}>Categoría</label>
               <input
                 type="text"
-                value={categoriaEditada}
-                onChange={(e) => setCategoriaEditada(e.target.value)}
+                value={tituloCategoria}
+                disabled
                 style={styles.input}
               />
             </div>
@@ -529,6 +563,7 @@ Acompañamiento en el taller`}
             {guardandoInfo ? "Guardando..." : "Guardar cambios de la clase"}
           </button>
         </div>
+        )}
 
         <div style={styles.bloque}>
           <h2 style={styles.subtitulo}>Notas internas de la clase</h2>
@@ -611,7 +646,7 @@ Acompañamiento en el taller`}
                     }}
                   >
                     <p style={styles.linea}>
-                      <strong>Fecha:</strong> {r.fecha}
+                      <strong>Fecha:</strong> {fechaDMA(r.fecha)}
                     </p>
                     <p style={styles.linea}>
                       <strong>Turno:</strong> {r.turno}
@@ -644,8 +679,6 @@ Acompañamiento en el taller`}
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -670,7 +703,7 @@ const styles = {
   titulo: {
     textAlign: "center",
     margin: "0 0 20px 0",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   notaHeaderMobile: {
@@ -679,15 +712,15 @@ const styles = {
 },
   subtitulo: {
     margin: "0 0 14px 0",
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   notaItemMobile: {
   padding: 10,
 },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -707,8 +740,8 @@ const styles = {
     marginBottom: 4,
   },
   bloque: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -727,7 +760,7 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     width: "100%",
@@ -746,8 +779,8 @@ const styles = {
   reservaItem: {
     padding: 14,
     borderRadius: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     cursor: "pointer",
     transition: "0.2s",
   },
@@ -758,12 +791,12 @@ const styles = {
   },
   textoVacio: {
     margin: 0,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   mensaje: {
     textAlign: "center",
     padding: 40,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   listaNotas: {
     display: "grid",
@@ -806,12 +839,12 @@ const styles = {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",

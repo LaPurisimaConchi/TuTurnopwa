@@ -1,10 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
+import Icono from "./components/Icono";
 import { ref, get, push, remove, update } from "firebase/database";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { getAuth } from "firebase/auth";
 import { dbRealtime } from "./firebase";
-import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
+import { nombreAdminActual } from "./utils/nombreAdmin";
+import { contarFranja, plazasLibresFranja, reservaVigente, turnosCompartenPlazas, usaTorno } from "./utils/aforo";
+import { useConfigEspacio } from "./configuracionEspacio";
 import BotonVolver from "./BotonVolver";
+import CalendarioReserva from "./components/CalendarioReserva";
 
+import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
+import { turnosElegibles } from "./utils/cambioFecha";
+import { calcularDiasAbiertos } from "./utils/diasAbiertos";
+import { estadoDiaTaller } from "./utils/turnosTaller";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -18,17 +29,26 @@ const AdminDetalleReservaNuevo = () => {
   const [eliminandoNotaId, setEliminandoNotaId] = useState(null);
 
   const [claseConfig, setClaseConfig] = useState(null);
+  const [numeroSesionBono, setNumeroSesionBono] = useState(null);
+  // Precio pagado por el producto completo (bono, o taller con varias sesiones)
+  const [precioProducto, setPrecioProducto] = useState(null);
+  // Importe de la tarjeta regalo con la que se reservó (la reserva guarda 0 €)
+  const [precioTarjeta, setPrecioTarjeta] = useState(null);
   const [fechasBloqueadas, setFechasBloqueadas] = useState({});
   const [fechasHabilitadas, setFechasHabilitadas] = useState({});
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [nuevoTurno, setNuevoTurno] = useState("");
-  const [ocupadasTornoNuevaFecha, setOcupadasTornoNuevaFecha] = useState(0);
-  const [ocupadasModeladoNuevaFecha, setOcupadasModeladoNuevaFecha] =
-    useState(0);
+  // Snapshots de /reservas y /reservasGrupos para contar el aforo real
+  const [ocupacion, setOcupacion] = useState(null);
+  const { config: configEspacio } = useConfigEspacio();
   const [guardandoReprogramacion, setGuardandoReprogramacion] = useState(false);
 
   const [motivoCancelacion, setMotivoCancelacion] = useState("");
   const [guardandoCancelacion, setGuardandoCancelacion] = useState(false);
+  const [avisarPorCorreo, setAvisarPorCorreo] = useState(true);
+  const [permitirReprogramar, setPermitirReprogramar] = useState(true);
+  const [quitandoReprogramacion, setQuitandoReprogramacion] = useState(false);
+  const [enviandoCorreo, setEnviandoCorreo] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -69,6 +89,7 @@ useEffect(() => {
               nombre: user.nombre || user.name || user.displayName || "",
               telefono: user.telefono || user.phone || user.telefonoUsuario || "",
               email: user.email || "",
+              invitado: user.invitado === true,
             };
           });
         }
@@ -121,6 +142,7 @@ useEffect(() => {
                         r.precioTotal || r.precioUnitario || r.precio || 0
                       ),
                       uid: r.uid || "",
+                      invitado: datosUsuario.invitado === true,
                       nombre:
                         r.nombre || r.nombreUsuario || datosUsuario.nombre || "",
                       telefono:
@@ -172,6 +194,82 @@ useEffect(() => {
         }
 
         setReserva(encontrada);
+
+        // Taller con varias sesiones: el pago va en la reserva de la sesión que lo cobra
+        if (
+          encontrada?.orderId &&
+          (encontrada.sesionesCurso > 1 || encontrada.sesionesEdicion > 1) &&
+          !(Number(encontrada.precioTotal) > 0)
+        ) {
+          let importe = 0;
+          const buscar = (nodo) => {
+            if (!nodo || typeof nodo !== "object") return;
+            if (nodo.orderId === encontrada.orderId && Number(nodo.precioTotal) > importe) {
+              importe = Number(nodo.precioTotal);
+              return;
+            }
+            Object.values(nodo).forEach(buscar);
+          };
+          buscar(reservasSnap.val());
+          if (importe > 0) setPrecioProducto({ tipo: "taller", importe });
+        }
+
+        // Reserva con tarjeta regalo: lee el importe de la tarjeta
+        if (encontrada?.desdeTarjeta) {
+          try {
+            let tarjetaId = encontrada.tarjetaRegaloId || "";
+            if (!tarjetaId && encontrada.codigoTarjeta) {
+              const idx = await get(
+                ref(dbRealtime, `codigosTarjetaRegalo/${String(encontrada.codigoTarjeta).toUpperCase()}`)
+              );
+              if (idx.exists()) tarjetaId = String(idx.val());
+            }
+            if (tarjetaId) {
+              const tarjetaSnap = await get(ref(dbRealtime, `tarjetasRegalo/${tarjetaId}`));
+              if (tarjetaSnap.exists()) {
+                const t = tarjetaSnap.val() || {};
+                const plazasTarjeta = Number(t.plazas) || 1;
+                const total = Number(t.precioTotal ?? t.precio ?? 0);
+                const unitario =
+                  Number(t.precioUnitario ?? t.precioBase ?? 0) || total / plazasTarjeta;
+                if (total > 0) setPrecioTarjeta({ total, unitario, plazas: plazasTarjeta });
+              }
+            }
+          } catch (e) {
+            console.error("No se pudo leer la tarjeta regalo", e);
+          }
+        }
+
+        // Si la reserva es de un bono, calcula qué sesión del bono es
+        const bonoIdReserva =
+          encontrada?.bonoId ||
+          (encontrada?.tipoTaller === "bono_mensual" ? encontrada.orderId : "");
+        if (encontrada?.uid && bonoIdReserva) {
+          try {
+            const bonoSnap = await get(
+              ref(dbRealtime, `usuarios/${encontrada.uid}/bonos/${bonoIdReserva}`)
+            );
+            if (bonoSnap.exists()) {
+              const bono = bonoSnap.val() || {};
+              const sesiones = Object.values(bono.sesionesConsumidas || {}).sort((a, b) =>
+                String(a.timestamp || "").localeCompare(String(b.timestamp || ""))
+              );
+              const indice = sesiones.findIndex(
+                (x) => x.reservaId && x.reservaId === encontrada.reservaKey
+              );
+              const precioBono = Number(bono.precioTotal ?? bono.precio ?? 0);
+              if (precioBono > 0) {
+                setPrecioProducto({ tipo: "bono", importe: precioBono });
+              }
+              setNumeroSesionBono({
+                numero: indice >= 0 ? indice + 1 : null,
+                total: Number(bono.numeroClases || 0) || null,
+              });
+            }
+          } catch (e) {
+            console.error("No se pudo leer el bono de la reserva", e);
+          }
+        }
 
         if (encontrada?.claseId) {
           const [claseConfigSnap, bloqueosSnap, habilitadasSnap] =
@@ -229,24 +327,27 @@ useEffect(() => {
     buscarReserva();
   }, [orderId]);
 
+  // Ocupación de todo el espacio (reservas y grupos) para las plazas libres al reprogramar.
+  // Se vuelve a leer al cambiar de reserva o tras guardar un cambio.
+  const [versionOcupacion, setVersionOcupacion] = useState(0);
   useEffect(() => {
-    if (!nuevaFecha) {
-      setOcupadasTornoNuevaFecha(0);
-      setOcupadasModeladoNuevaFecha(0);
-      return;
-    }
-
-    contarPlazasPorMetodo(nuevaFecha)
-      .then(({ torno, modelado }) => {
-        setOcupadasTornoNuevaFecha(torno);
-        setOcupadasModeladoNuevaFecha(modelado);
+    let activo = true;
+    Promise.all([
+      get(ref(dbRealtime, "reservas")),
+      get(ref(dbRealtime, "reservasGrupos")),
+      get(ref(dbRealtime, "clases")),
+    ])
+      .then(([reservas, grupos, clases]) => {
+        if (activo) setOcupacion({ reservas, grupos, clases: clases.val() || {} });
       })
       .catch((error) => {
-        console.error("Error al contar plazas para reprogramación:", error);
-        setOcupadasTornoNuevaFecha(0);
-        setOcupadasModeladoNuevaFecha(0);
+        console.error("Error al leer la ocupación para reprogramar:", error);
+        if (activo) setOcupacion(null);
       });
-  }, [nuevaFecha]);
+    return () => {
+      activo = false;
+    };
+  }, [orderId, versionOcupacion]);
 
   const guardarNotaInterna = async () => {
     const texto = nuevaNota.trim();
@@ -287,7 +388,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -309,77 +410,56 @@ useEffect(() => {
     }
   };
 
-  const normalizarTurnos = (turnosRaw) => {
-    if (!turnosRaw) return [];
-
-    if (Array.isArray(turnosRaw)) {
-      return turnosRaw
-        .map((t) => normalizarTurnoParaRuta(t))
-        .filter(Boolean);
-    }
-
-    if (typeof turnosRaw === "object") {
-      return Object.values(turnosRaw)
-        .map((t) => normalizarTurnoParaRuta(t))
-        .filter(Boolean);
-    }
-
-    if (typeof turnosRaw === "string") {
-      return [normalizarTurnoParaRuta(turnosRaw)].filter(Boolean);
-    }
-
-    return [];
-  };
-
-  const obtenerTurnosFechaHabilitada = (fechaISO) => {
-    const config = fechasHabilitadas?.[fechaISO];
-
-    if (!config) return [];
-    if (config.habilitada === false) return [];
-
-    return normalizarTurnos(
-      config.turnos ||
-        config.turnosHabilitados ||
-        config.horarios ||
-        config.horario ||
-        config.turno
-    );
-  };
-
-  const getNombreDiaSemana = (fechaISO) => {
-    if (!fechaISO) return "";
-
-    const [year, month, day] = fechaISO.split("-").map(Number);
-    const fechaLocal = new Date(year, month - 1, day);
-
-    const dias = [
-      "domingo",
-      "lunes",
-      "martes",
-      "miercoles",
-      "jueves",
-      "viernes",
-      "sabado",
-    ];
-
-    return dias[fechaLocal.getDay()] || "";
-  };
 
   const horariosClase = claseConfig?.horarios || claseConfig?.horario || {};
-  const metodoOriginal = (reserva?.metodo || "").toLowerCase();
+
+  // Mismas reglas que el cliente (src/utils/cambioFecha.js): el horario semanal del taller,
+  // los días abiertos a mano o por otra reserva, y un día sin horario se abre si esta misma
+  // reserva llega al mínimo de personas del taller
+  const claseParaFechas = useMemo(
+    () => (claseConfig && !claseConfig.horarios && claseConfig.horario ? { ...claseConfig, horarios: claseConfig.horario } : claseConfig),
+    [claseConfig]
+  );
+  const diasAbiertos = useMemo(
+    () =>
+      ocupacion
+        ? calcularDiasAbiertos({
+            reservas: ocupacion.reservas,
+            grupos: ocupacion.grupos,
+            clases: ocupacion.clases,
+            fechasHabilitadas,
+            desde: hoyMadrid(),
+          })
+        : {},
+    [ocupacion, fechasHabilitadas]
+  );
+  const plazasMovidas = Number(reserva?.plazas || 1);
+
+  // Estado de cada día para el calendario de reprogramar
+  const estadoDiaReprogramar = (fechaISO) => {
+    const estado = estadoDiaTaller({
+      clase: claseParaFechas,
+      fecha: fechaISO,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      permiteAbrir: true,
+      diasAbiertos,
+    });
+    return estado.estado === "solo-grupo" && plazasMovidas >= estado.minimo
+      ? { estado: "disponible" }
+      : estado;
+  };
 
   const turnosDisponiblesReprogramacion = useMemo(() => {
     if (!nuevaFecha) return [];
-
-    const turnosFechaHabilitada = obtenerTurnosFechaHabilitada(nuevaFecha);
-
-    if (turnosFechaHabilitada.length > 0) {
-      return turnosFechaHabilitada;
-    }
-
-    const nombreDia = getNombreDiaSemana(nuevaFecha);
-    return normalizarTurnos(horariosClase[nombreDia]);
-  }, [horariosClase, nuevaFecha, fechasHabilitadas]);
+    return turnosElegibles({
+      clase: claseParaFechas,
+      fecha: nuevaFecha,
+      fechasHabilitadas,
+      diasAbiertos,
+      plazas: plazasMovidas,
+    }).map(normalizarTurnoParaRuta);
+  }, [claseParaFechas, nuevaFecha, fechasHabilitadas, diasAbiertos, plazasMovidas]);
 
   const fechaBloqueadaReprogramacion = useMemo(() => {
     if (!nuevaFecha) return null;
@@ -392,48 +472,30 @@ useEffect(() => {
     return turnosDisponiblesReprogramacion.length === 0;
   }, [nuevaFecha, turnosDisponiblesReprogramacion]);
 
-  const maxTornoReprogramacion = Number(claseConfig?.plazas?.maxTorno || 12);
-  const maxTotalesReprogramacion = Number(
-    claseConfig?.plazas?.maxTotales || claseConfig?.plazas?.plazasTotales || 45
-  );
-
-  const plazasTotalesOcupadasNuevaFecha =
-    ocupadasTornoNuevaFecha + ocupadasModeladoNuevaFecha;
-
-  const plazasPropiasSiMismaFecha =
-    nuevaFecha === reserva?.fecha ? Number(reserva?.plazas || 1) : 0;
-
-  const ocupadasTornoAjustadas =
-    metodoOriginal === "torno"
-      ? Math.max(ocupadasTornoNuevaFecha - plazasPropiasSiMismaFecha, 0)
-      : ocupadasTornoNuevaFecha;
-
-  const ocupadasTotalesAjustadas = Math.max(
-    plazasTotalesOcupadasNuevaFecha - plazasPropiasSiMismaFecha,
-    0
-  );
-
+  // Plazas libres del turno elegido con el aforo real del espacio (src/utils/aforo.js):
+  // todos los talleres y los grupos, las plazas guardadas mientras alguien paga y los
+  // turnos que se solapan. Si esta reserva ya ocupa esa franja, sus plazas no cuentan.
+  // null mientras no hay turno elegido o no se ha leído la ocupación.
   const plazasDisponiblesReprogramacion = useMemo(() => {
-    if (!metodoOriginal) return 0;
+    if (!ocupacion || !nuevaFecha || !nuevoTurno || !reserva) return null;
 
-    if (metodoOriginal === "torno") {
-      return Math.max(
-        Math.min(
-          maxTornoReprogramacion - ocupadasTornoAjustadas,
-          maxTotalesReprogramacion - ocupadasTotalesAjustadas
-        ),
-        0
-      );
-    }
+    const turno = normalizarTurnoParaRuta(nuevoTurno);
+    const ocupadas = contarFranja(ocupacion.reservas, ocupacion.grupos, nuevaFecha, turno);
+    const conTorno = usaTorno(reserva);
+    const plazasPropias = Number(reserva.plazas || 1);
+    const yaCuenta =
+      reservaVigente(reserva) &&
+      nuevaFecha === reserva.fecha &&
+      turnosCompartenPlazas(turno, normalizarTurnoParaRuta(reserva.turno || ""));
+    const ajustadas = yaCuenta
+      ? {
+          total: Math.max(ocupadas.total - plazasPropias, 0),
+          torno: Math.max(ocupadas.torno - (conTorno ? plazasPropias : 0), 0),
+        }
+      : ocupadas;
 
-    return Math.max(maxTotalesReprogramacion - ocupadasTotalesAjustadas, 0);
-  }, [
-    metodoOriginal,
-    maxTornoReprogramacion,
-    maxTotalesReprogramacion,
-    ocupadasTornoAjustadas,
-    ocupadasTotalesAjustadas,
-  ]);
+    return plazasLibresFranja(ajustadas, configEspacio, { conTorno }).reservables;
+  }, [ocupacion, nuevaFecha, nuevoTurno, reserva, configEspacio]);
 
   const hayCambiosReales =
     nuevaFecha !== reserva?.fecha ||
@@ -447,6 +509,7 @@ useEffect(() => {
     !!nuevoTurno &&
     !fechaBloqueadaReprogramacion &&
     !diaNoDisponibleReprogramacion &&
+    plazasDisponiblesReprogramacion !== null &&
     plazasDisponiblesReprogramacion >= Number(reserva?.plazas || 1) &&
     hayCambiosReales &&
     !reservaYaCancelada;
@@ -503,8 +566,8 @@ useEffect(() => {
     const turnoNormalizado = normalizarTurnoParaRuta(nuevoTurno);
     const turnoAnteriorNormalizado = normalizarTurnoParaRuta(reserva.turno);
 
-    const confirmar = window.confirm(
-      `¿Seguro que quieres reprogramar esta reserva del ${reserva.fecha} (${turnoAnteriorNormalizado}) al ${nuevaFecha} (${turnoNormalizado})?`
+    const confirmar = await preguntar(
+      `¿Seguro que quieres reprogramar esta reserva del ${fechaDMA(reserva.fecha)} (${turnoAnteriorNormalizado}) al ${fechaDMA(nuevaFecha)} (${turnoNormalizado})?`
     );
 
     if (!confirmar) return;
@@ -546,7 +609,7 @@ useEffect(() => {
         rutaClase: reserva.rutaClase,
 
         reprogramadaEn: fechaReprogramacionTexto,
-        reprogramadaPor: "Berto",
+        reprogramadaPor: nombreAdminActual(),
 
         avisoPerfil:
           "Tu reserva ha sido reprogramada. Revisa la nueva fecha y turno.",
@@ -599,7 +662,7 @@ useEffect(() => {
           rutaClase: reserva.rutaClase,
 
           reprogramadaEn: fechaReprogramacionTexto,
-          reprogramadaPor: "Berto",
+          reprogramadaPor: nombreAdminActual(),
 
           avisoPerfil:
             "Tu reserva ha sido reprogramada. Revisa la nueva fecha y turno.",
@@ -627,11 +690,11 @@ useEffect(() => {
         fechaNueva: nuevaFecha,
         turnoNuevo: turnoNormalizado,
         fechaCambio: fechaReprogramacionTexto,
-        realizadoPor: "Berto",
+        realizadoPor: nombreAdminActual(),
       });
 
       const notaAutomatica = {
-        texto: `Reserva reprogramada por Berto. Antes: ${reserva.fecha} - ${turnoAnteriorNormalizado}. Ahora: ${nuevaFecha} - ${turnoNormalizado}.`,
+        texto: `Reserva reprogramada por ${nombreAdminActual()}. Antes: ${fechaDMA(reserva.fecha)} - ${turnoAnteriorNormalizado}. Ahora: ${fechaDMA(nuevaFecha)} - ${turnoNormalizado}.`,
         fecha: fechaReprogramacionTexto,
       };
 
@@ -656,6 +719,7 @@ useEffect(() => {
         rutaMetodo: metodoNormalizado,
         reservaKey: nuevaReservaRef.key,
       }));
+      setVersionOcupacion((v) => v + 1);
 
       alert("Reserva reprogramada correctamente.");
     } catch (error) {
@@ -666,10 +730,98 @@ useEffect(() => {
     }
   };
 
+  // El servidor deja la reserva recuperable con su código y, si se pide, avisa por correo
+  const prepararAvisoCancelacion = async (enviarCorreo, permitir = true) => {
+    const ruta = obtenerRutaReservaActual();
+    const token = await getAuth().currentUser?.getIdToken();
+    if (!ruta || !token) throw new Error("No se pudo identificar la reserva o tu sesión.");
+
+    const respuesta = await fetch("/api/codigo-reserva", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar: permitir }),
+    });
+    const datos = await respuesta.json().catch(() => ({}));
+    if (!respuesta.ok || !datos.ok) throw new Error(datos.error || "Error del servidor");
+    return datos;
+  };
+
+  const textoResultadoCorreo = (datos) => {
+    switch (datos.correo) {
+      case "enviado":
+        return `Correo enviado a ${datos.email}.`;
+      case "sin_email":
+        return "El cliente no tiene email: no se ha enviado el correo.";
+      case "sin_clave":
+        return "El envío de correos no está configurado en el servidor (falta RESEND_API_KEY).";
+      case "rechazado":
+      case "error":
+        return "No se pudo enviar el correo. Puedes reintentarlo desde esta misma pantalla.";
+      default:
+        return "";
+    }
+  };
+
+  const aplicarAvisoCancelacion = (datos) =>
+    setReserva((prev) => ({
+      ...prev,
+      ...(datos.codigo ? { codigoReserva: datos.codigo.replace("-", "") } : {}),
+      cancelacionEstudio: datos.reprogramable !== false,
+      recuperada: false,
+      recuperableHasta: datos.recuperableHasta || "",
+      ...(datos.correo === "enviado" ? { correoCancelacionEnviadoEn: new Date().toISOString() } : {}),
+    }));
+
+  // Reserva cancelada sin opción de volver a reservar (o cuyo aviso falló): se abre ahora
+  const permitirVolverAReservar = async () => {
+    setQuitandoReprogramacion(true);
+    try {
+      const datos = await prepararAvisoCancelacion(false, true);
+      aplicarAvisoCancelacion(datos);
+      alert(`Listo: el cliente puede volver a reservar con el código ${datos.codigo}.`);
+    } catch (error) {
+      console.error("Error al permitir volver a reservar:", error);
+      alert("No se pudo cambiar: " + error.message);
+    } finally {
+      setQuitandoReprogramacion(false);
+    }
+  };
+
+  const quitarReprogramacion = async () => {
+    if (!await preguntar("¿Quitar la opción de volver a reservar? El código dejará de recuperar esta reserva.")) {
+      return;
+    }
+    setQuitandoReprogramacion(true);
+    try {
+      const datos = await prepararAvisoCancelacion(false, false);
+      aplicarAvisoCancelacion(datos);
+      alert("Listo: esta reserva ya no se puede volver a reservar.");
+    } catch (error) {
+      console.error("Error al quitar la reprogramación:", error);
+      alert("No se pudo cambiar: " + error.message);
+    } finally {
+      setQuitandoReprogramacion(false);
+    }
+  };
+
+  const enviarCorreoDeCancelacion = async () => {
+    setEnviandoCorreo(true);
+    try {
+      const datos = await prepararAvisoCancelacion(true, reserva.cancelacionEstudio === true);
+      aplicarAvisoCancelacion(datos);
+      alert(textoResultadoCorreo(datos) || "Hecho.");
+    } catch (error) {
+      console.error("Error al enviar el correo de cancelación:", error);
+      alert("No se pudo enviar el correo: " + error.message);
+    } finally {
+      setEnviandoCorreo(false);
+    }
+  };
+
   const cancelarReserva = async () => {
     if (!reserva || reservaYaCancelada) return;
 
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres cancelar esta reserva? La reserva quedará guardada en la base de datos como cancelada."
     );
 
@@ -689,7 +841,7 @@ useEffect(() => {
       const datosCancelacion = {
         estado: "Cancelada",
         cancelada: true,
-        canceladaPor: "Berto",
+        canceladaPor: nombreAdminActual(),
         canceladaEn: fechaCancelacionTexto,
         motivoCancelacion: motivoCancelacion.trim() || "",
         avisoPerfil:
@@ -725,7 +877,7 @@ useEffect(() => {
         : "";
 
       const notaAutomatica = {
-        texto: `Reserva cancelada por Berto.${textoMotivo}`,
+        texto: `Reserva cancelada por ${nombreAdminActual()}.${textoMotivo}`,
         fecha: fechaCancelacionTexto,
       };
 
@@ -749,7 +901,28 @@ useEffect(() => {
 
       setMotivoCancelacion("");
 
-      alert("Reserva cancelada correctamente.");
+      // Código para volver a reservar y, si se ha marcado, correo al cliente
+      let mensaje = "Reserva cancelada correctamente.";
+      if (permitirReprogramar || avisarPorCorreo) {
+        try {
+          const datos = await prepararAvisoCancelacion(avisarPorCorreo, permitirReprogramar);
+          aplicarAvisoCancelacion(datos);
+          if (datos.codigo) {
+            mensaje += ` El cliente puede volver a reservar con el código ${datos.codigo}.`;
+          } else {
+            mensaje += " El cliente no podrá volver a reservar.";
+          }
+          const correo = textoResultadoCorreo(datos);
+          if (correo) mensaje += ` ${correo}`;
+        } catch (errorAviso) {
+          console.error("Error al preparar el aviso de cancelación:", errorAviso);
+          mensaje += ` Pero no se pudo preparar el aviso (${errorAviso.message}).`;
+        }
+      } else {
+        mensaje += " El cliente no podrá volver a reservar.";
+      }
+
+      alert(mensaje);
     } catch (error) {
       console.error("Error al cancelar la reserva:", error);
       alert("No se pudo cancelar la reserva.");
@@ -766,26 +939,118 @@ useEffect(() => {
     return <p style={styles.mensaje}>Reserva no encontrada.</p>;
   }
 
+  const fechaLarga = (iso) => {
+    if (!iso) return "—";
+    const texto = new Date(`${iso}T12:00:00`).toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  };
+
+  const urlWhatsApp = (telefono) => {
+    const digitos = String(telefono || "").replace(/\D/g, "");
+    return digitos ? `https://wa.me/34${digitos}` : "";
+  };
+
+  const esPagado = String(reserva.estadoPago).toLowerCase() === "pagado";
+  const mostrarMetodo =
+    !["pintatupieza", "especialpintatupieza"].includes(reserva.claseId) &&
+    reserva.tipoTaller !== "pinta_y_decora" &&
+    reserva.metodo &&
+    reserva.metodo !== "—";
+
+  const chip = (texto, tono) => (
+    <span style={{ ...styles.chip, ...styles[`chip_${tono}`] }}>{texto}</span>
+  );
+
+  // De qué producto viene la reserva (bono, tarjeta regalo, taller...)
+  const origen = (() => {
+    const r = reserva;
+    const deTotal = (n, t) => (n && t ? `Sesión ${n} de ${t}` : n ? `Sesión ${n}` : "");
+    const sesionBono = numeroSesionBono
+      ? deTotal(numeroSesionBono.numero, numeroSesionBono.total)
+      : "";
+    const sesionTaller =
+      deTotal(Number(r.sesionCurso), Number(r.sesionesCurso)) ||
+      deTotal(Number(r.sesionEdicion), Number(r.sesionesEdicion)) ||
+      (r.tipoTaller === "dos_sesiones" && r.fechaPrimeraSesion ? "Sesión 1 de 2" : "");
+    if (r.desdeBono) {
+      return {
+        etiqueta: "Sesión de un bono",
+        detalle: [sesionBono, r.bonoId ? `Bono ${r.bonoId}` : ""].filter(Boolean).join(" · "),
+        tono: "azul",
+      };
+    }
+    if (r.desdeTarjeta) {
+      return {
+        etiqueta: "Tarjeta regalo",
+        detalle: [sesionTaller || sesionBono, r.codigoTarjeta ? `Código ${r.codigoTarjeta}` : ""]
+          .filter(Boolean)
+          .join(" · "),
+        tono: "ambar",
+      };
+    }
+    if (r.tipoTaller === "bono_mensual" || r.tipo === "bono") {
+      return {
+        etiqueta: "Compra de bono (primera sesión)",
+        detalle: sesionBono,
+        tono: "azul",
+      };
+    }
+    if (r.tipo === "grupo" || r.claseId === "reserva-grupo") {
+      return { etiqueta: "Reserva de grupo", detalle: "", tono: "azul" };
+    }
+    if (r.tipoTaller === "dos_sesiones") {
+      return { etiqueta: "Taller de dos sesiones", detalle: sesionTaller, tono: "verde" };
+    }
+    if (r.tipoTaller === "monografico") {
+      return { etiqueta: "Taller monográfico", detalle: sesionTaller, tono: "verde" };
+    }
+    return { etiqueta: "Sesión de taller", detalle: sesionTaller, tono: "verde" };
+  })();
+
+  // Sesiones sin cobro propio porque van incluidas en un bono o en un taller ya pagado
+  const sinCobro =
+    !precioTarjeta &&
+    !(Number(reserva.precioTotal) > 0) &&
+    (reserva.desdeBono || precioProducto?.tipo === "taller");
+  const textoIncluido = reserva.desdeBono ? "Incluido en el bono" : "Incluido en el taller";
+
+  const tonoEstado = reservaYaCancelada
+    ? "rojo"
+    : String(reserva.estado).toLowerCase() === "confirmada"
+    ? "verde"
+    : "ambar";
+
+  // Fila "etiqueta · valor" de las tarjetas de datos
+  const dato = (etiqueta, valor, extra = null) => (
+    <div style={styles.dato}>
+      <span style={styles.datoEtiqueta}>{etiqueta}</span>
+      <span style={styles.datoValor}>{valor || "—"}</span>
+      {extra}
+    </div>
+  );
+
+  const plazasReserva = Number(reserva.plazas || 1);
+  const faltaSitio =
+    !!nuevaFecha &&
+    !fechaBloqueadaReprogramacion &&
+    !diaNoDisponibleReprogramacion &&
+    plazasDisponiblesReprogramacion !== null &&
+    plazasDisponiblesReprogramacion < plazasReserva;
+
   return (
-   <div
-  style={{
-    ...styles.body,
-    ...(isMobile ? styles.bodyMobile : {}),
-  }}
->
-  <div
-    style={{
-      ...styles.container,
-      ...(isMobile ? styles.containerMobile : {}),
-    }}
-  >
+    <div style={{ ...styles.body, ...(isMobile ? styles.bodyMobile : {}) }}>
+      <div style={{ ...styles.container, ...(isMobile ? styles.containerMobile : {}) }}>
         <BotonVolver />
 
-        <h1 style={styles.titulo}>Detalle de reserva</h1>
-
-        <div style={styles.card}>
-          <p>
-            <strong>Clase:</strong>{" "}
+        {/* Cabecera: qué reserva es y cómo está */}
+        <div style={styles.cabecera}>
+          <p style={styles.cabeceraEtiqueta}>Detalle de reserva</p>
+          <h1 style={{ ...styles.titulo, ...(isMobile ? styles.tituloMobile : {}) }}>
             <span
               style={styles.linkClase}
               onClick={() =>
@@ -798,273 +1063,283 @@ useEffect(() => {
             >
               {reserva.clase}
             </span>
-          </p>
+          </h1>
 
-          <p>
-            <strong>Fecha de la reserva:</strong>{" "}
-            <span style={styles.fechaReserva}>{reserva.fecha}</span>
-          </p>
-
-          <p>
-            <strong>Fecha de pago:</strong>{" "}
-            <span style={styles.fechaPago}>{reserva.timestamp}</span>
-          </p>
-
-          <p>
-            <strong>Turno:</strong> {reserva.turno}
-          </p>
-
-          {!["pintatupieza", "especialpintatupieza"].includes(reserva.claseId) &&
-            reserva.tipoTaller !== "pinta_y_decora" && (
-              <p>
-                <strong>Método:</strong> {reserva.metodo}
-              </p>
+          <div style={styles.chips}>
+            {chip(reservaYaCancelada ? "Cancelada" : reserva.estado, tonoEstado)}
+            {chip(esPagado ? "Pagado" : `Pago: ${reserva.estadoPago}`, esPagado ? "verde" : "ambar")}
+            {chip(
+              origen.detalle && origen.detalle.startsWith("Sesión ")
+                ? `${origen.etiqueta} · ${origen.detalle.split(" · ")[0]}`
+                : origen.etiqueta,
+              origen.tono
             )}
-
-          <p>
-            <strong>Plazas:</strong> {reserva.plazas}
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Nombre:</strong> {reserva.nombre || "—"}
-          </p>
-          <p>
-            <strong>Teléfono:</strong> {reserva.telefono || "—"}
-          </p>
-          <p>
-            <strong>Email:</strong> {reserva.email || "—"}
-          </p>
-
-          {reserva.reprogramada && (
-            <>
-              <hr style={styles.hr} />
-              <p style={styles.reprogramadaInfo}>
-                <strong>Reserva reprogramada:</strong> Sí
-              </p>
-              <p>
-                <strong>Fecha original:</strong> {reserva.fechaOriginal || "—"}
-              </p>
-              <p>
-                <strong>Turno original:</strong> {reserva.turnoOriginal || "—"}
-              </p>
-              <p>
-                <strong>Último cambio:</strong> {reserva.reprogramadaEn || "—"}
-              </p>
-            </>
-          )}
-
-          {reservaYaCancelada && (
-            <>
-              <hr style={styles.hr} />
-              <p style={styles.canceladaInfo}>
-                <strong>Reserva cancelada:</strong> Sí
-              </p>
-              <p>
-                <strong>Cancelada por:</strong> {reserva.canceladaPor || "—"}
-              </p>
-              <p>
-                <strong>Fecha cancelación:</strong> {reserva.canceladaEn || "—"}
-              </p>
-              <p>
-                <strong>Motivo:</strong> {reserva.motivoCancelacion || "—"}
-              </p>
-            </>
-          )}
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Estado:</strong> {reserva.estado}
-          </p>
-          <p>
-            <strong>Estado pago:</strong> {reserva.estadoPago}
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Precio unitario:</strong> {reserva.precioUnitario}€
-          </p>
-          <p>
-            <strong>Precio total:</strong> {reserva.precioTotal}€
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>UID:</strong>{" "}
-            <span
-              style={styles.uidLink}
-              onClick={() =>
-                navigate(`/admin-detalle-usuario?uid=${reserva.uid}`)
-              }
-            >
-              {reserva.uid}
-            </span>
-          </p>
-
-          <p>
-            <strong>Order ID:</strong> {reserva.orderId}
-          </p>
-          <p>
-            <strong>Desde tarjeta:</strong> {reserva.desdeTarjeta ? "Sí" : "No"}
-          </p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>Procesado:</strong> {reserva.procesado ? "Sí" : "No"}
-          </p>
+            {reserva.reprogramada && chip("Reprogramada", "azul")}
+            {reserva.sobreaforo && chip("Sobreaforo", "rojo")}
+          </div>
         </div>
 
-        <div style={styles.notasBox}>
-          <h2 style={styles.subtituloBloque}>Reprogramar reserva</h2>
-
-          <div style={styles.campoReprogramacion}>
-            <label style={styles.label}>Nueva fecha</label>
-            <input
-              type="date"
-              value={nuevaFecha}
-              onChange={(e) => {
-                setNuevaFecha(e.target.value);
-                setNuevoTurno("");
-              }}
-              style={styles.input}
-              disabled={reservaYaCancelada}
-            />
+        {/* Lo más importante, de un vistazo */}
+        <div style={{ ...styles.resumen, ...(isMobile ? styles.resumenMobile : {}) }}>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Fecha</span>
+            <span style={styles.resumenValor}>{fechaLarga(reserva.fecha)}</span>
           </div>
-
-          <div style={styles.campoReprogramacion}>
-            <label style={styles.label}>Nuevo turno</label>
-            <select
-              value={nuevoTurno}
-              onChange={(e) =>
-                setNuevoTurno(normalizarTurnoParaRuta(e.target.value))
-              }
-              style={styles.input}
-              disabled={
-                !nuevaFecha || diaNoDisponibleReprogramacion || reservaYaCancelada
-              }
-            >
-              <option value="">-- Elige turno --</option>
-              {turnosDisponiblesReprogramacion.map((turno) => (
-                <option key={turno} value={turno}>
-                  {turno}
-                </option>
-              ))}
-            </select>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Turno</span>
+            <span style={styles.resumenValor}>{reserva.turno || "—"}</span>
           </div>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Plazas</span>
+            <span style={styles.resumenValor}>
+              {plazasReserva}
+              {mostrarMetodo ? ` · ${reserva.metodo}` : ""}
+            </span>
+          </div>
+          <div style={styles.resumenBloque}>
+            <span style={styles.resumenEtiqueta}>Total</span>
+            <span style={styles.resumenValor}>{reserva.precioTotal} €</span>
+          </div>
+        </div>
 
-          {fechaBloqueadaReprogramacion && (
-            <p style={styles.textoError}>
-              La fecha elegida está bloqueada.
-              {fechaBloqueadaReprogramacion.motivo
-                ? ` Motivo: ${fechaBloqueadaReprogramacion.motivo}.`
-                : ""}
-            </p>
-          )}
+        {reserva.sobreaforo && (
+          <div style={{ ...styles.aviso, ...styles.avisoRojo }}>
+            <strong>Sobreaforo:</strong> el pago llegó cuando la plaza guardada ya había caducado
+            y otra persona ocupó el sitio. La reserva está confirmada, pero la franja supera el
+            aforo.
+          </div>
+        )}
 
-          {nuevaFecha &&
-            !fechaBloqueadaReprogramacion &&
-            diaNoDisponibleReprogramacion && (
-              <p style={styles.textoError}>
-                Esta clase no se imparte ese día. Días disponibles:{" "}
-                {Object.keys(horariosClase).join(", ")}.
-              </p>
+        {reservaYaCancelada && (
+          <div style={{ ...styles.aviso, ...styles.avisoRojo }}>
+            <strong>Reserva cancelada</strong> por {reserva.canceladaPor || "—"} el{" "}
+            {reserva.canceladaEn || "—"}.
+            {reserva.motivoCancelacion ? ` Motivo: ${reserva.motivoCancelacion}.` : ""}
+            {reserva.recuperada && " El cliente ya ha elegido una nueva fecha."}
+          </div>
+        )}
+
+        {reserva.reprogramada && (
+          <div style={{ ...styles.aviso, ...styles.avisoAzul }}>
+            <strong>Reprogramada</strong> el {reserva.reprogramadaEn || "—"}. Antes:{" "}
+            {fechaDMA(reserva.fechaOriginal) || "—"}
+            {reserva.turnoOriginal ? ` · ${reserva.turnoOriginal}` : ""}.
+          </div>
+        )}
+
+        {/* Datos agrupados */}
+        <div style={{ ...styles.rejilla, ...(isMobile ? styles.rejillaMobile : {}) }}>
+          <section style={styles.tarjeta}>
+            <h2 style={styles.tarjetaTitulo}>Cliente</h2>
+            {dato("Nombre", reserva.nombre, <EtiquetaInvitado invitado={reserva.invitado} />)}
+            {dato(
+              "Teléfono",
+              reserva.telefono ? (
+                <a href={`tel:${reserva.telefono}`} style={styles.enlace}>
+                  {reserva.telefono}
+                </a>
+              ) : (
+                ""
+              ),
+              reserva.telefono ? (
+                <a
+                  href={urlWhatsApp(reserva.telefono)}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={styles.botonWhatsApp}
+                >
+                  WhatsApp
+                </a>
+              ) : null
             )}
-
-          {!fechaBloqueadaReprogramacion &&
-            !diaNoDisponibleReprogramacion &&
-            nuevaFecha && (
-              <p style={styles.textoVacio}>
-                Plazas disponibles para esa fecha y turno:{" "}
-                {plazasDisponiblesReprogramacion}
-              </p>
+            {dato(
+              "Email",
+              reserva.email ? (
+                <a href={`mailto:${reserva.email}`} style={styles.enlace}>
+                  {reserva.email}
+                </a>
+              ) : (
+                ""
+              )
             )}
+          </section>
 
-          {reservaYaCancelada && (
+          <section style={styles.tarjeta}>
+            <h2 style={styles.tarjetaTitulo}>Pago</h2>
+            {precioProducto &&
+              !precioTarjeta &&
+              dato(
+                precioProducto.tipo === "bono" ? "Pagado por el bono" : "Pagado por el taller",
+                `${precioProducto.importe} €`
+              )}
+            {dato(
+              "Precio por plaza",
+              precioTarjeta
+                ? `${precioTarjeta.unitario} € · con tarjeta regalo`
+                : sinCobro
+                ? textoIncluido
+                : `${reserva.precioUnitario} €`
+            )}
+            {dato(
+              "Precio total",
+              precioTarjeta
+                ? `${precioTarjeta.total} € · con tarjeta regalo`
+                : sinCobro
+                ? textoIncluido
+                : `${reserva.precioTotal} €`
+            )}
+            {dato("Fecha de pago", fechaHoraLegible(reserva.timestamp))}
+            {dato(
+              "Origen",
+              origen.detalle ? `${origen.etiqueta} · ${origen.detalle}` : origen.etiqueta
+            )}
+            {dato("Desde tarjeta regalo", reserva.desdeTarjeta ? "Sí" : "No")}
+          </section>
+
+          <section style={{ ...styles.tarjeta, ...(isMobile ? {} : styles.tarjetaAncha) }}>
+            <h2 style={styles.tarjetaTitulo}>Datos técnicos</h2>
+            <div style={{ ...styles.rejillaDatos, ...(isMobile ? styles.rejillaDatosMobile : {}) }}>
+              {dato("Order ID", reserva.orderId)}
+              {dato("Procesado", reserva.procesado ? "Sí" : "No")}
+              {dato(
+                "Usuario (UID)",
+                reserva.uid ? (
+                  <span
+                    style={styles.uidLink}
+                    onClick={() => navigate(`/admin-detalle-usuario?uid=${reserva.uid}`)}
+                  >
+                    {reserva.uid}
+                  </span>
+                ) : (
+                  ""
+                )
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Reprogramar */}
+        <section style={styles.bloque}>
+          <h2 style={styles.bloqueTitulo}>Reprogramar reserva</h2>
+          <p style={styles.bloqueAyuda}>
+            Elige un día en el calendario y, después, el turno. Los días en rojo están cerrados y los
+            grises no se imparten.
+          </p>
+
+          {reservaYaCancelada ? (
             <p style={styles.textoError}>
               Esta reserva está cancelada y ya no se puede reprogramar.
             </p>
-          )}
-
-          <p style={styles.textoVacio}>
-            Al confirmar, se moverá la reserva en Firebase y también se
-            actualizará en el perfil del usuario.
-          </p>
-
-          <button
-            onClick={guardarReprogramacion}
-            style={{
-              ...styles.botonGuardar,
-              opacity: reprogramacionValida ? 1 : 0.6,
-              cursor: reprogramacionValida ? "pointer" : "not-allowed",
-            }}
-            disabled={!reprogramacionValida || guardandoReprogramacion}
-          >
-            {guardandoReprogramacion
-              ? "Guardando cambio..."
-              : "Confirmar reprogramación"}
-          </button>
-        </div>
-
-        <div style={styles.cancelacionBox}>
-          <h2 style={styles.subtituloBloque}>Cancelar reserva</h2>
-
-          <div style={styles.campoReprogramacion}>
-            <label style={styles.label}>Motivo de cancelación (opcional)</label>
-            <textarea
-              value={motivoCancelacion}
-              onChange={(e) => setMotivoCancelacion(e.target.value)}
-              placeholder="Escribe aquí el motivo si quieres dejarlo registrado..."
-              style={styles.textarea}
-              rows={3}
-              disabled={reservaYaCancelada}
-            />
-          </div>
-
-          {reservaYaCancelada ? (
-            <p style={styles.textoError}>Esta reserva ya está cancelada.</p>
           ) : (
-            <p style={styles.textoVacio}>
-              La reserva no se borrará. Quedará guardada como cancelada en admin
-              y en el perfil del usuario.
-            </p>
+            <div style={{ ...styles.reprogramarCols, ...(isMobile ? styles.reprogramarColsMobile : {}) }}>
+              <div style={styles.calendarioCaja}>
+                <CalendarioReserva
+                  value={nuevaFecha}
+                  onChange={(iso) => {
+                    setNuevaFecha(iso);
+                    setNuevoTurno("");
+                  }}
+                  estadoDia={estadoDiaReprogramar}
+                />
+              </div>
+
+              <div style={styles.reprogramarLado}>
+                <p style={styles.ladoTitulo}>
+                  {nuevaFecha ? fechaLarga(nuevaFecha) : "Elige un día"}
+                </p>
+
+                {nuevaFecha && fechaBloqueadaReprogramacion && (
+                  <p style={styles.textoError}>
+                    Ese día está bloqueado.
+                    {fechaBloqueadaReprogramacion.motivo
+                      ? ` Motivo: ${fechaBloqueadaReprogramacion.motivo}.`
+                      : ""}
+                  </p>
+                )}
+
+                {nuevaFecha && !fechaBloqueadaReprogramacion && diaNoDisponibleReprogramacion && (
+                  <p style={styles.textoError}>
+                    Esta clase no se imparte ese día. Días de clase:{" "}
+                    {Object.keys(horariosClase).join(", ") || "—"}.
+                  </p>
+                )}
+
+                {nuevaFecha && !fechaBloqueadaReprogramacion && !diaNoDisponibleReprogramacion && (
+                  <>
+                    <p style={styles.ladoEtiqueta}>Turno</p>
+                    <div style={styles.turnos}>
+                      {turnosDisponiblesReprogramacion.map((turno) => {
+                        const activo = normalizarTurnoParaRuta(nuevoTurno) === turno;
+                        return (
+                          <button
+                            key={turno}
+                            type="button"
+                            onClick={() => setNuevoTurno(turno)}
+                            aria-pressed={activo}
+                            style={{ ...styles.turnoBoton, ...(activo ? styles.turnoBotonActivo : {}) }}
+                          >
+                            {turno}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <p style={faltaSitio ? styles.textoError : styles.textoVacio}>
+                      {!nuevoTurno ? (
+                        "Elige un turno para ver las plazas libres."
+                      ) : plazasDisponiblesReprogramacion === null ? (
+                        "Comprobando plazas libres..."
+                      ) : (
+                        <>
+                          Plazas libres en ese turno: <strong>{plazasDisponiblesReprogramacion}</strong>
+                          {usaTorno(reserva) ? " (contando los tornos)" : ""}
+                          {faltaSitio ? ` (esta reserva necesita ${plazasReserva})` : ""}
+                        </>
+                      )}
+                    </p>
+                  </>
+                )}
+
+                {hayCambiosReales && nuevaFecha && nuevoTurno && (
+                  <div style={styles.cambio}>
+                    <span style={styles.cambioAntes}>
+                      {fechaDMA(reserva.fecha)} · {reserva.turno}
+                    </span>
+                    <span style={styles.cambioFlecha}><Icono nombre="derecha" /></span>
+                    <span style={styles.cambioDespues}>
+                      {fechaDMA(nuevaFecha)} · {normalizarTurnoParaRuta(nuevoTurno)}
+                    </span>
+                  </div>
+                )}
+
+                <p style={styles.textoVacio}>
+                  Al confirmar, la reserva se mueve y también se actualiza en el perfil del usuario.
+                </p>
+
+                <button
+                  onClick={guardarReprogramacion}
+                  style={{
+                    ...styles.botonPrincipal,
+                    opacity: reprogramacionValida ? 1 : 0.5,
+                    cursor: reprogramacionValida ? "pointer" : "not-allowed",
+                  }}
+                  disabled={!reprogramacionValida || guardandoReprogramacion}
+                >
+                  {guardandoReprogramacion ? "Guardando cambio..." : "Confirmar reprogramación"}
+                </button>
+              </div>
+            </div>
           )}
+        </section>
 
-          <button
-            onClick={cancelarReserva}
-            style={{
-              ...styles.botonCancelar,
-              opacity: reservaYaCancelada ? 0.6 : 1,
-              cursor: reservaYaCancelada ? "not-allowed" : "pointer",
-            }}
-            disabled={reservaYaCancelada || guardandoCancelacion}
-          >
-            {guardandoCancelacion ? "Cancelando reserva..." : "Cancelar reserva"}
-          </button>
-        </div>
-
-        <div style={styles.notasBox}>
-          <h2 style={styles.subtituloBloque}>Notas</h2>
+        {/* Notas */}
+        <section style={styles.bloque}>
+          <h2 style={styles.bloqueTitulo}>Notas internas</h2>
 
           {notasInternas.length > 0 ? (
             notasInternas.map((nota) => (
-             <div
-  key={nota.id}
-  style={{
-    ...styles.notaItem,
-    ...(isMobile ? styles.notaItemMobile : {}),
-  }}
->
-               <div
-  style={{
-    ...styles.notaHeader,
-    ...(isMobile ? styles.notaHeaderMobile : {}),
-  }}
->
+              <div key={nota.id} style={styles.notaItem}>
+                <div style={{ ...styles.notaHeader, ...(isMobile ? styles.notaHeaderMobile : {}) }}>
                   <div>
                     <p style={styles.notaTexto}>{nota.texto}</p>
                     <p style={styles.notaFecha}>{nota.fecha}</p>
@@ -1089,148 +1364,341 @@ useEffect(() => {
             onChange={(e) => setNuevaNota(e.target.value)}
             placeholder="Escribe aquí una nota..."
             style={styles.textarea}
-            rows={4}
+            rows={3}
           />
 
-          <button
-            onClick={guardarNotaInterna}
-            style={styles.botonGuardar}
-            disabled={guardandoNota}
-          >
+          <button onClick={guardarNotaInterna} style={styles.botonSecundario} disabled={guardandoNota}>
             {guardandoNota ? "Guardando..." : "Guardar nota"}
           </button>
-        </div>
+        </section>
+
+        {/* Cancelar, al final y aparte */}
+        <section style={styles.zonaPeligro}>
+          <h2 style={{ ...styles.bloqueTitulo, color: "#8a3b3b" }}>Cancelar reserva</h2>
+
+          {reservaYaCancelada ? (
+            <>
+              <p style={styles.textoError}>
+                Esta reserva ya está cancelada
+                {reserva.cancelacionEstudio ? "." : " y no se puede volver a reservar."}
+              </p>
+              {reserva.cancelacionEstudio && (
+                <>
+                  <p style={styles.bloqueAyuda}>
+                    Código para volver a reservar: <strong>{formatearCodigoReserva(reserva.codigoReserva)}</strong>
+                    {reserva.recuperableHasta ? ` · hasta el ${fechaDMA(reserva.recuperableHasta)}` : ""}
+                    {reserva.recuperada ? " · ya usado." : "."}
+                    {reserva.correoCancelacionEnviadoEn
+                      ? " Correo de cancelación enviado."
+                      : " Todavía no se ha enviado el correo de cancelación."}
+                  </p>
+                  {!reserva.recuperada && (
+                    <button
+                      onClick={enviarCorreoDeCancelacion}
+                      style={styles.botonSecundario}
+                      disabled={enviandoCorreo}
+                    >
+                      {enviandoCorreo
+                        ? "Enviando..."
+                        : reserva.correoCancelacionEnviadoEn
+                        ? "Reenviar correo al cliente"
+                        : "Enviar correo al cliente"}
+                    </button>
+                  )}
+                  {!reserva.recuperada && (
+                    <button
+                      onClick={quitarReprogramacion}
+                      style={{ ...styles.botonSecundario, marginLeft: 8 }}
+                      disabled={quitandoReprogramacion}
+                    >
+                      {quitandoReprogramacion ? "Guardando..." : "Quitar la opción de volver a reservar"}
+                    </button>
+                  )}
+                </>
+              )}
+              {!reserva.cancelacionEstudio && (
+                <button
+                  onClick={permitirVolverAReservar}
+                  style={{ ...styles.botonSecundario, marginRight: 8 }}
+                  disabled={quitandoReprogramacion}
+                >
+                  {quitandoReprogramacion ? "Guardando..." : "Permitir volver a reservar"}
+                </button>
+              )}
+              {!reserva.cancelacionEstudio && (
+                <button
+                  onClick={enviarCorreoDeCancelacion}
+                  style={styles.botonSecundario}
+                  disabled={enviandoCorreo}
+                >
+                  {enviandoCorreo
+                    ? "Enviando..."
+                    : reserva.correoCancelacionEnviadoEn
+                    ? "Reenviar correo de cancelación"
+                    : "Enviar correo de cancelación"}
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <p style={styles.bloqueAyuda}>
+                La reserva no se borra: queda guardada como cancelada en admin y en el perfil del
+                usuario.
+              </p>
+              <label style={styles.label} htmlFor="motivo-cancelacion">
+                Motivo (opcional)
+              </label>
+              <textarea
+                id="motivo-cancelacion"
+                value={motivoCancelacion}
+                onChange={(e) => setMotivoCancelacion(e.target.value)}
+                placeholder="Escribe aquí el motivo si quieres dejarlo registrado..."
+                style={styles.textarea}
+                rows={2}
+              />
+              <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "8px 0 4px", fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={permitirReprogramar}
+                  onChange={(e) => setPermitirReprogramar(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Permitir que el cliente vuelva a reservar con su código, sin coste, durante 6 meses.
+                  Si lo desmarcas, la reserva queda cancelada del todo.
+                </span>
+              </label>
+              <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "8px 0 12px", fontSize: 14 }}>
+                <input
+                  type="checkbox"
+                  checked={avisarPorCorreo}
+                  onChange={(e) => setAvisarPorCorreo(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Avisar al cliente por correo, con el motivo
+                  {permitirReprogramar ? " y su código para volver a reservar." : "."}
+                </span>
+              </label>
+              <button
+                onClick={cancelarReserva}
+                style={styles.botonCancelar}
+                disabled={guardandoCancelacion}
+              >
+                {guardandoCancelacion ? "Cancelando reserva..." : "Cancelar reserva"}
+              </button>
+            </>
+          )}
+        </section>
       </div>
     </div>
   );
 };
 
+const formatearCodigoReserva = (codigo = "") => {
+  const limpio = String(codigo || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return limpio.length === 8 ? `${limpio.slice(0, 4)}-${limpio.slice(4)}` : limpio || "—";
+};
+
 const styles = {
-  body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
-    padding: 30,
-  },
-  bodyMobile: {
-  padding: 4,
-},
+  // Sin fondo propio ni alto mínimo: la página ya va dentro de PageContainer y se ve el fondo de la app
+  body: { padding: 0 },
+  bodyMobile: { padding: 0 },
   container: {
-    maxWidth: 700,
+    maxWidth: 920,
     margin: "0 auto",
     backgroundColor: "#fff",
     borderRadius: 20,
-    padding: 24,
+    padding: 28,
     boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
+    boxSizing: "border-box",
   },
-  containerMobile: {
-  width: "100%",
-  maxWidth: "100%",
-  borderRadius: 16,
-  padding: 10,
-  boxSizing: "border-box",
-},
-  titulo: {
-    textAlign: "center",
-    marginBottom: 20,
+  containerMobile: { width: "100%", maxWidth: "100%", borderRadius: 16, padding: 14 },
+
+  // Cabecera
+  cabecera: { margin: "6px 0 16px" },
+  cabeceraEtiqueta: {
+    margin: 0,
+    fontSize: "0.8rem",
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "#9a8a6a",
   },
-  notaItemMobile: {
-  paddingBottom: 10,
-},
-notaHeaderMobile: {
-  flexDirection: "column",
-  alignItems: "stretch",
-},
-  card: {
+  titulo: { margin: "4px 0 10px", fontSize: "1.7rem", color: "#3f3128", lineHeight: 1.2 },
+  tituloMobile: { fontSize: "1.35rem" },
+  chips: { display: "flex", gap: 8, flexWrap: "wrap" },
+  chip: {
+    display: "inline-block",
+    padding: "4px 12px",
+    borderRadius: 999,
+    fontSize: "0.8rem",
+    fontWeight: 700,
+    textTransform: "capitalize",
+  },
+  chip_verde: { color: "#2f6b2f", backgroundColor: "#e0f0dc" },
+  chip_ambar: { color: "#8a5a00", backgroundColor: "#fdebc8" },
+  chip_rojo: { color: "#a02828", backgroundColor: "#fbdcdc" },
+  chip_azul: { color: "#27557f", backgroundColor: "#dcebf8" },
+
+  // Resumen
+  resumen: {
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr 1.2fr 0.8fr",
+    gap: 12,
+    padding: 16,
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
+    borderRadius: 16,
+  },
+  resumenMobile: { gridTemplateColumns: "1fr 1fr", padding: 12 },
+  resumenBloque: { display: "flex", flexDirection: "column", gap: 2, minWidth: 0 },
+  resumenEtiqueta: { fontSize: "0.75rem", fontWeight: 700, color: "#9a8a6a", textTransform: "uppercase" },
+  resumenValor: { fontSize: "1.02rem", fontWeight: 700, color: "#3f3128" },
+
+  // Avisos
+  aviso: { marginTop: 12, padding: "10px 14px", borderRadius: 12, fontSize: "0.92rem", lineHeight: 1.4 },
+  avisoRojo: { backgroundColor: "#fff1f1", border: "1px solid #f0cccc", color: "#8a3b3b" },
+  avisoAzul: { backgroundColor: "#eef6fd", border: "1px solid #cfe2f3", color: "#27557f" },
+
+  // Tarjetas de datos
+  rejilla: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 },
+  rejillaMobile: { gridTemplateColumns: "1fr" },
+  tarjeta: {
+    padding: 16,
+    border: "1px solid #eee",
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    minWidth: 0,
+  },
+  tarjetaAncha: { gridColumn: "1 / -1" },
+  tarjetaTitulo: { margin: "0 0 10px", fontSize: "0.95rem", color: "#7c5c2e", textTransform: "uppercase", letterSpacing: "0.04em" },
+  dato: { display: "flex", flexDirection: "column", gap: 2, padding: "7px 0", borderTop: "1px solid #f4f0e6", minWidth: 0 },
+  datoEtiqueta: { fontSize: "0.78rem", color: "#9a8a6a", fontWeight: 600 },
+  datoValor: { fontSize: "0.97rem", color: "#333", wordBreak: "break-word" },
+  rejillaDatos: { display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 12 },
+  rejillaDatosMobile: { gridTemplateColumns: "1fr" },
+  enlace: { color: "#7c5c2e", textDecoration: "underline" },
+  botonWhatsApp: {
+    alignSelf: "flex-start",
+    marginTop: 4,
+    padding: "4px 12px",
+    borderRadius: 999,
+    backgroundColor: "#e4f7e9",
+    border: "1px solid #b9e3c4",
+    color: "#1f6b3a",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    textDecoration: "none",
+  },
+  uidLink: { color: "#7c5c2e", cursor: "pointer", textDecoration: "underline", fontSize: "0.9rem" },
+  linkClase: { color: "#3f3128", cursor: "pointer", textDecoration: "underline", textDecorationColor: "#d8c89f" },
+
+  // Bloques de acción
+  bloque: {
+    marginTop: 22,
+    padding: 18,
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
+    borderRadius: 16,
+  },
+  bloqueTitulo: { margin: "0 0 4px", color: "#3f3128", fontSize: "1.15rem" },
+  bloqueAyuda: { margin: "0 0 14px", color: "#7a6a4f", fontSize: "0.9rem", lineHeight: 1.4 },
+
+  reprogramarCols: { display: "grid", gridTemplateColumns: "minmax(0, 360px) minmax(0, 1fr)", gap: 24, alignItems: "start" },
+  reprogramarColsMobile: { gridTemplateColumns: "1fr", gap: 16 },
+  calendarioCaja: { padding: 12, backgroundColor: "#fff", border: "1px solid #eee", borderRadius: 14 },
+  reprogramarLado: { display: "flex", flexDirection: "column", gap: 10, minWidth: 0 },
+  ladoTitulo: { margin: 0, fontSize: "1.05rem", fontWeight: 700, color: "#3f3128" },
+  ladoEtiqueta: { margin: "4px 0 0", fontSize: "0.78rem", fontWeight: 700, color: "#9a8a6a", textTransform: "uppercase" },
+  turnos: { display: "flex", flexWrap: "wrap", gap: 8 },
+  turnoBoton: {
+    padding: "9px 14px",
+    borderRadius: 12,
+    border: "1px solid #d8c89f",
+    backgroundColor: "#fff",
+    color: "#3f3128",
+    fontWeight: 700,
+    fontSize: "0.92rem",
+    cursor: "pointer",
+  },
+  turnoBotonActivo: { backgroundColor: "#b36a4a", borderColor: "#b36a4a", boxShadow: "0 0 0 2px #b36a4a55",
+    color: "#ffffff",
+  },
+  cambio: {
     display: "flex",
-    flexDirection: "column",
+    flexWrap: "wrap",
+    alignItems: "center",
     gap: 8,
+    padding: "10px 12px",
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    border: "1px dashed #d8c89f",
+    fontSize: "0.92rem",
+  },
+  cambioAntes: { color: "#8a8a8a", textDecoration: "line-through" },
+  cambioFlecha: { color: "#9a8a6a" },
+  cambioDespues: { color: "#3f3128", fontWeight: 700 },
+
+  botonPrincipal: {
+    marginTop: 4,
+    padding: "12px 16px",
+    border: "1px solid #b36a4a",
+    backgroundColor: "#b36a4a",
+    borderRadius: 12,
+    fontWeight: 700,
+    color: "#ffffff",
     fontSize: "0.95rem",
   },
-  hr: {
-    margin: "10px 0",
-    border: "none",
-    borderTop: "1px solid #eee",
-  },
-  uidLink: {
-    color: "#7c5c2e",
+  botonSecundario: {
+    marginTop: 10,
+    padding: "10px 14px",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
+    borderRadius: 12,
     cursor: "pointer",
-    textDecoration: "underline",
-    fontWeight: 500,
+    fontWeight: 600,
+    color: "#3f3128",
   },
-  mensaje: {
-    textAlign: "center",
-    padding: 40,
-  },
-  linkClase: {
-    color: "#7c5c2e",
-    cursor: "pointer",
-    textDecoration: "underline",
-    fontWeight: 500,
-  },
-  notasBox: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
-    borderRadius: 16,
-  },
-  cancelacionBox: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: "#fff5f5",
-    border: "1px solid #f0cccc",
-    borderRadius: 16,
-  },
-  subtituloBloque: {
-    marginTop: 0,
-    marginBottom: 12,
-    color: "#4b3a2a",
-    fontSize: "1.15rem",
-  },
-  notaItem: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottom: "1px solid #eee",
-  },
-  notaHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  notaTexto: {
-    margin: 0,
-    color: "#333",
-    whiteSpace: "pre-wrap",
-  },
-  notaFecha: {
-    margin: "4px 0 0 0",
-    fontSize: "0.82rem",
-    color: "#777",
-  },
-  textoVacio: {
-    color: "#777",
-    fontStyle: "italic",
-  },
+
+  // Notas
+  notaItem: { marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid #eee" },
+  notaHeader: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 },
+  notaHeaderMobile: { flexDirection: "column", alignItems: "stretch" },
+  notaTexto: { margin: 0, color: "#333", whiteSpace: "pre-wrap" },
+  notaFecha: { margin: "4px 0 0 0", fontSize: "0.82rem", color: "#777" },
+  textoVacio: { color: "#777", fontStyle: "italic", fontSize: "0.88rem", margin: 0 },
+  textoError: { color: "#b33a3a", fontWeight: 500, margin: 0, fontSize: "0.92rem" },
   textarea: {
     width: "100%",
-    marginTop: 14,
+    marginTop: 10,
     padding: 10,
     borderRadius: 10,
     border: "1px solid #ddd",
     fontSize: "0.95rem",
     resize: "vertical",
     boxSizing: "border-box",
+    fontFamily: "inherit",
   },
-  botonGuardar: {
-    marginTop: 10,
-    padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
-    borderRadius: 12,
+  label: { fontSize: "0.9rem", fontWeight: 600, color: "#3f3128" },
+  botonEliminar: {
+    padding: "8px 12px",
+    border: "1px solid #e7c9c9",
+    backgroundColor: "#fff1f1",
+    borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#8a3b3b",
+    flexShrink: 0,
+  },
+
+  // Cancelar
+  zonaPeligro: {
+    marginTop: 22,
+    padding: 18,
+    backgroundColor: "#fff5f5",
+    border: "1px solid #f0cccc",
+    borderRadius: 16,
   },
   botonCancelar: {
     marginTop: 10,
@@ -1242,55 +1710,8 @@ notaHeaderMobile: {
     fontWeight: 700,
     color: "#8a3b3b",
   },
-  botonEliminar: {
-    padding: "8px 12px",
-    border: "1px solid #e7c9c9",
-    backgroundColor: "#fff1f1",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 600,
-    color: "#8a3b3b",
-    flexShrink: 0,
-  },
-  campoReprogramacion: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-    marginBottom: 14,
-  },
-  label: {
-    fontSize: "0.92rem",
-    fontWeight: 600,
-    color: "#5b4a2d",
-  },
-  input: {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid #e5d8b8",
-    fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
-  },
-  textoError: {
-    color: "#b33a3a",
-    fontWeight: 500,
-    marginTop: 6,
-  },
-  reprogramadaInfo: {
-    color: "#8a6a2f",
-    fontWeight: 600,
-  },
-  canceladaInfo: {
-    color: "#8a3b3b",
-    fontWeight: 600,
-  },
-  fechaReserva: {
-    color: "#8a6a2f",
-    fontWeight: 700,
-  },
-  fechaPago: {
-    color: "#5f7fa3",
-    fontWeight: 600,
-  },
+
+  mensaje: { textAlign: "center", padding: 40 },
 };
 
 export default AdminDetalleReservaNuevo;

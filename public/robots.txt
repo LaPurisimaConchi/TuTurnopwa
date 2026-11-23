@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin
+Disallow: /api/
+Disallow: /perfil
+Disallow: /resumen-pago
+Disallow: /pago/
+
+Sitemap: https://app.lapurisimaconchi.com/sitemap.xml

@@ -4,6 +4,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import { obtenerEstadoVisibleBono } from "./utils/estadoBono";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
 function formatearFechaNota(fecha) {
   if (!fecha) return "Sin fecha";
 
@@ -23,6 +27,8 @@ const AdminDetalleUsuarioNuevo = () => {
 
   const [usuario, setUsuario] = useState(null);
   const [reservasUsuario, setReservasUsuario] = useState([]);
+  const [bonosUsuario, setBonosUsuario] = useState([]);
+  const [tarjetasUsuario, setTarjetasUsuario] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   const [notasInternas, setNotasInternas] = useState([]);
@@ -65,6 +71,7 @@ useEffect(() => {
           nombre: data.nombre || data.displayName || "Sin nombre",
           email: data.email || "Sin email",
           telefono: data.telefono || data.phoneNumber || "",
+          invitado: data.invitado === true,
         });
 
         let lista = [];
@@ -88,6 +95,18 @@ useEffect(() => {
         });
 
         setReservasUsuario(lista);
+
+        // Bonos y tarjetas regalo compradas, los más recientes primero
+        setBonosUsuario(
+          Object.entries(data.bonos || {})
+            .map(([id, b]) => ({ id, ...(b || {}) }))
+            .sort((a, b) => String(b.fechaInicio || "").localeCompare(String(a.fechaInicio || "")))
+        );
+        setTarjetasUsuario(
+          Object.entries(data.tarjetasRegalo || {})
+            .map(([id, t]) => ({ id, ...(t || {}) }))
+            .sort((a, b) => String(b.fechaCompra || "").localeCompare(String(a.fechaCompra || "")))
+        );
       } catch (error) {
         console.error("Error al cargar detalle de usuario:", error);
         setUsuario(null);
@@ -179,7 +198,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -225,7 +244,7 @@ useEffect(() => {
         <h1 style={styles.titulo}>Detalle de usuario</h1>
 
         <div style={styles.card}>
-          <p><strong>Nombre:</strong> {usuario.nombre}</p>
+          <p><strong>Nombre:</strong> {usuario.nombre}<EtiquetaInvitado invitado={usuario.invitado} /></p>
           <p><strong>Email:</strong> {usuario.email}</p>
           <p><strong>Teléfono:</strong> {usuario.telefono || "—"}</p>
           <p><strong>UID:</strong> {usuario.uid}</p>
@@ -291,6 +310,68 @@ useEffect(() => {
         </div>
 
         <div style={styles.bloque}>
+          <h2 style={styles.subtitulo}>Bonos ({bonosUsuario.length})</h2>
+          {bonosUsuario.length === 0 ? (
+            <p style={styles.textoVacio}>Este usuario no tiene bonos.</p>
+          ) : (
+            <div style={styles.lista}>
+              {bonosUsuario.map((b) => (
+                <div
+                  key={b.id}
+                  style={styles.reservaItem}
+                  onClick={() => navigate(`/admin-detalle-bono?id=${b.bonoId || b.id}&uid=${uid}`)}
+                >
+                  <p style={styles.linea}>
+                    <strong>Bono:</strong> {b.clase || "Bono"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Validez:</strong> {fechaDMA(b.fechaInicio) || "—"} → {fechaDMA(b.fechaCaducidadBono) || "—"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Clases:</strong> {Number(b.clasesConsumidas || 0)} usadas de {Number(b.numeroClases || 0)}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Estado:</strong> {obtenerEstadoVisibleBono(b)} · {b.estadoPago || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={styles.bloque}>
+          <h2 style={styles.subtitulo}>Tarjetas regalo compradas ({tarjetasUsuario.length})</h2>
+          {tarjetasUsuario.length === 0 ? (
+            <p style={styles.textoVacio}>Este usuario no ha comprado tarjetas regalo.</p>
+          ) : (
+            <div style={styles.lista}>
+              {tarjetasUsuario.map((t) => (
+                <div
+                  key={t.id}
+                  style={styles.reservaItem}
+                  onClick={() => navigate(`/admin-detalle-tarjeta-regalo?id=${t.orderId || t.id}`)}
+                >
+                  <p style={styles.linea}>
+                    <strong>Taller:</strong> {t.clase || "Tarjeta regalo"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Código:</strong> {t.codigo || "—"}
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Compra:</strong> {fechaDMA(String(t.fechaCompra || "").slice(0, 10)) || "—"} ·{" "}
+                    {Number(t.plazas || 1)} {Number(t.plazas || 1) === 1 ? "plaza" : "plazas"} ·{" "}
+                    {Number(t.precioTotal || 0)} €
+                  </p>
+                  <p style={styles.linea}>
+                    <strong>Canje:</strong> {t.estadoCanje || "pendiente"} · <strong>Pago:</strong> {t.estadoPago || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={styles.bloque}>
           <h2 style={styles.subtitulo}>Reservas del usuario</h2>
 
           {reservasUsuario.length === 0 ? (
@@ -314,7 +395,7 @@ useEffect(() => {
                       <strong>Clase:</strong> {r.clase || "—"}
                     </p>
                     <p style={styles.linea}>
-                      <strong>Fecha:</strong> {r.fecha || "—"}
+                      <strong>Fecha:</strong> {fechaDMA(r.fecha) || "—"}
                     </p>
                     <p style={styles.linea}>
                       <strong>Turno:</strong> {r.turno || "—"}
@@ -341,8 +422,6 @@ useEffect(() => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -375,17 +454,17 @@ notaHeaderMobile: {
   titulo: {
     textAlign: "center",
     margin: "0 0 20px 0",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     margin: "0 0 14px 0",
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -393,8 +472,8 @@ notaHeaderMobile: {
     gap: 8,
   },
   bloque: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -406,8 +485,8 @@ notaHeaderMobile: {
   reservaItem: {
     padding: 14,
     borderRadius: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     cursor: "pointer",
     transition: "0.2s",
   },
@@ -457,12 +536,12 @@ notaHeaderMobile: {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",
@@ -476,12 +555,12 @@ notaHeaderMobile: {
   },
   textoVacio: {
     margin: 0,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
   mensaje: {
     textAlign: "center",
     padding: 40,
-    color: "#7a7a7a",
+    color: "#7a6858",
   },
 };
 

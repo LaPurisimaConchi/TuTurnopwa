@@ -4,6 +4,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
 const AdminDetalleTarjetaRegaloNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -42,6 +45,7 @@ useEffect(() => {
             const uid = userSnap.key;
             const userData = userSnap.val() || {};
             const nombreUsuario = userData.nombre || "";
+            const invitado = userData.invitado === true;
             const emailUsuario = userData.email || "";
             const tarjetasUsuario = userData.tarjetasRegalo || {};
 
@@ -78,11 +82,49 @@ useEffect(() => {
                   numeroClases: Number(t.numeroClases || 0),
                   procesado: t.procesado ?? false,
                   nombreUsuario,
+                  invitado,
                   emailUsuario,
                 };
               }
             });
           });
+        }
+
+        // Sin copia en el perfil del comprador, la tarjeta de verdad está en /tarjetasRegalo
+        if (!encontrada) {
+          const raizSnap = await get(ref(dbRealtime, `tarjetasRegalo/${orderId}`));
+          if (raizSnap.exists()) {
+            const t = raizSnap.val() || {};
+            const uid = String(t.uidComprador || "");
+            const comprador = usuariosSnap.exists() ? usuariosSnap.val()?.[uid] || {} : {};
+            encontrada = {
+              id: orderId,
+              uid,
+              orderId,
+              clase: t.clase || "Tarjeta regalo",
+              codigo: t.codigo || "",
+              fechaCompra: typeof t.fechaCompra === "string" ? t.fechaCompra : "—",
+              fecha:
+                typeof t.fechaCompra === "string" && t.fechaCompra.length >= 10
+                  ? t.fechaCompra.slice(0, 10)
+                  : "—",
+              estado: t.estadoCanje || "pendiente",
+              estadoPago: t.estadoPago || "—",
+              precioTotal: Number(t.precioTotal || 0),
+              precioUnitario: Number(t.precioUnitario || t.precio || t.precioTotal || 0),
+              plazas: Number(t.plazas || 1),
+              nombreDestinatario: t.nombreDestinatario || "",
+              emailDestinatario: t.emailDestinatario || "",
+              mensajePersonalizado: t.mensajePersonalizado || "",
+              subtipo: t.subtipo || "",
+              tipo: t.tipo || "",
+              numeroClases: Number(t.numeroClases || 0),
+              procesado: t.procesado ?? false,
+              nombreUsuario: comprador.nombre || "",
+              invitado: comprador.invitado === true,
+              emailUsuario: comprador.email || "",
+            };
+          }
         }
 
         setTarjeta(encontrada);
@@ -170,7 +212,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -234,7 +276,7 @@ useEffect(() => {
             </span>
           </p>
           <p><strong>Código:</strong> {tarjeta.codigo || "—"}</p>
-          <p><strong>Fecha compra:</strong> {tarjeta.fecha}</p>
+          <p><strong>Fecha compra:</strong> {fechaDMA(tarjeta.fecha)}</p>
           <p><strong>Estado canje:</strong> {tarjeta.estado}</p>
           <p><strong>Estado pago:</strong> {tarjeta.estadoPago}</p>
 
@@ -266,7 +308,7 @@ useEffect(() => {
               {tarjeta.uid}
             </span>
           </p>
-          <p><strong>Nombre comprador:</strong> {tarjeta.nombreUsuario || "—"}</p>
+          <p><strong>Nombre comprador:</strong> {tarjeta.nombreUsuario || "—"}<EtiquetaInvitado invitado={tarjeta.invitado} /></p>
           <p><strong>Email comprador:</strong> {tarjeta.emailUsuario || "—"}</p>
           <p><strong>Order ID:</strong> {tarjeta.orderId}</p>
           <p><strong>Procesado:</strong> {tarjeta.procesado ? "Sí" : "No"}</p>
@@ -332,8 +374,6 @@ useEffect(() => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
   },
   bodyMobile: {
@@ -389,14 +429,14 @@ notaItemMobile: {
   notasBox: {
     marginTop: 24,
     padding: 16,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
   },
   subtituloBloque: {
     marginTop: 0,
     marginBottom: 12,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.15rem",
   },
   notaItem: {
@@ -437,12 +477,12 @@ notaItemMobile: {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",
@@ -459,12 +499,12 @@ notaItemMobile: {
   },
   botonVolverLista: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   linkClase: {
     color: "#7c5c2e",

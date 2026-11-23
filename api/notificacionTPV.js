@@ -1,32 +1,19 @@
 // api/notificacionTPV.js
-import crypto from "crypto";
+// Aviso de Redsys cuando se paga un pedido. Esta URL es pública: solo se confirma
+// un pedido si la firma del aviso es válida (api/_firmaRedsys.js).
 import { adminDb } from "./_firebaseAdmin.js";
+import { asegurarCodigo } from "./_codigosReserva.js";
+import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
+import { enviarCorreoReserva } from "./_correoReserva.js";
+import { marcarSobreaforo } from "./_reservarServidor.js";
+import { firmaRedsysValida } from "./_firmaRedsys.js";
+import { caducidadTarjetaNueva, generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
+import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
 
-function getSecretKey() {
-  const secret = (process.env.REDSYS_SECRET_KEY || "").trim();
-  if (!secret) throw new Error("Falta REDSYS_SECRET_KEY");
-  return Buffer.from(secret, "base64");
-}
-
-/** Firma Redsys HMAC_SHA256_V1 */
-function computeSignatureHmacSha256V1(dsMerchantParameters) {
-  const key = getSecretKey();
-  return crypto
-    .createHmac("sha256", key)
-    .update(dsMerchantParameters, "utf8")
-    .digest("base64");
-}
-
-function signaturesEqual(a, b) {
-  if (a == null || b == null || a.length !== b.length) return false;
-  try {
-    return crypto.timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
-  } catch {
-    return false;
-  }
-}
+// Número de pedido de Redsys: de 4 a 12 caracteres alfanuméricos (los nuestros, 12 dígitos)
+const PEDIDO_REDSYS = /^[0-9A-Za-z]{4,12}$/;
 
 function isPaidResponse(data) {
   const raw = data.Ds_Response ?? data.DS_RESPONSE;
@@ -40,7 +27,9 @@ function getAmountCents(data) {
   return Number.isFinite(cents) ? cents : null;
 }
 
-async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
+// `rutas` (Set): solo esas reservas, las que apuntó el servidor al preparar el pago;
+// null en pedidos de antes (todas las del número de pedido)
+async function marcarReservaComoPagadaPorOrderId(orderId, timestamp, rutas = null) {
   const reservasRef = adminDb.ref("reservas");
   const snapshot = await reservasRef.get();
 
@@ -48,6 +37,8 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
   let reservaEncontrada = null;
   const updates = {};
+  // Para detectar pagos que llegan con la plaza ya caducada (sobreaforo)
+  const confirmadas = [];
 
   const pareceReservaDirecta = (obj) => {
     if (!obj || typeof obj !== "object") return false;
@@ -78,8 +69,20 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
     updates[`${rutaBase}/actualizadoEn`] = timestamp;
     updates[`${rutaBase}/pagadoEn`] = timestamp;
 
+    confirmadas.push({
+      ruta: rutaBase,
+      fecha: reserva.fecha || fechaKey,
+      turno: reserva.turno || turnoKey,
+      reservadaHasta: reserva.reservadaHasta || "",
+      torno: reserva.incluyeTorno === true,
+    });
+
+    // Con varios días (monográfico) se queda la reserva del primer día
+    if (reservaEncontrada && (reserva.fecha || fechaKey) >= reservaEncontrada.fecha) return;
+
    reservaEncontrada = {
   ...reserva,
+  rutaReserva: rutaBase,
   orderId: reserva.orderId || "",
   uid: reserva.uid || "",
   clase: reserva.clase || "",
@@ -113,8 +116,8 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
           // Caso 1: reserva directa dentro del turno
           if (pareceReservaDirecta(childVal)) {
-            if (childVal.orderId === orderId) {
-              const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}`;
+            const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}`;
+            if (childVal.orderId === orderId && (!rutas || rutas.has(rutaBase))) {
               prepararActualizacion(
                 childVal,
                 rutaBase,
@@ -130,9 +133,9 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
           // Caso 2: estructura con método -> reservaId
           childSnap.forEach((reservaSnap) => {
             const reserva = reservaSnap.val();
+            const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}/${reservaSnap.key}`;
 
-            if (reserva?.orderId === orderId) {
-              const rutaBase = `reservas/${claseSnap.key}/${fechaSnap.key}/${turnoSnap.key}/${childSnap.key}/${reservaSnap.key}`;
+            if (reserva?.orderId === orderId && (!rutas || rutas.has(rutaBase))) {
               prepararActualizacion(
                 reserva,
                 rutaBase,
@@ -150,23 +153,41 @@ async function marcarReservaComoPagadaPorOrderId(orderId, timestamp) {
 
   if (reservaEncontrada) {
     await adminDb.ref().update(updates);
+    await marcarSobreaforo(adminDb, confirmadas);
   }
 
   return reservaEncontrada;
 }
 
-function generarCodigoTarjetaRegalo() {
-  const caracteres = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let codigo = "REGALO-";
+// Código de reserva (api/_codigosReserva.js) de una reserva que acaba de pagarse.
+// Si falla no debe afectar al pago: se vuelve a crear al pedirlo (api/codigo-reserva.js).
+async function asignarCodigoReserva(reserva) {
+  try {
+    const esGrupo = !!reserva.id && !reserva.rutaReserva;
+    const uid = reserva.uid || "";
 
-  for (let i = 0; i < 6; i++) {
-    codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    const codigo = await asegurarCodigo(
+      adminDb,
+      esGrupo
+        ? { clave: `grupo_${reserva.id}`, datos: { tipo: "grupo", grupoId: reserva.id, uid } }
+        : {
+            clave: reserva.orderId,
+            datos: { tipo: "individual", orderId: reserva.orderId, ruta: reserva.rutaReserva, uid },
+          }
+    );
+
+    await adminDb
+      .ref(`${esGrupo ? `reservasGrupos/${reserva.id}` : reserva.rutaReserva}/codigoReserva`)
+      .set(codigo);
+
+    return codigo;
+  } catch (error) {
+    console.error("No se pudo asignar el código de reserva:", error);
+    return "";
   }
-
-  return codigo;
 }
 
-async function marcarReservaGrupoComoPagada(orderId, timestamp) {
+async function marcarReservaGrupoComoPagada(orderId, timestamp, soloGrupoId = null) {
   const reservasGruposRef = adminDb.ref("reservasGrupos");
   const snapshot = await reservasGruposRef.get();
 
@@ -180,7 +201,7 @@ async function marcarReservaGrupoComoPagada(orderId, timestamp) {
 
     if (!grupo || typeof grupo !== "object") return;
 
-    if (grupo.orderId === orderId) {
+    if (grupo.orderId === orderId && (soloGrupoId === null || grupoSnap.key === soloGrupoId)) {
       const rutaBase = `reservasGrupos/${grupoSnap.key}`;
 
       updates[`${rutaBase}/estadoPago`] = "pagado";
@@ -223,21 +244,8 @@ async function marcarReservaGrupoComoPagada(orderId, timestamp) {
 
   return reservaEncontrada;
 }
-async function generarCodigoTarjetaRegaloUnico() {
-  let codigo = "";
-  let existe = true;
-
-  while (existe) {
-    codigo = generarCodigoTarjetaRegalo();
-    const snap = await adminDb.ref(`codigosTarjetaRegalo/${codigo}`).get();
-    existe = snap.exists();
-  }
-
-  return codigo;
-}
-
 async function guardarTarjetaRegaloPagada(orderId, pedido, timestamp) {
-  const codigo = await generarCodigoTarjetaRegaloUnico();
+  const codigo = await generarCodigoTarjetaRegaloUnico(adminDb);
 
   const tarjetaData = {
     id: orderId,
@@ -248,6 +256,8 @@ async function guardarTarjetaRegaloPagada(orderId, pedido, timestamp) {
     clase: pedido.clase || "Tarjeta regalo",
     claseId: pedido.claseId || "",
     subtipo: pedido.subtipo || "",
+    tipoPieza: pedido.tipoPieza || "",
+    metodo: pedido.metodo || "",
     precioTotal: Number(pedido.precioTotal ?? 0),
     precioOriginal: Number(pedido.precioOriginal ?? 0),
     plazas: Number(pedido.plazas ?? 1),
@@ -256,6 +266,7 @@ async function guardarTarjetaRegaloPagada(orderId, pedido, timestamp) {
     estadoCanje: "pendiente",
     procesado: true,
     fechaCompra: timestamp,
+    fechaCaducidad: await caducidadTarjetaNueva(adminDb, timestamp),
     creadoEn: pedido.creadoEn || timestamp,
     actualizadoEn: timestamp,
     desdeTarjeta: false,
@@ -342,18 +353,11 @@ async function guardarReservaEnPerfilUsuario(reserva) {
       desdeTarjeta: !!reserva.desdeTarjeta,
       nombreTipoClase: reserva.nombreTipoClase || "",
       tipoClase: reserva.tipoClase || "",
+      // La opción elegida (variante de la ficha: «tumba», «mediana»…) y su nombre
+      tipoPieza: reserva.tipoPieza || "",
+      nombreTipoPieza: reserva.nombreTipoPieza || "",
+      codigoReserva: reserva.codigoReserva || "",
     });
-
-    const userRef = adminDb.ref(`usuarios/${reserva.uid}`);
-    const userSnap = await userRef.get();
-
-    if (userSnap.exists()) {
-      const datos = userSnap.val() || {};
-      const totalActual = Number(datos.reservas) || 0;
-      await userRef.update({
-        reservas: totalActual + 1,
-      });
-    }
   }
 }
 
@@ -379,13 +383,12 @@ export default async function handler(req, res) {
       decoded.DS_ORDER ||
       decoded.DS_MERCHANT_ORDER;
 
-    if (!order) {
-      console.warn("TPV notify: falta order");
+    if (!order || !PEDIDO_REDSYS.test(String(order))) {
+      console.warn("TPV notify: falta order o no es válido");
       return res.status(200).send("BAD");
     }
 
-    const expected = computeSignatureHmacSha256V1(Ds_MerchantParameters);
-    const signOk = signaturesEqual(expected, Ds_Signature);
+    const signOk = firmaRedsysValida(Ds_MerchantParameters, String(order), Ds_Signature);
 
     const paidOk = isPaidResponse(decoded);
     const amountCentsRedsys = getAmountCents(decoded);
@@ -413,19 +416,31 @@ export default async function handler(req, res) {
       return res.status(200).send("OK");
     }
 
+    // Sin firma válida el aviso no viene de Redsys (o la clave no es la del TPV):
+    // no se confirma nada. Solo se deja la marca para que el estudio lo vea.
+    if (!signOk) {
+      console.warn("TPV notify: firma no válida, aviso ignorado:", order);
+      await ref.update({
+        firmaValida: false,
+        firmaError: "Firma Redsys no válida: aviso ignorado",
+        avisoRechazadoEn: timestamp,
+      });
+      return res.status(403).send("BAD");
+    }
+
     const precioTotal = Number(pedido?.precioTotal ?? 0);
     const amountCentsPedido = Math.round(precioTotal * 100);
     const amountMatches =
       amountCentsRedsys !== null && amountCentsPedido === amountCentsRedsys;
 
-    const aceptarPagoTemporalmente = paidOk && amountMatches;
+    const aceptarPago = paidOk && amountMatches;
 
-if (aceptarPagoTemporalmente) {
+if (aceptarPago) {
    await ref.update({
   estadoPago: "pagado",
   procesado: false,
-  firmaValida: signOk,
-  firmaError: signOk ? "" : "Firma Redsys no validada, aceptado temporalmente por importe y respuesta correctos",
+  firmaValida: true,
+  firmaError: "",
   responseCode: String(decoded.Ds_Response ?? decoded.DS_RESPONSE ?? ""),
   amountCentsRedsys,
   amountCentsPedido,
@@ -553,6 +568,20 @@ if (pedido?.tipo === "pago_grupo_individual") {
         console.log("Tarjeta regalo guardada en /tarjetasRegalo:", {
           order,
           codigo: tarjetaGuardada.codigo,
+          plazas: tarjetaGuardada.plazas,
+        });
+
+        await enviarCorreoReserva({
+          tipo: "tarjeta_regalo",
+          reserva: tarjetaGuardada,
+          uid: pedido.uid || "",
+          orderId: order,
+        });
+
+        // Evita generar otro código si Redsys repite la notificación
+        await ref.update({
+          procesado: true,
+          actualizadoEn: timestamp,
         });
 
         return res.status(200).send("OK");
@@ -568,6 +597,27 @@ if (pedido?.tipo === "pago_grupo_individual") {
         });
 
         if (bonoGuardado) {
+          // La primera sesión del bono se reservó con la compra: se confirma
+          // ahora que está pagado (si algo falla, Redsys reintenta el aviso)
+          const primeraSesion = await confirmarPrimeraSesionBono({
+            orderId: order,
+            uid: pedido.uid,
+            paidAt: timestamp,
+            rutas: rutasDelPedido(pedido),
+          });
+
+          console.log("Primera sesión del bono:", {
+            order,
+            confirmada: !!primeraSesion,
+          });
+
+          await enviarCorreoReserva({
+            tipo: "bono",
+            reserva: bonoGuardado,
+            uid: pedido.uid || "",
+            orderId: order,
+          });
+
           await ref.update({
             procesado: true,
             actualizadoEn: timestamp,
@@ -576,13 +626,19 @@ if (pedido?.tipo === "pago_grupo_individual") {
 
         return res.status(200).send("OK");
       }
-      let reservaActualizada = await marcarReservaComoPagadaPorOrderId(order, timestamp);
+      let reservaActualizada = await marcarReservaComoPagadaPorOrderId(
+        order,
+        timestamp,
+        rutasDelPedido(pedido)
+      );
 
-if (!reservaActualizada) {
-  reservaActualizada = await marcarReservaGrupoComoPagada(order, timestamp);
+if (!reservaActualizada && grupoDelPedido(pedido) !== "") {
+  reservaActualizada = await marcarReservaGrupoComoPagada(order, timestamp, grupoDelPedido(pedido));
 }
 
      if (reservaActualizada) {
+  reservaActualizada.codigoReserva = await asignarCodigoReserva(reservaActualizada);
+
   await guardarReservaEnPerfilUsuario({
     ...reservaActualizada,
     uid: reservaActualizada.uid || pedido.uid || "",
@@ -618,6 +674,15 @@ if (!reservaActualizada) {
   });
 }
 
+     if (reservaActualizada) {
+  // Correo de confirmación (una sola vez por pedido; si falla no afecta al pago)
+  await enviarCorreoReserva({
+    reserva: { ...reservaActualizada, clase: reservaActualizada.clase || pedido.clase || "" },
+    uid: reservaActualizada.uid || pedido.uid || "",
+    orderId: order,
+  });
+}
+
      console.log("Reserva actualizada tras webhook:", {
   order,
   reservaActualizada: !!reservaActualizada,
@@ -636,8 +701,8 @@ return res.status(200).send("OK");
     await ref.update({
       estadoPago: "rechazado",
       procesado: false,
-      firmaValida: signOk,
-      firmaError: signOk ? "" : "Firma Redsys no validada",
+      firmaValida: true,
+      firmaError: "",
       responseCode: String(decoded.Ds_Response ?? decoded.DS_RESPONSE ?? ""),
       amountCentsRedsys,
       amountCentsPedido,

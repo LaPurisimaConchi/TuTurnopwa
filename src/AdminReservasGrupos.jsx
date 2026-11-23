@@ -1,8 +1,21 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ref, get, push, remove, set, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { nombreAdminActual } from "./utils/nombreAdmin";
 import BotonVolver from "./BotonVolver";
+import CambioFechaGrupoAdmin from "./components/CambioFechaGrupoAdmin";
+import { useConfigEspacio } from "./configuracionEspacio";
 import { useLocation } from "react-router-dom";
+
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
+import { calcularDiasAbiertos } from "./utils/diasAbiertos";
+import Icono from "./components/Icono";
+import "./AdminDashboard.css";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import { preguntar } from "./utils/avisos";
+
+const grupoCancelado = (r) => r.cancelada === true || r.estado === "Cancelada";
+const grupoPagado = (r) => String(r.estadoPago || "").toLowerCase() === "pagado";
 
 const AdminReservasGrupos = () => {
   const location = useLocation();
@@ -18,8 +31,12 @@ const [telefonoManual, setTelefonoManual] = useState({});
 const [metodoManual, setMetodoManual] = useState({});
 const [guardandoManual, setGuardandoManual] = useState({});
 const [editandoFechaGrupo, setEditandoFechaGrupo] = useState({});
-const [fechaGrupoEditada, setFechaGrupoEditada] = useState({});
 const [guardandoFechaGrupo, setGuardandoFechaGrupo] = useState({});
+// Bloqueos y ocupación para el calendario del cambio de fecha (se leen al abrirlo)
+const [contextoCambio, setContextoCambio] = useState(null);
+const { config: configEspacio } = useConfigEspacio();
+const [metodoPagoGrupo, setMetodoPagoGrupo] = useState({});
+const [guardandoEstadoGrupo, setGuardandoEstadoGrupo] = useState({});
 const [editandoPlazoPago, setEditandoPlazoPago] = useState({});
 const [plazoPagoEditado, setPlazoPagoEditado] = useState({});
 const [guardandoPlazoPago, setGuardandoPlazoPago] = useState({});
@@ -88,9 +105,10 @@ useEffect(() => {
   useEffect(() => {
     const cargarReservas = async () => {
       try {
-        const [reservasSnap, notasSnap] = await Promise.all([
+        const [reservasSnap, notasSnap, usuariosSnap] = await Promise.all([
           get(ref(dbRealtime, "reservasGrupos")),
           get(ref(dbRealtime, "reservasNotas")),
+          get(ref(dbRealtime, "usuarios")),
         ]);
 
         const mapaNotas = {};
@@ -137,6 +155,7 @@ useEffect(() => {
             datos.push({
               id: reservaSnap.key,
               ...r,
+              invitado: r.uid ? usuariosSnap.child(r.uid).child("invitado").val() === true : false,
               notasInternas: mapaNotas[r.orderId] || [],
             });
           });
@@ -223,7 +242,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (orderId, notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 
@@ -399,61 +418,182 @@ const registrarPagoManual = async (r) => {
     }));
   }
 };
+// Cambios en el grupo y una nota interna que los explica, en una sola escritura
+const actualizarGrupo = async (r, campos, textoNota) => {
+  const actualizacion = {};
+  Object.entries(campos).forEach(([campo, valor]) => {
+    actualizacion[`reservasGrupos/${r.id}/${campo}`] = valor;
+  });
+
+  let nota = null;
+  if (r.orderId && textoNota) {
+    const notaRef = push(ref(dbRealtime, `reservasNotas/${r.orderId}/notasInternas`));
+    nota = { id: notaRef.key, texto: textoNota, fecha: new Date().toLocaleString("es-ES") };
+    actualizacion[`reservasNotas/${r.orderId}/notasInternas/${nota.id}`] = {
+      texto: nota.texto,
+      fecha: nota.fecha,
+    };
+  }
+
+  // La copia del grupo en el perfil de la persona (si la tiene) debe cambiar igual:
+  // si no, un grupo cancelado o movido seguiría activo en «Mis reservas».
+  if (r.uid && r.orderId) {
+    const lista = await get(ref(dbRealtime, `usuarios/${r.uid}/listaReservas`));
+    lista.forEach((item) => {
+      if (item.val()?.orderId !== r.orderId) return;
+      Object.entries(campos).forEach(([campo, valor]) => {
+        actualizacion[`usuarios/${r.uid}/listaReservas/${item.key}/${campo}`] = valor;
+      });
+    });
+  }
+
+  await update(ref(dbRealtime), actualizacion);
+
+  setReservas((prev) =>
+    prev.map((grupo) =>
+      grupo.id === r.id
+        ? {
+            ...grupo,
+            ...campos,
+            ...(nota ? { notasInternas: [...(grupo.notasInternas || []), nota] } : {}),
+          }
+        : grupo
+    )
+  );
+};
+
 const cancelarGrupoManual = async (r) => {
-  const confirmar = window.confirm(
-    "¿Seguro que quieres cancelar esta reserva de grupo? El enlace de pago dejará de funcionar."
+  const pagado = grupoPagado(r);
+  const confirmar = await preguntar(
+    pagado
+      ? "¿Seguro que quieres cancelar esta reserva de grupo? Está pagada: la cancelación no devuelve el dinero y sus plazas quedan libres."
+      : "¿Seguro que quieres cancelar esta reserva de grupo? Sus plazas quedan libres y, si tenía enlace de pago, dejará de funcionar."
   );
 
   if (!confirmar) return;
 
   try {
-    const ahoraISO = new Date().toISOString();
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: true }));
+    const admin = nombreAdminActual();
 
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/estado`), "Cancelada");
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/estadoPago`), "cancelado");
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/cancelada`), true);
-    await set(ref(dbRealtime, `reservasGrupos/${r.id}/canceladaEn`), ahoraISO);
-    await set(
-      ref(dbRealtime, `reservasGrupos/${r.id}/motivoCancelacion`),
-      "Cancelada manualmente desde admin"
+    await actualizarGrupo(
+      r,
+      {
+        estado: "Cancelada",
+        // Una reserva pagada sigue constando como pagada (no hay devolución)
+        estadoPago: pagado ? r.estadoPago : "cancelado",
+        cancelada: true,
+        canceladaEn: new Date().toISOString(),
+        canceladaPor: admin,
+        motivoCancelacion: `Cancelada desde el panel por ${admin}`,
+      },
+      `Reserva de grupo cancelada por ${admin}.`
     );
-
-    setReservas((prev) =>
-      prev.map((grupo) =>
-        grupo.id === r.id
-          ? {
-              ...grupo,
-              estado: "Cancelada",
-              estadoPago: "cancelado",
-              cancelada: true,
-              canceladaEn: ahoraISO,
-              motivoCancelacion: "Cancelada manualmente desde admin",
-            }
-          : grupo
-      )
-    );
+    setContextoCambio(null);
 
     alert("Reserva de grupo cancelada correctamente.");
   } catch (error) {
     console.error("Error al cancelar grupo:", error);
     alert("No se pudo cancelar la reserva de grupo.");
+  } finally {
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: false }));
   }
 };
 
-const guardarFechaGrupo = async (r) => {
-  const nuevaFecha = fechaGrupoEditada[r.id];
+// Grupo de pago completo cobrado fuera de la web (efectivo, Bizum, transferencia)
+const marcarGrupoPagado = async (r) => {
+  const metodo = metodoPagoGrupo[r.id] || "";
+  if (!metodo) {
+    alert("Elige cómo se ha pagado.");
+    return;
+  }
+
+  const confirmar = await preguntar(
+    `¿Marcar este grupo como pagado (${metodo}, ${Number(r.precioTotal || 0)}€)? La reserva queda confirmada y ocupa sus plazas.`
+  );
+  if (!confirmar) return;
+
+  try {
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: true }));
+    const admin = nombreAdminActual();
+
+    await actualizarGrupo(
+      r,
+      {
+        estado: "Confirmada",
+        estadoPago: "pagado",
+        pagoManual: true,
+        metodoPagoManual: metodo,
+        pagadoManualEn: new Date().toISOString(),
+        pagadoManualPor: admin,
+      },
+      `Grupo marcado como pagado (${metodo}) por ${admin}.`
+    );
+    setContextoCambio(null);
+
+    alert("Grupo marcado como pagado.");
+  } catch (error) {
+    console.error("Error al marcar el grupo como pagado:", error);
+    alert("No se pudo marcar el grupo como pagado.");
+  } finally {
+    setGuardandoEstadoGrupo((prev) => ({ ...prev, [r.id]: false }));
+  }
+};
+
+// Bloqueos y ocupación que necesita el calendario del cambio de fecha
+const cargarContextoCambio = async () => {
+  setContextoCambio({ cargando: true });
+  try {
+    const [bloqueosSnap, reservasSnap, gruposSnap, clasesSnap, habilitadasSnap] = await Promise.all([
+      get(ref(dbRealtime, "bloqueosFechas")),
+      get(ref(dbRealtime, "reservas")),
+      get(ref(dbRealtime, "reservasGrupos")),
+      get(ref(dbRealtime, "clases")),
+      get(ref(dbRealtime, "fechasHabilitadas")),
+    ]);
+    const fechasHabilitadas = habilitadasSnap.val() || {};
+    const clases = clasesSnap.val() || {};
+    setContextoCambio({
+      cargando: false,
+      bloqueos: bloqueosSnap.val() || {},
+      reservas: reservasSnap,
+      grupos: gruposSnap,
+      clases,
+      fechasHabilitadas,
+      diasAbiertos: calcularDiasAbiertos({
+        reservas: reservasSnap,
+        grupos: gruposSnap,
+        clases,
+        fechasHabilitadas,
+        desde: hoyMadrid(),
+      }),
+    });
+  } catch (error) {
+    console.error("Error al cargar el calendario de grupos:", error);
+    setContextoCambio({ cargando: false, error: "No se ha podido cargar el calendario. Inténtalo de nuevo." });
+  }
+};
+
+const abrirCambioFecha = (r) => {
+  setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: true }));
+  if (!contextoCambio || contextoCambio.error) cargarContextoCambio();
+};
+
+const guardarFechaGrupo = async (r, nuevaFecha, nuevoTurno) => {
+  const turnoFinal = nuevoTurno || r.turno || "";
 
   if (
     !nuevaFecha ||
-    nuevaFecha === r.fecha ||
-    r.cancelada ||
-    r.estado === "Cancelada"
+    (nuevaFecha === r.fecha && turnoFinal === r.turno) ||
+    grupoCancelado(r)
   ) {
     return;
   }
 
-  const confirmar = window.confirm(
-    `¿Seguro que quieres cambiar la fecha de este grupo del ${r.fecha || "—"} al ${nuevaFecha}?`
+  const antes = `${fechaDMA(r.fecha) || "—"} · ${r.turno || "—"}`;
+  const ahoraTexto = `${fechaDMA(nuevaFecha)} · ${turnoFinal || "—"}`;
+  const confirmar = await preguntar(
+    `¿Seguro que quieres cambiar este grupo del ${antes} al ${ahoraTexto}?`
   );
 
   if (!confirmar) return;
@@ -462,65 +602,29 @@ const guardarFechaGrupo = async (r) => {
     setGuardandoFechaGrupo((prev) => ({ ...prev, [r.id]: true }));
 
     const ahora = new Date();
-    const fechaCambio = ahora.toLocaleString("es-ES");
-    const actualizacion = {
-      [`reservasGrupos/${r.id}/fecha`]: nuevaFecha,
-      [`reservasGrupos/${r.id}/fechaAnterior`]: r.fecha || "",
-      [`reservasGrupos/${r.id}/fechaOriginal`]: r.fechaOriginal || r.fecha || "",
-      [`reservasGrupos/${r.id}/ultimaFechaAnterior`]: r.fecha || "",
-      [`reservasGrupos/${r.id}/fechaReprogramada`]: nuevaFecha,
-      [`reservasGrupos/${r.id}/reprogramada`]: true,
-      [`reservasGrupos/${r.id}/reprogramadaEn`]: fechaCambio,
-      [`reservasGrupos/${r.id}/reprogramadaPor`]: "Berto",
-      [`reservasGrupos/${r.id}/actualizadoEn`]: ahora.toISOString(),
-    };
-    let notaInterna;
-    let notaInternaId;
+    const admin = nombreAdminActual();
 
-    if (r.orderId) {
-      notaInterna = {
-        texto: `Fecha de reserva de grupo cambiada por Berto. Antes: ${r.fecha || "—"}. Ahora: ${nuevaFecha}.`,
-        fecha: fechaCambio,
-      };
-      const nuevaNotaRef = push(
-        ref(dbRealtime, `reservasNotas/${r.orderId}/notasInternas`)
-      );
-      notaInternaId = nuevaNotaRef.key;
-      actualizacion[
-        `reservasNotas/${r.orderId}/notasInternas/${notaInternaId}`
-      ] = notaInterna;
-    }
-
-    await update(ref(dbRealtime), actualizacion);
-
-    setReservas((prev) =>
-      prev.map((grupo) =>
-        grupo.id === r.id
-          ? {
-              ...grupo,
-              fecha: nuevaFecha,
-              fechaAnterior: r.fecha || "",
-              fechaOriginal: r.fechaOriginal || r.fecha || "",
-              ultimaFechaAnterior: r.fecha || "",
-              fechaReprogramada: nuevaFecha,
-              reprogramada: true,
-              reprogramadaEn: fechaCambio,
-              reprogramadaPor: "Berto",
-              actualizadoEn: ahora.toISOString(),
-              ...(notaInterna
-                ? {
-                    notasInternas: [
-                      ...(grupo.notasInternas || []),
-                      { id: notaInternaId, ...notaInterna },
-                    ],
-                  }
-                : {}),
-            }
-          : grupo
-      )
+    await actualizarGrupo(
+      r,
+      {
+        fecha: nuevaFecha,
+        turno: turnoFinal,
+        fechaAnterior: r.fecha || "",
+        turnoAnterior: r.turno || "",
+        fechaOriginal: r.fechaOriginal || r.fecha || "",
+        turnoOriginal: r.turnoOriginal || r.turno || "",
+        ultimaFechaAnterior: r.fecha || "",
+        fechaReprogramada: nuevaFecha,
+        reprogramada: true,
+        reprogramadaEn: ahora.toLocaleString("es-ES"),
+        reprogramadaPor: admin,
+        actualizadoEn: ahora.toISOString(),
+      },
+      `Fecha de reserva de grupo cambiada por ${admin}. Antes: ${antes}. Ahora: ${ahoraTexto}.`
     );
+    // La ocupación ha cambiado: el calendario se vuelve a leer la próxima vez
+    setContextoCambio(null);
     setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: false }));
-    setFechaGrupoEditada((prev) => ({ ...prev, [r.id]: "" }));
     alert("Fecha de la reserva de grupo actualizada correctamente.");
   } catch (error) {
     console.error("Error al cambiar la fecha de la reserva de grupo:", error);
@@ -549,7 +653,7 @@ const guardarPlazoPago = async (r) => {
     return;
   }
 
-  const confirmar = window.confirm(
+  const confirmar = await preguntar(
     `¿Quieres ampliar el plazo de pago hasta ${nuevaFechaLimite.toLocaleString("es-ES")}?`
   );
   if (!confirmar) return;
@@ -566,7 +670,7 @@ const guardarPlazoPago = async (r) => {
         r.fechaLimitePago || "",
       [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaEn`]:
         ahora.toISOString(),
-      [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaPor`]: "Berto",
+      [`reservasGrupos/${r.id}/fechaLimitePagoActualizadaPor`]: nombreAdminActual(),
     };
     if (reactivarPorCaducidad) {
       actualizacion[`reservasGrupos/${r.id}/estado`] =
@@ -582,7 +686,7 @@ const guardarPlazoPago = async (r) => {
 
     if (r.orderId) {
       notaInterna = {
-        texto: `${reactivarPorCaducidad ? "Reserva reactivada y plazo de pago ampliado" : "Plazo de pago ampliado"} por Berto. Antes: ${
+        texto: `${reactivarPorCaducidad ? "Reserva reactivada y plazo de pago ampliado" : "Plazo de pago ampliado"} por ${nombreAdminActual()}. Antes: ${
           r.fechaLimitePago
             ? new Date(r.fechaLimitePago).toLocaleString("es-ES")
             : "sin fecha"
@@ -608,7 +712,7 @@ const guardarPlazoPago = async (r) => {
               fechaLimitePago: nuevaFechaISO,
               fechaLimitePagoAnterior: r.fechaLimitePago || "",
               fechaLimitePagoActualizadaEn: ahora.toISOString(),
-              fechaLimitePagoActualizadaPor: "Berto",
+              fechaLimitePagoActualizadaPor: nombreAdminActual(),
               ...(reactivarPorCaducidad
                 ? {
                     estado: "pendiente_pago_individual",
@@ -673,8 +777,10 @@ const guardarPlazoPago = async (r) => {
         (r.estadoPago || "").toLowerCase() === "pendiente"
     ).length;
 
+    // Una pagada que luego se cancela sigue en los ingresos (no hay devolución), pero
+    // no cuenta como reserva pagada en curso
     const pagadas = reservasFiltradas.filter(
-      (r) => (r.estadoPago || "").toLowerCase() === "pagado"
+      (r) => (r.estadoPago || "").toLowerCase() === "pagado" && !grupoCancelado(r)
     ).length;
 
     const ingresosEstimados = reservasFiltradas.reduce((acc, r) => {
@@ -752,26 +858,23 @@ const guardarPlazoPago = async (r) => {
               </button>
             </div>
 
-            <div style={styles.gridResumen}>
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Total reservas grupo</p>
-                <p style={styles.cardValue}>{resumen.totalReservas}</p>
-              </div>
-
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Pendientes</p>
-                <p style={styles.cardValue}>{resumen.pendientes}</p>
-              </div>
-
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Pagadas</p>
-                <p style={styles.cardValue}>{resumen.pagadas}</p>
-              </div>
-
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Ingresos estimados grupo</p>
-                <p style={styles.cardValue}>{resumen.ingresosEstimados}€</p>
-              </div>
+            <div className="pa-grid">
+              {[
+                ["Total reservas grupo", resumen.totalReservas, "usuarios", "terracota"],
+                ["Pendientes", resumen.pendientes, "historial", "mostaza"],
+                ["Pagadas", resumen.pagadas, "confirmado", "verde"],
+                ["Ingresos estimados grupo", `${resumen.ingresosEstimados}€`, "euro", "azul"],
+              ].map(([etiqueta, valor, icono, tono]) => (
+                <div key={etiqueta} className="pa-card">
+                  <div className="pa-card-cabecera">
+                    <span aria-hidden="true" className={`pa-card-icono pa-card-icono--${tono}`}>
+                      <Icono nombre={icono} tamano={24} />
+                    </span>
+                    <p className="pa-card-label">{etiqueta}</p>
+                  </div>
+                  <p className="pa-card-valor">{valor}</p>
+                </div>
+              ))}
             </div>
 
             {reservasFiltradas.length === 0 ? (
@@ -796,89 +899,41 @@ const guardarPlazoPago = async (r) => {
                         </h2>
                         <div style={styles.fechaGrupo}>
                           <p style={styles.cardSubtitulo}>
-                            {r.fecha || "—"} · {r.turno || "—"}
+                            {fechaDMA(r.fecha) || "—"} · {r.turno || "—"}
                           </p>
-                          {!editandoFechaGrupo[r.id] &&
-                            !r.cancelada &&
-                            r.estado !== "Cancelada" && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setFechaGrupoEditada((prev) => ({
-                                    ...prev,
-                                    [r.id]: r.fecha || "",
-                                  }));
-                                  setEditandoFechaGrupo((prev) => ({
-                                    ...prev,
-                                    [r.id]: true,
-                                  }));
-                                }}
-                                style={styles.botonCambiarFecha}
-                              >
-                                Cambiar fecha
-                              </button>
-                            )}
+                          {!editandoFechaGrupo[r.id] && !grupoCancelado(r) && (
+                            <button
+                              type="button"
+                              onClick={() => abrirCambioFecha(r)}
+                              style={styles.botonCambiarFecha}
+                            >
+                              Cambiar fecha
+                            </button>
+                          )}
                         </div>
-                        {editandoFechaGrupo[r.id] && (
-                          <div style={styles.editarFechaGrupo}>
-                            <label style={styles.label} htmlFor={`fecha-grupo-${r.id}`}>
-                              Nueva fecha
-                            </label>
-                            <input
-                              id={`fecha-grupo-${r.id}`}
-                              type="date"
-                              value={fechaGrupoEditada[r.id] || ""}
-                              onChange={(event) =>
-                                setFechaGrupoEditada((prev) => ({
-                                  ...prev,
-                                  [r.id]: event.target.value,
-                                }))
-                              }
-                              style={styles.input}
-                              disabled={guardandoFechaGrupo[r.id]}
-                            />
-                            <div style={styles.accionesFechaGrupo}>
-                              <button
-                                type="button"
-                                onClick={() => guardarFechaGrupo(r)}
-                                style={styles.botonGuardar}
-                                disabled={
-                                  guardandoFechaGrupo[r.id] ||
-                                  !fechaGrupoEditada[r.id] ||
-                                  fechaGrupoEditada[r.id] === r.fecha
-                                }
-                              >
-                                {guardandoFechaGrupo[r.id]
-                                  ? "Guardando..."
-                                  : "Guardar fecha"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditandoFechaGrupo((prev) => ({
-                                    ...prev,
-                                    [r.id]: false,
-                                  }));
-                                  setFechaGrupoEditada((prev) => ({
-                                    ...prev,
-                                    [r.id]: "",
-                                  }));
-                                }}
-                                style={styles.botonSecundario}
-                                disabled={guardandoFechaGrupo[r.id]}
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       <div style={styles.badges}>
                         <span style={styles.badgeEstado}>{r.estado || "—"}</span>
-                        <span style={styles.badgePago}>{r.estadoPago || "—"}</span>
+                        {/* "Pendiente" de reserva y de pago a la vez: se muestra una sola vez */}
+                        {String(r.estadoPago || "").toLowerCase() !== String(r.estado || "").toLowerCase() && (
+                          <span style={styles.badgePago}>Pago: {r.estadoPago || "—"}</span>
+                        )}
                       </div>
                     </div>
+
+                    {editandoFechaGrupo[r.id] && !grupoCancelado(r) && (
+                      <CambioFechaGrupoAdmin
+                        grupo={r}
+                        contexto={contextoCambio}
+                        config={configEspacio}
+                        guardando={!!guardandoFechaGrupo[r.id]}
+                        onGuardar={(fecha, turno) => guardarFechaGrupo(r, fecha, turno)}
+                        onCancelar={() =>
+                          setEditandoFechaGrupo((prev) => ({ ...prev, [r.id]: false }))
+                        }
+                      />
+                    )}
 
                     <div style={styles.infoGrid}>
                       <div style={styles.infoBox}>
@@ -1026,18 +1081,6 @@ const guardarPlazoPago = async (r) => {
       Copiar enlace
     </button>
 
-    {r.estadoPago !== "pagado" && r.estado !== "Cancelada" && (
-      <button
-        type="button"
-        onClick={() => cancelarGrupoManual(r)}
-        style={{
-  ...styles.btnCancelarGrupo,
-  ...(isMobile ? styles.btnCancelarGrupoMobile : {}),
-}}
-      >
-        Cancelar grupo
-      </button>
-    )}
   </div>
 )}
                       </div>
@@ -1049,7 +1092,7 @@ const guardarPlazoPago = async (r) => {
     </p>
   )}
 
-  <p><strong>Nombre:</strong> {r.nombreReserva}</p>
+  <p><strong>Nombre:</strong> {r.nombreReserva}<EtiquetaInvitado invitado={r.invitado} /></p>
   <p><strong>Teléfono:</strong> {r.telefono}</p>
   <p><strong>Email:</strong> {r.email || "—"}</p>
   {r.telefono && (
@@ -1064,7 +1107,66 @@ const guardarPlazoPago = async (r) => {
 )}
 </div>
                     </div>
-                    {r.modoPago === "individual" && r.estadoPago !== "pagado" && (
+
+                    {grupoCancelado(r) ? (
+                      <div style={styles.notasBox}>
+                        <strong>Reserva cancelada</strong>
+                        <p style={styles.textoBloque}>
+                          {r.motivoCancelacion || "Cancelada."}
+                          {r.canceladaEn
+                            ? ` · ${new Date(r.canceladaEn).toLocaleString("es-ES")}`
+                            : ""}
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={styles.notasBox}>
+                        <strong>Gestión del grupo</strong>
+                        {r.modoPago !== "individual" && !grupoPagado(r) && (
+                          <>
+                            <p style={styles.textoBloque}>
+                              Si el grupo ha pagado fuera de la web, márcalo como pagado para confirmarlo.
+                            </p>
+                            <div style={styles.accionesFechaGrupo}>
+                              <select
+                                value={metodoPagoGrupo[r.id] || ""}
+                                onChange={(e) =>
+                                  setMetodoPagoGrupo((prev) => ({ ...prev, [r.id]: e.target.value }))
+                                }
+                                style={{ ...styles.input, width: "auto" }}
+                                aria-label="Cómo se ha pagado"
+                              >
+                                <option value="">Cómo se ha pagado</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="bizum">Bizum</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="tarjeta en el estudio">Tarjeta en el estudio</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => marcarGrupoPagado(r)}
+                                style={styles.botonGuardar}
+                                disabled={guardandoEstadoGrupo[r.id] || !metodoPagoGrupo[r.id]}
+                              >
+                                Marcar como pagado
+                              </button>
+                            </div>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => cancelarGrupoManual(r)}
+                          style={{
+                            ...styles.btnCancelarGrupo,
+                            ...(isMobile ? styles.btnCancelarGrupoMobile : {}),
+                          }}
+                          disabled={guardandoEstadoGrupo[r.id]}
+                        >
+                          Cancelar grupo
+                        </button>
+                      </div>
+                    )}
+
+                    {r.modoPago === "individual" && r.estadoPago !== "pagado" && !grupoCancelado(r) && (
   <div style={styles.notasBox}>
     <strong>Registrar pago manual</strong>
 
@@ -1246,8 +1348,6 @@ const guardarPlazoPago = async (r) => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -1285,11 +1385,11 @@ btnCancelarGrupoMobile: {
     textAlign: "center",
     fontSize: "2rem",
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 0,
   },
@@ -1303,8 +1403,8 @@ btnCancelarGrupoMobile: {
     padding: 20,
   },
   filtrosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 18,
@@ -1326,23 +1426,23 @@ btnCancelarGrupoMobile: {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonSecundario: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   pagoCompletado: {
   backgroundColor: "#eefaf0",
@@ -1383,8 +1483,8 @@ pagoFallido: {
   fontSize: "0.85rem",
 },
   btnCopiar: {
-  backgroundColor: "#f4c542",
-  color: "#5c3c00",
+  backgroundColor: "#b36a4a",
+  color: "#ffffff",
   border: "none",
   borderRadius: 20,
   padding: "8px 14px",
@@ -1395,7 +1495,7 @@ pagoFallido: {
 progresoWrapper: {
   width: "100%",
   height: 10,
-  backgroundColor: "#f0e5cf",
+  backgroundColor: "#eadfd2",
   borderRadius: 999,
   overflow: "hidden",
   marginTop: 8,
@@ -1404,14 +1504,14 @@ progresoWrapper: {
 
 progresoBarra: {
   height: "100%",
-  backgroundColor: "#f4c542",
+  backgroundColor: "#b36a4a",
   borderRadius: 999,
 },
 
 textoProgreso: {
   margin: "0 0 8px 0",
   fontSize: "0.85rem",
-  color: "#7a6331",
+  color: "#3f3128",
   fontWeight: 600,
 },
   gridResumen: {
@@ -1421,8 +1521,8 @@ textoProgreso: {
     marginBottom: 28,
   },
   cardResumen: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
@@ -1431,12 +1531,12 @@ textoProgreso: {
   marginTop: 10,
   padding: 10,
   borderTop: "1px solid #eee",
-  backgroundColor: "#fffaf0",
+  backgroundColor: "#fdfaf5",
   borderRadius: 10,
 },
   cardLabel: {
     margin: 0,
-    color: "#7a6331",
+    color: "#3f3128",
     fontWeight: 600,
     fontSize: "0.95rem",
   },
@@ -1452,8 +1552,8 @@ textoProgreso: {
     gap: 20,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 18,
     padding: 18,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
@@ -1473,12 +1573,12 @@ textoProgreso: {
   },
   cardTitulo: {
     margin: 0,
-    color: "#3d3126",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   cardSubtitulo: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.95rem",
   },
   fechaGrupo: {
@@ -1490,12 +1590,12 @@ textoProgreso: {
   botonCambiarFecha: {
     marginTop: 6,
     padding: "6px 10px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontSize: "0.85rem",
   },
   editarFechaGrupo: {
@@ -1516,12 +1616,12 @@ textoProgreso: {
     flexWrap: "wrap",
   },
   badgeEstado: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 999,
     padding: "6px 10px",
     fontSize: "0.85rem",
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontWeight: 600,
   },
   badgePago: {
@@ -1540,8 +1640,8 @@ textoProgreso: {
     marginBottom: 14,
   },
   infoBox: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 14,
     padding: 14,
     color: "#333",
@@ -1601,12 +1701,12 @@ textoProgreso: {
   botonGuardar: {
     marginTop: 10,
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   botonEliminar: {
     padding: "8px 12px",

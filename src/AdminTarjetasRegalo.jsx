@@ -3,6 +3,12 @@ import { ref, get } from "firebase/database";
 import { useNavigate } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import Icono from "./components/Icono";
+import "./AdminDashboard.css";
+import { formatearEuros } from "./utils/estadisticasAdmin";
+import GestionPlantillasTarjetaRegalo from "./components/GestionPlantillasTarjetaRegalo";
+import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 const AdminTarjetasRegalo = () => {
   const navigate = useNavigate();
@@ -31,9 +37,10 @@ const AdminTarjetasRegalo = () => {
       try {
         const datosTarjetas = [];
 
-        const [usuariosSnap, notasSnap] = await Promise.all([
+        const [usuariosSnap, notasSnap, tarjetasRaizSnap] = await Promise.all([
           get(ref(dbRealtime, "usuarios")),
           get(ref(dbRealtime, "reservasNotas")),
+          get(ref(dbRealtime, "tarjetasRegalo")),
         ]);
 
         const mapaNotas = {};
@@ -55,51 +62,61 @@ const AdminTarjetasRegalo = () => {
           });
         }
 
-        if (usuariosSnap.exists()) {
-          usuariosSnap.forEach((userSnap) => {
-            const uid = userSnap.key;
-            const userData = userSnap.val() || {};
-            const nombreUsuario = userData.nombre || "";
-            const emailUsuario = userData.email || "";
+        const usuarios = usuariosSnap.exists() ? usuariosSnap.val() || {} : {};
+        const yaListadas = new Set();
 
-            const tarjetasUsuario = userData.tarjetasRegalo || {};
+        const agregar = (tarjetaId, tarjeta, uid) => {
+          const t = tarjeta || {};
+          const userData = usuarios[uid] || {};
+          const orderIdReal = t.orderId || tarjetaId;
 
-            Object.entries(tarjetasUsuario).forEach(([tarjetaId, tarjeta]) => {
-              const t = tarjeta || {};
-              const orderIdReal = t.orderId || tarjetaId;
+          yaListadas.add(String(tarjetaId));
+          datosTarjetas.push({
+            id: tarjetaId,
+            tipoRegistro: "tarjeta_regalo",
+            claseId: "tarjeta_regalo",
+            clase: t.clase || "Tarjeta regalo",
+            fecha:
+              typeof t.fechaCompra === "string" && t.fechaCompra.length >= 10
+                ? t.fechaCompra.slice(0, 10)
+                : "—",
+            turno: "—",
+            metodo: t.codigo || "—",
+            plazas: Number(t.plazas || 1),
+            estado: t.estadoCanje || "pendiente",
+            estadoPago: t.estadoPago || "—",
+            precioTotal: Number(t.precioTotal || 0),
+            uid: uid,
+            invitado: userData.invitado === true,
+            orderId: orderIdReal,
+            procesado: t.procesado ?? false,
+            codigo: t.codigo || "",
+            nombreDestinatario: t.nombreDestinatario || "",
+            emailDestinatario: t.emailDestinatario || "",
+            mensajePersonalizado: t.mensajePersonalizado || "",
+            subtipo: t.subtipo || "",
+            tipo: t.tipo || "",
+            numeroClases: Number(t.numeroClases || 0),
+            nombreUsuario: userData.nombre || "",
+            emailUsuario: userData.email || "",
+            notasInternas: mapaNotas[orderIdReal] || 0,
+          });
+        };
 
-              datosTarjetas.push({
-                id: tarjetaId,
-                tipoRegistro: "tarjeta_regalo",
-                claseId: "tarjeta_regalo",
-                clase: t.clase || "Tarjeta regalo",
-                fecha:
-                  typeof t.fechaCompra === "string" && t.fechaCompra.length >= 10
-                    ? t.fechaCompra.slice(0, 10)
-                    : "—",
-                turno: "—",
-                metodo: t.codigo || "—",
-                plazas: Number(t.plazas || 1),
-                estado: t.estadoCanje || "pendiente",
-                estadoPago: t.estadoPago || "—",
-                precioTotal: Number(t.precioTotal || 0),
-                uid: uid,
-                orderId: orderIdReal,
-                procesado: t.procesado ?? false,
-                codigo: t.codigo || "",
-                nombreDestinatario: t.nombreDestinatario || "",
-                emailDestinatario: t.emailDestinatario || "",
-                mensajePersonalizado: t.mensajePersonalizado || "",
-                subtipo: t.subtipo || "",
-                tipo: t.tipo || "",
-                numeroClases: Number(t.numeroClases || 0),
-                nombreUsuario,
-                emailUsuario,
-                notasInternas: mapaNotas[orderIdReal] || 0,
-              });
-            });
+        // La lista de verdad es /tarjetasRegalo (la copia de cada comprador puede faltar
+        // o ir por detrás); las copias que no estén allí (muy antiguas) se añaden después
+        if (tarjetasRaizSnap.exists()) {
+          tarjetasRaizSnap.forEach((tarjetaSnap) => {
+            const t = tarjetaSnap.val() || {};
+            agregar(tarjetaSnap.key, t, String(t.uidComprador || ""));
           });
         }
+
+        Object.entries(usuarios).forEach(([uid, userData]) => {
+          Object.entries(userData?.tarjetasRegalo || {}).forEach(([tarjetaId, tarjeta]) => {
+            if (!yaListadas.has(String(tarjetaId))) agregar(tarjetaId, tarjeta, uid);
+          });
+        });
 
         datosTarjetas.sort((a, b) => {
           const fechaA = new Date(a.fecha === "—" ? 0 : `${a.fecha}T00:00:00`);
@@ -180,40 +197,28 @@ const AdminTarjetasRegalo = () => {
           Vista general de todas las tarjetas regalo compradas.
         </p>
 
-        <div
-          style={{
-            ...styles.statsGrid,
-            ...(isMobile ? styles.statsGridMobile : {}),
-          }}
-        >
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Total tarjetas</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : totalTarjetas}
-            </p>
-          </div>
-
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Pagadas</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : totalPagadas}
-            </p>
-          </div>
-
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Canjeadas</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : totalCanjeadas}
-            </p>
-          </div>
-
-          <div style={styles.statCard}>
-            <p style={styles.statLabel}>Ingresos estimados</p>
-            <p style={{ ...styles.statValue, ...(isMobile ? styles.statValueMobile : {}) }}>
-              {cargando ? "..." : `${ingresosEstimados}€`}
-            </p>
-          </div>
+        <div className="pa-grid" aria-busy={cargando}>
+          {[
+            { etiqueta: "Total tarjetas", icono: "regalo", tono: "terracota", valor: totalTarjetas },
+            { etiqueta: "Pagadas", icono: "confirmado", tono: "verde", valor: totalPagadas },
+            { etiqueta: "Canjeadas", icono: "bono", tono: "azul", valor: totalCanjeadas },
+            { etiqueta: "Ingresos estimados", icono: "euro", tono: "mostaza", valor: formatearEuros(ingresosEstimados) },
+          ].map(({ etiqueta, icono, tono, valor }) => (
+            <div key={etiqueta} className="pa-card">
+              <div className="pa-card-cabecera">
+                <span aria-hidden="true" className={`pa-card-icono pa-card-icono--${tono}`}>
+                  <Icono nombre={icono} tamano={24} />
+                </span>
+                <p className="pa-card-label">{etiqueta}</p>
+              </div>
+              <p className="pa-card-valor">
+                {cargando ? <span className="pa-skeleton" role="status" aria-label="Cargando" /> : valor}
+              </p>
+            </div>
+          ))}
         </div>
+
+        <GestionPlantillasTarjetaRegalo />
 
         <div
           style={{
@@ -294,7 +299,7 @@ const AdminTarjetasRegalo = () => {
                 <div style={styles.cardTop}>
                   <div>
                     <p style={styles.cardTitulo}>{t.clase}</p>
-                    <p style={styles.cardFecha}>{t.fecha}</p>
+                    <p style={styles.cardFecha}>{fechaDMA(t.fecha)}</p>
                   </div>
 
                   <div style={styles.cardPrecio}>{t.precioTotal}€</div>
@@ -332,6 +337,7 @@ const AdminTarjetasRegalo = () => {
                     <span style={styles.cardLabel}>Usuario</span>
                     <span style={styles.cardValue}>
                       {t.nombreUsuario || t.emailUsuario || t.uid}
+                      <EtiquetaInvitado invitado={t.invitado} />
                     </span>
                   </div>
 
@@ -376,7 +382,7 @@ const AdminTarjetasRegalo = () => {
                     onClick={() => irADetalle(t.orderId)}
                     style={styles.trClickable}
                   >
-                    <td style={styles.td}>{t.fecha}</td>
+                    <td style={styles.td}>{fechaDMA(t.fecha)}</td>
                     <td style={styles.td}>{t.codigo || "—"}</td>
                     <td style={styles.td}>{t.clase}</td>
                     <td style={styles.td}>
@@ -384,6 +390,7 @@ const AdminTarjetasRegalo = () => {
                     </td>
                     <td style={styles.td}>
                       {t.nombreUsuario || t.emailUsuario || t.uid}
+                      <EtiquetaInvitado invitado={t.invitado} />
                     </td>
                     <td style={styles.td}>{t.plazas}</td>
                     <td style={styles.td}>{t.estado}</td>
@@ -412,8 +419,6 @@ const AdminTarjetasRegalo = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -438,7 +443,7 @@ const styles = {
   titulo: {
     margin: 0,
     textAlign: "center",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   tituloMobile: {
@@ -447,7 +452,7 @@ const styles = {
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
@@ -467,15 +472,15 @@ const styles = {
     gap: 10,
   },
   statCard: {
-    backgroundColor: "#fff8da",
-    border: "1px solid #f1e7c6",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
   },
   statLabel: {
     margin: 0,
-    color: "#7a6331",
+    color: "#3f3128",
     fontWeight: 600,
     fontSize: "0.95rem",
   },
@@ -489,8 +494,8 @@ const styles = {
     fontSize: "1.45rem",
   },
   filtrosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 18,
@@ -516,35 +521,35 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonSecundario: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     width: "100%",
   },
   resumen: {
     marginBottom: 14,
   },
   resumenTexto: {
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "0.96rem",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   tablaWrapper: {
@@ -554,20 +559,20 @@ const styles = {
   table: {
     width: "100%",
     borderCollapse: "collapse",
-    backgroundColor: "#fffdf7",
+    backgroundColor: "#fdfaf5",
     overflow: "hidden",
   },
   th: {
     textAlign: "left",
     padding: 14,
-    backgroundColor: "#fff8da",
-    color: "#5b4a2d",
-    borderBottom: "1px solid #f0e5cf",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    borderBottom: "1px solid #eadfd2",
     fontSize: "0.95rem",
   },
   td: {
     padding: 14,
-    borderBottom: "1px solid #f3ead7",
+    borderBottom: "1px solid #f6efe6",
     color: "#333",
     fontSize: "0.95rem",
   },
@@ -581,8 +586,8 @@ const styles = {
   },
   cardMobile: {
     width: "100%",
-    border: "1px solid #f0e5cf",
-    backgroundColor: "#fffdf7",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fdfaf5",
     borderRadius: 18,
     padding: 14,
     textAlign: "left",
@@ -597,13 +602,13 @@ const styles = {
   },
   cardTitulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "1rem",
     fontWeight: 700,
   },
   cardFecha: {
     margin: "6px 0 0 0",
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.9rem",
   },
   cardPrecio: {
@@ -621,7 +626,7 @@ cardGrid: {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     borderRadius: 12,
     padding: 10,
     border: "1px solid #f3e7c8",
@@ -630,7 +635,7 @@ cardGrid: {
     display: "flex",
     flexDirection: "column",
     gap: 4,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     borderRadius: 12,
     padding: 10,
     border: "1px solid #f3e7c8",
@@ -638,7 +643,7 @@ cardGrid: {
   },
   cardLabel: {
     fontSize: "0.78rem",
-    color: "#7a6331",
+    color: "#3f3128",
     fontWeight: 700,
   },
   cardValue: {
@@ -651,9 +656,9 @@ cardGrid: {
     display: "inline-block",
     padding: "4px 10px",
     borderRadius: 999,
-    backgroundColor: "#fff8da",
-    border: "1px solid #eadfbe",
-    color: "#5b4a2d",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
+    color: "#3f3128",
     fontSize: "0.85rem",
     fontWeight: 600,
   },

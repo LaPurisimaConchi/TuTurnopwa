@@ -1,0 +1,37 @@
+// src/RegalarTaller.jsx — presentación de «Regalar un taller»
+import PaginaPresentacion from "./components/PaginaPresentacion";
+import Icono from "./components/Icono";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { textoMeses } from "./utils/configEspacio";
+
+export default function RegalarTaller() {
+  const { config } = useConfigEspacio();
+  return (
+    <PaginaPresentacion
+      pagina="regalo"
+      titulo="Regala el taller de cerámica que quieras"
+      entradilla="Un regalo para quien ya lo tiene todo: una experiencia para crear algo con sus manos."
+      imagenPrincipal="/img/creatupiezafavoritaregalo.jpg"
+      descripcion={[
+        `Puedes regalar cualquiera de nuestros talleres: eliges el que más le va a gustar y la tarjeta es válida para ese taller. La persona que la recibe elige la fecha que mejor le vaya, sin prisas: la tarjeta es válida durante ${textoMeses(config.mesesCaducidadTarjeta)} desde la compra.`,
+        "No hace falta saber de cerámica: en cada taller te acompañamos paso a paso y se lleva su pieza terminada.",
+      ]}
+      ventajas={[
+        { icono: "regalo", titulo: "Cualquier taller", texto: "Tú decides cuál regalar." },
+        { icono: "calendarioEvento", titulo: "Fecha a su gusto", texto: `Válida ${textoMeses(config.mesesCaducidadTarjeta)} desde la compra.` },
+        { icono: "brillo", titulo: "Sin experiencia", texto: "Apto para principiantes." },
+      ]}
+      galeria={["/img/2clasesregalo.jpg", "/img/4clasesregalo.jpg", "/img/creatupiezafavoritaregalo.jpg"]}
+      pasos={[
+        "Elige el taller que quieres regalar.",
+        "Compra la tarjeta regalo.",
+        "Recibes un comprobante con un código.",
+        "Entrega el código a la persona que recibe el regalo.",
+        "Ella lo canjea en la web y reserva su plaza cuando quiera.",
+      ]}
+      tituloRecomendados="Elige el taller que vas a regalar"
+      subtituloRecomendados="Estas son nuestras sugerencias, pero vale cualquier taller."
+      textoCta="Elegir taller para regalar"
+    />
+  );
+}

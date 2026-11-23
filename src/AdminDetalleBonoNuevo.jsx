@@ -4,6 +4,10 @@ import { useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
+import { bonoSinSesion, carpetaReservasBono, motivoFechaFueraDeBono } from "./utils/estadoBono";
+import { esReservaValida } from "./utils/plazasOcupadas";
+import { preguntar } from "./utils/avisos";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -72,6 +76,10 @@ const AdminDetalleBonoNuevo = () => {
   const [guardandoCaducidad, setGuardandoCaducidad] = useState(false);
   const [anadiendoClase, setAnadiendoClase] = useState(false);
   const [descontandoClase, setDescontandoClase] = useState(false);
+  // Estado de la reserva de cada sesión: "ok", "falta", "cancelada" o "pendiente"
+  const [estadoReservas, setEstadoReservas] = useState({});
+  const [rutasReservas, setRutasReservas] = useState({});
+  const [devolviendoSesion, setDevolviendoSesion] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -136,6 +144,16 @@ useEffect(() => {
           orderId: bonoData.orderId || bonoId,
           tipoTaller: bonoData.tipoTaller || "",
           subtipo: bonoData.subtipo || "",
+          // Clases ya reservadas con el bono, por fecha
+          sesiones: Object.entries(bonoData.sesionesConsumidas || {})
+            .map(([clave, s]) => ({
+              clave,
+              fecha: String(s?.fecha || ""),
+              turno: String(s?.turno || ""),
+              reservaId: String(s?.reservaId || ""),
+              primera: clave === "primeraSesion" || s?.primeraSesion === true,
+            }))
+            .sort((a, b) => `${a.fecha} ${a.turno}`.localeCompare(`${b.fecha} ${b.turno}`)),
         });
       } catch (error) {
         console.error("Error al cargar detalle del bono:", error);
@@ -187,6 +205,172 @@ useEffect(() => {
 
     cargarNotas();
   }, [uid, bonoId]);
+
+  // Cada sesión del bono debería tener su reserva confirmada en reservas/…: si falta o
+  // está cancelada, la clase sigue gastada sin que el cliente tenga plaza
+  const claveSesiones = (bono?.sesiones || []).map((s) => `${s.clave}|${s.fecha}|${s.turno}|${s.reservaId}`).join(",");
+  useEffect(() => {
+    if (!bono?.sesiones?.length) {
+      setEstadoReservas({});
+      return;
+    }
+    let activo = true;
+
+    (async () => {
+      try {
+        const fichaSnap = bono.claseId ? await get(ref(dbRealtime, `clases/${bono.claseId}`)) : null;
+        const carpeta = carpetaReservasBono(bono.claseId, fichaSnap?.exists() ? fichaSnap.val() : null);
+        const estados = {};
+        const rutas = {};
+
+        await Promise.all(
+          bono.sesiones.map(async (s) => {
+            if (!carpeta || !s.fecha || !s.turno || !s.reservaId) {
+              estados[s.clave] = "falta";
+              return;
+            }
+            // La reserva va bajo el turno o, en pantallas antiguas, un nivel más (método)
+            const buscar = async (turno) => {
+              const base = `reservas/${carpeta}/${s.fecha}/${turno}`;
+              const snap = await get(ref(dbRealtime, base));
+              if (!snap.exists()) return null;
+              if (snap.child(s.reservaId).exists()) {
+                return { ruta: `${base}/${s.reservaId}`, datos: snap.child(s.reservaId).val() };
+              }
+              let hallada = null;
+              snap.forEach((nivel) => {
+                if (!hallada && nivel.child(s.reservaId).exists()) {
+                  hallada = { ruta: `${base}/${nivel.key}/${s.reservaId}`, datos: nivel.child(s.reservaId).val() };
+                }
+              });
+              return hallada;
+            };
+            const turnos = [...new Set([s.turno, s.turno.replaceAll(" a ", "-").replace(/\s+/g, "")])];
+            let hallada = null;
+            for (const turno of turnos) {
+              hallada = await buscar(turno);
+              if (hallada) break;
+            }
+            const reserva = hallada?.datos || null;
+            if (hallada) rutas[s.clave] = hallada.ruta;
+            estados[s.clave] = !reserva
+              ? "falta"
+              : reserva.cancelada === true || reserva.estado === "Cancelada"
+              ? "cancelada"
+              : esReservaValida(reserva)
+              ? "ok"
+              : "pendiente";
+          })
+        );
+        if (activo) {
+          setEstadoReservas(estados);
+          setRutasReservas(rutas);
+        }
+      } catch (error) {
+        console.error("Error al comprobar las reservas del bono:", error);
+      }
+    })();
+
+    return () => {
+      activo = false;
+    };
+    // claveSesiones resume las sesiones: así no se repite la lectura en cada render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bono?.claseId, claveSesiones]);
+
+  // El bono está pagado pero la reserva de la sesión se quedó pendiente (pedidos
+  // anteriores a confirmarla con el pago): se confirma aquí, también en el perfil
+  const confirmarReservaSesion = async (sesion) => {
+    const ruta = rutasReservas[sesion.clave];
+    if (!uid || !ruta) return;
+    const confirmar = await preguntar(
+      `¿Confirmar la reserva del ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}? ` +
+        "Pasa a contar en el aforo de esa franja y el cliente la verá confirmada."
+    );
+    if (!confirmar) return;
+
+    try {
+      setDevolviendoSesion(sesion.clave);
+      const ahora = new Date().toISOString();
+      const campos = { estado: "Confirmada", estadoPago: "pagado", procesado: true, confirmadaPorAdmin: true, actualizadoEn: ahora };
+      const cambios = {};
+      Object.entries(campos).forEach(([k, v]) => {
+        cambios[`${ruta}/${k}`] = v;
+      });
+      const listaSnap = await get(ref(dbRealtime, `usuarios/${uid}/listaReservas`));
+      listaSnap.forEach((item) => {
+        if (String(item.val()?.reservaId || "") === sesion.reservaId) {
+          ["estado", "estadoPago", "actualizadoEn"].forEach((k) => {
+            cambios[`usuarios/${uid}/listaReservas/${item.key}/${k}`] = campos[k];
+          });
+        }
+      });
+      const notaId = push(ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}/notasInternas`)).key;
+      const nota = {
+        texto: `Reserva de la sesión ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"} confirmada desde el panel (estaba sin confirmar).`,
+        fecha: ahora,
+      };
+      cambios[`usuarios/${uid}/bonos/${bonoId}/notasInternas/${notaId}`] = nota;
+      await update(ref(dbRealtime), cambios);
+      setEstadoReservas((prev) => ({ ...prev, [sesion.clave]: "ok" }));
+      setNotasInternas((prev) => [{ id: notaId, ...nota }, ...prev]);
+    } catch (error) {
+      console.error("Error al confirmar la reserva de la sesión:", error);
+      alert("No se pudo confirmar la reserva.");
+    } finally {
+      setDevolviendoSesion("");
+    }
+  };
+
+  // Quita del bono una sesión sin reserva y le devuelve la clase
+  const devolverSesion = async (sesion) => {
+    if (!uid || !bonoId) return;
+    const confirmar = await preguntar(
+      `¿Devolver al bono la clase del ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}? ` +
+        "Esa sesión no tiene una reserva confirmada; el cliente podrá reservarla de nuevo desde su perfil."
+    );
+    if (!confirmar) return;
+
+    try {
+      setDevolviendoSesion(sesion.clave);
+      const bonoRef = ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}`);
+      const inicialSnap = await get(bonoRef);
+      if (!inicialSnap.exists()) throw new Error("No se encontró el bono en la base de datos.");
+      const inicial = inicialSnap.val();
+      const actualizadoEn = new Date().toISOString();
+      let primeraEjecucion = true;
+
+      const resultado = await runTransaction(bonoRef, (bonoActual) => {
+        const datos = bonoActual || (primeraEjecucion ? inicial : null);
+        primeraEjecucion = false;
+        if (!datos) return;
+        return bonoSinSesion(datos, sesion.clave, actualizadoEn) || undefined;
+      });
+      if (!resultado.committed) throw new Error("Esa sesión ya no estaba en el bono.");
+
+      const actualizado = resultado.snapshot.val() || {};
+      const nota = {
+        texto: `Clase devuelta al bono por falta de reserva: ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}.`,
+        fecha: actualizadoEn,
+      };
+      const notaRef = await push(ref(dbRealtime, `usuarios/${uid}/bonos/${bonoId}/notasInternas`), nota);
+
+      setNotasInternas((prev) => [{ id: notaRef.key, ...nota }, ...prev]);
+      setBono((actual) => ({
+        ...actual,
+        clasesConsumidas: Number(actualizado.clasesConsumidas || 0),
+        clasesRestantes: Number(actualizado.clasesRestantes || 0),
+        estadoBono: actualizado.estadoBono || "activo",
+        actualizadoEn,
+        sesiones: actual.sesiones.filter((s) => s.clave !== sesion.clave),
+      }));
+    } catch (error) {
+      console.error("Error al devolver la clase al bono:", error);
+      alert(`No se pudo devolver la clase. ${error instanceof Error ? error.message : ""}`);
+    } finally {
+      setDevolviendoSesion("");
+    }
+  };
 
   const estadoVisible = useMemo(() => obtenerEstadoVisibleBono(bono), [bono]);
 
@@ -417,7 +601,7 @@ useEffect(() => {
   const eliminarNota = async (notaId) => {
     if (!uid || !bonoId || !notaId) return;
 
-    const confirmar = window.confirm("¿Quieres eliminar esta nota?");
+    const confirmar = await preguntar("¿Quieres eliminar esta nota?");
     if (!confirmar) return;
 
     try {
@@ -524,7 +708,7 @@ useEffect(() => {
                       </div>
                     </div>
                   ) : (
-                    <span style={styles.valorGrande}>{bono.fechaInicio || "—"}</span>
+                    <span style={styles.valorGrande}>{fechaDMA(bono.fechaInicio) || "—"}</span>
                   )}
                 </div>
 
@@ -576,7 +760,7 @@ useEffect(() => {
                     </div>
                   ) : (
                     <span style={styles.valorGrande}>
-                      {bono.fechaCaducidadBono || "—"}
+                      {fechaDMA(bono.fechaCaducidadBono) || "—"}
                     </span>
                   )}
                 </div>
@@ -674,6 +858,72 @@ useEffect(() => {
             </div>
 
             <div style={styles.bloque}>
+              <h2 style={styles.bloqueTitulo}>Sesiones reservadas</h2>
+              {bono.sesiones.length === 0 ? (
+                <p style={styles.filaLabel}>Todavía no hay clases reservadas con este bono.</p>
+              ) : (
+                <div style={styles.listaDatos}>
+                  {bono.sesiones.map((sesion, i) => {
+                    const fuera = motivoFechaFueraDeBono(bono, sesion.fecha);
+                    const repetida = bono.sesiones.some(
+                      (otra, j) => j !== i && otra.fecha === sesion.fecha && otra.turno === sesion.turno
+                    );
+                    const pasada = sesion.fecha < hoyMadrid();
+                    const reserva = estadoReservas[sesion.clave];
+                    const sinReserva = reserva === "falta" || reserva === "cancelada" || reserva === "pendiente";
+                    const avisos = [
+                      sesion.primera && "Primera sesión",
+                      pasada && "Ya pasada",
+                      fuera && "Fuera de la validez del bono",
+                      repetida && "Repetida (mismo día y turno)",
+                      reserva === "falta" && "Sin reserva",
+                      reserva === "cancelada" && "Reserva cancelada",
+                      reserva === "pendiente" && "Reserva sin confirmar",
+                    ].filter(Boolean);
+                    return (
+                      <div
+                        key={sesion.clave}
+                        style={{ ...styles.filaDato, ...(isMobile ? styles.filaDatoMobile : {}) }}
+                      >
+                        <span style={styles.filaLabel}>
+                          {fechaDMA(sesion.fecha) || "—"} · {sesion.turno || "—"}
+                        </span>
+                        <span
+                          style={{
+                            ...styles.filaValor,
+                            color: fuera || repetida || sinReserva ? "#b42318" : styles.filaValor.color,
+                          }}
+                        >
+                          {avisos.join(" · ") || "Reservada"}
+                          {reserva === "pendiente" && rutasReservas[sesion.clave] && (
+                            <button
+                              type="button"
+                              onClick={() => confirmarReservaSesion(sesion)}
+                              disabled={devolviendoSesion === sesion.clave}
+                              style={{ ...styles.botonAccionSecundario, marginLeft: 8 }}
+                            >
+                              Confirmar la reserva
+                            </button>
+                          )}
+                          {sinReserva && (
+                            <button
+                              type="button"
+                              onClick={() => devolverSesion(sesion)}
+                              disabled={devolviendoSesion === sesion.clave}
+                              style={{ ...styles.botonAccionSecundario, marginLeft: 8 }}
+                            >
+                              {devolviendoSesion === sesion.clave ? "Guardando..." : "Devolver la clase al bono"}
+                            </button>
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.bloque}>
               <h2 style={styles.bloqueTitulo}>Datos técnicos del bono</h2>
 
               <div style={styles.listaDatos}>
@@ -724,7 +974,7 @@ useEffect(() => {
   }}
 >
                   <span style={styles.filaLabel}>Creado en</span>
-                  <span style={styles.filaValor}>{bono.creadoEn || "—"}</span>
+                  <span style={styles.filaValor}>{fechaHoraLegible(bono.creadoEn) || "—"}</span>
                 </div>
 
                 <div
@@ -734,7 +984,7 @@ useEffect(() => {
   }}
 >
                   <span style={styles.filaLabel}>Actualizado en</span>
-                  <span style={styles.filaValor}>{bono.actualizadoEn || "—"}</span>
+                  <span style={styles.filaValor}>{fechaHoraLegible(bono.actualizadoEn) || "—"}</span>
                 </div>
               </div>
             </div>
@@ -828,8 +1078,6 @@ useEffect(() => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -854,23 +1102,23 @@ const styles = {
   titulo: {
     margin: 0,
     textAlign: "center",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   hero: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 24,
     padding: 22,
     marginBottom: 18,
@@ -887,19 +1135,19 @@ const styles = {
   },
   heroEyebrow: {
     margin: 0,
-    color: "#7a6331",
+    color: "#3f3128",
     fontSize: "0.9rem",
     fontWeight: 600,
   },
   heroTitulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "1.6rem",
     lineHeight: 1.2,
   },
   heroSubtexto: {
     margin: 0,
-    color: "#7a7a7a",
+    color: "#7a6858",
     fontSize: "0.98rem",
   },
   heroEstado: {
@@ -907,15 +1155,15 @@ const styles = {
     alignItems: "center",
   },
   bloque: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 22,
     padding: 22,
     marginBottom: 18,
   },
   bloqueTitulo: {
     margin: "0 0 16px 0",
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   gridResumen: {
@@ -924,8 +1172,8 @@ const styles = {
     gap: 14,
   },
   cardResumen: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 16,
     display: "flex",
@@ -946,11 +1194,11 @@ const styles = {
   inputFecha: {
     width: "100%",
     boxSizing: "border-box",
-    border: "1px solid #eadfbe",
+    border: "1px solid #eadfd2",
     borderRadius: 10,
     padding: "9px 10px",
     font: "inherit",
-    color: "#2f2f2f",
+    color: "#3f3128",
   },
   accionesCaducidad: {
     display: "flex",
@@ -958,7 +1206,7 @@ const styles = {
     flexWrap: "wrap",
   },
   botonAccion: {
-    backgroundColor: "#7a6331",
+    backgroundColor: "#3f3128",
     color: "#fff",
     border: "none",
     borderRadius: 999,
@@ -969,7 +1217,7 @@ const styles = {
   },
   botonAccionSecundario: {
     backgroundColor: "#fff",
-    color: "#7a6331",
+    color: "#3f3128",
     border: "1px solid #d8cba8",
     borderRadius: 999,
     padding: "8px 13px",
@@ -990,8 +1238,8 @@ const styles = {
     marginBottom: 18,
   },
   cardUso: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 16,
     display: "flex",
@@ -1000,8 +1248,8 @@ const styles = {
     textAlign: "center",
   },
   progresoBox: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 16,
   },
@@ -1013,12 +1261,12 @@ const styles = {
     marginBottom: 10,
   },
   progresoLabel: {
-    color: "#7a6331",
+    color: "#3f3128",
     fontSize: "0.9rem",
     fontWeight: 600,
   },
   progresoValor: {
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "0.95rem",
     fontWeight: 600,
   },
@@ -1045,19 +1293,19 @@ const styles = {
     gap: 14,
     alignItems: "start",
     padding: "10px 0",
-    borderBottom: "1px solid #f3ead7",
+    borderBottom: "1px solid #f6efe6",
   },
   filaDatoMobile: {
   gridTemplateColumns: "1fr",
   gap: 4,
 },
   filaLabel: {
-    color: "#7a6331",
+    color: "#3f3128",
     fontSize: "0.9rem",
     fontWeight: 600,
   },
   filaValor: {
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "0.96rem",
     wordBreak: "break-word",
   },
@@ -1067,8 +1315,8 @@ const styles = {
     gap: 14,
   },
   cardUsuario: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 14,
     display: "flex",
@@ -1076,17 +1324,17 @@ const styles = {
     gap: 6,
   },
   label: {
-    color: "#7a6331",
+    color: "#3f3128",
     fontSize: "0.88rem",
     fontWeight: 600,
   },
   valor: {
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "0.96rem",
     wordBreak: "break-word",
   },
   valorGrande: {
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "1.1rem",
     fontWeight: 700,
     wordBreak: "break-word",
@@ -1134,19 +1382,19 @@ const styles = {
     width: "100%",
     minHeight: 110,
     borderRadius: 14,
-    border: "1px solid #eadfbe",
+    border: "1px solid #eadfd2",
     padding: 14,
     fontSize: "0.96rem",
     fontFamily: "'Segoe UI', sans-serif",
     resize: "vertical",
     outline: "none",
     boxSizing: "border-box",
-    backgroundColor: "#fffaf0",
-    color: "#2f2f2f",
+    backgroundColor: "#fdfaf5",
+    color: "#3f3128",
   },
   botonGuardarNota: {
     alignSelf: "flex-start",
-    backgroundColor: "#7a6331",
+    backgroundColor: "#3f3128",
     color: "#fff",
     border: "none",
     borderRadius: 999,
@@ -1155,7 +1403,7 @@ const styles = {
     fontWeight: 700,
   },
   mensajeSecundario: {
-    color: "#7a7a7a",
+    color: "#7a6858",
     margin: 0,
   },
   listaNotas: {
@@ -1163,8 +1411,8 @@ const styles = {
     gap: 12,
   },
   cardNota: {
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 16,
     padding: 14,
   },
@@ -1177,13 +1425,13 @@ const styles = {
     flexWrap: "wrap",
   },
   fechaNota: {
-    color: "#7a6331",
+    color: "#3f3128",
     fontSize: "0.85rem",
     fontWeight: 600,
   },
   textoNota: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "0.96rem",
     whiteSpace: "pre-wrap",
     wordBreak: "break-word",

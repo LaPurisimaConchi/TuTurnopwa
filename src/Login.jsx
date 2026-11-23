@@ -1,14 +1,24 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  signOut,
 } from "firebase/auth";
+import { cuentaSinConfirmar, flujoAuth } from "./utils/guardiaVerificacion";
+import { mensajeErrorAuth } from "./utils/erroresAuth";
+import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth } from "./firebase";
 import PantallaConVolver from "./PantallaConVolver";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Se vuelve a la pantalla donde estaba antes de entrar (con sus datos, si es una
+  // reserva o compra); sin ninguna, a la portada
+  const origen = location.state?.from;
+  const destino =
+    origen && !["/login", "/registro"].includes(origen.pathname || origen) ? origen : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,26 +26,62 @@ export default function Login() {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [sinVerificar, setSinVerificar] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
     setMensaje("");
+    setSinVerificar(false);
     setCargando(true);
+    flujoAuth.ocupado += 1;
 
     try {
-      await signInWithEmailAndPassword(
+      const { user } = await signInWithEmailAndPassword(
         auth,
         email.trim().toLowerCase(),
         password
       );
-      navigate("/dondereservar");
+      // Las cuentas nuevas no entran hasta confirmar el correo; las anteriores
+      // (con cuentaAnterior) y los administradores verificados entran como siempre
+      if (!user.emailVerified) await user.reload();
+      if (await cuentaSinConfirmar(auth.currentUser)) {
+        await signOut(auth);
+        setSinVerificar(true);
+        setError("Confirma tu correo para entrar. Te enviamos un enlace al registrarte.");
+        return;
+      }
+      navigate(destino || "/portada", {
+        replace: true,
+        state: destino?.state,
+      });
     } catch (error) {
       setError(
         "No se ha podido iniciar sesión. Revisa el correo y la contraseña."
       );
     } finally {
+      flujoAuth.ocupado -= 1;
       setCargando(false);
+    }
+  };
+
+  const reenviarVerificacion = async () => {
+    setError("");
+    setMensaje("");
+    flujoAuth.ocupado += 1;
+    try {
+      const { user } = await signInWithEmailAndPassword(
+        auth,
+        email.trim().toLowerCase(),
+        password
+      );
+      await enviarVerificacionEmail(user);
+      await signOut(auth);
+      setMensaje("Te hemos reenviado el correo de confirmación.");
+    } catch (error) {
+      setError(mensajeErrorAuth(error, "No se ha podido reenviar el correo. Espera unos minutos e inténtalo de nuevo."));
+    } finally {
+      flujoAuth.ocupado -= 1;
     }
   };
 
@@ -53,7 +99,17 @@ export default function Login() {
     }
 
     try {
-      await sendPasswordResetEmail(auth, emailLimpio);
+      // Correo propio (api/_correoVerificacion.js); si el servidor falla, el de Firebase
+      const respuesta = await fetch("/api/codigo-reserva", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo: "restablecerContrasena", email: emailLimpio }),
+      }).catch(() => null);
+      if (respuesta?.status === 429) {
+        setError("Demasiados intentos. Espera un rato e inténtalo de nuevo.");
+        return;
+      }
+      if (!respuesta?.ok) await sendPasswordResetEmail(auth, emailLimpio);
       setMensaje(
         "Si el correo es correcto, te hemos enviado un enlace para restablecer tu contraseña."
       );
@@ -66,7 +122,7 @@ export default function Login() {
 
   return (
     <PantallaConVolver>
-      <div className="bg-[#fdfaf5] min-h-screen flex items-center justify-center px-2 sm:px-4 py-6 sm:py-8 text-[#333]">
+      <div className="flex items-center justify-center px-2 sm:px-4 py-6 sm:py-8 text-[#333]">
   <div className="w-full max-w-md">
           <div className="flex flex-col items-center mb-6">
             <img
@@ -82,6 +138,13 @@ export default function Login() {
             <p className="text-sm sm:text-base text-[#7a6a58] text-center mt-2">
               Accede a tu cuenta para gestionar tus reservas.
             </p>
+
+            {location.state?.requiereCuenta && (
+              <p className="mt-3 rounded-xl border border-linea bg-crema px-4 py-3 text-sm text-tinta text-center">
+                Para continuar necesitas una cuenta: las reservas de este producto se gestionan desde
+                tu perfil. Inicia sesión o crea una cuenta.
+              </p>
+            )}
           </div>
 
           <form
@@ -91,6 +154,15 @@ export default function Login() {
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center">
                 {error}
+                {sinVerificar && (
+                  <button
+                    type="button"
+                    onClick={reenviarVerificacion}
+                    className="block mx-auto mt-2 font-semibold underline"
+                  >
+                    Reenviar correo de confirmación
+                  </button>
+                )}
               </div>
             )}
 
@@ -100,7 +172,7 @@ export default function Login() {
       {mensaje}
     </div>
 
-    <p className="text-xs text-[#7b6d62] mt-2 text-center">
+    <p className="text-xs text-tinta-suave mt-2 text-center">
       Si no ves el email, revisa tu carpeta de spam o correo no deseado.
     </p>
   </>
@@ -113,7 +185,7 @@ export default function Login() {
               <input
                 type="email"
                 id="email"
-                className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-[#b36a4a]"
+                className="w-full border border-gray-300 rounded-xl px-3 py-3 text-base outline-none focus:border-terracota"
                 placeholder="tucorreo@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -131,7 +203,7 @@ export default function Login() {
                 <input
                   type={mostrarPassword ? "text" : "password"}
                   id="password"
-                  className="w-full border border-gray-300 rounded-xl px-3 py-3 pr-20 text-base outline-none focus:border-[#b36a4a]"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-3 pr-20 text-base outline-none focus:border-terracota"
                   placeholder="Tu contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -144,7 +216,7 @@ export default function Login() {
                   onClick={() =>
                     setMostrarPassword((prev) => !prev)
                   }
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#8a5a44]"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-tinta-suave"
                 >
                   {mostrarPassword ? "Ocultar" : "Mostrar"}
                 </button>
@@ -154,7 +226,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={cargando}
-              className="bg-[#b36a4a] hover:bg-[#9e5c3f] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 rounded-xl transition"
+              className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-base sm:text-lg py-3 rounded-full transition"
             >
               {cargando ? "Entrando..." : "Entrar"}
             </button>
@@ -163,23 +235,41 @@ export default function Login() {
               <button
                 type="button"
                 onClick={handleResetPassword}
-                className="text-[#8a5a44] font-semibold underline"
+                className="text-tinta-suave font-semibold underline"
               >
                 ¿Has olvidado tu contraseña?
               </button>
             </div>
 
-            <div className="text-sm text-center mt-1">
-              ¿No tienes cuenta?{" "}
+            {!location.state?.requiereCuenta && (
+              <div className="text-sm text-center mt-1">
+                ¿No tienes cuenta?{" "}
+                <button
+                  type="button"
+                  className="text-blue-700 font-bold"
+                  onClick={() => navigate("/registro", { state: location.state })}
+                >
+                  Regístrate aquí
+                </button>
+              </div>
+            )}
+          </form>
+
+          {location.state?.requiereCuenta && (
+            <div className="mt-4 w-full rounded-2xl border-2 border-terracota bg-terracota-suave p-4 sm:p-5 text-center">
+              <p className="font-serif text-lg font-bold text-tinta">¿Todavía no tienes cuenta?</p>
+              <p className="text-sm text-tinta-suave mt-1 mb-3">
+                Créala en un minuto y vuelve directamente a tu reserva.
+              </p>
               <button
                 type="button"
-                className="text-blue-700 font-bold"
-                onClick={() => navigate("/registro")}
+                onClick={() => navigate("/registro", { state: location.state })}
+                className="w-full rounded-full bg-terracota px-6 py-3 font-semibold text-white shadow-md transition hover:bg-terracota-oscuro"
               >
-                Regístrate aquí
+                Crear cuenta
               </button>
             </div>
-          </form>
+          )}
         </div>
       </div>
     </PantallaConVolver>

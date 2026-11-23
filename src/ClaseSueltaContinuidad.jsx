@@ -62,7 +62,7 @@ export default function ClaseSueltaContinuidad() {
             <button
               type="button"
               onClick={() => setModalAbierto(true)}
-              className="w-full rounded-2xl overflow-hidden bg-[#f8f8f8] flex items-center justify-center min-h-[260px] sm:min-h-[320px] md:min-h-[420px]"
+              className="w-full rounded-2xl overflow-hidden bg-arena flex items-center justify-center min-h-[260px] sm:min-h-[320px] md:min-h-[420px]"
             >
               <img
                 src={imagenActiva}
@@ -79,8 +79,8 @@ export default function ClaseSueltaContinuidad() {
                   onClick={() => setImagenActiva(img)}
                   className={`shrink-0 rounded-xl overflow-hidden border-2 w-[72px] h-[72px] sm:w-[80px] sm:h-[80px] ${
                     imagenActiva === img
-                      ? "border-[#F4C542]"
-                      : "border-[#f1e7c6]"
+                      ? "border-mostaza"
+                      : "border-linea"
                   }`}
                 >
                   <img
@@ -92,34 +92,34 @@ export default function ClaseSueltaContinuidad() {
               ))}
             </div>
 
-            <p className="text-xs text-gray-500 mt-2">
+            <p className="text-xs text-tinta-suave mt-2">
               Toca la imagen para verla en grande
             </p>
           </div>
 
           <div className="p-4 sm:p-6 flex flex-col justify-start min-w-0">
-            <h1 className="text-2xl md:text-3xl font-bold text-[#3b3025] mb-2 leading-tight break-words">
+            <h1 className="text-2xl md:text-3xl font-bold text-tinta mb-2 leading-tight break-words">
               Clase suelta con continuidad
             </h1>
 
-            <p className="text-lg sm:text-xl font-semibold text-[#6b3700] mb-4 leading-snug break-words">
+            <p className="text-lg sm:text-xl font-semibold text-tinta mb-4 leading-snug break-words">
               Torno: 32,00 € · Modelado a mano o decoración: 27,00 €
             </p>
 
             <BotonReserva destino="/reserva-clase-suelta-continuidad" className="shrink-0" />
 
             <div className="mb-5 min-w-0">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-700 mb-2">
+              <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-2">
                 Información de la clase
               </h2>
 
               
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
   {descripcionCorta}
 </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 Puedes venir de forma puntual y comprar cada sesión por separado,
                 continuando tu proyecto poco a poco en el taller. Es ideal tanto
                 para personas que ya han tenido contacto con la cerámica como
@@ -127,7 +127,7 @@ export default function ClaseSueltaContinuidad() {
                 fijo.
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 Durante estas clases podrás elegir entre trabajar en{" "}
                 <strong>torno</strong>, realizar piezas de{" "}
                 <strong>modelado a mano</strong> o dedicar la sesión a la{" "}
@@ -135,19 +135,19 @@ export default function ClaseSueltaContinuidad() {
                 proceso en el que te encuentres.
               </p>
 
-              <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-4">
-                <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+              <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-4">
+                <p className="text-sm text-tinta italic leading-relaxed break-words">
                   Si finalmente realizas <strong>4 clases</strong>, se aplicará
                   el <strong>precio de bono</strong> en lugar de cobrarlas como
                   sesiones sueltas independientes.
                 </p>
               </div>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Precios:
               </p>
 
-              <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+              <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                 <li>• Clase suelta de torno: 32,00 €</li>
                 <li>
                   • Clase suelta de modelado a mano o decoración con esmaltes:
@@ -155,11 +155,11 @@ export default function ClaseSueltaContinuidad() {
                 </li>
               </ul>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Qué podrás hacer en esta clase:
               </p>
 
-              <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+              <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
                 <li>
                   • Continuar una pieza empezada anteriormente en el taller.
                 </li>
@@ -176,76 +176,76 @@ export default function ClaseSueltaContinuidad() {
                 </li>
               </ul>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Qué incluye:
               </p>
 
               
-                <ul className="text-sm text-gray-700 space-y-2 mb-4 leading-relaxed break-words">
+                <ul className="text-sm text-tinta space-y-2 mb-4 leading-relaxed break-words">
   {incluyeLista.map((item, index) => (
     <li key={index}>• {item}</li>
   ))}
 </ul>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Duración:
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 Clase de aproximadamente <strong>3 horas</strong>, pensada para
                 avanzar de forma real en tu pieza o práctica, con tiempo para
                 trabajar con calma y resolver dudas durante el proceso.
               </p>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Importante:
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 El tiempo necesario para finalizar una pieza dependerá del tipo
                 de trabajo elegido, del ritmo de cada persona y de la técnica
                 utilizada. Algunas piezas pueden requerir varias sesiones para
                 completarse correctamente.
               </p>
 
-              <p className="text-sm text-gray-700 mb-2 font-semibold">
+              <p className="text-sm text-tinta mb-2 font-semibold">
                 Entrega de tus piezas:
               </p>
 
-              <p className="text-sm text-gray-700 mb-3 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-3 leading-relaxed break-words">
                 Las piezas no se entregan el mismo día. Después de cada sesión,
                 deben pasar por su proceso de secado, primera cocción, esmaltado
                 si corresponde, y cocción final.
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 El plazo estimado puede variar entre{" "}
                 <strong>2 semanas y 1 mes y medio</strong>, según el clima, el
                 volumen de trabajo del taller y el tipo de pieza.
               </p>
 
-              <p className="text-sm text-gray-700 mb-4 leading-relaxed break-words">
+              <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
                 Cuando tus piezas estén listas, se subirán fotos a la carpeta correspondiente para que puedas identificarlas.
 
 Para saber si tu pieza ya está disponible y cómo recogerla, entra en <strong>"Quiero recoger mi pieza"</strong> dentro de tu <strong>perfil</strong> .
 Ahí encontrarás siempre la información actualizada.
               </p>
 
-              <p className="text-sm text-gray-700 leading-relaxed break-words">
+              <p className="text-sm text-tinta leading-relaxed break-words">
                 Esta modalidad está pensada para ofrecerte continuidad y
                 flexibilidad, permitiéndote aprender y disfrutar del proceso
                 cerámico a tu ritmo, sin perder el seguimiento de tus piezas.
               </p>
             </div>
 
-            <div className="bg-[#fffaf0] border-l-4 border-[#F4C542] rounded-xl p-4 mb-5">
-              <p className="text-sm text-gray-700 italic mb-2 leading-relaxed break-words">
+            <div className="bg-crema border-l-4 border-mostaza rounded-xl p-4 mb-5">
+              <p className="text-sm text-tinta italic mb-2 leading-relaxed break-words">
   <strong>Nota importante:</strong>{" "}
   {notaImportanteFirebase ||
     "Las tarifas están sujetas a cambios. Si no asistes a tu clase en la fecha reservada y deseas reprogramarla cuando las tarifas hayan cambiado, deberás abonar la diferencia o adaptarte a la tarifa vigente."}
 </p>
 
-              <p className="text-sm text-gray-700 italic leading-relaxed break-words">
+              <p className="text-sm text-tinta italic leading-relaxed break-words">
                 <strong>Antes de reservar:</strong> por favor revisa nuestra
                 Política de Reservas. Al proceder con la reserva, confirmas que
                 has leído y aceptado los términos.

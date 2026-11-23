@@ -1,9 +1,19 @@
-import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { ref, set } from "firebase/database";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  linkWithCredential,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
+import { ref, update } from "firebase/database";
+import { flujoAuth } from "./utils/guardiaVerificacion";
+import { mensajeErrorAuth } from "./utils/erroresAuth";
+import { enviarVerificacionEmail } from "./utils/verificarEmail";
 import { auth, dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
+import { leerDatosContacto } from "./utils/invitado";
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -13,7 +23,26 @@ export default function Registro() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
+  const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
   const [error, setError] = useState("");
+  const [emailEnviado, setEmailEnviado] = useState("");
+  const [correoFallido, setCorreoFallido] = useState(false);
+  const [cargando, setCargando] = useState(false);
+  const esInvitado = !!auth.currentUser?.isAnonymous;
+
+  // Un invitado que crea su cuenta ya dejó sus datos al reservar
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user?.isAnonymous) return;
+
+    leerDatosContacto(user.uid)
+      .then((datos) => {
+        setNombre((actual) => actual || datos.nombre || "");
+        setTelefono((actual) => actual || datos.telefono || "");
+        setEmail((actual) => actual || datos.email || "");
+      })
+      .catch((err) => console.error("Error al leer los datos del invitado:", err));
+  }, []);
 
   const normalizarTelefono = (valor) => {
   return valor.replace(/\s+/g, "").replace(/[^\d+]/g, "").trim();
@@ -21,6 +50,7 @@ export default function Registro() {
 
  const handleRegistro = async (e) => {
   e.preventDefault();
+  if (cargando) return;
   setError("");
 
   const nombreLimpio = nombre.trim();
@@ -32,7 +62,7 @@ export default function Registro() {
     return;
   }
 
-  if (!telefonoLimpio) {
+  if (!telefono.trim()) {
     setError("El teléfono es obligatorio.");
     return;
   }
@@ -48,12 +78,24 @@ export default function Registro() {
     return;
   }
 
+  if (!aceptaPrivacidad) {
+    setError("Para crear la cuenta tienes que aceptar la política de privacidad.");
+    return;
+  }
+
+  setCargando(true);
+  flujoAuth.ocupado += 1;
   try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      emailLimpio,
-      password
-    );
+    // Si compró como invitado, la sesión anónima se convierte en su cuenta:
+    // mismo uid, así conserva reservas, bonos y tarjetas regalo
+    const invitado = auth.currentUser?.isAnonymous ? auth.currentUser : null;
+
+    const userCredential = invitado
+      ? await linkWithCredential(
+          invitado,
+          EmailAuthProvider.credential(emailLimpio, password)
+        )
+      : await createUserWithEmailAndPassword(auth, emailLimpio, password);
 
     const uid = userCredential.user.uid;
 
@@ -61,24 +103,86 @@ export default function Registro() {
       displayName: nombreLimpio,
     });
 
-    await set(ref(dbRealtime, `usuarios/${uid}`), {
-      uid,
-      nombre: nombreLimpio,
-      telefono: telefonoLimpio,
-      email: emailLimpio,
-      fechaRegistro: new Date().toISOString(),
-      reservas: 0,
-      bonos: {},
-    });
+    if (invitado) {
+      await update(ref(dbRealtime, `usuarios/${uid}`), {
+        uid,
+        nombre: nombreLimpio,
+        telefono: telefonoLimpio,
+        email: emailLimpio,
+        invitado: false,
+        fechaRegistro: new Date().toISOString(),
+        privacidadAceptadaEn: new Date().toISOString(),
+      });
+    } else {
+      // update y no set: las reglas dan permiso campo a campo (bonos y tarjetas
+      // regalo solo los escribe el servidor)
+      await update(ref(dbRealtime, `usuarios/${uid}`), {
+        uid,
+        nombre: nombreLimpio,
+        telefono: telefonoLimpio,
+        email: emailLimpio,
+        fechaRegistro: new Date().toISOString(),
+        privacidadAceptadaEn: new Date().toISOString(),
+      });
+    }
 
-    navigate(location.state?.from || "/perfil", { replace: true });
+    // La cuenta nueva no se usa hasta confirmar el correo (las anteriores no lo necesitan)
+    // Si el envío falla (p. ej. auth/too-many-requests) la cuenta ya existe: no se
+    // muestra error de registro, y desde el login se puede reenviar el correo
+    try {
+      await enviarVerificacionEmail(userCredential.user);
+    } catch (errorCorreo) {
+      console.error("No se pudo enviar el correo de confirmación:", errorCorreo);
+      setCorreoFallido(true);
+    }
+    await signOut(auth);
+    setEmailEnviado(emailLimpio);
   } catch (error) {
-    setError("Error al registrar: " + error.message);
+    console.error("Error al registrar:", error);
+    setError(
+      mensajeErrorAuth(error, "No hemos podido crear tu cuenta. Revisa los datos e inténtalo de nuevo.")
+    );
+  } finally {
+    flujoAuth.ocupado -= 1;
+    setCargando(false);
   }
 };
 
+  if (emailEnviado) {
+    return (
+      <div className="flex flex-col items-center justify-center px-4 text-[#333]">
+        <img src="/img/logoPCsin.png" alt="Logo La Purísima Conchi" className="w-40 mb-6" />
+        <div className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md text-center">
+          <h1 className="text-2xl font-serif text-[#5c2e00] mb-3">Confirma tu correo</h1>
+          {correoFallido ? (
+            <p className="text-sm mb-2">
+              Tu cuenta con <strong>{emailEnviado}</strong> está creada, pero no hemos podido
+              enviar el correo ahora mismo. Espera unos minutos, inicia sesión y pulsa
+              «Reenviar correo de confirmación».
+            </p>
+          ) : (
+          <p className="text-sm mb-2">
+            Te hemos enviado un enlace a <strong>{emailEnviado}</strong>. Ábrelo para
+            activar tu cuenta y después inicia sesión.
+          </p>
+          )}
+          <p className="text-xs text-tinta-suave mb-5">
+            Si no lo ves, revisa la carpeta de spam o correo no deseado.
+          </p>
+          <button
+            type="button"
+            className="w-full py-2 px-4 rounded-full font-semibold text-white bg-terracota hover:bg-terracota-oscuro"
+            onClick={() => navigate("/login", { replace: true, state: location.state })}
+          >
+            Ir a iniciar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-[#fdfaf5] min-h-screen flex flex-col items-center justify-center px-4 text-[#333]">
+    <div className="flex flex-col items-center justify-center px-4 text-[#333]">
       <BotonVolver volverA="/" />
 
       <img
@@ -89,12 +193,24 @@ export default function Registro() {
 
       <h1 className="text-2xl font-serif text-[#5c2e00] mb-4">Crear cuenta</h1>
 
+      {esInvitado && (
+        <p className="text-sm text-tinta-suave bg-mostaza-suave border border-linea rounded-xl px-4 py-3 mb-4 max-w-md text-center">
+          Crea una contraseña y guardaremos en tu cuenta las reservas y compras
+          que has hecho como invitado.
+        </p>
+      )}
+
       <form
         onSubmit={handleRegistro}
         className="bg-white shadow-md rounded-2xl p-6 w-full max-w-md flex flex-col gap-4"
       >
         {error && (
-          <div className="text-red-600 text-sm text-center">{error}</div>
+          <div
+            role="alert"
+            className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 text-center"
+          >
+            {error}
+          </div>
         )}
 
         <div>
@@ -172,18 +288,36 @@ export default function Registro() {
           />
         </div>
 
+        <label className="flex items-start gap-2 text-sm text-tinta">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={aceptaPrivacidad}
+            onChange={(e) => setAceptaPrivacidad(e.target.checked)}
+            required
+          />
+          <span>
+            He leído y acepto la{" "}
+            <Link to="/politica-privacidad" target="_blank" className="text-terracota underline">
+              política de privacidad
+            </Link>
+            .
+          </span>
+        </label>
+
         <button
           type="submit"
-          className="bg-[#b36a4a] hover:bg-[#9e5c3f] text-white font-bold text-lg py-3 rounded-xl"
+          disabled={cargando}
+          className="bg-terracota hover:bg-terracota-oscuro disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold text-lg py-3 rounded-full"
         >
-          Registrarse
+          {cargando ? "Creando tu cuenta..." : "Registrarse"}
         </button>
 
         <div className="text-sm text-center mt-2">
           ¿Ya tienes cuenta?{" "}
           <span
             className="text-blue-700 font-bold cursor-pointer"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/login", { state: location.state })}
           >
             Inicia sesión
           </span>

@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { ref, get, update } from "firebase/database";
+import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { cargarContextoReserva } from "./utils/disponibilidad";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
-import { crearBonoActivo } from "./utils/bonos";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const CLASE_ID = "tornodesdecero4clases";
 const RESERVAS_PATH_KEY = "TornoAlfareroEmpezarDesdeCero";
 
@@ -160,13 +163,9 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
   useEffect(() => {
   const cargarReservasGrupos = async () => {
     try {
-      const snap = await get(ref(dbRealtime, "reservasGrupos"));
-
-      if (snap.exists()) {
-        setReservasGrupos(snap.val() || {});
-      } else {
-        setReservasGrupos({});
-      }
+      // Solo los grupos que abren turno, sin datos personales (api/disponibilidad.js)
+      const { reservasGrupos: grupos } = await cargarContextoReserva();
+      setReservasGrupos(grupos || {});
     } catch (error) {
       console.error("Error al cargar reservas de grupos:", error);
       setReservasGrupos({});
@@ -290,7 +289,7 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fechaInicio}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fechaInicio)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -336,7 +335,7 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
         precioBase,
         precioTotal,
         estadoBono: "activo",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estadoPago: "pendiente",
         orderId,
         creadoEn: timestamp,
         actualizadoEn: timestamp,
@@ -344,91 +343,14 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
       };
 
       if (desdeTarjeta) {
-        const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
         const codigoTarjeta = location.state?.codigoTarjeta || "";
 
-        const bonosRef = ref(dbRealtime, `usuarios/${user.uid}/bonos`);
-        const bonosSnap = await get(bonosRef);
-
-        let bonoYaExiste = false;
-
-        if (bonosSnap.exists()) {
-          const bonos = bonosSnap.val() || {};
-
-          for (const bono of Object.values(bonos)) {
-            if (
-              bono?.tarjetaRegaloId === tarjetaRegaloId ||
-              bono?.orderId === orderId
-            ) {
-              bonoYaExiste = true;
-              break;
-            }
-          }
-        }
-
-        if (!bonoYaExiste) {
-          await crearBonoActivo({
-            uid: user.uid,
-            clase: claseConfig?.nombre || "Torno alfarero empezar desde cero",
-            claseId: CLASE_ID,
-            tipoTaller: "bono_mensual",
-            subtipo,
-            numeroClases,
-            fechaInicio,
-            fechaFinMes: sumarUnMes(fechaInicio),
-            fechaCaducidadBono: sumarUnMesCaducidad(fechaInicio),
-            turno,
-            orderId,
-            datosExtra: {
-              duracionClase,
-              modalidad,
-              incluyeDecoracion,
-              precioBase,
-              precioTotal,
-              tarjetaRegaloId,
-              codigoTarjeta,
-              creadaDesde: "tarjeta_regalo",
-            },
-          });
-        }
-
-        const tarjetaGlobalRef = ref(
-          dbRealtime,
-          `tarjetasRegalo/${tarjetaRegaloId}`
-        );
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const tarjetaGlobal = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()
-          : null;
-        const uidComprador = tarjetaGlobal?.uidComprador || "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          fechaReserva: fechaInicio,
-          turnoReserva: turno,
-          subtipoReserva: subtipo,
-          numeroClasesReserva: numeroClases,
-          modalidadReserva: modalidad,
-          incluyeDecoracionReserva: incluyeDecoracion,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(
-              dbRealtime,
-              `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`
-            ),
-            datosActualizacionTarjeta
-          );
+        // El servidor crea el bono, marca la tarjeta usada y envía el correo
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId, bono: datosBono });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
 
         navigate("/pago/exito", {
@@ -484,22 +406,22 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
   };
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Reserva – {claseConfig?.nombre || "Torno alfarero empezar desde cero"}
         </h1>
 
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
-            Estás usando una tarjeta regalo 🎁
+            Estás usando una tarjeta regalo <Icono nombre="regalo" />
           </p>
         )}
 
         {cargandoConfig ? (
-          <p className="text-center text-gray-500 py-8">
+          <p className="text-center text-tinta-suave py-8">
             Cargando configuración del bono...
           </p>
         ) : !claseConfig ? (
@@ -508,7 +430,7 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Curso de {numeroClases} clases.</strong>
               </p>
@@ -559,7 +481,7 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
                     disponibles: {Object.keys(claseConfig?.horarios || {}).join(", ")}.
                   </p>
                 )}
-                <div className="mt-2 bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+                <div className="mt-2 bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 La fecha de inicio del bono no constituye una reserva de clase.
                 Deberás gestionar cada reserva desde tu perfil, en “Mis bonos”.
                 </div>
@@ -586,7 +508,7 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
               </select>
             </div>
 
-            <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+            <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
                 <strong>Modalidad:</strong> {modalidad}
               </p>
@@ -601,7 +523,7 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
             </div>
 
             {fechaInicio && (
-              <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+              <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 <p>
                   <strong>Precio total:</strong>{" "}
                   {desdeTarjeta ? "0€" : `${precioTotal}€`}
@@ -620,9 +542,9 @@ export default function ReservaTornoAlfareroEmpezarDesdeCero() {
             <button
               type="submit"
               className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-              bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+              bg-terracota
               shadow-md hover:shadow-lg
-              hover:from-[#F4C542] hover:to-[#E5B92F]
+              hover:bg-terracota-oscuro
               transition-all duration-200"
               disabled={
                 !!fechaBloqueada ||

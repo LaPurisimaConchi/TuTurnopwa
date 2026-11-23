@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useMemo } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { cargarContextoReserva } from "./utils/disponibilidad";
+import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import { contarPlazasPorMetodo } from "./utils/contarPlazasDia";
 import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import { diasEntreSesionesDe, sumarDias } from "./utils/sesionesTaller";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const CLASE_ID = "setsake";
 const RESERVAS_PATH_KEY = "CreaTuSetSake";
 
@@ -15,11 +21,6 @@ const RESERVAS_PATH_KEY = "CreaTuSetSake";
 const MAX_TORNO_FALLBACK = 12;
 const MAX_TOTALES_FALLBACK = 45;
 
-const sumar28Dias = (fechaISO) => {
-  const d = new Date(fechaISO + "T12:00:00");
-  d.setDate(d.getDate() + 28);
-  return d.toISOString().slice(0, 10);
-};
 
 const normalizarTurnos = (turnosRaw) => {
   if (!turnosRaw) return [];
@@ -112,6 +113,8 @@ export default function ReservaCreaTuSetSake() {
 
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
+  // Con tarjeta regalo se reservan juntas todas las plazas de la tarjeta
+  const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
 
   useEffect(() => {
     const auth = getAuth();
@@ -182,13 +185,9 @@ export default function ReservaCreaTuSetSake() {
   useEffect(() => {
   const cargarReservasGrupos = async () => {
     try {
-      const snap = await get(ref(dbRealtime, "reservasGrupos"));
-
-      if (snap.exists()) {
-        setReservasGrupos(snap.val() || {});
-      } else {
-        setReservasGrupos({});
-      }
+      // Solo los grupos que abren turno, sin datos personales (api/disponibilidad.js)
+      const { reservasGrupos: grupos } = await cargarContextoReserva();
+      setReservasGrupos(grupos || {});
     } catch (error) {
       console.error("Error al cargar reservas de grupos:", error);
       setReservasGrupos({});
@@ -312,9 +311,9 @@ export default function ReservaCreaTuSetSake() {
   }, [metodo, precios]);
 
   const precioTotal = useMemo(() => {
-    const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+    const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
     return precioUnitario * plazasNum;
-  }, [precioUnitario, plazas]);
+  }, [precioUnitario, plazas, plazasTarjeta]);
 
   const nombreMetodo = useMemo(() => {
     return getNombreMetodo(metodo);
@@ -384,7 +383,7 @@ export default function ReservaCreaTuSetSake() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -396,7 +395,7 @@ export default function ReservaCreaTuSetSake() {
       return;
     }
 
-    const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+    const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
 
     if (plazasDisponibles <= 0 || plazasNum > plazasDisponibles) {
       alert("No hay suficientes plazas disponibles para este método.");
@@ -416,7 +415,7 @@ export default function ReservaCreaTuSetSake() {
     try {
       const orderId = Date.now().toString().slice(-12);
       const timestamp = new Date().toISOString();
-      const fechaDisponibleSegundaSesion = sumar28Dias(fecha);
+      const fechaDisponibleSegundaSesion = sumarDias(fecha, diasEntreSesionesDe(claseConfig || {}, 2)[0]);
 
       const reserva = {
         clase: claseConfig?.nombre || "Crea tu set de sake",
@@ -432,8 +431,8 @@ export default function ReservaCreaTuSetSake() {
         precio: precioTotal,
         precioUnitario,
         precioTotal,
-        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estado: "Pendiente",
+        estadoPago: "pendiente",
         orderId,
         segundaSesion: {
           habilitada: false,
@@ -453,54 +452,14 @@ export default function ReservaCreaTuSetSake() {
       await update(nuevaReservaRef, { uid: user.uid, ...reserva });
 
       if (desdeTarjeta) {
-        const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
         const codigoTarjeta = location.state?.codigoTarjeta || "";
 
-        await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
-          ...reserva,
-          uid: user.uid,
-          tarjetaRegaloId,
-          codigoTarjeta,
-          creadaDesde: "tarjeta_regalo",
-        });
-
-        const tarjetaGlobalRef = ref(
-          dbRealtime,
-          `tarjetasRegalo/${tarjetaRegaloId}`
-        );
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const tarjetaGlobal = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()
-          : null;
-        const uidComprador = tarjetaGlobal?.uidComprador || "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          reservaId: nuevaReservaRef.key || "",
-          fechaReserva: fecha,
-          turnoReserva: turno,
-          metodoReserva: metodo,
-          nombreTipoClaseReserva: nombreMetodo,
-          fechaDisponibleSegundaSesion,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(
-              dbRealtime,
-              `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`
-            ),
-            datosActualizacionTarjeta
-          );
+        // El servidor confirma la reserva, marca la tarjeta usada y envía el correo
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
 
         navigate("/pago/exito", {
@@ -545,7 +504,7 @@ export default function ReservaCreaTuSetSake() {
     }
   };
 
-  const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+  const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
   const puedeElegirMetodo = !!fecha && !fechaBloqueada && !diaNoDisponible;
   const puedeElegirTurno =
     !!fecha && !!metodo && !fechaBloqueada && !diaNoDisponible;
@@ -558,22 +517,23 @@ export default function ReservaCreaTuSetSake() {
     plazasDisponibles > 0;
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Reserva – {claseConfig?.nombre || "Crea tu set de sake"}
         </h1>
 
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
-            Estás usando una tarjeta regalo 🎁
+            Estás usando una tarjeta regalo <Icono nombre="regalo" />
+            {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
           </p>
         )}
 
         {cargandoConfig ? (
-          <p className="text-center text-gray-500 py-8">
+          <p className="text-center text-tinta-suave py-8">
             Cargando configuración de la clase...
           </p>
         ) : !claseConfig ? (
@@ -583,12 +543,12 @@ export default function ReservaCreaTuSetSake() {
         ) : (
           <BloqueoReserva>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+              <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 <p><strong>Incluye 2 sesiones.</strong></p>
                 <p>
                   La primera sesión se reserva ahora. La segunda se habilitará
                   a partir de 4 semanas después de la primera, y antes deberás
-                  contactar con el taller para confirmar que tu pieza ya está lista.
+                  contactar con el taller para confirmar que todo está listo para la siguiente sesión.
                 </p>
               </div>
 
@@ -634,7 +594,7 @@ export default function ReservaCreaTuSetSake() {
                   id="metodo"
                   value={metodo}
                   onChange={(e) => handleMetodoChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                   required
                   disabled={!puedeElegirMetodo}
                 >
@@ -665,7 +625,7 @@ export default function ReservaCreaTuSetSake() {
                     type="text"
                     value={turno}
                     readOnly
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base bg-gray-50"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base bg-crema"
                   />
                 ) : (
                   <select
@@ -675,7 +635,7 @@ export default function ReservaCreaTuSetSake() {
                       setTurno(e.target.value);
                       setPlazas(1);
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                     required
                     disabled={!puedeElegirTurno}
                   >
@@ -703,11 +663,11 @@ export default function ReservaCreaTuSetSake() {
                 </p>
               )}
 
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-tinta-suave">
                 Máximo {maxTotales} plazas por día ({maxTorno} para torno).
               </div>
 
-              <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
+              <div className="text-sm text-tinta-suave bg-mostaza-suave border border-linea rounded-xl p-3">
   <strong>¿Sois 5 o más personas?</strong>
   <br />
   Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
@@ -722,8 +682,8 @@ export default function ReservaCreaTuSetSake() {
                   <button
                     type="button"
                     onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
-                    disabled={!puedeElegirPlazas}
-                    className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
+                    className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     −
                   </button>
@@ -737,14 +697,14 @@ export default function ReservaCreaTuSetSake() {
                     onClick={() =>
                       setPlazas(Math.min(plazasDisponibles || 1, plazasNum + 1))
                     }
-                    disabled={!puedeElegirPlazas}
-                    className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
+                    className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     +
                   </button>
                 </div>
 
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinta-suave mt-1">
                   {!fecha
                     ? "Primero selecciona la fecha."
                     : !metodo
@@ -758,7 +718,7 @@ export default function ReservaCreaTuSetSake() {
               </div>
 
               {fecha && (
-                <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+                <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                   <p><strong>Método elegido:</strong> {nombreMetodo || "—"}</p>
                   <p>
                     <strong>Precio unitario:</strong>{" "}
@@ -770,7 +730,7 @@ export default function ReservaCreaTuSetSake() {
                   </p>
                   <p>
                     <strong>Segunda sesión disponible a partir de:</strong>{" "}
-                    {sumar28Dias(fecha)}
+                    {sumarDias(fecha, diasEntreSesionesDe(claseConfig || {}, 2)[0])}
                   </p>
                 </div>
               )}
@@ -778,9 +738,9 @@ export default function ReservaCreaTuSetSake() {
               <button
                 type="submit"
                 className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-                bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+                bg-terracota
                 shadow-md hover:shadow-lg
-                hover:from-[#F4C542] hover:to-[#E5B92F]
+                hover:bg-terracota-oscuro
                 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   !!fechaBloqueada ||

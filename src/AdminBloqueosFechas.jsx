@@ -3,13 +3,24 @@ import { ref, get, update, remove } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
+import { plazasEnBloqueo } from "./utils/aforo";
+import { preguntar } from "./utils/avisos";
+import EditorTurnos from "./components/EditorTurnos";
+import { leerTurnos } from "./utils/fichaTaller";
+import { rangosBloqueados } from "./utils/rangosHora";
 const AdminBloqueosFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
+  // Horas a bloquear ("11:30-14:30, 17:30-20:30"); con «todo el día» marcada se cierra el día entero
+  const [todoElDia, setTodoElDia] = useState(true);
+  const [horas, setHoras] = useState("");
   const [bloqueos, setBloqueos] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
+  const [verPasados, setVerPasados] = useState(false);
+  const [limpiando, setLimpiando] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -41,6 +52,7 @@ useEffect(() => {
             fecha,
             bloqueado: data.bloqueado ?? false,
             motivo: data.motivo || "",
+            rangos: rangosBloqueados(data),
           });
         });
       }
@@ -81,16 +93,47 @@ useEffect(() => {
       return;
     }
 
+    const rangos = todoElDia ? [] : leerTurnos(horas);
+    if (!todoElDia && !rangos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
+      return;
+    }
+
+    const fechas = generarRangoFechas(fechaInicio, fechaFin);
+
+    // Avisa si ya hay gente reservada: bloquear no cancela las reservas ni avisa al cliente
+    try {
+      const [reservasSnap, gruposSnap] = await Promise.all([
+        get(ref(dbRealtime, "reservas")),
+        get(ref(dbRealtime, "reservasGrupos")),
+      ]);
+      const { plazas, porFecha } = plazasEnBloqueo(reservasSnap, gruposSnap, fechas, rangos);
+      if (plazas > 0) {
+        const detalle = Object.keys(porFecha)
+          .sort()
+          .map((f) => `• ${fechaDMA(f)}: ${porFecha[f]} plaza${porFecha[f] !== 1 ? "s" : ""}`)
+          .join("\n");
+        const seguir = await preguntar(
+          `Ya hay ${plazas} plaza${plazas !== 1 ? "s" : ""} reservada${plazas !== 1 ? "s" : ""} en esas fechas:\n${detalle}\n\n` +
+            "Bloquear no cancela esas reservas ni avisa a los clientes: solo impide reservas nuevas. " +
+            "Si hay que cancelarlas, hazlo desde el detalle de cada reserva. ¿Bloquear igualmente?"
+        );
+        if (!seguir) return;
+      }
+    } catch (error) {
+      console.warn("No se pudieron comprobar las reservas existentes:", error);
+    }
+
     try {
       setGuardando(true);
 
-      const fechas = generarRangoFechas(fechaInicio, fechaFin);
       const updates = {};
 
       fechas.forEach((fecha) => {
         updates[`bloqueosFechas/${fecha}`] = {
           bloqueado: true,
           motivo: motivo.trim() || "No especificado",
+          ...(rangos.length ? { turnosBloqueados: rangos } : {}),
         };
       });
 
@@ -99,6 +142,8 @@ useEffect(() => {
       setFechaInicio("");
       setFechaFin("");
       setMotivo("");
+      setTodoElDia(true);
+      setHoras("");
 
       await cargarBloqueos();
       alert("Fechas bloqueadas correctamente.");
@@ -111,8 +156,8 @@ useEffect(() => {
   };
 
   const eliminarBloqueo = async (fecha) => {
-    const confirmar = window.confirm(
-      `¿Seguro que quieres desbloquear la fecha ${fecha}?`
+    const confirmar = await preguntar(
+      `¿Seguro que quieres desbloquear la fecha ${fechaDMA(fecha)}?`
     );
 
     if (!confirmar) return;
@@ -129,9 +174,37 @@ useEffect(() => {
     }
   };
 
+  const hoy = hoyMadrid();
   const bloqueosActivos = useMemo(() => {
     return bloqueos.filter((b) => b.bloqueado);
   }, [bloqueos]);
+  // Los de días que ya pasaron no bloquean nada: se esconden salvo que se pidan
+  const bloqueosPasados = bloqueosActivos.filter((b) => b.fecha < hoy);
+  const bloqueosVisibles = verPasados ? bloqueosActivos : bloqueosActivos.filter((b) => b.fecha >= hoy);
+
+  const limpiarPasados = async () => {
+    if (!bloqueosPasados.length) return;
+    const seguir = await preguntar(
+      `¿Borrar los ${bloqueosPasados.length} bloqueos de días que ya han pasado? No afecta a ninguna reserva.`
+    );
+    if (!seguir) return;
+
+    try {
+      setLimpiando(true);
+      const cambios = {};
+      bloqueosPasados.forEach((b) => {
+        cambios[`bloqueosFechas/${b.fecha}`] = null;
+      });
+      await update(ref(dbRealtime), cambios);
+      await cargarBloqueos();
+      alert("Bloqueos pasados borrados.");
+    } catch (error) {
+      console.error("Error al borrar bloqueos pasados:", error);
+      alert("No se pudieron borrar los bloqueos pasados.");
+    } finally {
+      setLimpiando(false);
+    }
+  };
 
   return (
     <div
@@ -187,6 +260,26 @@ useEffect(() => {
             />
           </div>
 
+          <div style={styles.campo}>
+            <label style={styles.label}>Horas a bloquear</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                checked={todoElDia}
+                onChange={(e) => setTodoElDia(e.target.checked)}
+              />
+              Todo el día
+            </label>
+            {!todoElDia && (
+              <EditorTurnos
+                id="bloqueo-horas"
+                value={horas}
+                onChange={setHoras}
+                textoVacio="Sin turnos"
+              />
+            )}
+          </div>
+
           <button
             onClick={guardarBloqueo}
             style={styles.botonGuardar}
@@ -199,11 +292,35 @@ useEffect(() => {
         <div style={styles.card}>
           <h2 style={styles.subtituloBloque}>Fechas bloqueadas</h2>
 
-          {bloqueosActivos.length === 0 ? (
+          {bloqueosPasados.length > 0 && (
+            <p style={styles.textoVacio}>
+              {verPasados
+                ? `Se enseñan también los ${bloqueosPasados.length} bloqueos de días pasados. `
+                : `${bloqueosPasados.length} bloqueos de días pasados escondidos. `}
+              <button
+                type="button"
+                onClick={() => setVerPasados((v) => !v)}
+                style={{ background: "none", border: "none", color: "#1d4ed8", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+              >
+                {verPasados ? "Esconderlos" : "Verlos"}
+              </button>
+              {" · "}
+              <button
+                type="button"
+                onClick={limpiarPasados}
+                disabled={limpiando}
+                style={{ background: "none", border: "none", color: "#b91c1c", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+              >
+                {limpiando ? "Borrando…" : "Borrarlos"}
+              </button>
+            </p>
+          )}
+
+          {bloqueosVisibles.length === 0 ? (
             <p style={styles.textoVacio}>No hay fechas bloqueadas.</p>
           ) : (
             <div style={styles.lista}>
-              {bloqueosActivos.map((b) => (
+              {bloqueosVisibles.map((b) => (
                 <div
   key={b.fecha}
   style={{
@@ -212,8 +329,11 @@ useEffect(() => {
   }}
 >
                   <div>
-                    <p style={styles.fecha}>{b.fecha}</p>
-                    <p style={styles.motivo}>{b.motivo || "Sin motivo"}</p>
+                    <p style={styles.fecha}>{fechaDMA(b.fecha)}</p>
+                    <p style={styles.motivo}>
+                      {b.rangos?.length ? `${b.rangos.join(" / ")} · ` : "Todo el día · "}
+                      {b.motivo || "Sin motivo"}
+                    </p>
                   </div>
 
                   <button
@@ -237,8 +357,6 @@ useEffect(() => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -263,18 +381,18 @@ const styles = {
   titulo: {
     textAlign: "center",
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -294,28 +412,28 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonGuardar: {
     padding: "12px 16px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   subtituloBloque: {
     marginTop: 0,
     marginBottom: 14,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   lista: {
@@ -329,8 +447,8 @@ const styles = {
     gap: 16,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
   },
   fecha: {
     margin: 0,

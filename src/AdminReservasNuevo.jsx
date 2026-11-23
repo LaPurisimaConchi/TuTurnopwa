@@ -4,6 +4,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import EtiquetaInvitado from "./components/EtiquetaInvitado";
 const AdminReservasNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -85,6 +87,7 @@ const AdminReservasNuevo = () => {
       nombre: user.nombre || user.name || user.displayName || "",
       telefono: user.telefono || user.phone || user.telefonoUsuario || "",
       email: user.email || "",
+      invitado: user.invitado === true,
     };
   });
 }
@@ -97,6 +100,9 @@ const AdminReservasNuevo = () => {
             const orden = Number(claseData.orden || 9999);
 
             mapaClases[claseId] = { nombre, orden };
+
+            // La ficha "Tarjeta regalo" no es un taller: ya se añade abajo una sola vez
+            if (claseId === "tarjetaregalo" || nombre.trim().toLowerCase() === "tarjeta regalo") return;
 
             listaClases.push({
               id: claseId,
@@ -172,6 +178,7 @@ const AdminReservasNuevo = () => {
                         turno: reserva.turno || turnoKey,
                         metodo:
                           reserva.metodo ||
+                          reserva.modalidad ||
                           reserva.tipoClase ||
                           metodoFallback,
                         plazas: Number(reserva.plazas || 1),
@@ -184,6 +191,7 @@ const AdminReservasNuevo = () => {
                             0
                         ),
                         uid: reserva.uid || "",
+                        invitado: datosUsuario.invitado === true,
                         nombre:
   reserva.nombre ||
   reserva.nombreUsuario ||
@@ -215,11 +223,9 @@ email:
                     };
 
                     if (pareceReservaDirecta) {
-                      const reservaConstruida = construirReserva(
-                        nivelVal,
-                        nivelKey,
-                        nivelKey
-                      );
+                      // Reserva directamente bajo el turno: su clave es el id de la
+                      // reserva, no un método (antes salía "-P5rLH…" como método)
+                      const reservaConstruida = construirReserva(nivelVal, nivelKey, "—");
                       datosReservas.push(reservaConstruida);
                       return;
                     }
@@ -259,11 +265,25 @@ email:
       estadoPago: grupo.estadoPago || "—",
       precioTotal: Number(grupo.precioTotal || grupo.precio || 0),
       uid: grupo.uid || "",
+      nombre:
+        grupo.nombreReserva ||
+        grupo.nombreOrganizador ||
+        usuariosMap[grupo.uid]?.nombre ||
+        "",
+      telefono:
+        grupo.telefono ||
+        grupo.telefonoOrganizador ||
+        usuariosMap[grupo.uid]?.telefono ||
+        "",
+      email: grupo.email || usuariosMap[grupo.uid]?.email || "",
       orderId: grupo.orderId || grupoSnap.key,
       procesado: grupo.procesado ?? false,
       notasInternas: mapaNotasTemp[(grupo.orderId || grupoSnap.key) || ""] || 0,
       reprogramada: false,
-      cancelada: grupo.cancelada === true || grupo.cancelada === "true",
+      cancelada:
+        grupo.cancelada === true ||
+        grupo.cancelada === "true" ||
+        grupo.estado === "Cancelada",
     });
   });
 }
@@ -369,8 +389,11 @@ email:
   return datosActivos.filter((r) => {
     const estadoVisible = getEstadoVisible(r);
 
+    // Las pendientes de pago (carritos sin terminar) no salen; las canceladas sí, para
+    // que se puedan consultar con el filtro «Cancelada»
     const esReservaConfirmada =
       r.tipoRegistro === "tarjeta_regalo" ||
+      r.cancelada ||
       (r.estado === "Confirmada" && r.estadoPago === "pagado");
 
     if (!esReservaConfirmada) return false;
@@ -604,7 +627,7 @@ const limpiarFiltros = () => {
               >
                 <div style={styles.cardTop}>
                   <div>
-                    <p style={styles.cardFecha}>{r.fecha}</p>
+                    <p style={styles.cardFecha}>{fechaDMA(r.fecha)}</p>
                     <p style={styles.cardTurno}>
                       {mostrandoTarjetas ? r.codigo || "—" : r.turno}
                     </p>
@@ -620,6 +643,7 @@ const limpiarFiltros = () => {
   <>
     <p style={styles.cardTexto}>
       <strong>Cliente:</strong> {r.nombre || "Sin nombre"}
+      <EtiquetaInvitado invitado={r.invitado} />
       {r.telefono ? ` · ${r.telefono}` : ""}
     </p>
 
@@ -697,7 +721,7 @@ const limpiarFiltros = () => {
                     style={getRowStyle(r)}
                   >
                     <td style={styles.tdFechaTurno}>
-  <strong>{r.fecha}</strong>
+  <strong>{fechaDMA(r.fecha)}</strong>
   <br />
   <span style={styles.textoSuave}>
     {mostrandoTarjetas ? r.codigo || "—" : r.turno}
@@ -723,6 +747,7 @@ const limpiarFiltros = () => {
 </td>
 <td style={styles.tdCliente}>
   <strong>{r.nombre || "Sin nombre"}</strong>
+  <EtiquetaInvitado invitado={r.invitado} />
   <br />
   <span>{r.telefono || "Sin teléfono"}</span>
 
@@ -760,8 +785,6 @@ const limpiarFiltros = () => {
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -786,18 +809,18 @@ const styles = {
   titulo: {
     margin: 0,
     textAlign: "center",
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
   filtrosBox: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 18,
     marginBottom: 18,
@@ -821,27 +844,27 @@ const styles = {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     width: "100%",
     minHeight: "44px",
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
     boxSizing: "border-box",
     appearance: "auto",
   },
   botonSecundario: {
     padding: "10px 14px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     alignSelf: "flex-start",
   },
   btnWhatsApp: {
@@ -872,39 +895,39 @@ btnWhatsAppMini: {
     marginBottom: 14,
   },
   resumenTexto: {
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "0.96rem",
   },
   mensaje: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     padding: 20,
   },
   tablaWrapper: {
     overflowX: "auto",
     borderRadius: 18,
-    border: "1px solid #f0e5cf",
-    backgroundColor: "#fffdf7",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fdfaf5",
   },
   table: {
     width: "100%",
     minWidth: "800px",
     borderCollapse: "collapse",
-    backgroundColor: "#fffdf7",
+    backgroundColor: "#fdfaf5",
     overflow: "hidden",
   },
   th: {
     textAlign: "left",
     padding: "14px 16px",
-    backgroundColor: "#fff8da",
-    color: "#5b4a2d",
-    borderBottom: "1px solid #f0e5cf",
+    backgroundColor: "#fff6d6",
+    color: "#3f3128",
+    borderBottom: "1px solid #eadfd2",
     fontSize: "0.95rem",
     whiteSpace: "nowrap",
   },
  td: {
   padding: "12px 12px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.9rem",
   verticalAlign: "middle",
@@ -912,7 +935,7 @@ btnWhatsAppMini: {
 },
 tdFechaTurno: {
   padding: "12px 12px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.9rem",
   verticalAlign: "middle",
@@ -922,7 +945,7 @@ tdFechaTurno: {
   
     tdClase: {
   padding: "12px 14px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.92rem",
   verticalAlign: "middle",
@@ -933,7 +956,7 @@ tdFechaTurno: {
   
   tdCliente: {
   padding: "12px 14px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.92rem",
   verticalAlign: "middle",
@@ -943,7 +966,7 @@ tdFechaTurno: {
   
     tdMetodo: {
   padding: "12px 14px",
-  borderBottom: "1px solid #f3ead7",
+  borderBottom: "1px solid #f6efe6",
   color: "#333",
   fontSize: "0.9rem",
   verticalAlign: "middle",
@@ -968,8 +991,8 @@ tdFechaTurno: {
   },
  
   cardMovil: {
-  backgroundColor: "#fffdf7",
-  border: "1px solid #f0e5cf",
+  backgroundColor: "#fdfaf5",
+  border: "1px solid #eadfd2",
   borderRadius: 18,
   padding: 12,
   cursor: "pointer",
@@ -993,7 +1016,7 @@ tdFechaTurno: {
   cardFecha: {
     margin: 0,
     fontWeight: 700,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1rem",
   },
   cardTurno: {
@@ -1008,7 +1031,7 @@ tdFechaTurno: {
   },
   cardTitulo: {
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontWeight: 700,
     fontSize: "1rem",
   },
@@ -1029,9 +1052,9 @@ tdFechaTurno: {
     display: "inline-block",
     padding: "4px 10px",
     borderRadius: 999,
-    backgroundColor: "#fff8da",
-    border: "1px solid #eadfbe",
-    color: "#5b4a2d",
+    backgroundColor: "#fff6d6",
+    border: "1px solid #eadfd2",
+    color: "#3f3128",
     fontSize: "0.85rem",
     fontWeight: 600,
   },

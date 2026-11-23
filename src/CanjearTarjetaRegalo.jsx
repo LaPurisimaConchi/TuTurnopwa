@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAuth } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { dbRealtime } from "./firebase";
-import BotonVolver from "./BotonVolver";
+import DatosContactoInvitado from "./components/DatosContactoInvitado";
+import { consultarTarjetaRegalo } from "./utils/canjeServidor";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
+
+import { fechaDMA } from "./utils/formatoFecha";
 
 const CanjearTarjetaRegalo = () => {
   const [codigo, setCodigo] = useState("");
@@ -12,50 +15,23 @@ const CanjearTarjetaRegalo = () => {
   const [validando, setValidando] = useState(false);
   const navigate = useNavigate();
 
- const buscarTarjetaPorCodigo = async (codigoBuscado) => {
-  const codigoNormalizado = codigoBuscado.trim().toUpperCase();
+  // Sin sesión se piden los datos de contacto al validar (leer la tarjeta exige
+  // sesión); la cuenta de invitado se abre al enviarlos
+  const [pidiendoDatos, setPidiendoDatos] = useState(false);
+  const resolverDatos = useRef(null);
+  const pedirDatosInvitado = () =>
+    new Promise((resolve) => {
+      resolverDatos.current = resolve;
+      setPidiendoDatos(true);
+    });
+  const cerrarDatosInvitado = (usuario) => {
+    setPidiendoDatos(false);
+    resolverDatos.current?.(usuario || null);
+    resolverDatos.current = null;
+  };
 
-  // 1) Intentar encontrarla por índice rápido
-  const indexRef = ref(dbRealtime, `codigosTarjetaRegalo/${codigoNormalizado}`);
-  const indexSnap = await get(indexRef);
-
-  if (indexSnap.exists()) {
-    const tarjetaId = String(indexSnap.val());
-    const tarjetaRef = ref(dbRealtime, `tarjetasRegalo/${tarjetaId}`);
-    const tarjetaSnap = await get(tarjetaRef);
-
-    if (tarjetaSnap.exists()) {
-      return {
-        id: tarjetaId,
-        ...tarjetaSnap.val(),
-      };
-    }
-  }
-
-  // 2) Respaldo para tarjetas antiguas sin índice
-  const tarjetasRef = ref(dbRealtime, "tarjetasRegalo");
-  const tarjetasSnap = await get(tarjetasRef);
-
-  if (!tarjetasSnap.exists()) return null;
-
-  let encontrada = null;
-
-  tarjetasSnap.forEach((itemSnap) => {
-    const tarjeta = itemSnap.val();
-
-    if (
-      tarjeta?.codigo &&
-      String(tarjeta.codigo).trim().toUpperCase() === codigoNormalizado
-    ) {
-      encontrada = {
-        id: itemSnap.key,
-        ...tarjeta,
-      };
-    }
-  });
-
-  return encontrada;
-};
+  // La tarjeta la busca el servidor: las reglas no dejan leer /tarjetasRegalo
+  const buscarTarjetaPorCodigo = (codigoBuscado) => consultarTarjetaRegalo(codigoBuscado);
 
   const obtenerOpcionRegalo = (tarjeta) => {
     if (!tarjeta) return null;
@@ -88,12 +64,33 @@ const CanjearTarjetaRegalo = () => {
     );
   };
 
+  // Talleres creados desde el admin: se reservan en /reservar/:claseId
+  const obtenerTallerNuevo = async (tarjeta) => {
+    if (!tarjeta?.claseId) return null;
+
+    const snap = await get(ref(dbRealtime, `clases/${tarjeta.claseId}`));
+    const clase = snap.exists() ? snap.val() : null;
+    if (!clase?.dinamica) return null;
+
+    return {
+      clase: clase.nombre || tarjeta.clase || "",
+      claseId: tarjeta.claseId,
+      subtipo: tarjeta.subtipo || "",
+      tipoPieza: tarjeta.tipoPieza || "",
+      tipoTaller: clase.grupo || "",
+      precio: Number(tarjeta.precioTotal || 0),
+      rutaReserva: `/reservar/${tarjeta.claseId}`,
+      requiereMetodo: !!tarjeta.subtipo,
+      requiereTipoPieza: false,
+    };
+  };
+
   const handleValidar = async () => {
     setMensaje("");
     setValidando(true);
 
     const auth = getAuth();
-    const user = auth.currentUser;
+    let user = auth.currentUser;
     const code = codigo.trim();
 
     if (!code) {
@@ -103,49 +100,58 @@ const CanjearTarjetaRegalo = () => {
     }
 
     if (!user) {
-      setMensaje("Debes iniciar sesión para canjear tu tarjeta.");
-      setValidando(false);
-      return;
+      user = await pedirDatosInvitado();
+      if (!user) {
+        setValidando(false);
+        return;
+      }
     }
 
     try {
       const tarjeta = await buscarTarjetaPorCodigo(code);
 
       if (!tarjeta) {
-        setMensaje("❌ Código no válido. Revisa que lo has escrito bien.");
+        setMensaje("Código no válido. Revisa que lo has escrito bien.");
         setValidando(false);
         return;
       }
 
-      if (String(tarjeta.estadoPago || "").toLowerCase() !== "pagado") {
-        setMensaje("❌ Esta tarjeta regalo aún no consta como pagada.");
+      if (!tarjeta.pagada) {
+        setMensaje("Esta tarjeta regalo aún no consta como pagada.");
         setValidando(false);
         return;
       }
 
-      if (tarjeta.usado) {
-        setMensaje("❌ Este código ya ha sido usado.");
+      if (tarjeta.usada) {
+        setMensaje("Este código ya ha sido usado.");
         setValidando(false);
         return;
       }
 
-      if (tarjeta.canjeadoPorUID && tarjeta.canjeadoPorUID !== user.uid) {
-        setMensaje("❌ Este código ya ha sido canjeado por otro usuario.");
+      if (tarjeta.caducada) {
+        setMensaje(`Esta tarjeta regalo caducó el ${fechaDMA(tarjeta.fechaCaducidad)}.`);
         setValidando(false);
         return;
       }
 
-      const opcionRegalo = obtenerOpcionRegalo(tarjeta);
+      if (tarjeta.deOtraPersona) {
+        setMensaje("Este código ya ha sido canjeado por otro usuario.");
+        setValidando(false);
+        return;
+      }
+
+      const opcionRegalo =
+        obtenerOpcionRegalo(tarjeta) || (await obtenerTallerNuevo(tarjeta));
 
       if (!opcionRegalo || !opcionRegalo.rutaReserva) {
         setMensaje(
-          "❌ No se ha podido identificar la clase de esta tarjeta regalo."
+          "No se ha podido identificar la clase de esta tarjeta regalo."
         );
         setValidando(false);
         return;
       }
 
-      setMensaje("✅ Código válido. Redirigiendo a tu reserva...");
+      setMensaje("Código válido. Redirigiendo a tu reserva...");
 
       navigate(opcionRegalo.rutaReserva, {
         state: {
@@ -157,108 +163,71 @@ const CanjearTarjetaRegalo = () => {
           claseId: tarjeta.claseId || opcionRegalo.claseId,
           subtipo: tarjeta.subtipo || opcionRegalo.subtipo || "",
           tipoPieza: tarjeta.tipoPieza || opcionRegalo.tipoPieza || "",
+          metodo: tarjeta.metodo || "",
           tipoTaller: tarjeta.tipoTaller || opcionRegalo.tipoTaller || "",
           precio: tarjeta.precioTotal || opcionRegalo.precio || 0,
           precioTotal: tarjeta.precioTotal || opcionRegalo.precio || 0,
           rutaReserva: opcionRegalo.rutaReserva,
           requiereMetodo: !!opcionRegalo.requiereMetodo,
           requiereTipoPieza: !!opcionRegalo.requiereTipoPieza,
+          plazasTarjeta: Number(tarjeta.plazas || 1),
         },
       });
    } catch (error) {
   console.error("Error al validar el código:", error);
-  setMensaje(`⚠️ Error al validar: ${error?.message || "desconocido"}`);
+  setMensaje(`Error al validar: ${error?.message || "desconocido"}`);
 } finally {
   setValidando(false);
 }
   };
 
   return (
-    <div style={styles.body}>
-      <div style={styles.container}>
-        <BotonVolver />
-
-        <h2 style={styles.titulo}>Canjear tarjeta regalo</h2>
-        <p style={styles.descripcion}>
-          Introduce el código de tu tarjeta para acceder a tu taller.
-        </p>
-
-        <input
-          type="text"
-          placeholder="Introduce tu código"
-          value={codigo}
-          onChange={(e) => setCodigo(e.target.value)}
-          style={styles.input}
-        />
-
-        <button
-          onClick={handleValidar}
-          style={styles.btn}
-          disabled={validando}
+    <div className="max-w-xl mx-auto">
+      <section className="bg-white rounded-2xl border border-linea shadow-sm p-5">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleValidar();
+          }}
+          className="space-y-4"
         >
-          {validando ? "VALIDANDO..." : "VALIDAR CÓDIGO"}
-        </button>
+          <label className="block text-sm font-medium text-tinta">
+            Código de la tarjeta regalo
+            <input
+              type="text"
+              placeholder="Introduce tu código"
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              autoComplete="off"
+              className="mt-1 block w-full min-h-[48px] rounded-xl border border-gray-300 px-3 text-base focus:outline-none focus:ring-2 focus:ring-terracota"
+            />
+          </label>
 
-        {mensaje && <div style={styles.mensaje}>{mensaje}</div>}
-      </div>
+          <button
+            type="submit"
+            disabled={validando}
+            className="inline-flex items-center justify-center w-full min-h-[48px] rounded-full px-6 font-bold bg-terracota text-white hover:bg-terracota-oscuro transition disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-terracota focus-visible:ring-offset-2"
+          >
+            {validando ? "Validando…" : "Validar código"}
+          </button>
+        </form>
+
+        {mensaje && (
+          <p role="alert" className="mt-4 text-sm text-red-700">
+            {mensaje}
+          </p>
+        )}
+      </section>
+
+      {pidiendoDatos && (
+        <DatosContactoInvitado
+          compra
+          onListo={cerrarDatosInvitado}
+          onCancelar={() => cerrarDatosInvitado(null)}
+        />
+      )}
     </div>
   );
-};
-
-const styles = {
-  body: {
-    backgroundColor: "#fffef4",
-    fontFamily: "'Segoe UI', sans-serif",
-    minHeight: "100vh",
-    padding: 20,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  container: {
-    backgroundColor: "white",
-    padding: 24,
-    borderRadius: 16,
-    maxWidth: 420,
-    width: "100%",
-    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
-    textAlign: "center",
-  },
-  titulo: {
-    color: "#6b3700",
-    fontSize: "1.3rem",
-    marginBottom: 10,
-  },
-  descripcion: {
-    fontSize: "0.95rem",
-    color: "#555",
-    marginBottom: 20,
-  },
-  input: {
-    width: "100%",
-    padding: 12,
-    borderRadius: 12,
-    border: "1px solid #ccc",
-    marginBottom: 20,
-    fontSize: "1rem",
-    textAlign: "center",
-  },
-  btn: {
-    backgroundColor: "#f8b5b5",
-    color: "white",
-    padding: "10px 20px",
-    fontWeight: "bold",
-    borderRadius: 30,
-    fontSize: "0.95rem",
-    border: "none",
-    cursor: "pointer",
-    opacity: 1,
-  },
-  mensaje: {
-    marginTop: 20,
-    fontSize: "0.95rem",
-    color: "#6b3700",
-  },
 };
 
 export default CanjearTarjetaRegalo;

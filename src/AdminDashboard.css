@@ -1,0 +1,414 @@
+/* Panel admin (AdminDashboard.jsx). Prefijo pa- (panel admin): no uses «ad-», los bloqueadores de anuncios ocultan esas clases. */
+
+.pa-body {
+  padding: 30px;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.pa-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  background-color: #fff;
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+}
+
+.pa-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.pa-titulo {
+  margin: 0;
+  color: #3f3128;
+  font-size: 2rem;
+}
+
+.pa-subtitulo {
+  margin: 8px 0 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.pa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.pa-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 132px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #fffaf0 0%, #fff6d6 100%);
+  border: 1px solid #eadfd2;
+  border-radius: 20px;
+  padding: 20px 22px;
+  box-shadow: 0 2px 8px rgba(63, 49, 40, 0.06);
+  color: inherit;
+  text-decoration: none;
+}
+
+.pa-card-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pa-card-icono {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(63, 49, 40, 0.12);
+}
+
+.pa-card-icono--terracota { background: #f6e1d6; }
+.pa-card-icono--verde { background: #dcefe2; }
+.pa-card-icono--azul { background: #dce9f3; }
+.pa-card-icono--mostaza { background: #fbecc2; }
+
+.pa-card-label {
+  margin: 0;
+  padding-right: 14px;
+  color: #3f3128;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.pa-card-valor {
+  margin: auto 0 0;
+  padding-top: 12px;
+  color: #3f3128;
+  font-size: 2.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  min-height: 1.2em;
+}
+
+.pa-card-nota {
+  margin: 6px 0 0;
+  color: #7a6a5c;
+  font-size: 0.8rem;
+  min-height: 1.2em;
+}
+
+.pa-card-nota:empty {
+  display: none;
+}
+
+/* Flecha: avisa de que la casilla se puede tocar */
+.pa-card[href]::after {
+  content: "\203A";
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: #b59a52;
+  font-size: 1.4rem;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.pa-skeleton {
+  display: inline-block;
+  width: 3.5ch;
+  height: 0.9em;
+  border-radius: 8px;
+  background: #ecdfae;
+  animation: pa-pulso 1.2s ease-in-out infinite;
+}
+
+@keyframes pa-pulso {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.pa-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background-color: #fdecea;
+  border: 1px solid #f3b8b0;
+  color: #8a1f11;
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.pa-boton-reintentar {
+  padding: 8px 14px;
+  background-color: #8a1f11;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.pa-boton-reintentar:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.pa-panel {
+  background-color: #fdfaf5;
+  border: 1px solid #eadfd2;
+  border-radius: 22px;
+  padding: 22px;
+}
+
+.pa-panel + .pa-panel,
+.pa-panel-sep {
+  margin-top: 28px;
+}
+
+.pa-panel-titulo {
+  margin: 0 0 18px;
+  color: #3f3128;
+  font-size: 1.25rem;
+}
+
+.pa-proximas {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.pa-proxima {
+  padding: 10px 16px;
+  background-color: #fff6d6;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
+  border-radius: 14px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.pa-vacio {
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.pa-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.pa-pendiente {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  background-color: #fdfaf5;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pa-pendiente--vencido {
+  background-color: #fdecea;
+  border-color: #f3b8b0;
+  color: #8a1f11;
+}
+
+.pa-seccion {
+  margin-top: 18px;
+}
+
+.pa-seccion-titulo {
+  margin: 0 0 10px;
+  color: #3f3128;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pa-botones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.pa-boton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  background-color: #fdfaf5;
+  color: #3f3128;
+  border: 1px solid #eadfd2;
+  border-radius: 14px;
+  font-size: 1rem;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.pa-icono {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* Hover y foco visibles para ratón y teclado */
+.pa-card[href],
+.pa-boton,
+.pa-proxima,
+.pa-pendiente {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.pa-card[href]:hover,
+.pa-boton:hover,
+.pa-proxima:hover,
+.pa-pendiente:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+}
+
+.pa-card[href]:focus-visible,
+.pa-boton:focus-visible,
+.pa-proxima:focus-visible,
+.pa-pendiente:focus-visible,
+.pa-boton-reintentar:focus-visible {
+  outline: 3px solid #a9683f;
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .pa-body {
+    padding: 4px;
+  }
+
+  .pa-container {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+
+  .pa-header {
+    margin-bottom: 18px;
+  }
+
+  .pa-titulo {
+    font-size: 1.5rem;
+  }
+
+  .pa-subtitulo {
+    font-size: 0.9rem;
+  }
+
+  /* Casillas del resumen: dos por fila, compactas, con el dato como protagonista */
+  .pa-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .pa-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 120px;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+  }
+
+  .pa-card-cabecera {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .pa-card-icono {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .pa-card-label {
+    padding-right: 14px; /* deja sitio a la flecha de las casillas que abren una lista */
+    font-size: 0.8rem;
+    line-height: 1.25;
+  }
+
+  .pa-card-valor {
+    margin: 8px 0 0;
+    font-size: 1.7rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .pa-card-nota {
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    min-height: 0;
+  }
+
+  .pa-card-nota:empty {
+    display: none;
+  }
+
+  /* Flecha: avisa de que la casilla se puede tocar */
+  .pa-card[href]::after {
+    content: "\203A";
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    color: #b59a52;
+    font-size: 1.2rem;
+    font-weight: bold;
+    line-height: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pa-skeleton {
+    animation: none;
+  }
+
+  .pa-card[href],
+  .pa-boton,
+  .pa-proxima,
+  .pa-pendiente {
+    transition: none;
+  }
+
+  .pa-card[href]:hover,
+  .pa-boton:hover,
+  .pa-proxima:hover,
+  .pa-pendiente:hover {
+    transform: none;
+  }
+}

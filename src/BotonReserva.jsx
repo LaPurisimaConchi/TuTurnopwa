@@ -1,15 +1,16 @@
 import { useNavigate } from "react-router-dom";
 
-const BotonReserva = ({ destino, className = "" }) => {
+const BotonReserva = ({ destino, className = "", texto = "Reservar ahora", disabled = false }) => {
   const navigate = useNavigate();
 
   return (
       <button
         type="button"
         onClick={() => navigate(destino)}
-        className={`w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold px-6 py-2 rounded-full transition mb-5 ${className}`}
+        disabled={disabled}
+        className={`w-full bg-terracota hover:bg-terracota-oscuro text-white font-semibold px-6 py-2 rounded-full transition mb-5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-terracota ${className}`}
       >
-        Reservar ahora
+        {texto}
       </button>
   );
 };

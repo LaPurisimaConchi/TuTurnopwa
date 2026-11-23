@@ -3,13 +3,21 @@ import { ref, get, update, remove } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
+import { preguntar } from "./utils/avisos";
+import { limpiarTurno } from "./utils/turnosFecha";
+import EditorTurnos from "./components/EditorTurnos";
+import { leerTurnos } from "./utils/fichaTaller";
+
 const AdminHabilitarFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
   const [fechasHabilitadas, setFechasHabilitadas] = useState([]);
-  const [habilitarManana, setHabilitarManana] = useState(false);
-const [habilitarTarde, setHabilitarTarde] = useState(false);
+  // Turnos que se ofrecen: los «turnos de días abiertos» de /admin-espacio
+  const [turnosElegidos, setTurnosElegidos] = useState([]);
+  // «Todo el día»: se abren todos los turnos del taller ese día (sin lista concreta)
+  const [todoElDia, setTodoElDia] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
   const [fechaEditando, setFechaEditando] = useState(null);
@@ -86,8 +94,8 @@ useEffect(() => {
       return;
     }
 
-    if (!habilitarManana && !habilitarTarde) {
-      alert("Selecciona al menos un turno: mañana o tarde.");
+    if (!todoElDia && !turnosElegidos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
       return;
     }
 
@@ -100,12 +108,9 @@ useEffect(() => {
       fechas.forEach((fecha) => {
         updates[`fechasHabilitadas/${fecha}`] = {
           habilitada: true,
-          motivo: motivo.trim() || "Apertura especial",
+          motivo: motivo.trim() || "Día abierto",
           creadaEn: Date.now(),
-          turnosHabilitados: [
-            ...(habilitarManana ? ["11:30-14:30"] : []),
-            ...(habilitarTarde ? ["17:30-20:30"] : []),
-          ],
+          ...(todoElDia ? {} : { turnosHabilitados: [...turnosElegidos] }),
         };
       });
 
@@ -114,15 +119,15 @@ useEffect(() => {
      setFechaInicio("");
 setFechaFin("");
 setMotivo("");
-setHabilitarManana(false);
-setHabilitarTarde(false);
+setTurnosElegidos([]);
+setTodoElDia(false);
 setFechaEditando(null);
 
       await cargarFechasHabilitadas();
-      alert("Fechas habilitadas correctamente.");
+      alert("Días abiertos correctamente.");
     } catch (error) {
       console.error("Error al guardar fechas habilitadas:", error);
-      alert("No se pudieron guardar las fechas habilitadas.");
+      alert("No se pudieron guardar los días abiertos.");
     } finally {
       setGuardando(false);
     }
@@ -135,17 +140,15 @@ setFechaEditando(null);
   setFechaFin(f.fecha);
   setMotivo(f.motivo || "");
 
-  const turnos = f.turnosHabilitados || [];
-
-  setHabilitarManana(turnos.includes("11:30-14:30"));
-  setHabilitarTarde(turnos.includes("17:30-20:30"));
+  setTurnosElegidos((f.turnosHabilitados || []).map(limpiarTurno));
+  setTodoElDia(!f.turnosHabilitados?.length);
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
 
   const eliminarHabilitacion = async (fecha) => {
-    const confirmar = window.confirm(
-      `¿Seguro que quieres quitar la habilitación de la fecha ${fecha}?`
+    const confirmar = await preguntar(
+      `¿Seguro que quieres quitar la habilitación de la fecha ${fechaDMA(fecha)}?`
     );
 
     if (!confirmar) return;
@@ -163,7 +166,9 @@ setFechaEditando(null);
   };
 
   const habilitacionesActivas = useMemo(() => {
-    return fechasHabilitadas.filter((f) => f.habilitada);
+    // Los días que ya pasaron no sirven para nada: no se enseñan
+    const hoy = hoyMadrid();
+    return fechasHabilitadas.filter((f) => f.habilitada && f.fecha >= hoy);
   }, [fechasHabilitadas]);
 
   return (
@@ -181,9 +186,9 @@ setFechaEditando(null);
   >
         <BotonVolver />
 
-        <h1 style={styles.titulo}>Habilitar fechas y Turnos</h1>
+        <h1 style={styles.titulo}>Abrir días</h1>
         <p style={styles.subtitulo}>
-          Aquí puedes abrir días especiales para que sí se puedan reservar.
+          Abre un día sin horario para que cualquier taller se pueda reservar ese día, sin esperar a una reserva que llegue al mínimo de personas.
         </p>
 
         <div style={styles.card}>
@@ -221,32 +226,30 @@ setFechaEditando(null);
           </div>
 
           <div style={styles.campo}>
-            <label style={styles.label}>Turnos habilitados</label>
+            <label style={styles.label}>Turnos que se ofrecen</label>
 
             <label style={styles.checkboxLabel}>
               <input
                 type="checkbox"
-                checked={habilitarManana}
-                onChange={(e) => setHabilitarManana(e.target.checked)}
+                checked={todoElDia}
+                onChange={(e) => setTodoElDia(e.target.checked)}
               />
-              Mañana
+              Todo el día (todos los turnos del taller)
             </label>
-
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={habilitarTarde}
-                onChange={(e) => setHabilitarTarde(e.target.checked)}
+            {!todoElDia && (
+              <EditorTurnos
+                id="habilitar-turnos"
+                value={turnosElegidos.join(", ")}
+                onChange={(texto) => setTurnosElegidos(leerTurnos(texto))}
+                textoVacio="Sin turnos"
               />
-              Tarde
-            </label>
+            )}
             <p style={styles.avisoTurnos}>
-  Debes marcar solo los turnos que quieras habilitar. Si marcas mañana y tarde,
-  la fecha quedará abierta en ambos turnos.
+  Elige los turnos que quieras ofrecer ese día, con las horas que necesites, o marca «Todo el día».
 </p>
 {fechaEditando && (
   <p style={styles.avisoEdicion}>
-    Estás modificando la fecha {fechaEditando}. Revisa bien los turnos marcados
+    Estás modificando la fecha {fechaDMA(fechaEditando)}. Revisa bien los turnos marcados
     antes de guardar los cambios.
   </p>
 )}
@@ -261,15 +264,15 @@ setFechaEditando(null);
   ? "Guardando..."
   : fechaEditando
   ? "Guardar cambios"
-  : "Habilitar fechas"}
+  : "Abrir días"}
           </button>
         </div>
 
         <div style={styles.card}>
-          <h2 style={styles.subtituloBloque}>Fechas habilitadas</h2>
+          <h2 style={styles.subtituloBloque}>Días abiertos a mano</h2>
 
           {habilitacionesActivas.length === 0 ? (
-            <p style={styles.textoVacio}>No hay fechas habilitadas.</p>
+            <p style={styles.textoVacio}>No hay días abiertos a mano.</p>
           ) : (
             <div style={styles.lista}>
               {habilitacionesActivas.map((f) => (
@@ -281,7 +284,7 @@ setFechaEditando(null);
   }}
 >
                   <div>
-                    <p style={styles.fecha}>{f.fecha}</p>
+                    <p style={styles.fecha}>{fechaDMA(f.fecha)}</p>
                     <p style={styles.motivo}>{f.motivo || "Sin motivo"}</p>
                     <p style={styles.turnos}>
                       Turnos:{" "}
@@ -332,8 +335,6 @@ setFechaEditando(null);
 
 const styles = {
   body: {
-    backgroundColor: "#fdf8ee",
-    minHeight: "100vh",
     padding: 30,
     fontFamily: "'Segoe UI', sans-serif",
   },
@@ -370,18 +371,18 @@ botonItemMobile: {
   titulo: {
     textAlign: "center",
     margin: 0,
-    color: "#2f2f2f",
+    color: "#3f3128",
     fontSize: "2rem",
   },
   subtitulo: {
     textAlign: "center",
-    color: "#7a7a7a",
+    color: "#7a6858",
     marginTop: 8,
     marginBottom: 24,
   },
   card: {
-    backgroundColor: "#fffdf7",
-    border: "1px solid #f0e5cf",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
@@ -401,23 +402,23 @@ botonItemMobile: {
   label: {
     fontSize: "0.92rem",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   input: {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid #e5d8b8",
+    border: "1px solid #eadfd2",
     fontSize: "0.95rem",
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#fdfaf5",
   },
   botonGuardar: {
     padding: "12px 16px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 12,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   avisoTurnos: {
   margin: "4px 0 0 0",
@@ -435,7 +436,7 @@ avisoEdicion: {
   subtituloBloque: {
     marginTop: 0,
     marginBottom: 14,
-    color: "#4b3a2a",
+    color: "#3f3128",
     fontSize: "1.2rem",
   },
   lista: {
@@ -449,8 +450,8 @@ avisoEdicion: {
     gap: 16,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: "#fffaf0",
-    border: "1px solid #eadfbe",
+    backgroundColor: "#fdfaf5",
+    border: "1px solid #eadfd2",
   },
   fecha: {
     margin: 0,
@@ -464,7 +465,7 @@ avisoEdicion: {
   },
   turnos: {
     margin: "4px 0 0 0",
-    color: "#5b4a2d",
+    color: "#3f3128",
     fontSize: "0.9rem",
     fontWeight: 600,
   },
@@ -476,12 +477,12 @@ avisoEdicion: {
   },
   botonModificar: {
     padding: "10px 12px",
-    border: "1px solid #e5d8b8",
-    backgroundColor: "#fff8da",
+    border: "1px solid #eadfd2",
+    backgroundColor: "#fff6d6",
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
-    color: "#5b4a2d",
+    color: "#3f3128",
     flexShrink: 0,
   },
   botonEliminar: {
@@ -499,7 +500,7 @@ avisoEdicion: {
     alignItems: "center",
     gap: 8,
     fontSize: "0.95rem",
-    color: "#5b4a2d",
+    color: "#3f3128",
   },
   textoVacio: {
     color: "#777",

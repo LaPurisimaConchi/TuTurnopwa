@@ -145,10 +145,6 @@ Configurar en el panel de Vercel → Project → Settings → Environment Variab
 | `TERMINAL = "001"` | `api/crear-sesion.js` | — |
 | `CURRENCY = "978"` | `api/crear-sesion.js` | EUR |
 
-### Firebase Cloud Functions (`functions/`)
-
-Existe una implementación **legacy/alternativa** de Redsys en `functions/index.js` que usa `functions.config().redsys.*`. **No es el camino activo de producción** (producción usa Vercel `api/`).
-
 ### Archivos de entorno de referencia
 
 No existe `.env.example` en el repositorio. Crear uno al configurar un nuevo entorno.
@@ -163,13 +159,10 @@ TuTurnopwa/
 │   ├── crear-sesion.js       # Crea sesión Redsys y redirige al TPV
 │   ├── notificacionTPV.js    # Webhook de confirmación de pago
 │   ├── pago-admin.js         # Confirma pagos simulados con autenticación admin
+│   ├── _firmaRedsys.js       # Firma HMAC_SHA256_V1 (sesión y aviso del TPV)
 │   ├── _firebaseAdmin.js     # Inicialización Admin SDK
-│   ├── _cors.js
-│   ├── ping.js
-│   ├── diag-tpv.js           # Diagnóstico (revisar si debe estar en prod)
-│   └── *-backup.js, *-viejo.js  # Versiones antiguas — NO usar en prod
+│   └── _cors.js
 ├── docs/                     # Manuales de usuario/admin (HTML)
-├── functions/                # Firebase Cloud Functions (legacy Redsys)
 ├── public/
 │   ├── manifest.json         # PWA manifest
 │   └── img/                  # Assets estáticos (iconos, imágenes)
@@ -184,18 +177,16 @@ TuTurnopwa/
 │   │   ├── contarPlazasDia.js # Conteo de plazas ocupadas
 │   │   └── tarjetasRegalo.js
 │   ├── RutaAdmin.jsx         # Guard de rutas admin (emails hardcodeados)
-│   ├── DondeReservarV2.jsx   # Hub principal de reservas
 │   ├── Reserva*.jsx          # ~25 formularios de reserva (patrón repetido)
 │   ├── CreaTu*.jsx / PintaTu*.jsx  # Landings informativas de clases
 │   ├── Admin*.jsx            # Panel de administración
 │   ├── ResumenPago.jsx       # Resumen previo a Redsys
 │   ├── PagoGrupoIndividual.jsx
-│   ├── faqData.js            # Motor FAQ del chat de ayuda
 │   └── ...
 ├── index.html
 ├── vite.config.js
-├── vercel.json               # Rewrites SPA + CORS en /api
-├── firebase.json             # Solo Cloud Functions (sin reglas RTDB)
+├── vercel.json               # Rewrites SPA, cron y cabeceras de seguridad
+├── firebase.json             # Reglas RTDB (database.rules.json)
 ├── tailwind.config.js
 └── package.json
 ```
@@ -218,6 +209,10 @@ Añadir una clase nueva implica crear ambos archivos, registrar rutas en `App.js
 ```
 /
 ├── clases/{claseId}                    # Config: precios, plazas, horarios, activa
+│                                       #   (dinamica: true = creado desde el admin)
+├── imagenesClases/{claseId}/           # Fotos subidas desde el admin (data URL WebP)
+│   ├── miniatura                       # ~480px, portada y listados
+│   └── galeria/{imgId}                 # { src ~1200px, miniatura, orden }
 ├── reservas/
 │   └── {ClasePathKey}/
 │       └── {fecha}/{turno}/{metodo}/{reservaId}
@@ -263,15 +258,16 @@ Añadir una clase nueva implica crear ambos archivos, registrar rutas en `App.js
 Usuario logueado → Reserva*.jsx → validación plazas/bloqueos
   → push en reservas/{clase}/{fecha}/{turno}/{metodo}/{id}
      (estado: Pendiente, estadoPago: pendiente)
-  → /resumen-pago → pedidosPendientes/{orderId}
-  → /api/crear-sesion → redirect Redsys
+  → /resumen-pago → /api/codigo-reserva (tipo prepararPago): el servidor crea
+     pedidosPendientes/{orderId} con el importe calculado de la ficha (clases/{id})
+  → /api/crear-sesion?orderId → firma ese importe → redirect Redsys
   → webhook /api/notificacionTPV
   → estado: Confirmada, estadoPago: pagado
   → copia en usuarios/{uid}/listaReservas
   → /pago/exito
 ```
 
-**Pago de prueba para administradores:** al confirmar un pago desde los resúmenes de pago (incluidos The Club y Tearium) o desde el pago individual de grupo, una cuenta autorizada evita Redsys y confirma el pedido mediante `POST /api/pago-admin`. El servidor verifica el token de Firebase, el email administrador y que el pedido pertenezca a esa cuenta antes de actualizar los registros. La lista de emails autorizados se comparte desde `src/utils/administradores.js`. Las cuentas normales continúan usando Redsys.
+**Pago de prueba para administradores:** al confirmar un pago desde los resúmenes de pago o desde el pago individual de grupo, una cuenta autorizada evita Redsys y confirma el pedido mediante `POST /api/pago-admin`. El servidor verifica el token de Firebase, el email administrador y que el pedido pertenezca a esa cuenta antes de actualizar los registros. La lista de emails autorizados se comparte desde `src/utils/administradores.js`. Las cuentas normales continúan usando Redsys.
 
 **Canje con tarjeta regalo:** algunos flujos confirman directamente sin pasarela (`desdeTarjetaRegalo: true`).
 
@@ -335,13 +331,56 @@ Canje: /canjear-tarjeta → valida código → redirige a ruta de reserva
 
 Catálogo de opciones: `src/opcionesTarjetaRegalo.js`.
 
-### 5. Pagos Redsys (flujo técnico)
+### 5. Compra sin registro (invitados)
+
+Las pantallas de reserva y pago (`/reserva-*`, `/reservar/:id`, `/resumen-pago*`, `/canjear-tarjeta*`, `/usar-bono/*`) van envueltas en `AccesoCompra.jsx`. Sin sesión, pide nombre, email y teléfono y abre una **sesión anónima de Firebase** (`src/utils/invitado.js`); los datos se guardan en `usuarios/{uid}` con `invitado: true`, así que reglas, webhook y panel admin funcionan igual. Si el invitado se registra después, `Registro.jsx` enlaza la cuenta (`linkWithCredential`) y conserva el mismo `uid` con sus reservas, bonos y tarjetas.
+
+**Requisito:** activar el proveedor **Anónimo** en Firebase Console → Authentication → Sign-in method (en staging y en producción).
+
+### 6. Talleres creados desde el admin
+
+`/admin-taller` (botón «Añadir taller nuevo» en el dashboard y en Clases) crea `clases/{id}` con `dinamica: true`: nombre, categoría, descripciones, precios (torno/modelado o precio único), plazas, horario semanal, visibilidad y fotos. No hace falta tocar código:
+
+- Página pública: `/taller/:id` (`TallerDinamico.jsx`)
+- Reserva: `/reservar/:id` (`ReservaTallerDinamico.jsx`), guarda en `reservas/{id}/{fecha}/{turno}[/{metodo}]/{reservaId}` y sigue el flujo normal de pago
+- Aparece en la portada, en su categoría (`TalleresNuevos.jsx`) y como opción de tarjeta regalo
+
+Un taller creado aquí se puede **borrar** desde su ficha si no tiene reservas confirmadas de hoy en adelante ni tarjetas regalo sin canjear (si no, hay que ocultarlo). Se eliminan `clases/{id}`, `imagenesClases/{id}` y `clasesNotas/{id}`; las reservas pasadas se conservan.
+
+**Talleres de siempre.** Los 19 talleres originales (con páginas hechas a mano: `CreaTu*.jsx`, `Reserva*.jsx`, `Torno*.jsx`…) se pueden migrar desde `/admin-migrar-talleres` (botón «Migrar talleres existentes al panel» en Ver clases). La migración, que es reversible («Deshacer»):
+
+- Marca `clases/{id}` con `dinamica: true` y completa su ficha (textos y secciones, tipo de producto, métodos, tipos/tamaños con precio, ruta de reservas `reservasPath`…) **sin pisar** lo que ya hay en Firebase (precios, plazas, horarios, textos editados).
+- Copia sus fotos a `imagenesClases/{id}` (reducidas, en la base de datos).
+- Desde ese momento se editan, ocultan y borran como los creados desde el panel, y sus direcciones de siempre (`/crea-tu-brunch-bowl`, `/reserva-…`) redirigen a `/taller/:id` y `/reservar/:id` (`RutaTaller.jsx`).
+- Las reservas nuevas se siguen guardando en la misma carpeta que las antiguas (`reservas/{reservasPath}`), así que el calendario, el conteo de plazas y el historial no cambian.
+- Los bonos migrados usan `ReservaBonoDinamico.jsx` y `UsarBono.jsx` sigue funcionando con su carpeta de reservas.
+
+El contenido de las páginas antiguas está en `src/migracion/contenidoTalleres.json` y la configuración que no estaba en Firebase en `src/migracion/migrarTalleres.js`. Las tarjetas regalo ya vendidas de un taller migrado siguen canjeándose (su ruta antigua redirige).
+
+Para los talleres de siempre sin migrar, `/admin-taller?id=…` solo cambia fotos, orden y si salen en la portada. El catálogo común está en `src/catalogoTalleres.js`. Las fotos se reducen en el navegador (`src/utils/imagenes.js`) y se guardan en `imagenesClases/`; las imágenes por defecto de la portada son `public/img/miniaturas/`.
+
+### 7. Tarjetas regalo para varias personas
+
+`ComprarTarjetaRegalo.jsx` permite elegir de 1 a 10 plazas (los bonos mensuales, siempre 1). El total es precio × plazas y la tarjeta guarda `plazas`. Al canjearla, `CanjearTarjetaRegalo.jsx` pasa `plazasTarjeta` y la pantalla de reserva fija ese número de plazas (todas el mismo día y turno).
+
+### 8. Pagos Redsys (flujo técnico)
 
 **Creación de sesión:** `GET /api/crear-sesion`
 
-Parámetros: `orderId`, `amountCents`, `payMethod`, `okUrl`, `koUrl`, `notifyUrl`
+Parámetros: `orderId` (12 dígitos), `okUrl` y, opcional, `mode=json` (devuelve los datos firmados en vez del HTML que redirige). Solo firma pedidos que ha preparado el servidor (`importeServidor: true`, pendientes) y con su `precioTotal`; lo que mande el navegador como importe (`amountCents`, `amount`) no cuenta. Las URLs de vuelta son siempre `/pago/exito` y `/pago/error` de esta web: de `okUrl` solo se usa el dominio, y solo si es el mismo que recibe la petición (un Preview de Vercel); si no, `APP_BASE_URL`. La URL de notificación la fija el servidor.
 
 Redirige automáticamente al TPV de Redsys (`https://sis.redsys.es/sis/realizarPago`).
+
+**Importe y pedido:** `ResumenPago.jsx` llama a `POST /api/codigo-reserva` con `tipo: "prepararPago"` (`src/utils/pagoServidor.js` → `api/_pedidoServidor.js`), y el servidor crea `pedidosPendientes/{orderId}` con el importe calculado a partir de la ficha del taller (`src/utils/precioPedido.js`; un taller de siempre sin migrar se cobra con la ficha que tendría al migrarlo, `fichaParaCobrar` en `src/migracion/parcheTalleres.js`):
+
+| `pedido` | Qué se cobra |
+|----------|--------------|
+| `reserva` | Las reservas pendientes del pedido (una, o una por sesión en talleres de varias sesiones y monográficos): precio por persona de la ficha × plazas. Las apunta en `reservasPedido`: al pagar solo se confirman esas. |
+| `bono` | Precio del bono (más el cambio a torno si la ficha lo permite). El bono que se crea al pagar (`datosBono`) lo construye el servidor. |
+| `grupo` | La reserva de grupo del pedido (`grupoId`): precio por persona de la opción elegida (`opcionTaller`) × personas. |
+| `tarjeta_regalo` | La opción de `/comprar-tarjeta-regalo` (`opcionId`) × plazas. |
+
+Si el importe no coincide con el que enseñaba la pantalla, `ResumenPago` enseña el del servidor y pide confirmar otra vez. El navegador no puede escribir en `pedidosPendientes` (reglas).
 
 **Webhook:** `POST /api/notificacionTPV`
 
@@ -366,7 +405,6 @@ Procesa según `pedidosPendientes/{orderId}.tipo`:
 | Ruta | Descripción |
 |------|-------------|
 | `/portada` | Página de inicio |
-| `/dondereservar` | Hub de reservas |
 | `/login`, `/registro` | Autenticación |
 | `/perfil`, `/editar-perfil` | Perfil de usuario |
 | `/reserva-*` | Formularios de reserva por clase |
@@ -376,8 +414,6 @@ Procesa según `pedidosPendientes/{orderId}.tipo`:
 | `/pago-grupo/:grupoId` | Pago individual de plaza en grupo |
 | `/comprar-tarjeta-regalo`, `/canjear-tarjeta` | Tarjetas regalo |
 | `/usar-bono/:bonoId` | Consumir sesión de bono |
-| `/ayuda` | Chat de ayuda (FAQ) |
-| `/clases-online`, `/reserva-online` | Clases online |
 
 ### Admin
 
@@ -389,7 +425,7 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 | `/admin-reservas-nuevo` | `AdminReservasNuevo` | Listado de reservas |
 | `/admin-detalle-reserva` | `AdminDetalleReservaNuevo` | Detalle, cancelar, reprogramar |
 | `/admin-reservas-grupos` | `AdminReservasGrupos` | Grupos y pagos parciales |
-| `/admin-calendario-reservas-nuevo` | `AdminCalendarioReservasNuevo` | Calendario |
+| `/admin-calendario-reservas` | `AdminCalendarioReservas` | Calendario |
 | `/admin-historial-nuevo` | `AdminHistorialNuevo` | Historial (sin enlace en dashboard) |
 | `/admin-clases-nuevo` | `AdminClasesNuevo` | Gestión de clases |
 | `/admin-detalle-clase` | `AdminDetalleClaseNuevo` | Detalle de clase |
@@ -401,9 +437,8 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 | `/admin-detalle-tarjeta-regalo` | `AdminDetalleTarjetaRegaloNuevo` | Detalle tarjeta |
 | `/admin-bloqueos-fechas` | `AdminBloqueosFechas` | Bloquear fechas |
 | `/admin-habilitar-fechas` | `AdminHabilitarFechas` | Habilitar fechas |
-| `/admin-nuevo` | `AdminNuevo` | Resumen alternativo (legacy) |
 
-**Acceso admin:** tras login, usuarios admin ven enlace en `/dondereservar`. Emails autorizados definidos en `RutaAdmin.jsx` y duplicados en `DondeReservarV2.jsx`.
+**Acceso admin:** tras login, los usuarios admin ven el botón «Panel admin» en la cabecera (`Header.jsx`). Emails autorizados definidos en `utils/administradores.js`.
 
 ---
 
@@ -416,7 +451,8 @@ Todas protegidas con `<RutaAdmin>` (lista de emails en `src/RutaAdmin.jsx`).
 5. Configurar variables de entorno (sección anterior).
 6. El archivo `vercel.json` define:
    - Rewrites SPA: todas las rutas → `/` (excepto `/api/*`)
-   - CORS en `/api/*`
+   - Cabeceras de seguridad en todas las rutas: `Content-Security-Policy` (solo `frame-ancestors`, `base-uri` y `object-src`: no limita scripts ni estilos), `X-Content-Type-Options`, `Referrer-Policy` y `Permissions-Policy`. HSTS lo pone Vercel.
+   - CORS: no hay `Access-Control-Allow-Origin: *`. La web y `/api` van en el mismo dominio; `api/_cors.js` solo da permiso a los orígenes de su lista.
 
 **Dominio de producción:** `app.lapurisimaconchi.com`
 
@@ -425,7 +461,7 @@ Las URLs de retorno Redsys (`okUrl`, `koUrl`) apuntan a ese dominio en varios co
 ### Firebase
 
 - Proyecto: `la-purisima-conchi` (`.firebaserc`)
-- `firebase.json` solo despliega Cloud Functions; **no despliega reglas RTDB ni hosting**
+- `firebase.json` solo despliega las reglas RTDB (`database.rules.json`); no hay Cloud Functions ni hosting
 - Reglas de base de datos: gestionar manualmente en [Firebase Console](https://console.firebase.google.com)
 
 ---
@@ -452,7 +488,7 @@ Al transferir el proyecto, el nuevo responsable necesitará acceso a:
 | **Vercel** | Despliegue, dominio, variables de entorno, functions |
 | **Redsys / banco** | TPV, clave secreta, FUC, terminal, URLs de notificación |
 | **Dominio** `lapurisimaconchi.com` | DNS del subdominio `app.` |
-| **Emails admin** | Hardcodeados en `RutaAdmin.jsx` y `DondeReservarV2.jsx` |
+| **Emails admin** | Definidos en `utils/administradores.js` |
 | **WhatsApp del taller** | Número de Berto usado en reservas de grupo |
 
 ### Service account Firebase
@@ -469,12 +505,14 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 
 - **Reglas RTDB no versionadas** en el repositorio. Exportar desde consola y añadir al repo.
 - **Admin autorizado por lista de emails en frontend** (`RutaAdmin.jsx`). Ocultar rutas no impide acceso directo al SDK si las reglas RTDB son permisivas. Valorar custom claims de Firebase.
-- **`/api/crear-sesion`** no autentica al usuario; el importe proviene del pedido pendiente en RTDB.
+- **`/api/crear-sesion`** no autentica al usuario; el importe proviene del pedido que preparó el servidor (`prepararPago`), nunca del navegador.
+- **`/api/disponibilidad`** (pública, sin sesión): guarda 5 segundos en la propia función cada lectura de la base de datos, así que cambiar los parámetros de la URL no obliga a leer otra vez todas las reservas, y limita a 120 consultas por minuto y por IP (nodo `limitesDisponibilidad`). El cron semanal (`api/limpiar-invitados.js`) borra los contadores de los límites con más de un día.
+- **Códigos de tarjeta regalo:** `REGALO-` y 10 caracteres de `crypto` (`api/_codigosTarjeta.js`); los antiguos de 6 siguen valiendo. Comprobar o canjear un código tiene límite por IP (`api/_limiteIntentos.js`, nodo `limitesTarjetaRegalo`, solo servidor): 30 intentos cada 15 minutos y 8 códigos inexistentes por hora.
 
 ### Redsys (ver sección específica más abajo)
 
 - La integración funciona en producción con HMAC_SHA256_V1.
-- La validación de firma en el webhook tiene un comportamiento que el siguiente desarrollador debe revisar antes de modificar pagos (detalle en notas Redsys).
+- El webhook solo confirma pedidos con la firma de Redsys válida (detalle en notas Redsys).
 
 ### Reservas de grupo (ver sección específica)
 
@@ -484,10 +522,9 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 ### Código y mantenimiento
 
 - **~25 archivos `Reserva*.jsx`** con lógica duplicada (~600–800 líneas cada uno). Un cambio transversal requiere tocar muchos archivos.
-- **Archivos legacy** en repo: `*-backup.js`, `*-viejo.js`, `DondeReservar backup.jsx`, `ReservaPintarCeramicaAntiguo.jsx`, etc.
-- **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (legacy en `HistorialTarjetasRegalo.jsx`).
+- **Archivos legacy** en repo: pantallas de siempre (`Reserva*.jsx`).
+- **Rutas Firebase duplicadas** para tarjetas: `tarjetasRegalo` vs `tarjetas_regalo` (nodo antiguo: ya no lo usa el código, solo queda su regla).
 - **Estados inconsistentes** en capitalización (`Pendiente` vs `pendiente_pago_individual`).
-- **`functions/index.js`**: implementación Redsys alternativa, no usada en prod vía Vercel.
 
 ### PWA
 
@@ -503,23 +540,9 @@ Los siguientes aspectos no impiden el funcionamiento actual de la aplicación y 
 
 - `api/crear-sesion.js` — crea sesión, firma HMAC_SHA256_V1, redirect al TPV
 - `api/notificacionTPV.js` — webhook de notificación de pago
+- `api/_firmaRedsys.js` — la firma, compartida por los dos
 
-**Archivos que NO usar en producción:**
-
-- `api/crear-sesion-backup.js`, `api/crear-sesion-viejo.js`
-- `api/notificacionTPV_backup.js`
-- `functions/index.js` (Firebase Functions, entorno test)
-
-**Antes de modificar pagos, el desarrollador debe revisar:**
-
-En `api/notificacionTPV.js`, la condición que acepta un pago es:
-
-```js
-const aceptarPagoTemporalmente = paidOk && amountMatches;
-// signOk se calcula pero no es condición obligatoria de aceptación
-```
-
-La firma se registra en `firmaValida` y `firmaError`, pero un pago puede procesarse aunque `signOk` sea `false`. **Cualquier cambio en este archivo debe probarse con transacciones reales o de test en entorno aislado** y validar que la firma se exige correctamente antes de confirmar pedidos.
+**Firma del aviso:** `api/notificacionTPV.js` calcula la firma de Redsys (clave del pedido con 3DES a partir de `Ds_Order` y HMAC-SHA256 de `Ds_MerchantParameters`, comparada en base64 URL) y solo confirma el pedido si coincide, la respuesta es de pago (`Ds_Response` 0–99) y el importe es el del pedido. Si la firma no coincide responde 403, no confirma nada y deja `firmaValida: false`, `firmaError` y `avisoRechazadoEn` en `pedidosPendientes/{orderId}`: si aparecen en pedidos pagados de verdad, la `REDSYS_SECRET_KEY` de ese entorno no es la del TPV. **Cualquier cambio en la firma debe probarse antes en staging con el TPV de pruebas.**
 
 **FUC y terminal** están parcialmente hardcodeados en `crear-sesion.js`. Migrar a variables de entorno si se cambia de comercio o entorno.
 
@@ -549,14 +572,13 @@ Flujo resumido:
 Priorizadas por impacto, sin orden estricto:
 
 1. Versionar y endurecer `database.rules.json` + custom claims admin
-2. Revisar validación de firma Redsys en webhook (con tests en entorno test)
-3. Extraer componente/hook genérico de reserva para eliminar duplicación
-4. Añadir `.env.example` y migrar config Firebase a variables `VITE_*`
-5. Unificar estados (`Confirmada`/`confirmada`) y rutas `tarjetasRegalo`
-6. Transacciones RTDB en pagos de grupo individual
-7. Revisar bloqueo de aforo para grupos en pago parcial
-8. Completar PWA con service worker o documentar que no es offline
-9. Eliminar archivos legacy y APIs backup del repositorio
+2. Extraer componente/hook genérico de reserva para eliminar duplicación
+3. Añadir `.env.example` y migrar config Firebase a variables `VITE_*`
+4. Unificar estados (`Confirmada`/`confirmada`) y rutas `tarjetasRegalo`
+5. Transacciones RTDB en pagos de grupo individual
+6. Revisar bloqueo de aforo para grupos en pago parcial
+7. Completar PWA con service worker o documentar que no es offline
+8. Eliminar archivos legacy del repositorio (pantallas de siempre `Reserva*.jsx`)
 10. Añadir tests mínimos en webhook y conteo de plazas
 11. Unificar panel admin (un solo dashboard, sidebar, enlazar historial)
 12. Centralizar lista de admins (env var o nodo RTDB protegido)
@@ -575,7 +597,6 @@ Priorizadas por impacto, sin orden estricto:
 | Reglas Firebase (consola) | Seguridad de toda la app | Exportar backup antes de cambiar |
 | `pedidosPendientes/` schema | Webhook depende de la estructura | No renombrar campos sin actualizar webhook |
 | URLs hardcodeadas `app.lapurisimaconchi.com` | Redirects Redsys | Buscar en proyecto antes de cambiar dominio |
-| `functions/` vs `api/` | Dos implementaciones Redsys | Producción usa **`api/` en Vercel**, no Cloud Functions |
 
 ### Checklist antes de desplegar cambios sensibles
 
@@ -593,7 +614,6 @@ Priorizadas por impacto, sin orden estricto:
 |---------|-----------|
 | Manual de usuario | `docs/Manual_La_Purisima_Conchi.html` |
 | Manual admin (premium) | `docs/Manual_La_Purisima_Conchi_Premium.html` |
-| FAQ del chat | `src/faqData.js` |
 | Router completo | `src/App.jsx` |
 
 ---

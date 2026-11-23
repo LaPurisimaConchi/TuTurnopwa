@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useMemo } from "react";
+import Icono from "./components/Icono";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { ref, get, push, update } from "firebase/database";
 import { dbRealtime } from "./firebase";
+import { cargarContextoReserva } from "./utils/disponibilidad";
+import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import BloqueoReserva from "./BloqueoReserva";
 import BotonVolver from "./BotonVolver";
 import DateInputReserva from "./components/DateInputReserva";
 
+import { fechaDMA } from "./utils/formatoFecha";
+import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 const CLASE_ID = "especialpintatupieza";
 const RESERVAS_PATH_KEY = "EspecialPintaTuPieza";
 
@@ -79,6 +84,8 @@ export default function ReservaEspecialPintaTuPieza() {
 
   const desdeTarjeta =
     location.state?.desdeTarjeta || location.state?.desdeTarjetaRegalo || false;
+  // Con tarjeta regalo se reservan juntas todas las plazas de la tarjeta
+  const plazasTarjeta = desdeTarjeta ? plazasDeTarjetaRegalo(location.state) : 0;
 
   useEffect(() => {
     const auth = getAuth();
@@ -149,13 +156,9 @@ export default function ReservaEspecialPintaTuPieza() {
   useEffect(() => {
   const cargarReservasGrupos = async () => {
     try {
-      const snap = await get(ref(dbRealtime, "reservasGrupos"));
-
-      if (snap.exists()) {
-        setReservasGrupos(snap.val() || {});
-      } else {
-        setReservasGrupos({});
-      }
+      // Solo los grupos que abren turno, sin datos personales (api/disponibilidad.js)
+      const { reservasGrupos: grupos } = await cargarContextoReserva();
+      setReservasGrupos(grupos || {});
     } catch (error) {
       console.error("Error al cargar reservas de grupos:", error);
       setReservasGrupos({});
@@ -230,7 +233,7 @@ export default function ReservaEspecialPintaTuPieza() {
     claseConfig?.plazas?.maxTotales || MAX_TOTALES_FALLBACK
   );
 
-  const plazasNum = Number(plazas) > 0 ? Number(plazas) : 1;
+  const plazasNum = plazasTarjeta || (Number(plazas) > 0 ? Number(plazas) : 1);
   const precioTotal = precioBase * plazasNum;
 
   const esTurnoConsulta =
@@ -280,7 +283,7 @@ export default function ReservaEspecialPintaTuPieza() {
 
     if (fechaBloqueada) {
       alert(
-        `No se puede reservar el día ${fecha}. Motivo: ${
+        `No se puede reservar el día ${fechaDMA(fecha)}. Motivo: ${
           fechaBloqueada.motivo || "día bloqueado"
         }.`
       );
@@ -328,8 +331,8 @@ export default function ReservaEspecialPintaTuPieza() {
         precio: precioTotal,
         precioBase,
         precioTotal,
-        estado: desdeTarjeta ? "Confirmada" : "Pendiente",
-        estadoPago: desdeTarjeta ? "pagado" : "pendiente",
+        estado: "Pendiente",
+        estadoPago: "pendiente",
         orderId,
         timestamp,
       };
@@ -343,51 +346,14 @@ export default function ReservaEspecialPintaTuPieza() {
       await update(nuevaReservaRef, { uid: user.uid, ...reserva });
 
       if (desdeTarjeta) {
-        const tarjetaRegaloId = location.state?.tarjetaRegaloId || "";
         const codigoTarjeta = location.state?.codigoTarjeta || "";
 
-        await push(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`), {
-          ...reserva,
-          uid: user.uid,
-          tarjetaRegaloId,
-          codigoTarjeta,
-          creadaDesde: "tarjeta_regalo",
-        });
-
-        const tarjetaGlobalRef = ref(
-          dbRealtime,
-          `tarjetasRegalo/${tarjetaRegaloId}`
-        );
-        const tarjetaGlobalSnap = await get(tarjetaGlobalRef);
-        const tarjetaGlobal = tarjetaGlobalSnap.exists()
-          ? tarjetaGlobalSnap.val()
-          : null;
-        const uidComprador = tarjetaGlobal?.uidComprador || "";
-
-        const datosActualizacionTarjeta = {
-          canjeado: true,
-          usado: true,
-          estadoCanje: "canjeado",
-          canjeadoPorUID: user.uid,
-          usadoPorUID: user.uid,
-          fechaCanje: timestamp,
-          fechaUso: timestamp,
-          actualizadoEn: timestamp,
-          reservaId: nuevaReservaRef.key || "",
-          fechaReserva: fecha,
-          turnoReserva: turno,
-        };
-
-        await update(tarjetaGlobalRef, datosActualizacionTarjeta);
-
-        if (uidComprador) {
-          await update(
-            ref(
-              dbRealtime,
-              `usuarios/${uidComprador}/tarjetasRegalo/${tarjetaRegaloId}`
-            ),
-            datosActualizacionTarjeta
-          );
+        // El servidor confirma la reserva, marca la tarjeta usada y envía el correo
+        try {
+          await canjearTarjetaRegalo({ codigo: codigoTarjeta, orderId });
+        } catch (errorCanje) {
+          alert(mensajeErrorCanje(errorCanje));
+          return;
         }
 
         navigate("/pago/exito", {
@@ -437,22 +403,23 @@ export default function ReservaEspecialPintaTuPieza() {
     !!fecha && !!turno && !fechaBloqueada && !diaNoDisponible;
 
   return (
-    <div className="bg-[#fffef4] min-h-screen flex items-center justify-center px-4 py-8">
+    <div className="bg-crema min-h-screen flex items-center justify-center px-4 py-8">
       <div className="bg-white max-w-md w-full rounded-2xl shadow-md p-6">
         <BotonVolver />
 
-        <h1 className="text-center text-2xl text-[#5c3c00] font-serif mb-4">
+        <h1 className="text-center text-2xl text-tinta font-serif mb-4">
           Reserva – {claseConfig?.nombre || "Especial pinta tu pieza de cerámica"}
         </h1>
 
         {desdeTarjeta && (
           <p className="text-sm text-green-700 text-center font-medium mb-4">
-            Estás usando una tarjeta regalo 🎁
+            Estás usando una tarjeta regalo <Icono nombre="regalo" />
+            {plazasTarjeta > 1 ? ` para ${plazasTarjeta} personas` : ""}
           </p>
         )}
 
         {cargandoConfig ? (
-          <p className="text-center text-gray-500 py-8">
+          <p className="text-center text-tinta-suave py-8">
             Cargando configuración de la clase...
           </p>
         ) : !claseConfig ? (
@@ -462,7 +429,7 @@ export default function ReservaEspecialPintaTuPieza() {
         ) : (
           <BloqueoReserva>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+              <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                 <p><strong>Taller de pintura cerámica.</strong></p>
                 <p>
                   Tendrás hasta {duracion} para pintar tu pieza en un espacio
@@ -515,7 +482,7 @@ export default function ReservaEspecialPintaTuPieza() {
                     type="text"
                     value={turno}
                     readOnly
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base bg-gray-50"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base bg-crema"
                   />
                 ) : (
                   <select
@@ -525,7 +492,7 @@ export default function ReservaEspecialPintaTuPieza() {
                       setTurno(e.target.value);
                       setPlazas(1);
                     }}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-gray-100 disabled:text-gray-400"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
                     required
                     disabled={!puedeElegirTurno}
                   >
@@ -554,8 +521,8 @@ export default function ReservaEspecialPintaTuPieza() {
                   <button
                     type="button"
                     onClick={() => setPlazas(Math.max(1, plazasNum - 1))}
-                    disabled={!puedeElegirPlazas}
-                    className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
+                    className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     −
                   </button>
@@ -569,14 +536,14 @@ export default function ReservaEspecialPintaTuPieza() {
                     onClick={() =>
                       setPlazas(Math.min(maxTotales, plazasNum + 1))
                     }
-                    disabled={!puedeElegirPlazas}
-                    className="text-xl font-bold px-3 py-1 rounded-lg bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!puedeElegirPlazas || !!plazasTarjeta}
+                    className="text-xl font-bold px-3 py-1 rounded-lg bg-arena disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     +
                   </button>
                 </div>
 
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-tinta-suave mt-1">
                   {!fecha
                     ? "Primero selecciona el día."
                     : !turno
@@ -585,14 +552,14 @@ export default function ReservaEspecialPintaTuPieza() {
                 </p>
               </div>
 
-              <div className="text-sm text-[#7a5a1e] bg-[#fff8df] border border-[#f1e7c6] rounded-xl p-3">
+              <div className="text-sm text-tinta-suave bg-mostaza-suave border border-linea rounded-xl p-3">
   <strong>¿Sois 5 o más personas?</strong>
   <br />
   Si queréis reservar en una fecha especial o fuera del horario habitual, haced la reserva desde la sección de <strong>Reservas para grupos</strong>.
 </div>
 
               {fecha && !diaNoDisponible && (
-                <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+                <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                   <p>
                     <strong>Precio por plaza:</strong>{" "}
                     {desdeTarjeta ? "Tarjeta regalo" : `${precioBase}€`}
@@ -607,7 +574,7 @@ export default function ReservaEspecialPintaTuPieza() {
               )}
 
               {fecha && diaNoDisponible && (
-                <div className="bg-[#fffaf0] border border-[#f1e7c6] rounded-xl p-3 text-sm text-[#5c3c00]">
+                <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
                   <p><strong>Duración:</strong> {duracion}</p>
                   <p><strong>Máximo plazas:</strong> {maxTotales}</p>
                 </div>
@@ -616,9 +583,9 @@ export default function ReservaEspecialPintaTuPieza() {
               <button
                 type="submit"
                 className="w-full mt-4 px-6 py-3 rounded-full text-white font-semibold
-                bg-gradient-to-b from-[#F6D66A] to-[#F4C542]
+                bg-terracota
                 shadow-md hover:shadow-lg
-                hover:from-[#F4C542] hover:to-[#E5B92F]
+                hover:bg-terracota-oscuro
                 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={
                   !!fechaBloqueada ||
