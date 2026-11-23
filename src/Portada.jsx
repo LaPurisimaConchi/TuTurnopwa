@@ -124,7 +124,7 @@ export default function Portada() {
                 className="flex items-center justify-center gap-2 rounded-2xl border border-terracota bg-white hover:bg-terracota-suave px-4 py-3 font-semibold text-terracota-oscuro transition"
               >
                 <Icono nombre="taller" />
-                QUIERO RECOGER MI PIEZA
+                Quiero recoger mi pieza
               </button>
             </div>
           </div>

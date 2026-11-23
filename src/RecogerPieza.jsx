@@ -32,7 +32,7 @@ export default function RecogerPieza() {
     <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold text-center text-terracota-oscuro mb-8">
-          QUIERO RECOGER MI PIEZA
+          Quiero recoger mi pieza
         </h1>
 
         <Paso numero={1} titulo="Elige esmalte y sube la foto de tu pieza">
