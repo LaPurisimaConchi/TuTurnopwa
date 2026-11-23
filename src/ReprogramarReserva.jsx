@@ -17,9 +17,11 @@ import { llamar, opcionesSesionBono, reprogramarSesionBono } from "./utils/canje
 import { fechaDMA } from "./utils/formatoFecha";
 
 async function llamarCambioFecha(cuerpo) {
+  // Con la sesión, el límite de intentos cuenta por cuenta y no por conexión
+  const token = await auth.currentUser?.getIdToken().catch(() => "");
   const respuesta = await fetch("/api/cambiar-fecha", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify(cuerpo),
   });
   const datos = await respuesta.json().catch(() => ({}));

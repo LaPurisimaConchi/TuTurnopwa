@@ -4,6 +4,11 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+import Avisos from './components/Avisos.jsx'
+import { instalarAvisos } from './utils/avisos.js'
+
+// alert(...) sale como un aviso de la web, no como el diálogo del navegador
+instalarAvisos()
 
 const esStaging = import.meta.env.VITE_ENV === 'staging'
 
@@ -16,6 +21,7 @@ createRoot(document.getElementById('root')).render(
     )}
     <ErrorBoundary>
       <App />
+      <Avisos />
     </ErrorBoundary>
   </StrictMode>,
 )

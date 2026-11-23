@@ -5,6 +5,7 @@ import BotonVolver from "./BotonVolver";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { plazasEnBloqueo } from "./utils/aforo";
+import { preguntar } from "./utils/avisos";
 const AdminBloqueosFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
@@ -97,7 +98,7 @@ useEffect(() => {
           .sort()
           .map((f) => `• ${fechaDMA(f)}: ${porFecha[f]} plaza${porFecha[f] !== 1 ? "s" : ""}`)
           .join("\n");
-        const seguir = window.confirm(
+        const seguir = await preguntar(
           `Ya hay ${plazas} plaza${plazas !== 1 ? "s" : ""} reservada${plazas !== 1 ? "s" : ""} en esas fechas:\n${detalle}\n\n` +
             "Bloquear no cancela esas reservas ni avisa a los clientes: solo impide reservas nuevas. " +
             "Si hay que cancelarlas, hazlo desde el detalle de cada reserva. ¿Bloquear igualmente?"
@@ -137,7 +138,7 @@ useEffect(() => {
   };
 
   const eliminarBloqueo = async (fecha) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       `¿Seguro que quieres desbloquear la fecha ${fechaDMA(fecha)}?`
     );
 

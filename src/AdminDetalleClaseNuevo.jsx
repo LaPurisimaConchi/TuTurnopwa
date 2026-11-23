@@ -7,6 +7,7 @@ import { TALLERES_FIJOS } from "./catalogoTalleres";
 import useCategorias from "./components/useCategorias";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { preguntar } from "./utils/avisos";
 const AdminDetalleClaseNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -340,7 +341,7 @@ useEffect(() => {
   };
 
   const eliminarNotaInterna = async (notaId) => {
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       "¿Seguro que quieres borrar esta nota interna?"
     );
 

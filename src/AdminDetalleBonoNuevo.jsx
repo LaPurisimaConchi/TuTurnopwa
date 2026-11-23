@@ -7,6 +7,7 @@ import BotonVolver from "./BotonVolver";
 import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
 import { bonoSinSesion, carpetaReservasBono, motivoFechaFueraDeBono } from "./utils/estadoBono";
 import { esReservaValida } from "./utils/plazasOcupadas";
+import { preguntar } from "./utils/avisos";
 function obtenerEstadoVisibleBono(bono) {
   if (!bono) return "—";
 
@@ -282,7 +283,7 @@ useEffect(() => {
   const confirmarReservaSesion = async (sesion) => {
     const ruta = rutasReservas[sesion.clave];
     if (!uid || !ruta) return;
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       `¿Confirmar la reserva del ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}? ` +
         "Pasa a contar en el aforo de esa franja y el cliente la verá confirmada."
     );
@@ -324,7 +325,7 @@ useEffect(() => {
   // Quita del bono una sesión sin reserva y le devuelve la clase
   const devolverSesion = async (sesion) => {
     if (!uid || !bonoId) return;
-    const confirmar = window.confirm(
+    const confirmar = await preguntar(
       `¿Devolver al bono la clase del ${fechaDMA(sesion.fecha) || "—"} · ${sesion.turno || "—"}? ` +
         "Esa sesión no tiene una reserva confirmada; el cliente podrá reservarla de nuevo desde su perfil."
     );
@@ -600,7 +601,7 @@ useEffect(() => {
   const eliminarNota = async (notaId) => {
     if (!uid || !bonoId || !notaId) return;
 
-    const confirmar = window.confirm("¿Quieres eliminar esta nota?");
+    const confirmar = await preguntar("¿Quieres eliminar esta nota?");
     if (!confirmar) return;
 
     try {

@@ -44,6 +44,9 @@ const ConfirmacionPago = () => {
   useEffect(() => {
     const auth = getAuth();
 
+    let cancelado = false;
+    let temporizador = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setCargando(false);
@@ -52,73 +55,87 @@ const ConfirmacionPago = () => {
 
       setEsInvitado(user.isAnonymous);
 
-      try {
-        const [tarjetasSnap, reservasSnap] = await Promise.all([
-          get(ref(dbRealtime, `usuarios/${user.uid}/tarjetasRegalo`)),
+      // El pedido que se acaba de pagar: Redsys vuelve con ?pedido=, y las pantallas de la
+      // web (canje con tarjeta, pago simulado del admin) lo pasan en el estado
+      const pedido = String(
+        location.state?.orderId || new URLSearchParams(location.search).get("pedido") || ""
+      );
+      // Sin pedido (se abrió la dirección a mano) no hay nada que celebrar
+      if (!pedido) {
+        setCargando(false);
+        return;
+      }
+
+      // Quien reserva con una tarjeta regalo, o el admin con un pago de prueba, ya viene
+      // con la reserva hecha: no se espera ningún aviso del TPV
+      if (esCanje || esPagoSimulado) {
+        setOrderIdReserva(pedido);
+        setCargando(false);
+        return;
+      }
+
+      // Con el TPV, el pago se da por bueno cuando el aviso de Redsys ya lo ha confirmado en
+      // la cuenta; si aún no ha llegado, se vuelve a mirar unos segundos
+      const buscarPedido = async () => {
+        const [tarjetaSnap, reservasSnap] = await Promise.all([
+          get(ref(dbRealtime, `usuarios/${user.uid}/tarjetasRegalo/${pedido}`)),
           get(ref(dbRealtime, `usuarios/${user.uid}/listaReservas`)),
         ]);
+        const pagado = (x) => String(x?.estadoPago || "").toLowerCase() === "pagado";
 
-        const tarjetas = tarjetasSnap.exists() ? tarjetasSnap.val() : {};
-        const reservas = reservasSnap.exists() ? reservasSnap.val() : {};
-
-        const ultimaTarjeta = obtenerUltimaTarjetaRegalo(tarjetas);
-        const ultimaReserva = obtenerUltimaReserva(reservas);
-
-        const fechaTarjeta = obtenerFechaComparable(ultimaTarjeta);
-        const fechaReserva = obtenerFechaComparable(ultimaReserva);
-
-        const ahora = Date.now();
-        const DOS_HORAS = 2 * 60 * 60 * 1000;
-
-        const tarjetaReciente =
-          fechaTarjeta && ahora - fechaTarjeta <= DOS_HORAS;
-
-        const tarjetaMasRecienteQueReserva =
-          fechaTarjeta && (!fechaReserva || fechaTarjeta >= fechaReserva);
-
-        // Quien acaba de reservar con una tarjeta regalo (la usa, no la compra) viene
-        // con el pedido de su reserva en el state: no se le enseña la tarjeta
-        const reservaConTarjeta =
-          !!(location.state?.desdeTarjeta || location.state?.usandoTarjetaRegalo) &&
-          !!location.state?.orderId;
-
-        if (
-          !reservaConTarjeta &&
-          ultimaTarjeta &&
-          tarjetaReciente &&
-          tarjetaMasRecienteQueReserva
-        ) {
+        const t = tarjetaSnap.exists() ? tarjetaSnap.val() : null;
+        if (pagado(t)) {
           setEsTarjetaRegalo(true);
-          setTarjeta(ultimaTarjeta);
-        } else {
-          setEsTarjetaRegalo(false);
-          setTarjeta(null);
-
-          // Reserva recién pagada: su código se enseña más abajo
-          const fechaUltima = obtenerFechaComparable(ultimaReserva);
-          const reciente = !!(ultimaReserva?.orderId && fechaUltima && ahora - fechaUltima <= DOS_HORAS);
-          setOrderIdReserva(
-            reservaConTarjeta
-              ? String(location.state.orderId)
-              : reciente
-              ? String(ultimaReserva.orderId)
-              : ""
-          );
-          setEsBono(!reservaConTarjeta && reciente && ultimaReserva?.desdeBono === true);
+          setTarjeta(t);
+          return true;
         }
-      } catch (error) {
-        console.error("Error al cargar la confirmación del pago:", error);
-        setErrorCarga("No se pudo comprobar la información del pago.");
-      } finally {
-        setCargando(false);
-      }
+
+        const entrada = Object.values(reservasSnap.exists() ? reservasSnap.val() : {}).find(
+          (r) => r?.orderId === pedido && pagado(r)
+        );
+        if (entrada) {
+          setOrderIdReserva(pedido);
+          setEsBono(entrada.desdeBono === true);
+          return true;
+        }
+        return false;
+      };
+
+      let intentos = 0;
+      const consultar = async () => {
+        try {
+          if (await buscarPedido()) {
+            if (!cancelado) setCargando(false);
+            return;
+          }
+        } catch (error) {
+          console.error("Error al cargar la confirmación del pago:", error);
+          if (!cancelado) {
+            setErrorCarga("No se pudo comprobar la información del pago.");
+            setCargando(false);
+          }
+          return;
+        }
+        intentos += 1;
+        if (cancelado) return;
+        if (intentos >= 8) {
+          setCargando(false);
+          return;
+        }
+        temporizador = setTimeout(consultar, 2500);
+      };
+      consultar();
     });
 
-    return () => unsubscribe();
-  }, [location.state]);
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+      unsubscribe();
+    };
+  }, [location.state, location.search, esCanje, esPagoSimulado]);
 
-  // Abrir /pago/exito a mano no es haber pagado: solo se celebra el pago si hay una
-  // tarjeta o una reserva reciente en la cuenta, un canje o un pago simulado. Si el aviso
+  // Abrir /pago/exito a mano no es haber pagado: solo se celebra el pago si el pedido (?pedido=)
+  // consta ya como pagado en la cuenta, o si es un canje o un pago simulado. Si el aviso
   // del TPV aún no ha llegado, se dice que puede tardar unos segundos.
   const sinPagoReciente = !cargando && !esTarjetaRegalo && !esCanje && !esPagoSimulado && !orderIdReserva;
 
@@ -337,51 +354,8 @@ const ConfirmacionPago = () => {
   );
 };
 
-function obtenerFechaComparable(item) {
-  if (!item) return null;
 
-  const fecha =
-    item.actualizadoEn ||
-    item.fechaCompra ||
-    item.creadoEn ||
-    item.timestamp ||
-    item.fechaUso ||
-    item.fechaCanje ||
-    null;
 
-  if (!fecha) return null;
-
-  const ms = new Date(fecha).getTime();
-  return Number.isFinite(ms) ? ms : null;
-}
-
-function obtenerUltimaTarjetaRegalo(tarjetasObj) {
-  const tarjetas = Object.values(tarjetasObj || {}).filter(Boolean);
-
-  if (!tarjetas.length) return null;
-
-  tarjetas.sort((a, b) => {
-    const fechaA = obtenerFechaComparable(a) || 0;
-    const fechaB = obtenerFechaComparable(b) || 0;
-    return fechaB - fechaA;
-  });
-
-  return tarjetas[0] || null;
-}
-
-function obtenerUltimaReserva(reservasObj) {
-  const reservas = Object.values(reservasObj || {}).filter(Boolean);
-
-  if (!reservas.length) return null;
-
-  reservas.sort((a, b) => {
-    const fechaA = obtenerFechaComparable(a) || 0;
-    const fechaB = obtenerFechaComparable(b) || 0;
-    return fechaB - fechaA;
-  });
-
-  return reservas[0] || null;
-}
 
 const styles = {
   body: {

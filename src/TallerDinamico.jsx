@@ -79,11 +79,12 @@ export default function TallerDinamico() {
       <PantallaConVolver>
         <div className="bg-white text-[#333] font-sans max-w-3xl w-full mx-auto shadow-md rounded-2xl overflow-hidden p-8">
           <h1 className="text-2xl md:text-3xl font-bold text-tinta mb-4">
-            Este taller no está disponible ahora mismo
+            {clase ? "Este taller no está disponible ahora mismo" : "Este taller no existe"}
           </h1>
           <p className="text-sm text-tinta leading-relaxed mb-6">
-            Este taller está temporalmente oculto o pausado y no puede reservarse
-            en este momento.
+            {clase
+              ? "Este taller está temporalmente oculto o pausado y no puede reservarse en este momento."
+              : "Puede que el enlace esté mal escrito o que el taller ya no esté en la web."}
           </p>
           <button
             onClick={() => navigate("/clases")}

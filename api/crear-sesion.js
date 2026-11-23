@@ -89,7 +89,8 @@ export default async function handler(req, res) {
 
     // URLs: las de vuelta, siempre de esta web; la de notificación, siempre la nuestra
     const origen = origenDeVuelta(req, okUrl);
-    const URL_OK = `${origen}/pago/exito`;
+    // La pantalla de éxito necesita saber qué pedido es para comprobar que está pagado
+    const URL_OK = `${origen}/pago/exito?pedido=${encodeURIComponent(oid)}`;
     const URL_KO = `${origen}/pago/error`;
     const URL_NOTIFY = `${APP_BASE_URL}/api/notificacionTPV${NOTIFY_QUERY ? `?${NOTIFY_QUERY}` : ""}`;
 

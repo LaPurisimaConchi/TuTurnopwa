@@ -12,6 +12,7 @@ import { plazasEnBloqueo } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
 import { leerTurnos } from "../utils/fichaTaller";
 import { rangosBloqueados } from "../utils/rangosHora";
+import { preguntar } from "../utils/avisos";
 
 // Todas las fechas AAAA-MM-DD entre inicio y fin, ambas incluidas
 export function fechasDelRango(inicio, fin) {
@@ -101,7 +102,7 @@ export default function PanelFechasEspeciales({
       const plazas = await plazasAfectadas(rangos);
       if (
         plazas > 0 &&
-        !window.confirm(
+        !await preguntar(
           `Ya hay ${plazas} plaza${plazas !== 1 ? "s" : ""} reservada${plazas !== 1 ? "s" : ""} en ${
             rangos.length ? "esas horas" : "esos días"
           }. Bloquear no cancela las reservas existentes, solo impide nuevas. ¿Continuar?`
@@ -147,8 +148,8 @@ export default function PanelFechasEspeciales({
     }, "No se pudieron guardar las fechas habilitadas.");
   };
 
-  const quitar = (nodo, lista, texto) => {
-    if (!window.confirm(`¿Seguro que quieres ${texto} (${lista.length} día${lista.length !== 1 ? "s" : ""})?`)) {
+  const quitar = async (nodo, lista, texto) => {
+    if (!await preguntar(`¿Seguro que quieres ${texto} (${lista.length} día${lista.length !== 1 ? "s" : ""})?`)) {
       return;
     }
 
