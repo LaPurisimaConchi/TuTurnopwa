@@ -123,7 +123,6 @@ export default function Registro() {
         email: emailLimpio,
         fechaRegistro: new Date().toISOString(),
         privacidadAceptadaEn: new Date().toISOString(),
-        reservas: 0,
       });
     }
 

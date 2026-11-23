@@ -325,6 +325,22 @@ function BotonReprogramar({ reserva, config }) {
   );
 }
 
+// «tumba · torno · 2 plazas»: lo que se eligió además del taller (sin repetir lo que ya
+// dice el nombre del taller, p. ej. «Crea tu taza favorita — Torno»)
+function detalleDeReserva(reserva) {
+  const nombre = String(reserva?.clase || "").toLowerCase();
+  const partes = [
+    reserva?.nombreTipoPieza || reserva?.tipoPieza,
+    reserva?.nombreTipoClase || reserva?.metodo,
+  ]
+    .map((p) => String(p || "").trim())
+    .filter((p) => p && !nombre.includes(p.toLowerCase()))
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+  const plazas = Number(reserva?.plazas) || 1;
+  if (plazas > 1) partes.push(`${plazas} plazas`);
+  return [...new Set(partes)].join(" · ");
+}
+
 // Una reserva en las listas: fecha destacada, taller y turno
 function FilaReserva({ reserva, historial = false, config }) {
   const cancelada = esReservaCancelada(reserva);
@@ -337,6 +353,9 @@ function FilaReserva({ reserva, historial = false, config }) {
             {fechaDMA(reserva.fecha)} · {reserva.turno}
             {reserva.ubicacion ? ` · ${reserva.ubicacion}` : ""}
           </p>
+          {detalleDeReserva(reserva) && (
+            <p className="text-sm text-tinta-suave">{detalleDeReserva(reserva)}</p>
+          )}
         </div>
         {/* En el historial ya lo dice el aviso de cancelación de debajo */}
         {cancelada && !historial && <Chip tono="rojo">Cancelada</Chip>}
@@ -360,6 +379,7 @@ function ReservaDestacada({ reserva, config }) {
         <strong>{fechaDMA(reserva.fecha)}</strong> · {reserva.turno}
         {reserva.ubicacion ? ` · ${reserva.ubicacion}` : ""}
       </p>
+      {detalleDeReserva(reserva) && <p className="text-sm">{detalleDeReserva(reserva)}</p>}
       <AvisoReprogramacion reserva={reserva} />
       <AvisoCancelacion reserva={reserva} />
       <BotonReprogramar reserva={reserva} config={config} />

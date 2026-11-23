@@ -135,7 +135,7 @@ export async function continuarComoInvitado({ nombre, email, telefono }) {
   // update y no set: las reglas dan permiso campo a campo en el perfil
   await update(
     usuarioRef,
-    existente.exists() ? datos : { ...datos, fechaRegistro: new Date().toISOString(), reservas: 0 }
+    existente.exists() ? datos : { ...datos, fechaRegistro: new Date().toISOString() }
   );
 
   await updateProfile(user, { displayName: datos.nombre });

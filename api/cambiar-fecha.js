@@ -132,7 +132,11 @@ const resumenDe = (reserva, evaluacion, { tipo, codigo, configEspacio }) => ({
   clase: reserva.clase || "",
   fecha: reserva.fecha || "",
   turno: limpiarTurno(reserva.turno || ""),
-  metodo: tipo === "grupo" ? reserva.nombreGrupo || "" : reserva.nombreTipoClase || reserva.metodo || "",
+  // «Opción · método» (p. ej. «tumba · torno»): la opción elegida de la ficha y cómo se hace
+  metodo:
+    tipo === "grupo"
+      ? reserva.nombreGrupo || ""
+      : [...new Set([reserva.nombreTipoPieza, reserva.nombreTipoClase || reserva.metodo].filter(Boolean))].join(" · "),
   plazas: Number(reserva.plazas || 1),
   reprogramada: !!reserva.reprogramada,
   fechaOriginal: reserva.fechaOriginal || "",

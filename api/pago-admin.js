@@ -67,15 +67,10 @@ async function saveReservationToProfile(reservation, uid, orderId, paidAt) {
       codigoReserva: reservation.codigoReserva || "",
       nombreTipoClase: reservation.nombreTipoClase || "",
       tipoClase: reservation.tipoClase || "",
+      // La opción elegida (variante de la ficha: «tumba», «mediana»…) y su nombre
+      tipoPieza: reservation.tipoPieza || "",
+      nombreTipoPieza: reservation.nombreTipoPieza || "",
     });
-
-    const userRef = adminDb.ref(`usuarios/${uid}`);
-    const userSnapshot = await userRef.get();
-    if (userSnapshot.exists()) {
-      await userRef.update({
-        reservas: (Number(userSnapshot.val()?.reservas) || 0) + 1,
-      });
-    }
   }
 }
 

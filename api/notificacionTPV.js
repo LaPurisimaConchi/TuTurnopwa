@@ -353,19 +353,11 @@ async function guardarReservaEnPerfilUsuario(reserva) {
       desdeTarjeta: !!reserva.desdeTarjeta,
       nombreTipoClase: reserva.nombreTipoClase || "",
       tipoClase: reserva.tipoClase || "",
+      // La opción elegida (variante de la ficha: «tumba», «mediana»…) y su nombre
+      tipoPieza: reserva.tipoPieza || "",
+      nombreTipoPieza: reserva.nombreTipoPieza || "",
       codigoReserva: reserva.codigoReserva || "",
     });
-
-    const userRef = adminDb.ref(`usuarios/${reserva.uid}`);
-    const userSnap = await userRef.get();
-
-    if (userSnap.exists()) {
-      const datos = userSnap.val() || {};
-      const totalActual = Number(datos.reservas) || 0;
-      await userRef.update({
-        reservas: totalActual + 1,
-      });
-    }
   }
 }
 
