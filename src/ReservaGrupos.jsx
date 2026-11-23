@@ -79,6 +79,9 @@ export default function ReservaGrupos() {
   const [metodoId, setMetodoId] = useState("");
   const [fecha, setFecha] = useState("");
   const [horario, setHorario] = useState("");
+  // Día y turno que ya había elegido en la reserva del taller (?fecha=&turno=): se
+  // aplican cuando se sabe que valen para un grupo
+  const [previa, setPrevia] = useState(null);
   const [personas, setPersonas] = useState(configEspacio.minPersonasGrupo);
 
   const [user, setUser] = useState(null);
@@ -152,6 +155,10 @@ export default function ReservaGrupos() {
     // Personas que ya había elegido en la reserva del taller
     const previas = Math.round(Number(params.get("personas")));
     if (previas > 0) setPersonas(Math.min(MAX_PERSONAS, previas));
+
+    const fechaPrevia = params.get("fecha");
+    const turnoPrevio = params.get("turno");
+    setPrevia(fechaPrevia && turnoPrevio ? { fecha: fechaPrevia, turno: turnoPrevio } : null);
   }, [talleres, location.search, location.state]);
 
   const taller = talleres.find((t) => t.id === tallerId) || null;
@@ -218,6 +225,22 @@ export default function ReservaGrupos() {
     diasAbiertos,
   });
   const fechaBloqueada = fecha && bloqueoDia ? bloqueoDia : null;
+
+  // Aplica el día y el turno que vienen de la reserva del taller, si valen aquí
+  // (las mismas reglas que allí: si no valen, se queda todo por elegir)
+  useEffect(() => {
+    if (!previa || !taller || !contextoCargado) return;
+
+    if (fecha !== previa.fecha) {
+      if (estadoDia(previa.fecha).estado === "disponible") setFecha(previa.fecha);
+      else setPrevia(null);
+      return;
+    }
+
+    if (turnosDelDia.includes(previa.turno)) setHorario(previa.turno);
+    setPrevia(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previa, taller, contextoCargado, fecha, turnosDelDia, personas]);
   const faltanPersonasDia = diaSoloGrupo && Number(personas) < minAbrir;
 
   const whatsappUrl = `https://wa.me/34${configEspacio.telefonoWhatsapp}?text=${construirMensajeWhatsApp({
