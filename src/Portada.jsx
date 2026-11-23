@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Icono from "./components/Icono";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
 import BarraDeslizable from "./components/BarraDeslizable";
@@ -10,6 +10,7 @@ import { useConfigEspacio } from "./configuracionEspacio";
 
 export default function Portada() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { config } = useConfigEspacio();
   const [talleres, setTalleres] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -23,6 +24,16 @@ export default function Portada() {
       .catch((error) => console.error("Error al cargar talleres:", error))
       .finally(() => setCargando(false));
   }, []);
+
+  // Llegada desde «Ver todos los talleres»: baja con animación al listado
+  useEffect(() => {
+    if (cargando || !location.state?.irATalleres) return;
+    const t = setTimeout(
+      () => document.getElementById("talleres")?.scrollIntoView({ behavior: "smooth" }),
+      150
+    );
+    return () => clearTimeout(t);
+  }, [cargando, location.state]);
 
   const grupos = useMemo(
     () => categorias.filter((g) => talleres.some((t) => t.grupo === g.id)),
