@@ -12,7 +12,7 @@
 import { diasAbiertosPerezosos, escribirConAforo, fallo, motivoDiaCerrado } from "./_reservarServidor.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
-import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
+import { normalizarConfigEspacio, tarjetaCaducada } from "../src/utils/configEspacio.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
@@ -47,6 +47,8 @@ const tarjetaUsada = (t) =>
   t?.usado === true ||
   t?.canjeado === true ||
   ["usada", "canjeado"].includes(String(t?.estadoCanje || "").toLowerCase());
+
+const hoyISO = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 // --- Búsqueda -------------------------------------------------------------------
 
@@ -148,6 +150,8 @@ export async function consultarTarjeta(db, uid, codigo) {
       numeroClases: Number(tarjeta.numeroClases) || 0,
       pagada: String(tarjeta.estadoPago || "").toLowerCase() === "pagado",
       usada: tarjetaUsada(tarjeta),
+      caducada: tarjetaCaducada(tarjeta, hoyISO()),
+      fechaCaducidad: texto(tarjeta.fechaCaducidad, 10),
       deOtraPersona: !!tarjeta.canjeadoPorUID && tarjeta.canjeadoPorUID !== uid,
     },
   };
@@ -205,6 +209,10 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
   if (!tarjeta) return fallo(404, "Código no válido", { codigo: "no_existe" });
   if (String(tarjeta.estadoPago || "").toLowerCase() !== "pagado") {
     return fallo(409, "Esta tarjeta regalo aún no consta como pagada.", { codigo: "no_pagada" });
+  }
+
+  if (tarjetaCaducada(tarjeta, hoyISO())) {
+    return fallo(409, "Esta tarjeta regalo ha caducado.", { codigo: "tarjeta_caducada" });
   }
 
   if (!(await reclamar(db, tarjeta.id, uid))) {

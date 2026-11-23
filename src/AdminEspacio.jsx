@@ -22,6 +22,7 @@ const aTexto = (config) => ({
   horasCambioReserva: String(config.horasCambioReserva),
   horasCambioBono: String(config.horasCambioBono),
   diasVentanaReprogramar: String(config.diasVentanaReprogramar),
+  mesesCaducidadTarjeta: String(config.mesesCaducidadTarjeta),
   telefonoWhatsapp: telefonoVisible(config.telefonoWhatsapp),
   horariosDefecto: { ...config.horariosDefecto },
   turnosDiasAbiertosDefecto: config.turnosDiasAbiertosDefecto,
@@ -66,6 +67,7 @@ export default function AdminEspacio() {
     const horasCambioReserva = entero(form.horasCambioReserva);
     const horasCambioBono = entero(form.horasCambioBono);
     const diasVentanaReprogramar = entero(form.diasVentanaReprogramar);
+    const mesesCaducidadTarjeta = entero(form.mesesCaducidadTarjeta);
 
     if (!(aforoTotal >= 1 && aforoTotal <= 500)) {
       return setError("El aforo total debe ser un número entre 1 y 500.");
@@ -90,6 +92,10 @@ export default function AdminEspacio() {
       return setError("Los días por delante para reprogramar deben estar entre 1 y 730.");
     }
 
+    if (!(mesesCaducidadTarjeta >= 1 && mesesCaducidadTarjeta <= 60)) {
+      return setError("Los meses de validez de las tarjetas regalo deben estar entre 1 y 60.");
+    }
+
     const telefonoWhatsapp = normalizarTelefonoWhatsapp(form.telefonoWhatsapp);
     if (!telefonoWhatsapp) {
       return setError("El WhatsApp del taller debe ser un teléfono español de 9 cifras (por ejemplo, 644 671 664).");
@@ -105,6 +111,7 @@ export default function AdminEspacio() {
         horasCambioReserva,
         horasCambioBono,
         diasVentanaReprogramar,
+        mesesCaducidadTarjeta,
         telefonoWhatsapp,
         horariosDefecto: form.horariosDefecto,
         turnosDiasAbiertosDefecto: form.turnosDiasAbiertosDefecto,
@@ -302,6 +309,26 @@ export default function AdminEspacio() {
                   <p className={ayuda}>
                     Hasta cuántos días en el futuro se puede reprogramar una reserva normal. Por
                     defecto, 90 días. Las clases de un bono no tienen este límite.
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="esp-meses-tarjeta" className={label}>
+                    Validez de las tarjetas regalo (meses)
+                  </label>
+                  <input
+                    id="esp-meses-tarjeta"
+                    type="number"
+                    min="1"
+                    max="60"
+                    className={input}
+                    value={form.mesesCaducidadTarjeta}
+                    onChange={(e) => cambiar("mesesCaducidadTarjeta", e.target.value)}
+                  />
+                  <p className={ayuda}>
+                    Meses que vale una tarjeta regalo desde que se compra. Por defecto, 3. Se
+                    aplica a las tarjetas que se compren a partir de ahora; las ya vendidas
+                    conservan su fecha (y las anteriores a este ajuste no caducan).
                   </p>
                 </div>
               </div>

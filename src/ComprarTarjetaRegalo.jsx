@@ -10,12 +10,15 @@ import {
   metodosDelTaller,
   opcionesRegaloDinamicas,
 } from "./catalogoTalleres";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { textoMeses } from "./utils/configEspacio";
 import { MAX_PLAZAS_TARJETA_REGALO } from "./utils/tarjetasRegalo";
 
 // Los bonos mensuales se regalan de uno en uno (cada bono es de una persona)
 const admiteVariasPlazas = (opcion) => opcion?.tipoTaller !== "bono_mensual";
 
 export default function ComprarTarjetaRegalo() {
+  const { config } = useConfigEspacio();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tallerPreseleccionado = searchParams.get("taller") || "";
@@ -186,6 +189,10 @@ export default function ComprarTarjetaRegalo() {
             La persona que la reciba podrá canjear el código más adelante y reservar
             su fecha para ese taller concreto. Si la tarjeta es para varias personas,
             todas las plazas se reservan juntas, el mismo día y en el mismo turno.
+          </p>
+          <p className="mt-2">
+            <strong>Validez:</strong> la tarjeta puede canjearse durante{" "}
+            {textoMeses(config.mesesCaducidadTarjeta)} desde la compra.
           </p>
         </div>
 

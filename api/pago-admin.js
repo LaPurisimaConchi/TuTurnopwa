@@ -5,7 +5,7 @@ import { asegurarCodigo } from "./_codigosReserva.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
 import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
-import { generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
+import { caducidadTarjetaNueva, generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -153,6 +153,7 @@ async function confirmGiftCard(orderId, pedido, paidAt) {
     estadoCanje: "pendiente",
     procesado: true,
     fechaCompra: paidAt,
+    fechaCaducidad: await caducidadTarjetaNueva(adminDb, paidAt),
     creadoEn: pedido.creadoEn || paidAt,
     actualizadoEn: paidAt,
     desdeTarjeta: false,

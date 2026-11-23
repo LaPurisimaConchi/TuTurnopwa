@@ -27,6 +27,8 @@ export const CONFIG_ESPACIO_DEFECTO = {
   horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((d) => [d, ""])),
   // Turnos por defecto de los días abiertos de un taller nuevo (separados por comas)
   turnosDiasAbiertosDefecto: "",
+  // Meses de validez de una tarjeta regalo desde su compra (se guarda la fecha en cada tarjeta)
+  mesesCaducidadTarjeta: 3,
   // WhatsApp del taller (9 cifras, sin prefijo): botón flotante, perfil, grupos…
   telefonoWhatsapp: "644671664",
 };
@@ -72,6 +74,12 @@ export function normalizarConfigEspacio(raw) {
       730
     ),
     horasCambioBono: entero(datos.horasCambioBono, CONFIG_ESPACIO_DEFECTO.horasCambioBono, 0, 720),
+    mesesCaducidadTarjeta: entero(
+      datos.mesesCaducidadTarjeta,
+      CONFIG_ESPACIO_DEFECTO.mesesCaducidadTarjeta,
+      1,
+      60
+    ),
     telefonoWhatsapp:
       normalizarTelefonoWhatsapp(datos.telefonoWhatsapp) || CONFIG_ESPACIO_DEFECTO.telefonoWhatsapp,
     turnosDiasAbiertosDefecto: (() => {
@@ -95,3 +103,22 @@ export function normalizarConfigEspacio(raw) {
     ),
   };
 }
+
+// Último día de una tarjeta regalo: «YYYY-MM-DD» de la compra + N meses (si el mes
+// destino es más corto, el último día de ese mes). "" si la fecha de compra no vale.
+export function fechaCaducidadTarjeta(fechaCompra, meses) {
+  const m = String(fechaCompra || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const n = Math.round(Number(meses));
+  if (!m || !Number.isFinite(n) || n < 1) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1 + n, 1));
+  const ultimo = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(Number(m[3]), ultimo));
+  return d.toISOString().slice(0, 10);
+}
+
+// «12 meses» / «1 mes»
+export const textoMeses = (meses) => `${meses} ${Number(meses) === 1 ? "mes" : "meses"}`;
+
+// Una tarjeta sin fechaCaducidad (las de antes) no caduca
+export const tarjetaCaducada = (tarjeta, hoyISO) =>
+  !!tarjeta?.fechaCaducidad && String(hoyISO) > String(tarjeta.fechaCaducidad);

@@ -1,8 +1,11 @@
 // src/RegalarTaller.jsx — presentación de «Regalar un taller»
 import PaginaPresentacion from "./components/PaginaPresentacion";
 import Icono from "./components/Icono";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { textoMeses } from "./utils/configEspacio";
 
 export default function RegalarTaller() {
+  const { config } = useConfigEspacio();
   return (
     <PaginaPresentacion
       pagina="regalo"
@@ -10,12 +13,12 @@ export default function RegalarTaller() {
       entradilla="Un regalo para quien ya lo tiene todo: una experiencia para crear algo con sus manos."
       imagenPrincipal="/img/creatupiezafavoritaregalo.jpg"
       descripcion={[
-        "Eliges el taller que quieres regalar y la tarjeta es válida para ese taller. La persona que la recibe elige la fecha que mejor le vaya, sin prisas ni caducidades incómodas.",
+        `Eliges el taller que quieres regalar y la tarjeta es válida para ese taller. La persona que la recibe elige la fecha que mejor le vaya, sin prisas: la tarjeta es válida durante ${textoMeses(config.mesesCaducidadTarjeta)} desde la compra.`,
         "No hace falta saber de cerámica: en cada taller te acompañamos paso a paso y se lleva su pieza terminada.",
       ]}
       ventajas={[
         { icono: "regalo", titulo: "Tú eliges el taller", texto: "El regalo es para ese taller." },
-        { icono: "calendarioEvento", titulo: "Fecha a su gusto", texto: "Reserva cuando le venga bien." },
+        { icono: "calendarioEvento", titulo: "Fecha a su gusto", texto: `Válida ${textoMeses(config.mesesCaducidadTarjeta)} desde la compra.` },
         { icono: "brillo", titulo: "Sin experiencia", texto: "Apto para principiantes." },
       ]}
       galeria={["/img/2clasesregalo.jpg", "/img/4clasesregalo.jpg", "/img/creatupiezafavoritaregalo.jpg"]}

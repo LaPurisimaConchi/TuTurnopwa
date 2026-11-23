@@ -7,6 +7,8 @@ import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { consultarTarjetaRegalo } from "./utils/canjeServidor";
 import { OPCIONES_TARJETA_REGALO } from "./opcionesTarjetaRegalo";
 
+import { fechaDMA } from "./utils/formatoFecha";
+
 const CanjearTarjetaRegalo = () => {
   const [codigo, setCodigo] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -122,6 +124,12 @@ const CanjearTarjetaRegalo = () => {
 
       if (tarjeta.usada) {
         setMensaje("Este código ya ha sido usado.");
+        setValidando(false);
+        return;
+      }
+
+      if (tarjeta.caducada) {
+        setMensaje(`Esta tarjeta regalo caducó el ${fechaDMA(tarjeta.fechaCaducidad)}.`);
         setValidando(false);
         return;
       }

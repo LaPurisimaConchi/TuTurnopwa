@@ -4,6 +4,7 @@
 // buscan igual (api/_canjeServidor.js). No cuenta como función de Vercel (empieza por _).
 import { randomInt } from "node:crypto";
 import { ALFABETO } from "./_codigosReserva.js";
+import { fechaCaducidadTarjeta, normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 
 export const LONGITUD_CODIGO_TARJETA = 10;
 
@@ -21,4 +22,12 @@ export async function generarCodigoTarjetaRegaloUnico(db) {
     if (!existe.exists()) return codigo;
   }
   throw new Error("No se pudo generar un código de tarjeta regalo único");
+}
+
+// Último día de validez de una tarjeta que se compra ahora, según los meses de
+// configuracionEspacio. Se guarda en la tarjeta: cambiar los meses no toca las ya vendidas.
+export async function caducidadTarjetaNueva(db, fechaCompra) {
+  const snap = await db.ref("configuracionEspacio").get();
+  const config = normalizarConfigEspacio(snap.exists() ? snap.val() : null);
+  return fechaCaducidadTarjeta(fechaCompra, config.mesesCaducidadTarjeta);
 }

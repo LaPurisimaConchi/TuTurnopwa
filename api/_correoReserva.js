@@ -120,6 +120,7 @@ function contenidoPorTipo(tipo, datos) {
         ["Código de la tarjeta", datos.codigo],
         ["Regalo", datos.clase + (datos.subtipo ? ` · ${datos.subtipo}` : "")],
         ["Plazas", String(plazas)],
+        ["Válida hasta", datos.fechaCaducidad ? formatearFecha(datos.fechaCaducidad) : ""],
         ["Para", datos.nombreDestinatario],
         ["Mensaje", datos.mensajePersonalizado],
         ["Importe", importe],
