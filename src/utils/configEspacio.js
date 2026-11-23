@@ -28,7 +28,7 @@ export const CONFIG_ESPACIO_DEFECTO = {
   // Turnos por defecto de los días abiertos de un taller nuevo (separados por comas)
   turnosDiasAbiertosDefecto: "",
   // Meses de validez de una tarjeta regalo desde su compra (se guarda la fecha en cada tarjeta)
-  mesesCaducidadTarjeta: 12,
+  mesesCaducidadTarjeta: 3,
   // WhatsApp del taller (9 cifras, sin prefijo): botón flotante, perfil, grupos…
   telefonoWhatsapp: "644671664",
 };

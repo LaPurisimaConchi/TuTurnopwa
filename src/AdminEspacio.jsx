@@ -326,7 +326,7 @@ export default function AdminEspacio() {
                     onChange={(e) => cambiar("mesesCaducidadTarjeta", e.target.value)}
                   />
                   <p className={ayuda}>
-                    Meses que vale una tarjeta regalo desde que se compra. Por defecto, 12. Se
+                    Meses que vale una tarjeta regalo desde que se compra. Por defecto, 3. Se
                     aplica a las tarjetas que se compren a partir de ahora; las ya vendidas
                     conservan su fecha (y las anteriores a este ajuste no caducan).
                   </p>
