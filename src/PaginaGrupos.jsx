@@ -16,7 +16,7 @@ export default function PaginaGrupos() {
       ventajas={[
         { icono: "usuarios", titulo: "Para todo tipo de grupos", texto: "Amigas, familia, empresa…" },
         { icono: "calendario", titulo: "Tú eliges el día", texto: "Fecha y horario a medida." },
-        { icono: "taller", titulo: "Todos se llevan su pieza", texto: "Un recuerdo hecho a mano." },
+        { icono: "taller", titulo: "Todos se llevan su pieza", texto: "Un recuerdo hecho a mano. Cada persona se lleva su pieza cuando esté lista." },
       ]}
       galeria={["/img/grupos/portadagrupos.jpg", "/img/grupos/desdecero.jpg", "/img/grupos/enjoy.jpg"]}
       pasos={[

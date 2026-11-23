@@ -118,15 +118,14 @@ export default function Portada() {
                 Canjear código de tarjeta regalo
               </button>
 
-              <a
-                href="https://drive.google.com/drive/folders/1J0f79NLH--SZ9DGIaFO2n5hSNdjU7rUn"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() => navigate("/recoger-pieza")}
                 className="flex items-center justify-center gap-2 rounded-2xl border border-terracota bg-white hover:bg-terracota-suave px-4 py-3 font-semibold text-terracota-oscuro transition"
               >
                 <Icono nombre="taller" />
-                Ver si mi pieza está lista
-              </a>
+                Quiero recoger mi pieza
+              </button>
             </div>
           </div>
         </div>
