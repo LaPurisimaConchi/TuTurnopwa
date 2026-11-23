@@ -1,6 +1,7 @@
 // src/components/PaginaPresentacion.jsx
 // Página de presentación (imagen, descripción, pasos, galería y talleres
 // recomendados) de «Regalar un taller» y «Reservas para grupos».
+import { Link } from "react-router-dom";
 import TarjetaTaller from "./TarjetaTaller";
 import Icono from "./Icono";
 import useMiniaturasTalleres from "./useMiniaturasTalleres";
@@ -16,6 +17,9 @@ export default function PaginaPresentacion({
   ventajas = [],
   galeria = [],
   tituloRecomendados,
+  textoCta, // botón principal de la cabecera (baja a los talleres)
+  subtituloRecomendados, // aclara que vale cualquier taller
+  textoBotonTaller = "Elegir este taller",
 }) {
   const { talleres, cargando } = useTalleresRecomendados(pagina);
   const miniaturas = useMiniaturasTalleres(talleres);
@@ -27,6 +31,25 @@ export default function PaginaPresentacion({
         <div className="order-2 md:order-1 text-center md:text-left">
           <h1 className="text-3xl md:text-4xl font-serif font-semibold text-tinta">{titulo}</h1>
           <p className="text-lg text-tinta mt-3">{entradilla}</p>
+          {textoCta && (
+            <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center md:justify-start">
+              <button
+                type="button"
+                onClick={() =>
+                  document.getElementById("elige-taller")?.scrollIntoView({ behavior: "smooth" })
+                }
+                className="rounded-full bg-terracota px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-terracota-oscuro"
+              >
+                {textoCta}
+              </button>
+              <Link
+                to="/portada" state={{ irATalleres: true }}
+                className="rounded-full border border-terracota px-5 py-2.5 text-sm font-semibold text-terracota transition hover:bg-arena"
+              >
+                Ver todos los talleres
+              </Link>
+            </div>
+          )}
         </div>
         <img
           src={imagenPrincipal}
@@ -90,11 +113,13 @@ export default function PaginaPresentacion({
       )}
 
       {/* RECOMENDADOS */}
-      {(cargando || talleres.length > 0) && (
-        <section>
-          <h2 className="text-2xl font-serif font-semibold text-tinta text-center mb-4">
+      <section id="elige-taller" className="scroll-mt-24">
+          <h2 className="text-2xl font-serif font-semibold text-tinta text-center">
             {tituloRecomendados}
           </h2>
+          {subtituloRecomendados && (
+            <p className="text-center text-tinta-suave mt-1 mb-4">{subtituloRecomendados}</p>
+          )}
           {cargando ? (
             <p className="text-center text-sm text-tinta-suave">Cargando...</p>
           ) : (
@@ -104,13 +129,17 @@ export default function PaginaPresentacion({
                   key={taller.id}
                   taller={taller}
                   imagen={miniaturas[taller.id]}
-                  textoBoton="Ver taller"
+                  textoBoton={textoBotonTaller}
                 />
               ))}
             </div>
           )}
-        </section>
-      )}
+          <p className="text-center mt-5">
+            <Link to="/portada" state={{ irATalleres: true }} className="font-semibold text-terracota underline underline-offset-2">
+              Ver todos los talleres
+            </Link>
+          </p>
+      </section>
 
     </div>
   );

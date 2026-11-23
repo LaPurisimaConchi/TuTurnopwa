@@ -341,45 +341,7 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
               </div>
             )}
 
-            <div className="mt-3">
-              {reservaEnFicha ? (
-                <div id="reservar" ref={panelRef} className="scroll-mt-20">
-                  {esBono ? (
-                    <ReservaBonoDinamico incrustado claseId={claseId} clase={clase} />
-                  ) : (
-                    <FormularioReserva
-                      incrustado
-                      claseId={claseId}
-                      clase={clase}
-                      eleccion={{ variante: elegidas.variante, metodo: elegidas.metodo }}
-                    />
-                  )}
-                </div>
-              ) : (
-                <div className="hidden md:block">
-                  <BotonReserva
-                    destino={destinoReserva}
-                    className="shrink-0 !py-3 !mb-3"
-                    texto={esBono ? "Comprar bono" : "Reservar ahora"}
-                    disabled={faltaOpcion}
-                  />
-                </div>
-              )}
-              {faltaOpcion && (
-                <p className="text-xs text-tinta-suave mb-3" role="status">
-                  Elige una opción de «{grupoSinElegir.etiqueta}» para poder reservar.
-                </p>
-              )}
-              {exigeCuenta(clase) && !reservaEnFicha && (
-                <p className="text-xs text-tinta-suave mt-2 mb-4">
-                  {esBono
-                    ? "Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil."
-                    : "Para reservar este taller necesitas una cuenta."}
-                </p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-6 empty:hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 mb-4 empty:hidden">
             {!esBono && !esMonografico(clase) && (
               <button
                 type="button"
@@ -417,6 +379,44 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 <span className="relative whitespace-nowrap">Regalar este taller</span>
               </button>
             )}
+            </div>
+
+            <div className="mt-3">
+              {reservaEnFicha ? (
+                <div id="reservar" ref={panelRef} className="scroll-mt-20">
+                  {esBono ? (
+                    <ReservaBonoDinamico incrustado claseId={claseId} clase={clase} />
+                  ) : (
+                    <FormularioReserva
+                      incrustado
+                      claseId={claseId}
+                      clase={clase}
+                      eleccion={{ variante: elegidas.variante, metodo: elegidas.metodo }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="hidden md:block">
+                  <BotonReserva
+                    destino={destinoReserva}
+                    className="shrink-0 !py-3 !mb-3"
+                    texto={esBono ? "Comprar bono" : "Reservar ahora"}
+                    disabled={faltaOpcion}
+                  />
+                </div>
+              )}
+              {faltaOpcion && (
+                <p className="text-xs text-tinta-suave mb-3" role="status">
+                  Elige una opción de «{grupoSinElegir.etiqueta}» para poder reservar.
+                </p>
+              )}
+              {exigeCuenta(clase) && !reservaEnFicha && (
+                <p className="text-xs text-tinta-suave mt-2 mb-4">
+                  {esBono
+                    ? "Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil."
+                    : "Para reservar este taller necesitas una cuenta."}
+                </p>
+              )}
             </div>
 
             <div className="mb-5 min-w-0 border-t border-linea pt-5">
