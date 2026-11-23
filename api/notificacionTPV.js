@@ -7,7 +7,7 @@ import { confirmarPrimeraSesionBono } from "./_primeraSesionBono.js";
 import { enviarCorreoReserva } from "./_correoReserva.js";
 import { marcarSobreaforo } from "./_reservarServidor.js";
 import { firmaRedsysValida } from "./_firmaRedsys.js";
-import { generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
+import { caducidadTarjetaNueva, generarCodigoTarjetaRegaloUnico } from "./_codigosTarjeta.js";
 import { grupoDelPedido, rutasDelPedido } from "./_pedidoServidor.js";
 
 export const config = { runtime: "nodejs" };
@@ -266,6 +266,7 @@ async function guardarTarjetaRegaloPagada(orderId, pedido, timestamp) {
     estadoCanje: "pendiente",
     procesado: true,
     fechaCompra: timestamp,
+    fechaCaducidad: await caducidadTarjetaNueva(adminDb, timestamp),
     creadoEn: pedido.creadoEn || timestamp,
     actualizadoEn: timestamp,
     desdeTarjeta: false,
