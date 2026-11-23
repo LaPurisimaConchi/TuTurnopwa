@@ -118,7 +118,7 @@ export default function AdminMigrarTalleres() {
   return (
     <div className="bg-crema min-h-screen px-4 py-6 font-sans">
       <div className="max-w-3xl mx-auto">
-        <BotonVolver volverA="/admin-clases-nuevo" />
+        <BotonVolver volverA="/admin-clases" />
 
         <h1 className="text-2xl md:text-3xl font-bold text-tinta font-serif">
           Migrar talleres al panel

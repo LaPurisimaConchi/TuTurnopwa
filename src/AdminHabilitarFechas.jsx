@@ -3,15 +3,21 @@ import { ref, get, update, remove } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { preguntar } from "./utils/avisos";
+import { useConfigEspacio } from "./configuracionEspacio";
+import { esTurnoConHoras, limpiarTurno } from "./utils/turnosFecha";
+
+// Si en «Espacio» no hay turnos de días abiertos por defecto, los de siempre
+const TURNOS_POR_DEFECTO = ["11:30-14:30", "17:30-20:30"];
 const AdminHabilitarFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
   const [fechasHabilitadas, setFechasHabilitadas] = useState([]);
-  const [habilitarManana, setHabilitarManana] = useState(false);
-const [habilitarTarde, setHabilitarTarde] = useState(false);
+  const { config: configEspacio } = useConfigEspacio();
+  // Turnos que se ofrecen: los «turnos de días abiertos» de /admin-espacio
+  const [turnosElegidos, setTurnosElegidos] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
   const [fechaEditando, setFechaEditando] = useState(null);
@@ -88,8 +94,8 @@ useEffect(() => {
       return;
     }
 
-    if (!habilitarManana && !habilitarTarde) {
-      alert("Selecciona al menos un turno: mañana o tarde.");
+    if (!turnosElegidos.length) {
+      alert("Selecciona al menos un turno.");
       return;
     }
 
@@ -102,12 +108,9 @@ useEffect(() => {
       fechas.forEach((fecha) => {
         updates[`fechasHabilitadas/${fecha}`] = {
           habilitada: true,
-          motivo: motivo.trim() || "Apertura especial",
+          motivo: motivo.trim() || "Día abierto",
           creadaEn: Date.now(),
-          turnosHabilitados: [
-            ...(habilitarManana ? ["11:30-14:30"] : []),
-            ...(habilitarTarde ? ["17:30-20:30"] : []),
-          ],
+          turnosHabilitados: [...turnosElegidos],
         };
       });
 
@@ -116,15 +119,14 @@ useEffect(() => {
      setFechaInicio("");
 setFechaFin("");
 setMotivo("");
-setHabilitarManana(false);
-setHabilitarTarde(false);
+setTurnosElegidos([]);
 setFechaEditando(null);
 
       await cargarFechasHabilitadas();
-      alert("Fechas habilitadas correctamente.");
+      alert("Días abiertos correctamente.");
     } catch (error) {
       console.error("Error al guardar fechas habilitadas:", error);
-      alert("No se pudieron guardar las fechas habilitadas.");
+      alert("No se pudieron guardar los días abiertos.");
     } finally {
       setGuardando(false);
     }
@@ -137,10 +139,7 @@ setFechaEditando(null);
   setFechaFin(f.fecha);
   setMotivo(f.motivo || "");
 
-  const turnos = f.turnosHabilitados || [];
-
-  setHabilitarManana(turnos.includes("11:30-14:30"));
-  setHabilitarTarde(turnos.includes("17:30-20:30"));
+  setTurnosElegidos((f.turnosHabilitados || []).map(limpiarTurno));
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -164,8 +163,24 @@ setFechaEditando(null);
     }
   };
 
+  // Lo que se puede marcar: los turnos por defecto y los que ya tenga la fecha que se edita
+  const turnosPosibles = useMemo(() => {
+    const porDefecto = String(configEspacio.turnosDiasAbiertosDefecto || "")
+      .split(",")
+      .map((t) => limpiarTurno(t))
+      .filter(esTurnoConHoras);
+    return [...new Set([...(porDefecto.length ? porDefecto : TURNOS_POR_DEFECTO), ...turnosElegidos])].sort();
+  }, [configEspacio.turnosDiasAbiertosDefecto, turnosElegidos]);
+
+  const alternarTurno = (turno) =>
+    setTurnosElegidos((actuales) =>
+      actuales.includes(turno) ? actuales.filter((t) => t !== turno) : [...actuales, turno]
+    );
+
   const habilitacionesActivas = useMemo(() => {
-    return fechasHabilitadas.filter((f) => f.habilitada);
+    // Los días que ya pasaron no sirven para nada: no se enseñan
+    const hoy = hoyMadrid();
+    return fechasHabilitadas.filter((f) => f.habilitada && f.fecha >= hoy);
   }, [fechasHabilitadas]);
 
   return (
@@ -183,9 +198,9 @@ setFechaEditando(null);
   >
         <BotonVolver />
 
-        <h1 style={styles.titulo}>Habilitar fechas y Turnos</h1>
+        <h1 style={styles.titulo}>Abrir días</h1>
         <p style={styles.subtitulo}>
-          Aquí puedes abrir días especiales para que sí se puedan reservar.
+          Abre un día sin horario para que cualquier taller se pueda reservar ese día, sin esperar a una reserva que llegue al mínimo de personas.
         </p>
 
         <div style={styles.card}>
@@ -223,28 +238,21 @@ setFechaEditando(null);
           </div>
 
           <div style={styles.campo}>
-            <label style={styles.label}>Turnos habilitados</label>
+            <label style={styles.label}>Turnos que se ofrecen</label>
 
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={habilitarManana}
-                onChange={(e) => setHabilitarManana(e.target.checked)}
-              />
-              Mañana
-            </label>
-
-            <label style={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={habilitarTarde}
-                onChange={(e) => setHabilitarTarde(e.target.checked)}
-              />
-              Tarde
-            </label>
+            {turnosPosibles.map((turno) => (
+              <label key={turno} style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={turnosElegidos.includes(turno)}
+                  onChange={() => alternarTurno(turno)}
+                />
+                {turno}
+              </label>
+            ))}
             <p style={styles.avisoTurnos}>
-  Debes marcar solo los turnos que quieras habilitar. Si marcas mañana y tarde,
-  la fecha quedará abierta en ambos turnos.
+  Marca los turnos que quieras ofrecer ese día. Son los de «turnos de días abiertos» de
+  Espacio; si marcas varios, la fecha queda abierta en todos ellos.
 </p>
 {fechaEditando && (
   <p style={styles.avisoEdicion}>
@@ -263,15 +271,15 @@ setFechaEditando(null);
   ? "Guardando..."
   : fechaEditando
   ? "Guardar cambios"
-  : "Habilitar fechas"}
+  : "Abrir días"}
           </button>
         </div>
 
         <div style={styles.card}>
-          <h2 style={styles.subtituloBloque}>Fechas habilitadas</h2>
+          <h2 style={styles.subtituloBloque}>Días abiertos a mano</h2>
 
           {habilitacionesActivas.length === 0 ? (
-            <p style={styles.textoVacio}>No hay fechas habilitadas.</p>
+            <p style={styles.textoVacio}>No hay días abiertos a mano.</p>
           ) : (
             <div style={styles.lista}>
               {habilitacionesActivas.map((f) => (
