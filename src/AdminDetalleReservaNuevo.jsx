@@ -10,9 +10,12 @@ import { useConfigEspacio } from "./configuracionEspacio";
 import BotonVolver from "./BotonVolver";
 import CalendarioReserva from "./components/CalendarioReserva";
 
-import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
+import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
 import { preguntar } from "./utils/avisos";
+import { turnosElegibles } from "./utils/cambioFecha";
+import { calcularDiasAbiertos } from "./utils/diasAbiertos";
+import { estadoDiaTaller } from "./utils/turnosTaller";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -329,9 +332,13 @@ useEffect(() => {
   const [versionOcupacion, setVersionOcupacion] = useState(0);
   useEffect(() => {
     let activo = true;
-    Promise.all([get(ref(dbRealtime, "reservas")), get(ref(dbRealtime, "reservasGrupos"))])
-      .then(([reservas, grupos]) => {
-        if (activo) setOcupacion({ reservas, grupos });
+    Promise.all([
+      get(ref(dbRealtime, "reservas")),
+      get(ref(dbRealtime, "reservasGrupos")),
+      get(ref(dbRealtime, "clases")),
+    ])
+      .then(([reservas, grupos, clases]) => {
+        if (activo) setOcupacion({ reservas, grupos, clases: clases.val() || {} });
       })
       .catch((error) => {
         console.error("Error al leer la ocupación para reprogramar:", error);
@@ -403,92 +410,55 @@ useEffect(() => {
     }
   };
 
-  const normalizarTurnos = (turnosRaw) => {
-    if (!turnosRaw) return [];
-
-    if (Array.isArray(turnosRaw)) {
-      return turnosRaw
-        .map((t) => normalizarTurnoParaRuta(t))
-        .filter(Boolean);
-    }
-
-    if (typeof turnosRaw === "object") {
-      return Object.values(turnosRaw)
-        .map((t) => normalizarTurnoParaRuta(t))
-        .filter(Boolean);
-    }
-
-    if (typeof turnosRaw === "string") {
-      return [normalizarTurnoParaRuta(turnosRaw)].filter(Boolean);
-    }
-
-    return [];
-  };
-
-  const obtenerTurnosFechaHabilitada = (fechaISO) => {
-    const config = fechasHabilitadas?.[fechaISO];
-
-    if (!config) return [];
-    if (config.habilitada === false) return [];
-
-    return normalizarTurnos(
-      config.turnos ||
-        config.turnosHabilitados ||
-        config.horarios ||
-        config.horario ||
-        config.turno
-    );
-  };
-
-  const getNombreDiaSemana = (fechaISO) => {
-    if (!fechaISO) return "";
-
-    const [year, month, day] = fechaISO.split("-").map(Number);
-    const fechaLocal = new Date(year, month - 1, day);
-
-    const dias = [
-      "domingo",
-      "lunes",
-      "martes",
-      "miercoles",
-      "jueves",
-      "viernes",
-      "sabado",
-    ];
-
-    return dias[fechaLocal.getDay()] || "";
-  };
 
   const horariosClase = claseConfig?.horarios || claseConfig?.horario || {};
 
-  // Turnos de cualquier fecha: los de la fecha habilitada a mano o, si no hay, los
-  // del horario semanal del taller
-  const turnosDeFecha = (fechaISO) => {
-    const habilitados = obtenerTurnosFechaHabilitada(fechaISO);
-    if (habilitados.length > 0) return habilitados;
-    return normalizarTurnos(horariosClase[getNombreDiaSemana(fechaISO)]);
-  };
+  // Mismas reglas que el cliente (src/utils/cambioFecha.js): el horario semanal del taller,
+  // los días abiertos a mano o por otra reserva, y un día sin horario se abre si esta misma
+  // reserva llega al mínimo de personas del taller
+  const claseParaFechas = useMemo(
+    () => (claseConfig && !claseConfig.horarios && claseConfig.horario ? { ...claseConfig, horarios: claseConfig.horario } : claseConfig),
+    [claseConfig]
+  );
+  const diasAbiertos = useMemo(
+    () =>
+      ocupacion
+        ? calcularDiasAbiertos({
+            reservas: ocupacion.reservas,
+            grupos: ocupacion.grupos,
+            clases: ocupacion.clases,
+            fechasHabilitadas,
+            desde: hoyMadrid(),
+          })
+        : {},
+    [ocupacion, fechasHabilitadas]
+  );
+  const plazasMovidas = Number(reserva?.plazas || 1);
 
   // Estado de cada día para el calendario de reprogramar
   const estadoDiaReprogramar = (fechaISO) => {
-    const bloqueo = fechasBloqueadas?.[fechaISO];
-    if (bloqueo?.bloqueado) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
-    if (turnosDeFecha(fechaISO).length === 0) return { estado: "sin-taller" };
-    return { estado: "disponible" };
+    const estado = estadoDiaTaller({
+      clase: claseParaFechas,
+      fecha: fechaISO,
+      fechasBloqueadas,
+      fechasHabilitadas,
+      diasAbiertos,
+    });
+    return estado.estado === "solo-grupo" && plazasMovidas >= estado.minimo
+      ? { estado: "disponible" }
+      : estado;
   };
 
   const turnosDisponiblesReprogramacion = useMemo(() => {
     if (!nuevaFecha) return [];
-
-    const turnosFechaHabilitada = obtenerTurnosFechaHabilitada(nuevaFecha);
-
-    if (turnosFechaHabilitada.length > 0) {
-      return turnosFechaHabilitada;
-    }
-
-    const nombreDia = getNombreDiaSemana(nuevaFecha);
-    return normalizarTurnos(horariosClase[nombreDia]);
-  }, [horariosClase, nuevaFecha, fechasHabilitadas]);
+    return turnosElegibles({
+      clase: claseParaFechas,
+      fecha: nuevaFecha,
+      fechasHabilitadas,
+      diasAbiertos,
+      plazas: plazasMovidas,
+    }).map(normalizarTurnoParaRuta);
+  }, [claseParaFechas, nuevaFecha, fechasHabilitadas, diasAbiertos, plazasMovidas]);
 
   const fechaBloqueadaReprogramacion = useMemo(() => {
     if (!nuevaFecha) return null;

@@ -571,7 +571,7 @@ export default function AdminTallerForm() {
 
       // Guardado con éxito: vuelve a la página de la que se venía
       if (window.history.state?.idx > 0) navigate(-1);
-      else navigate("/admin-clases-nuevo", { replace: true });
+      else navigate("/admin-clases", { replace: true });
       return;
     } catch (err) {
       console.error("Error al guardar el taller:", err);
@@ -625,7 +625,7 @@ export default function AdminTallerForm() {
         [`clasesNotas/${idEditar}`]: null,
       });
 
-      navigate("/admin-clases-nuevo", { replace: true });
+      navigate("/admin-clases", { replace: true });
     } catch (err) {
       console.error("Error al borrar el taller:", err);
       setErrorBorrado(
@@ -734,7 +734,7 @@ export default function AdminTallerForm() {
   return (
     <div className="bg-crema min-h-screen px-4 py-6 font-sans">
       <div className="max-w-3xl mx-auto">
-        <BotonVolver volverA="/admin-clases-nuevo" />
+        <BotonVolver volverA="/admin-clases" />
 
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

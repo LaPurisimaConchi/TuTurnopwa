@@ -3,7 +3,7 @@ import { ref, get, update, remove } from "firebase/database";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { plazasEnBloqueo } from "./utils/aforo";
 import { preguntar } from "./utils/avisos";
 const AdminBloqueosFechas = () => {
@@ -13,6 +13,8 @@ const AdminBloqueosFechas = () => {
   const [bloqueos, setBloqueos] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
+  const [verPasados, setVerPasados] = useState(false);
+  const [limpiando, setLimpiando] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
 useEffect(() => {
@@ -156,9 +158,37 @@ useEffect(() => {
     }
   };
 
+  const hoy = hoyMadrid();
   const bloqueosActivos = useMemo(() => {
     return bloqueos.filter((b) => b.bloqueado);
   }, [bloqueos]);
+  // Los de días que ya pasaron no bloquean nada: se esconden salvo que se pidan
+  const bloqueosPasados = bloqueosActivos.filter((b) => b.fecha < hoy);
+  const bloqueosVisibles = verPasados ? bloqueosActivos : bloqueosActivos.filter((b) => b.fecha >= hoy);
+
+  const limpiarPasados = async () => {
+    if (!bloqueosPasados.length) return;
+    const seguir = await preguntar(
+      `¿Borrar los ${bloqueosPasados.length} bloqueos de días que ya han pasado? No afecta a ninguna reserva.`
+    );
+    if (!seguir) return;
+
+    try {
+      setLimpiando(true);
+      const cambios = {};
+      bloqueosPasados.forEach((b) => {
+        cambios[`bloqueosFechas/${b.fecha}`] = null;
+      });
+      await update(ref(dbRealtime), cambios);
+      await cargarBloqueos();
+      alert("Bloqueos pasados borrados.");
+    } catch (error) {
+      console.error("Error al borrar bloqueos pasados:", error);
+      alert("No se pudieron borrar los bloqueos pasados.");
+    } finally {
+      setLimpiando(false);
+    }
+  };
 
   return (
     <div
@@ -226,11 +256,35 @@ useEffect(() => {
         <div style={styles.card}>
           <h2 style={styles.subtituloBloque}>Fechas bloqueadas</h2>
 
-          {bloqueosActivos.length === 0 ? (
+          {bloqueosPasados.length > 0 && (
+            <p style={styles.textoVacio}>
+              {verPasados
+                ? `Se enseñan también los ${bloqueosPasados.length} bloqueos de días pasados. `
+                : `${bloqueosPasados.length} bloqueos de días pasados escondidos. `}
+              <button
+                type="button"
+                onClick={() => setVerPasados((v) => !v)}
+                style={{ background: "none", border: "none", color: "#1d4ed8", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+              >
+                {verPasados ? "Esconderlos" : "Verlos"}
+              </button>
+              {" · "}
+              <button
+                type="button"
+                onClick={limpiarPasados}
+                disabled={limpiando}
+                style={{ background: "none", border: "none", color: "#b91c1c", textDecoration: "underline", cursor: "pointer", padding: 0 }}
+              >
+                {limpiando ? "Borrando…" : "Borrarlos"}
+              </button>
+            </p>
+          )}
+
+          {bloqueosVisibles.length === 0 ? (
             <p style={styles.textoVacio}>No hay fechas bloqueadas.</p>
           ) : (
             <div style={styles.lista}>
-              {bloqueosActivos.map((b) => (
+              {bloqueosVisibles.map((b) => (
                 <div
   key={b.fecha}
   style={{

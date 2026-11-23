@@ -49,7 +49,7 @@ const SECCIONES_ACCESOS = [
     titulo: "Calendario y disponibilidad",
     accesos: [
       { to: "/admin-bloqueos-fechas", icono: "bloquear", texto: "Bloquear fechas" },
-      { to: "/admin-habilitar-fechas", icono: "confirmado", texto: "Habilitar fechas y Turnos" },
+      { to: "/admin-habilitar-fechas", icono: "confirmado", texto: "Abrir días" },
     ],
   },
 ];
