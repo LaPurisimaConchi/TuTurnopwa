@@ -442,6 +442,7 @@ useEffect(() => {
       fecha: fechaISO,
       fechasBloqueadas,
       fechasHabilitadas,
+      permiteAbrir: true,
       diasAbiertos,
     });
     return estado.estado === "solo-grupo" && plazasMovidas >= estado.minimo
