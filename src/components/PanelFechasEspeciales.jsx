@@ -43,6 +43,9 @@ export default function PanelFechasEspeciales({
   // Horas a bloquear (vacío = el día entero) y turnos que se abren al habilitar
   const [horasBloqueo, setHorasBloqueo] = useState("");
   const [turnosHabilitar, setTurnosHabilitar] = useState("");
+  // «Todo el día»: bloquear el día entero / abrir todos los turnos del taller
+  const [todoBloqueo, setTodoBloqueo] = useState(true);
+  const [todoHabilitar, setTodoHabilitar] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   const fechas = useMemo(() => fechasDelRango(inicio, fin), [inicio, fin]);
@@ -56,9 +59,13 @@ export default function PanelFechasEspeciales({
       const b = bloqueos[fechas[0]];
       setTurnosHabilitar(h?.habilitada ? (h.turnosHabilitados || []).join(", ") : "");
       setHorasBloqueo(b?.bloqueado ? rangosBloqueados(b).join(", ") : "");
+      setTodoHabilitar(!!h?.habilitada && !h.turnosHabilitados?.length);
+      setTodoBloqueo(!b?.bloqueado || !rangosBloqueados(b).length);
       setMotivo(h?.habilitada ? h.motivo || "" : b?.bloqueado ? b.motivo || "" : "");
       return;
     }
+    setTodoBloqueo(true);
+    setTodoHabilitar(false);
     setMotivo("");
     setHorasBloqueo("");
     setTurnosHabilitar("");
@@ -95,7 +102,11 @@ export default function PanelFechasEspeciales({
   };
 
   const bloquear = async () => {
-    const rangos = leerTurnos(horasBloqueo);
+    const rangos = todoBloqueo ? [] : leerTurnos(horasBloqueo);
+    if (!todoBloqueo && !rangos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
+      return;
+    }
 
     // Avisa si ya hay gente reservada: bloquear no cancela las reservas existentes
     try {
@@ -128,9 +139,9 @@ export default function PanelFechasEspeciales({
   };
 
   const habilitar = () => {
-    const turnos = leerTurnos(turnosHabilitar);
-    if (!turnos.length) {
-      alert("Añade al menos un turno.");
+    const turnos = todoHabilitar ? [] : leerTurnos(turnosHabilitar);
+    if (!todoHabilitar && !turnos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
       return;
     }
 
@@ -141,7 +152,7 @@ export default function PanelFechasEspeciales({
           habilitada: true,
           motivo: motivo.trim() || "Apertura especial",
           creadaEn: Date.now(),
-          turnosHabilitados: turnos,
+          ...(turnos.length ? { turnosHabilitados: turnos } : {}),
         };
       });
       await update(ref(dbRealtime), updates);
@@ -197,13 +208,25 @@ export default function PanelFechasEspeciales({
             ? "Horas a bloquear. Sin ninguna se bloquea el día entero; un turno se bloquea si se cruza con alguna de estas horas."
             : "Turnos que se abren esos días."}
         </p>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 14 }}>
+          <input
+            type="checkbox"
+            checked={modo === "bloquear" ? todoBloqueo : todoHabilitar}
+            onChange={(e) =>
+              (modo === "bloquear" ? setTodoBloqueo : setTodoHabilitar)(e.target.checked)
+            }
+          />
+          Todo el día{modo === "habilitar" ? " (todos los turnos del taller)" : ""}
+        </label>
+        {!(modo === "bloquear" ? todoBloqueo : todoHabilitar) && (
         <EditorTurnos
           key={modo}
           id={`panel-${modo}`}
           value={modo === "bloquear" ? horasBloqueo : turnosHabilitar}
           onChange={modo === "bloquear" ? setHorasBloqueo : setTurnosHabilitar}
-          textoVacio={modo === "bloquear" ? "Todo el día" : "Sin turnos"}
+          textoVacio="Sin turnos"
         />
+        )}
       </div>
 
       <div style={estilos.acciones}>

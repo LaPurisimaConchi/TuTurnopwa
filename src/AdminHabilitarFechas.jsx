@@ -5,19 +5,19 @@ import BotonVolver from "./BotonVolver";
 
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { preguntar } from "./utils/avisos";
-import { useConfigEspacio } from "./configuracionEspacio";
-import { esTurnoConHoras, limpiarTurno } from "./utils/turnosFecha";
+import { limpiarTurno } from "./utils/turnosFecha";
+import EditorTurnos from "./components/EditorTurnos";
+import { leerTurnos } from "./utils/fichaTaller";
 
-// Si en «Espacio» no hay turnos de días abiertos por defecto, los de siempre
-const TURNOS_POR_DEFECTO = ["11:30-14:30", "17:30-20:30"];
 const AdminHabilitarFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
   const [fechasHabilitadas, setFechasHabilitadas] = useState([]);
-  const { config: configEspacio } = useConfigEspacio();
   // Turnos que se ofrecen: los «turnos de días abiertos» de /admin-espacio
   const [turnosElegidos, setTurnosElegidos] = useState([]);
+  // «Todo el día»: se abren todos los turnos del taller ese día (sin lista concreta)
+  const [todoElDia, setTodoElDia] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
   const [fechaEditando, setFechaEditando] = useState(null);
@@ -94,8 +94,8 @@ useEffect(() => {
       return;
     }
 
-    if (!turnosElegidos.length) {
-      alert("Selecciona al menos un turno.");
+    if (!todoElDia && !turnosElegidos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
       return;
     }
 
@@ -110,7 +110,7 @@ useEffect(() => {
           habilitada: true,
           motivo: motivo.trim() || "Día abierto",
           creadaEn: Date.now(),
-          turnosHabilitados: [...turnosElegidos],
+          ...(todoElDia ? {} : { turnosHabilitados: [...turnosElegidos] }),
         };
       });
 
@@ -120,6 +120,7 @@ useEffect(() => {
 setFechaFin("");
 setMotivo("");
 setTurnosElegidos([]);
+setTodoElDia(false);
 setFechaEditando(null);
 
       await cargarFechasHabilitadas();
@@ -140,6 +141,7 @@ setFechaEditando(null);
   setMotivo(f.motivo || "");
 
   setTurnosElegidos((f.turnosHabilitados || []).map(limpiarTurno));
+  setTodoElDia(!f.turnosHabilitados?.length);
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
@@ -162,20 +164,6 @@ setFechaEditando(null);
       setEliminandoFecha("");
     }
   };
-
-  // Lo que se puede marcar: los turnos por defecto y los que ya tenga la fecha que se edita
-  const turnosPosibles = useMemo(() => {
-    const porDefecto = String(configEspacio.turnosDiasAbiertosDefecto || "")
-      .split(",")
-      .map((t) => limpiarTurno(t))
-      .filter(esTurnoConHoras);
-    return [...new Set([...(porDefecto.length ? porDefecto : TURNOS_POR_DEFECTO), ...turnosElegidos])].sort();
-  }, [configEspacio.turnosDiasAbiertosDefecto, turnosElegidos]);
-
-  const alternarTurno = (turno) =>
-    setTurnosElegidos((actuales) =>
-      actuales.includes(turno) ? actuales.filter((t) => t !== turno) : [...actuales, turno]
-    );
 
   const habilitacionesActivas = useMemo(() => {
     // Los días que ya pasaron no sirven para nada: no se enseñan
@@ -240,19 +228,24 @@ setFechaEditando(null);
           <div style={styles.campo}>
             <label style={styles.label}>Turnos que se ofrecen</label>
 
-            {turnosPosibles.map((turno) => (
-              <label key={turno} style={styles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={turnosElegidos.includes(turno)}
-                  onChange={() => alternarTurno(turno)}
-                />
-                {turno}
-              </label>
-            ))}
+            <label style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={todoElDia}
+                onChange={(e) => setTodoElDia(e.target.checked)}
+              />
+              Todo el día (todos los turnos del taller)
+            </label>
+            {!todoElDia && (
+              <EditorTurnos
+                id="habilitar-turnos"
+                value={turnosElegidos.join(", ")}
+                onChange={(texto) => setTurnosElegidos(leerTurnos(texto))}
+                textoVacio="Sin turnos"
+              />
+            )}
             <p style={styles.avisoTurnos}>
-  Marca los turnos que quieras ofrecer ese día. Son los de «turnos de días abiertos» de
-  Espacio; si marcas varios, la fecha queda abierta en todos ellos.
+  Elige los turnos que quieras ofrecer ese día, con las horas que necesites, o marca «Todo el día».
 </p>
 {fechaEditando && (
   <p style={styles.avisoEdicion}>

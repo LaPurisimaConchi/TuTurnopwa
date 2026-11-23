@@ -6,10 +6,16 @@ import BotonVolver from "./BotonVolver";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { plazasEnBloqueo } from "./utils/aforo";
 import { preguntar } from "./utils/avisos";
+import EditorTurnos from "./components/EditorTurnos";
+import { leerTurnos } from "./utils/fichaTaller";
+import { rangosBloqueados } from "./utils/rangosHora";
 const AdminBloqueosFechas = () => {
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
+  // Horas a bloquear ("11:30-14:30, 17:30-20:30"); con «todo el día» marcada se cierra el día entero
+  const [todoElDia, setTodoElDia] = useState(true);
+  const [horas, setHoras] = useState("");
   const [bloqueos, setBloqueos] = useState([]);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
@@ -46,6 +52,7 @@ useEffect(() => {
             fecha,
             bloqueado: data.bloqueado ?? false,
             motivo: data.motivo || "",
+            rangos: rangosBloqueados(data),
           });
         });
       }
@@ -86,6 +93,12 @@ useEffect(() => {
       return;
     }
 
+    const rangos = todoElDia ? [] : leerTurnos(horas);
+    if (!todoElDia && !rangos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
+      return;
+    }
+
     const fechas = generarRangoFechas(fechaInicio, fechaFin);
 
     // Avisa si ya hay gente reservada: bloquear no cancela las reservas ni avisa al cliente
@@ -94,7 +107,7 @@ useEffect(() => {
         get(ref(dbRealtime, "reservas")),
         get(ref(dbRealtime, "reservasGrupos")),
       ]);
-      const { plazas, porFecha } = plazasEnBloqueo(reservasSnap, gruposSnap, fechas);
+      const { plazas, porFecha } = plazasEnBloqueo(reservasSnap, gruposSnap, fechas, rangos);
       if (plazas > 0) {
         const detalle = Object.keys(porFecha)
           .sort()
@@ -120,6 +133,7 @@ useEffect(() => {
         updates[`bloqueosFechas/${fecha}`] = {
           bloqueado: true,
           motivo: motivo.trim() || "No especificado",
+          ...(rangos.length ? { turnosBloqueados: rangos } : {}),
         };
       });
 
@@ -128,6 +142,8 @@ useEffect(() => {
       setFechaInicio("");
       setFechaFin("");
       setMotivo("");
+      setTodoElDia(true);
+      setHoras("");
 
       await cargarBloqueos();
       alert("Fechas bloqueadas correctamente.");
@@ -244,6 +260,26 @@ useEffect(() => {
             />
           </div>
 
+          <div style={styles.campo}>
+            <label style={styles.label}>Horas a bloquear</label>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <input
+                type="checkbox"
+                checked={todoElDia}
+                onChange={(e) => setTodoElDia(e.target.checked)}
+              />
+              Todo el día
+            </label>
+            {!todoElDia && (
+              <EditorTurnos
+                id="bloqueo-horas"
+                value={horas}
+                onChange={setHoras}
+                textoVacio="Sin turnos"
+              />
+            )}
+          </div>
+
           <button
             onClick={guardarBloqueo}
             style={styles.botonGuardar}
@@ -294,7 +330,10 @@ useEffect(() => {
 >
                   <div>
                     <p style={styles.fecha}>{fechaDMA(b.fecha)}</p>
-                    <p style={styles.motivo}>{b.motivo || "Sin motivo"}</p>
+                    <p style={styles.motivo}>
+                      {b.rangos?.length ? `${b.rangos.join(" / ")} · ` : "Todo el día · "}
+                      {b.motivo || "Sin motivo"}
+                    </p>
                   </div>
 
                   <button
