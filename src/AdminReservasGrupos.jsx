@@ -9,6 +9,8 @@ import { useLocation } from "react-router-dom";
 
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { calcularDiasAbiertos } from "./utils/diasAbiertos";
+import Icono from "./components/Icono";
+import "./AdminDashboard.css";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 const grupoCancelado = (r) => r.cancelada === true || r.estado === "Cancelada";
@@ -855,26 +857,23 @@ const guardarPlazoPago = async (r) => {
               </button>
             </div>
 
-            <div style={styles.gridResumen}>
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Total reservas grupo</p>
-                <p style={styles.cardValue}>{resumen.totalReservas}</p>
-              </div>
-
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Pendientes</p>
-                <p style={styles.cardValue}>{resumen.pendientes}</p>
-              </div>
-
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Pagadas</p>
-                <p style={styles.cardValue}>{resumen.pagadas}</p>
-              </div>
-
-              <div style={styles.cardResumen}>
-                <p style={styles.cardLabel}>Ingresos estimados grupo</p>
-                <p style={styles.cardValue}>{resumen.ingresosEstimados}€</p>
-              </div>
+            <div className="pa-grid">
+              {[
+                ["Total reservas grupo", resumen.totalReservas, "usuarios", "terracota"],
+                ["Pendientes", resumen.pendientes, "historial", "mostaza"],
+                ["Pagadas", resumen.pagadas, "confirmado", "verde"],
+                ["Ingresos estimados grupo", `${resumen.ingresosEstimados}€`, "euro", "azul"],
+              ].map(([etiqueta, valor, icono, tono]) => (
+                <div key={etiqueta} className="pa-card">
+                  <div className="pa-card-cabecera">
+                    <span aria-hidden="true" className={`pa-card-icono pa-card-icono--${tono}`}>
+                      <Icono nombre={icono} tamano={24} />
+                    </span>
+                    <p className="pa-card-label">{etiqueta}</p>
+                  </div>
+                  <p className="pa-card-valor">{valor}</p>
+                </div>
+              ))}
             </div>
 
             {reservasFiltradas.length === 0 ? (
