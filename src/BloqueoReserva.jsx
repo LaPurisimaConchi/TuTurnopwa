@@ -5,7 +5,8 @@ import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Link, useLocation } from "react-router-dom";
 
 // permitirVisitante: la pantalla se ve sin sesión y pide los datos al guardar
-export default function BloqueoReserva({ children, permitirVisitante = false }) {
+// soloCuenta: un invitado (sesión anónima) tampoco pasa; tiene que registrarse
+export default function BloqueoReserva({ children, permitirVisitante = false, soloCuenta = false }) {
   const location = useLocation();
   const [usuarioLogueado, setUsuarioLogueado] = useState(null);
   const [cargando, setCargando] = useState(true);
@@ -26,7 +27,9 @@ export default function BloqueoReserva({ children, permitirVisitante = false }) 
     );
   }
 
-  if (!usuarioLogueado && !permitirVisitante) {
+  const sinCuenta = !usuarioLogueado || (soloCuenta && usuarioLogueado.isAnonymous);
+
+  if (sinCuenta && !permitirVisitante) {
     return (
       <div className="text-center text-tinta bg-mostaza-suave border border-mostaza rounded-xl p-6 max-w-xl mx-auto shadow">
         <p className="text-lg font-semibold">

@@ -27,6 +27,7 @@ import {
   variantesDelTaller,
 } from "./catalogoTalleres";
 import BloqueoReserva from "./BloqueoReserva";
+import { AccesoReservaIncrustada, ContenedorIncrustado } from "./components/ReservaIncrustada";
 import PantallaReserva from "./components/PantallaReserva";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
@@ -97,7 +98,22 @@ export default function ReservaTallerDinamico() {
   );
 }
 
-export function FormularioReserva({ claseId, clase }) {
+// Reserva de un taller normal. Con `incrustado` va dentro de la ficha pública del
+// taller (/taller/:id): sin la tarjeta de pantalla completa, en una sola columna y
+// con el tipo y el método que se eligen en la ficha (`eleccion`: { variante, metodo }).
+// Al ir dentro de una página que se ve sin sesión, el acceso lo resuelve
+// AccesoReservaIncrustada en lugar de la ruta.
+export function FormularioReserva(props) {
+  if (!props.incrustado) return <FormularioReservaInterno {...props} />;
+
+  return (
+    <AccesoReservaIncrustada clase={props.clase}>
+      <FormularioReservaInterno {...props} />
+    </AccesoReservaIncrustada>
+  );
+}
+
+function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion = null }) {
   const navigate = useNavigate();
   const { config: configEspacio } = useConfigEspacio();
   const location = useLocation();
@@ -180,23 +196,35 @@ export function FormularioReserva({ claseId, clase }) {
     if (varianteTarjeta) setVarianteId(varianteTarjeta);
   }, [varianteTarjeta]);
 
-  // Método u opción elegidos en la página del taller (?metodo= / ?variante=)
+  // Método u opción elegidos en la página del taller: en la propia ficha (`eleccion`)
+  // o, si no, en la URL (?metodo= / ?variante=). Con tarjeta regalo manda la tarjeta
+  const parametrosUrl = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const variantePrevia = useMemo(() => {
-    const id = new URLSearchParams(location.search).get("variante");
+    if (desdeTarjeta) return "";
+    const id = incrustado ? eleccion?.variante : parametrosUrl.get("variante");
     return variantes.find((v) => v.id === id)?.id || "";
-  }, [location.search, variantes]);
+  }, [desdeTarjeta, incrustado, eleccion?.variante, parametrosUrl, variantes]);
 
   const metodoPrevio = useMemo(() => {
-    const id = new URLSearchParams(location.search).get("metodo");
+    if (desdeTarjeta) return "";
+    const id = incrustado ? eleccion?.metodo : parametrosUrl.get("metodo");
     return metodos.find((m) => m.id === id)?.id || "";
-  }, [location.search, metodos]);
+  }, [desdeTarjeta, incrustado, eleccion?.metodo, parametrosUrl, metodos]);
 
+  // Si lo elegido en la ficha cambia, las plazas ya contadas dejan de valer; el día y
+  // el turno se conservan
   useEffect(() => {
-    if (variantePrevia) setVarianteId(variantePrevia);
+    if (variantePrevia) {
+      setVarianteId(variantePrevia);
+      setPlazas(1);
+    }
   }, [variantePrevia]);
 
   useEffect(() => {
-    if (metodoPrevio) setMetodo(metodoPrevio);
+    if (metodoPrevio) {
+      setMetodo(metodoPrevio);
+      setPlazas(1);
+    }
   }, [metodoPrevio]);
 
   useEffect(() => {
@@ -624,16 +652,24 @@ export function FormularioReserva({ claseId, clase }) {
     ? "No quedan plazas disponibles."
     : ""; // las plazas que quedan se avisan arriba, y solo cuando son pocas
 
+  const Contenedor = incrustado ? ContenedorIncrustado : PantallaReserva;
+
   return (
-    <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center font-serif text-tinta mb-4">
-        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
-          Reserva
-        </span>
-        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
-          {nombreClase}
-        </span>
-      </h1>
+    <Contenedor ancho="max-w-4xl">
+      {incrustado ? (
+        <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-3">
+          Reserva tu plaza
+        </h2>
+      ) : (
+        <h1 className="text-center font-serif text-tinta mb-4">
+          <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
+            Reserva
+          </span>
+          <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+            {nombreClase}
+          </span>
+        </h1>
+      )}
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">
@@ -650,7 +686,10 @@ export function FormularioReserva({ claseId, clase }) {
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
+        <form
+          onSubmit={handleSubmit}
+          className={`grid gap-6 ${incrustado ? "" : "md:grid-cols-2 md:gap-x-10"}`}
+        >
           {sesiones > 1 && (
             <div className="md:col-span-2 bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
@@ -666,7 +705,8 @@ export function FormularioReserva({ claseId, clase }) {
 
           {/* Izquierda: qué y cuándo (opción y día) */}
           <div className="space-y-4">
-          {((conVariante && varianteFija && variante) || (conMetodo && metodoFijo && metodoElegido)) && (
+          {(!incrustado || desdeTarjeta) &&
+            ((conVariante && varianteFija && variante) || (conMetodo && metodoFijo && metodoElegido)) && (
             <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
               {conVariante && varianteFija && variante && (
                 <p>
@@ -705,6 +745,7 @@ export function FormularioReserva({ claseId, clase }) {
           )}
 
           <SelectorDiaReserva
+            desplazar={!incrustado}
             etiqueta={sesiones > 1 ? "Selecciona el día de la primera sesión:" : "Selecciona el día:"}
             value={fecha}
             onChange={handleFechaChange}
@@ -781,6 +822,7 @@ export function FormularioReserva({ claseId, clase }) {
           )}
 
           <SelectorTurnoReserva
+            botones={incrustado}
             value={turno}
             onChange={(valor) => {
               setTurno(valor);
@@ -939,6 +981,7 @@ export function FormularioReserva({ claseId, clase }) {
           onCancelar={() => cerrarDatosInvitado(null)}
         />
       )}
-    </PantallaReserva>
+    </Contenedor>
   );
 }
+

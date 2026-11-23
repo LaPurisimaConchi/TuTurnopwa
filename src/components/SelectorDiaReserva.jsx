@@ -18,6 +18,7 @@ export default function SelectorDiaReserva({
   producto = "Este taller",
   desde = "",
   hasta = "",
+  desplazar = true, // en móvil, bajar a lo siguiente al elegir el día
   children,
 }) {
   const raiz = useRef(null);
@@ -26,7 +27,7 @@ export default function SelectorDiaReserva({
   // calendario: al elegir un día se baja hasta ellas. En escritorio van al lado.
   const elegir = (iso) => {
     onChange(iso);
-    if (window.innerWidth >= 768) return;
+    if (!desplazar || window.innerWidth >= 768) return;
 
     setTimeout(() => {
       let el = raiz.current;

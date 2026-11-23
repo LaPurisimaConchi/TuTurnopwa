@@ -42,6 +42,7 @@ import TalleresCategoria from "./TalleresCategoria";
 // Talleres creados desde el panel admin
 import TallerDinamico from "./TallerDinamico";
 import ReservaTallerDinamico from "./ReservaTallerDinamico";
+import RedirigirAFicha from "./RedirigirAFicha";
 
 // Clases
 import CreaTuBrunchBowl from "./CreaTuBrunchBowl.jsx";
@@ -152,7 +153,7 @@ function App() {
           <Route path="/taller/:claseId" element={<TallerDinamico />} />
           <Route
             path="/reservar/:claseId"
-            element={<AccesoCompraTaller><ReservaTallerDinamico /></AccesoCompraTaller>}
+            element={<RedirigirAFicha><AccesoCompraTaller><ReservaTallerDinamico /></AccesoCompraTaller></RedirigirAFicha>}
           />
 
           {/* Clases */}

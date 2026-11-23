@@ -20,6 +20,7 @@ import {
   useDiaDeReserva,
 } from "./utils/turnosTaller";
 import PantallaReserva from "./components/PantallaReserva";
+import { AccesoReservaIncrustada, ContenedorIncrustado } from "./components/ReservaIncrustada";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
@@ -31,7 +32,19 @@ import { diasCaducidadBono, fechaCaducidadBono } from "./utils/estadoBono";
 // Último día del bono según los días de validez de su ficha (31 por defecto)
 const caducidadDe = (clase, fechaISO) => fechaCaducidadBono(fechaISO, diasCaducidadBono(clase));
 
-export default function ReservaBonoDinamico({ claseId, clase }) {
+// Compra de un bono. Con `incrustado` va dentro de la ficha pública del bono
+// (/taller/:id), en una sola columna y con el acceso resuelto en la propia ficha.
+export default function ReservaBonoDinamico(props) {
+  if (!props.incrustado) return <ReservaBonoInterna {...props} />;
+
+  return (
+    <AccesoReservaIncrustada clase={props.clase}>
+      <ReservaBonoInterna {...props} />
+    </AccesoReservaIncrustada>
+  );
+}
+
+function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
   const navigate = useNavigate();
   const location = useLocation();
   const {
@@ -41,8 +54,10 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
     cargado: contextoCargado,
   } = useContextoReserva();
 
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [turno, setTurno] = useState("");
+  // Quien vuelve de registrarse o iniciar sesión recupera el día y el turno elegidos
+  const elegidoAntes = location.state?.bonoElegido;
+  const [fechaInicio, setFechaInicio] = useState(elegidoAntes?.fechaInicio || "");
+  const [turno, setTurno] = useState(elegidoAntes?.turno || "");
   const [convertirTorno, setConvertirTorno] = useState(false);
   const [user, setUser] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -60,6 +75,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
     return () => unsubscribe();
   }, []);
 
+  const sinCuenta = !user || user.isAnonymous;
   const nombreClase = clase.nombre || "Bono mensual";
   const precioBase = Number(clase.precio || 0);
   const permiteCambioTorno = clase.permiteCambioTorno === true;
@@ -124,13 +140,24 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!user) {
-      alert("Debes identificarte para comprar el bono.");
+    if (!fechaInicio || !turno) {
+      alert("Selecciona la fecha de inicio y el turno.");
       return;
     }
 
-    if (!fechaInicio || !turno) {
-      alert("Selecciona la fecha de inicio y el turno.");
+    // El bono exige cuenta (un invitado tampoco vale): se lleva a registrarse y se
+    // vuelve aquí con el día y el turno ya elegidos
+    if (!user || user.isAnonymous) {
+      navigate("/registro", {
+        state: {
+          from: {
+            pathname: location.pathname,
+            search: location.search,
+            hash: "#reservar",
+            state: { ...location.state, bonoElegido: { fechaInicio, turno } },
+          },
+        },
+      });
       return;
     }
 
@@ -325,16 +352,24 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
     }
   };
 
+  const Contenedor = incrustado ? ContenedorIncrustado : PantallaReserva;
+
   return (
-    <PantallaReserva ancho="max-w-4xl">
-      <h1 className="text-center font-serif text-tinta mb-4">
-        <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
-          Reserva
-        </span>
-        <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
-          {nombreClase}
-        </span>
-      </h1>
+    <Contenedor ancho="max-w-4xl">
+      {incrustado ? (
+        <h2 className="text-sm font-bold uppercase tracking-wide text-tinta mb-3">
+          Compra tu bono
+        </h2>
+      ) : (
+        <h1 className="text-center font-serif text-tinta mb-4">
+          <span className="block text-sm font-sans font-semibold uppercase tracking-wider text-terracota">
+            Reserva
+          </span>
+          <span className="block text-3xl md:text-4xl font-bold leading-tight mt-1">
+            {nombreClase}
+          </span>
+        </h1>
+      )}
 
       {desdeTarjeta && (
         <p className="text-sm text-green-700 text-center font-medium mb-4">
@@ -342,12 +377,15 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2 md:gap-x-10">
+      <form
+        onSubmit={handleSubmit}
+        className={`grid gap-6 ${incrustado ? "" : "md:grid-cols-2 md:gap-x-10"}`}
+      >
         {/* Izquierda: qué es el bono y desde cuándo */}
         <div className="space-y-4">
           <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             <p>
-              <strong>Bono mensual de {numeroClases} clases.</strong>
+              <strong>Bono de {numeroClases} clases.</strong>
             </p>
             <p>
               Incluye {numeroClases} sesiones de {duracionClase}.{" "}
@@ -356,8 +394,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
                   <strong>Distribución:</strong> {distribucionClases}.{" "}
                 </>
               )}
-              El mes comienza con tu primera sesión y finaliza el mismo día del
-              mes siguiente. Al comprar el bono reservamos tu primera clase.
+              El bono dura {diasCaducidadBono(clase)} días desde tu primera sesión.
+              Al comprar el bono reservamos tu primera clase.
             </p>
           </div>
 
@@ -377,6 +415,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           )}
 
           <SelectorDiaReserva
+            desplazar={!incrustado}
             etiqueta="Selecciona la fecha de inicio de tu bono:"
             value={fechaInicio}
             onChange={(iso) => {
@@ -403,6 +442,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
         {/* Derecha: turno, plazas, resumen y pago */}
         <div className="space-y-4">
           <SelectorTurnoReserva
+            botones={incrustado}
             etiqueta="Selecciona el turno (el de tu primera clase y tu turno habitual):"
             value={turno}
             onChange={setTurno}
@@ -432,6 +472,8 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </p>
           )}
 
+          {/* En la ficha esto ya se explica más arriba */}
+          {!incrustado && (
           <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
             {modalidad && (
               <p>
@@ -447,6 +489,7 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
               </p>
             )}
           </div>
+          )}
 
           {fechaInicio && (
             <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
@@ -460,7 +503,16 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
             </div>
           )}
 
+          {sinCuenta && (
+            <p className="text-sm text-tinta bg-mostaza-suave border border-mostaza rounded-xl p-3">
+              <Icono nombre="candado" className="mr-1" />
+              Para comprar un bono necesitas una cuenta: tus clases se reservan desde tu perfil.
+              Elige tu día y turno y, al continuar, te llevamos a registrarte sin perder lo elegido.
+            </p>
+          )}
+
           <BotonConfirmarReserva
+            texto={sinCuenta ? "Registrarme para comprar el bono" : undefined}
             guardando={guardando}
             desdeTarjeta={desdeTarjeta}
             deshabilitado={
@@ -476,6 +528,6 @@ export default function ReservaBonoDinamico({ claseId, clase }) {
           />
         </div>
       </form>
-    </PantallaReserva>
+    </Contenedor>
   );
 }
