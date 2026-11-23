@@ -28,6 +28,7 @@ import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
 import { diasCaducidadBono, fechaCaducidadBono } from "./utils/estadoBono";
+import { euros } from "./utils/formatoPrecio";
 
 // Último día del bono según los días de validez de su ficha (31 por defecto)
 const caducidadDe = (clase, fechaISO) => fechaCaducidadBono(fechaISO, diasCaducidadBono(clase));
@@ -409,7 +410,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
               />
               <span>
                 Convertir una de las clases de modelado en una de torno alfarero
-                (+{extraCambioTorno}€).
+                (+{euros(extraCambioTorno)}).
               </span>
             </label>
           )}
@@ -494,7 +495,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
           {fechaInicio && (
             <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">
               <p>
-                <strong>Precio total:</strong> {desdeTarjeta ? "0€" : `${precioTotal}€`}
+                <strong>Precio total:</strong> {desdeTarjeta ? euros(0) : `${euros(precioTotal)}`}
               </p>
               <p>
                 <strong>Válido hasta:</strong> {fechaDMA(caducidadDe(clase, fechaInicio))}{" "}

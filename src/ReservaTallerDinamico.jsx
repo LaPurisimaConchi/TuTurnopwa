@@ -42,6 +42,7 @@ import { esMonografico } from "./utils/monografico";
 import { fechaDMA } from "./utils/formatoFecha";
 import { useConfigEspacio } from "./configuracionEspacio";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
+import { euros } from "./utils/formatoPrecio";
 
 export default function ReservaTallerDinamico() {
   const { claseId } = useParams();
@@ -715,14 +716,14 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
             <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
               {conVariante && varianteFija && variante && (
                 <p>
-                  <strong>{clase.variante?.etiqueta || "Opción"}:</strong> {variante.nombre} — {variante.precio}€
+                  <strong>{clase.variante?.etiqueta || "Opción"}:</strong> {variante.nombre} — {euros(variante.precio)}
                 </p>
               )}
               {conMetodo && metodoFijo && metodoElegido && (
                 <p>
                   <strong>Método:</strong> {metodoElegido.nombre}
-                  {!conVariante && metodoElegido.precio > 0 ? ` — ${metodoElegido.precio}€` : ""}
-                  {conVariante && metodoElegido.extra > 0 ? ` (+${metodoElegido.extra}€)` : ""}
+                  {!conVariante && metodoElegido.precio > 0 ? ` — ${euros(metodoElegido.precio)}` : ""}
+                  {conVariante && metodoElegido.extra > 0 ? ` (+${euros(metodoElegido.extra)})` : ""}
                 </p>
               )}
             </div>
@@ -742,7 +743,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
                 <option value="">-- Elige una opción --</option>
                 {variantes.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.nombre} — {v.precio}€
+                    {v.nombre} — {euros(v.precio)}
                   </option>
                 ))}
               </select>
@@ -818,8 +819,8 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
                 {metodos.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.nombre}
-                    {!conVariante && m.precio > 0 ? ` — ${m.precio}€` : ""}
-                    {conVariante && m.extra > 0 ? ` (+${m.extra}€)` : ""}
+                    {!conVariante && m.precio > 0 ? ` — ${euros(m.precio)}` : ""}
+                    {conVariante && m.extra > 0 ? ` (+${euros(m.extra)})` : ""}
                   </option>
                 ))}
               </select>
@@ -944,10 +945,10 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
             )}
             <p>
               <strong>Precio unitario:</strong>{" "}
-              {desdeTarjeta ? "Tarjeta regalo" : `${precioUnitario}€`}
+              {desdeTarjeta ? "Tarjeta regalo" : `${euros(precioUnitario)}`}
             </p>
             <p>
-              <strong>Precio total:</strong> {desdeTarjeta ? "0€" : `${precioTotal}€`}
+              <strong>Precio total:</strong> {desdeTarjeta ? euros(0) : `${euros(precioTotal)}`}
             </p>
           </div>
 

@@ -178,7 +178,7 @@ export default function CambiarFechaReserva() {
 
   // Solo se ofrecen los días que el servidor ha dicho que tienen sitio
   const diasConPlaza = useMemo(() => new Set(datos?.opciones.map((o) => o.fecha) || []), [datos]);
-  const estadoDia = (iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-taller" });
+  const estadoDia = (iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-hueco" });
 
   const turnosDelDia = useMemo(
     () => datos?.opciones.find((o) => o.fecha === fecha)?.turnos || [],

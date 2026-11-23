@@ -19,6 +19,7 @@ import { estadoDiaTaller, useContextoReserva, useDiaDeReserva } from "./utils/tu
 import { useConfigEspacio } from "./configuracionEspacio";
 import BloqueoReserva from "./BloqueoReserva";
 import PantallaReserva from "./components/PantallaReserva";
+import FaltaElegir from "./components/FaltaElegir";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
@@ -26,6 +27,7 @@ import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { leerDatosContacto } from "./utils/invitado";
 
 import { fechaDMA } from "./utils/formatoFecha";
+import { euros } from "./utils/formatoPrecio";
 
 const MAX_PERSONAS = MAX_PERSONAS_GRUPO;
 
@@ -162,6 +164,30 @@ export default function ReservaGrupos() {
   }, [talleres, location.search, location.state]);
 
   const taller = talleres.find((t) => t.id === tallerId) || null;
+
+  // Esta página solo se abre desde la ficha de un taller, con su opción y método ya
+  // elegidos: sin ellos, un error en vez de un formulario que no sirve
+  const tallerDeLaUrl = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const nombre = String(location.state?.clasePreseleccionada || "").toLowerCase();
+    return (
+      talleres.find((t) => t.id === params.get("taller")) ||
+      (nombre && talleres.find((t) => nombre.startsWith(t.nombre.toLowerCase()))) ||
+      null
+    );
+  }, [talleres, location.search, location.state]);
+  const faltaDeLaUrl = useMemo(() => {
+    if (!tallerDeLaUrl) return "";
+    const params = new URLSearchParams(location.search);
+    const { etiqueta, clave, lista } = opcionesDelTaller(tallerDeLaUrl);
+    if (lista.length > 1 && !lista.some((o) => o.id === params.get(clave))) {
+      return etiqueta.toLowerCase();
+    }
+    if (clave !== "metodo" && metodosDelTaller(tallerDeLaUrl).length > 1 && !params.get("metodo")) {
+      return "método";
+    }
+    return "";
+  }, [tallerDeLaUrl, location.search]);
   // Mínimo que fija cada taller en su ficha (5 si no lo cambia)
   const MIN_PERSONAS = configEspacio.minPersonasGrupo;
   const opciones = useMemo(
@@ -428,6 +454,27 @@ export default function ReservaGrupos() {
 
   const campo = "w-full border border-gray-300 rounded-lg px-3 py-2 text-base";
 
+  if (!cargandoTalleres && !tallerDeLaUrl) {
+    return (
+      <FaltaElegir
+        titulo="Falta elegir el taller"
+        mensaje="La reserva para grupos se hace desde la página de un taller: elígelo allí, escoge su opción y pulsa «Reservar para grupo»."
+        enlace="/clases"
+        textoEnlace="Ver talleres"
+      />
+    );
+  }
+  if (!cargandoTalleres && faltaDeLaUrl) {
+    return (
+      <FaltaElegir
+        titulo={`Falta elegir ${faltaDeLaUrl}`}
+        mensaje={`Antes de reservar en grupo tienes que elegir ${faltaDeLaUrl} en la página de ${tallerDeLaUrl.nombre}.`}
+        enlace={`/taller/${tallerDeLaUrl.id}`}
+        textoEnlace="Volver al taller"
+      />
+    );
+  }
+
   return (
     <PantallaReserva ancho="max-w-4xl">
       <h1 className="text-center font-serif text-tinta mb-4">
@@ -470,14 +517,14 @@ export default function ReservaGrupos() {
               <div className="rounded-lg border border-linea bg-crema px-3 py-2 text-sm text-tinta space-y-1">
                 {opcion && opciones.clave === "variante" && (
                   <p>
-                    <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {opcion.precio}€
+                    <strong>{opciones.etiqueta}:</strong> {opcion.nombre} — {euros(opcion.precio)}
                   </p>
                 )}
                 {metodo && (
                   <p>
                     <strong>Método:</strong> {metodo.nombre}
-                    {opciones.clave === "metodo" && metodo.precio > 0 ? ` — ${metodo.precio}€` : ""}
-                    {opciones.clave === "variante" && metodo.extra > 0 ? ` (+${metodo.extra}€)` : ""}
+                    {opciones.clave === "metodo" && metodo.precio > 0 ? ` — ${euros(metodo.precio)}` : ""}
+                    {opciones.clave === "variante" && metodo.extra > 0 ? ` (+${euros(metodo.extra)})` : ""}
                   </p>
                 )}
               </div>
@@ -615,10 +662,10 @@ export default function ReservaGrupos() {
                 </p>
               )}
               <p>
-                <strong>Precio unitario:</strong> {precioUnitario > 0 ? `${precioUnitario}€` : "—"}
+                <strong>Precio unitario:</strong> {precioUnitario > 0 ? `${euros(precioUnitario)}` : "—"}
               </p>
               <p>
-                <strong>Precio total:</strong> {precioTotal > 0 ? `${precioTotal}€` : "—"}
+                <strong>Precio total:</strong> {precioTotal > 0 ? `${euros(precioTotal)}` : "—"}
               </p>
             </div>
 

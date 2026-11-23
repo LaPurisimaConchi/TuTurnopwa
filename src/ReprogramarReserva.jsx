@@ -183,7 +183,7 @@ export default function ReprogramarReserva() {
                     setFecha(iso);
                     setTurno("");
                   }}
-                  estadoDia={(iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-taller" })}
+                  estadoDia={(iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-hueco" })}
                   desde={esBono ? reserva.validoDesde || "" : ""}
                   hasta={esBono ? reserva.validoHasta || "" : ""}
                 />
