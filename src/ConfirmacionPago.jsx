@@ -47,6 +47,14 @@ const ConfirmacionPago = () => {
     let cancelado = false;
     let temporizador = null;
 
+    // Si cambia el pedido con la pantalla ya abierta, se empieza de cero
+    setCargando(true);
+    setEsTarjetaRegalo(false);
+    setTarjeta(null);
+    setOrderIdReserva("");
+    setEsBono(false);
+    setErrorCarga("");
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         setCargando(false);
