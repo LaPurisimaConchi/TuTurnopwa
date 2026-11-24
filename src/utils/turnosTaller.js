@@ -81,6 +81,7 @@ export function estadoDiaTaller({
   fechasHabilitadas = {},
   permiteAbrir = false,
   diasAbiertos = {},
+  sinNumeroMinimo = false, // bonos: el mínimo lo marca el taller que abre el turno, no el bono
 }) {
   const bloqueo = fechasBloqueadas?.[fecha];
   const parcial = bloqueoEsParcial(bloqueo);
@@ -100,7 +101,7 @@ export function estadoDiaTaller({
   // Hoy, los turnos que ya han empezado no se ofrecen
   const aTiempo = sinBloqueo.filter((t) => !turnoYaEmpezado(fecha, t));
   if (aTiempo.some((t) => libres.includes(t))) return { estado: "disponible" };
-  if (aTiempo.length) return { estado: "solo-grupo", minimo: minPersonasHabilitar(clase) };
+  if (aTiempo.length) return { estado: "solo-grupo", minimo: sinNumeroMinimo ? 0 : minPersonasHabilitar(clase) };
   return { estado: "sin-taller" };
 }
 

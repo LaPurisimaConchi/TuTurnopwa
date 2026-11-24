@@ -96,6 +96,7 @@ export default function ReprogramarReserva() {
     () => new Map(opciones.filter((o) => !o.turnos?.length && o.turnosMinimo?.length).map((o) => [o.fecha, o.minimo])),
     [opciones]
   );
+
   const opcionDelDia = useMemo(() => opciones.find((o) => o.fecha === fecha), [opciones, fecha]);
   const turnosDelDia = useMemo(() => opcionDelDia?.turnos || [], [opcionDelDia]);
   // Turnos del día que solo se abren con un mínimo de personas (azules: no se pueden elegir
@@ -219,7 +220,7 @@ export default function ReprogramarReserva() {
                 etiqueta="Selecciona el turno:"
                 value={turno}
                 onChange={setTurno}
-                turnos={[...turnosDelDia.map((t) => t.turno), ...turnosMinimo].sort()}
+                turnos={[...new Set([...turnosDelDia.map((t) => t.turno), ...turnosMinimo])].sort()}
                 botones
                 turnosMinimo={turnosMinimo}
                 minimo={minimo}
@@ -236,8 +237,11 @@ export default function ReprogramarReserva() {
 
               {turnoCerrado && (
                 <p className="text-sm text-red-600 font-medium" role="alert">
-                  Este turno está cerrado: para abrirlo hacen falta al menos {minimo} personas (tu reserva tiene{" "}
-                  {reserva.plazas || 1}). Elige otro turno.
+                  {minimo
+                    ? `Este turno está cerrado: para abrirlo hacen falta al menos ${minimo} personas (tu reserva tiene ${
+                        reserva.plazas || 1
+                      }). Elige otro turno.`
+                    : "Este turno está cerrado: solo se abre cuando otra reserva llega al mínimo de personas de su taller. Elige otro turno."}
                 </p>
               )}
 

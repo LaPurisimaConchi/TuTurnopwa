@@ -1484,8 +1484,7 @@ export default function AdminTallerForm() {
                 el panel también se aplican.
               </p>
 
-              {!esBono && (
-                <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
+              <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
                   <input
                     type="checkbox"
                     className="mt-1"
@@ -1500,10 +1499,9 @@ export default function AdminTallerForm() {
                     </span>
                   </span>
                 </label>
-              )}
 
               <fieldset
-                disabled={!esBono && form.horariosPorDefecto}
+                disabled={form.horariosPorDefecto}
                 className="space-y-3 border-0 p-0 m-0 min-w-0 disabled:opacity-60"
               >
                 {DIAS.map(([dia, nombreDia]) => (
@@ -1520,7 +1518,7 @@ export default function AdminTallerForm() {
                         value={form.horarios[dia]}
                         onChange={(valor) => cambiarHorario(dia, valor)}
                         minimo={form.horariosMinimo?.[dia] || ""}
-                        onMinimoChange={esBono ? undefined : (valor) => cambiarHorarioMinimo(dia, valor)}
+                        onMinimoChange={(valor) => cambiarHorarioMinimo(dia, valor)}
                       />
                       {leerTurnos(form.horarios[dia]).length > 0 && (
                         <button
