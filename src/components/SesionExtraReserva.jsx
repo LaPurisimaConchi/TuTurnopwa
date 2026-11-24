@@ -104,6 +104,7 @@ export default function SesionExtraReserva({
 
       {!!fecha && !fechaBloqueada && !diaNoDisponible && (
         <SelectorTurnoReserva
+          botones
           id={`turno-sesion-${numero}`}
           etiqueta={`Turno de la sesión ${numero}:`}
           value={turno}

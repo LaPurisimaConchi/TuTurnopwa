@@ -268,6 +268,7 @@ export default function ReservarSiguienteSesion() {
           {yaSePuede && (
             <div className="space-y-4">
               <SelectorTurnoReserva
+                botones
                 etiqueta="Selecciona el turno:"
                 value={turno}
                 onChange={setTurno}

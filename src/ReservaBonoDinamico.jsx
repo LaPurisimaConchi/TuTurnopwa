@@ -443,7 +443,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
         {/* Derecha: turno, plazas, resumen y pago */}
         <div className="space-y-4">
           <SelectorTurnoReserva
-            botones={incrustado}
+            botones
             etiqueta="Selecciona el turno (el de tu primera clase y tu turno habitual):"
             value={turno}
             onChange={setTurno}

@@ -177,13 +177,32 @@ export default function CambiarFechaReserva() {
   }, [vieneDelPerfil]);
 
   // Solo se ofrecen los días que el servidor ha dicho que tienen sitio
-  const diasConPlaza = useMemo(() => new Set(datos?.opciones.map((o) => o.fecha) || []), [datos]);
-  const estadoDia = (iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-hueco" });
-
-  const turnosDelDia = useMemo(
-    () => datos?.opciones.find((o) => o.fecha === fecha)?.turnos || [],
-    [datos, fecha]
+  const diasConPlaza = useMemo(
+    () => new Set(datos?.opciones.filter((o) => o.turnos?.length).map((o) => o.fecha) || []),
+    [datos]
   );
+  // Días cerrados que solo se abren con un mínimo de personas (azules, como en la ficha)
+  const diasMinimo = useMemo(
+    () =>
+      new Map(
+        datos?.opciones.filter((o) => !o.turnos?.length && o.turnosMinimo?.length).map((o) => [o.fecha, o.minimo]) || []
+      ),
+    [datos]
+  );
+  const estadoDia = (iso) =>
+    diasConPlaza.has(iso)
+      ? { estado: "disponible" }
+      : diasMinimo.has(iso)
+      ? { estado: "solo-grupo", minimo: diasMinimo.get(iso) }
+      : { estado: "sin-hueco" };
+
+  const opcionDelDia = useMemo(() => datos?.opciones.find((o) => o.fecha === fecha), [datos, fecha]);
+  const turnosDelDia = useMemo(() => opcionDelDia?.turnos || [], [opcionDelDia]);
+  // Turnos del día que solo se abren con un mínimo de personas (azules): se enseñan, pero
+  // esta reserva no llega y no se pueden elegir
+  const turnosMinimo = useMemo(() => opcionDelDia?.turnosMinimo || [], [opcionDelDia]);
+  const minimoDia = opcionDelDia?.minimo || 0;
+  const turnoCerrado = !!turno && turnosMinimo.includes(turno);
 
   // Al encontrar la reserva se baja al siguiente paso
   useEffect(() => {
@@ -261,8 +280,9 @@ export default function CambiarFechaReserva() {
   const elegirFecha = (valor) => {
     setFecha(valor);
     setConfirmando(false);
-    const turnos = datos?.opciones.find((o) => o.fecha === valor)?.turnos || [];
-    setTurno(turnos.length === 1 ? turnos[0].turno : "");
+    const opcion = datos?.opciones.find((o) => o.fecha === valor);
+    const turnos = opcion?.turnos || [];
+    setTurno(turnos.length === 1 && !opcion?.turnosMinimo?.length ? turnos[0].turno : "");
   };
 
   const empezarDeNuevo = () => {
@@ -460,7 +480,7 @@ export default function CambiarFechaReserva() {
                       <ContactoTaller />
                     </p>
                   </Aviso>
-                ) : (esEdicion ? datos.ediciones.length === 0 : datos.opciones.length === 0) ? (
+                ) : (esEdicion ? datos.ediciones.length === 0 : diasConPlaza.size === 0 && diasMinimo.size === 0) ? (
                   <Aviso tipo="info">
                     <p>Ahora mismo no hay otras fechas con plazas para tu reserva.</p>
                     <p className="mt-2">
@@ -514,13 +534,22 @@ export default function CambiarFechaReserva() {
                           {formatearFecha(edicionElegida.fechas[edicionElegida.fechas.length - 1].fecha)}
                         </p>
 
+                        {turnoCerrado && (
+                          <div className="mt-3">
+                            <Aviso>
+                              Este turno está cerrado: para abrirlo hacen falta al menos {minimoDia} personas (tu reserva
+                              tiene {datos.reserva.plazas}). Elige otro turno.
+                            </Aviso>
+                          </div>
+                        )}
+
                         {error && (
                           <div className="mt-3">
                             <Aviso>{error}</Aviso>
                           </div>
                         )}
 
-                        {!confirmando ? (
+                        {turnoCerrado ? null : !confirmando ? (
                           <button
                             type="button"
                             onClick={() => setConfirmando(true)}
@@ -572,31 +601,38 @@ export default function CambiarFechaReserva() {
                         estadoDia={estadoDia}
                       />
 
-                      {turnosDelDia.length > 0 && (
+                      {(turnosDelDia.length > 0 || turnosMinimo.length > 0) && (
                         <fieldset className="mt-4">
                           <legend className="text-sm font-medium text-tinta mb-2">
                             Turno del {formatearFecha(fecha).toLowerCase()}
                           </legend>
                           <div className="flex flex-wrap gap-2">
-                            {turnosDelDia.map((t) => (
+                            {[...turnosDelDia.map((t) => t.turno), ...turnosMinimo].sort().map((nombre) => (
                               <button
-                                key={t.turno}
+                                key={nombre}
                                 type="button"
                                 onClick={() => {
-                                  setTurno(t.turno);
+                                  setTurno(nombre);
                                   setConfirmando(false);
                                 }}
-                                aria-pressed={turno === t.turno}
+                                aria-pressed={turno === nombre}
                                 className={`min-h-[48px] px-4 rounded-xl border text-sm font-semibold ${
-                                  turno === t.turno
+                                  turno === nombre
                                     ? "bg-terracota text-white border-terracota"
-                                    : "bg-white text-tinta border-gray-300 hover:border-terracota"
+                                    : turnosMinimo.includes(nombre)
+                                    ? "bg-sky-50 text-sky-800 border-sky-300 hover:bg-sky-100"
+                                    : "bg-mostaza-suave text-tinta border-mostaza hover:bg-mostaza/40"
                                 }`}
                               >
-                                {t.turno}
+                                {nombre}
                               </button>
                             ))}
                           </div>
+                          {turnosMinimo.length > 0 && (
+                            <p className="mt-2 text-xs text-sky-800">
+                              Los turnos en azul solo se abren con {minimoDia} personas o más.
+                            </p>
+                          )}
                         </fieldset>
                       )}
                     </Tarjeta>

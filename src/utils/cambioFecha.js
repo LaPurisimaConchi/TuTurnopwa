@@ -285,6 +285,18 @@ export function turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos 
   return esTurnoConsulta(turnos) ? [] : turnos.map(limpiarTurno);
 }
 
+// Turnos de días abiertos de un día sin horario (abierto en parte o cerrado del todo) que
+// esta reserva (`plazas` personas) no puede elegir porque no llega al mínimo del taller: se
+// enseñan en azul con el aviso del mínimo, como en la ficha. null si no hay ninguno. `elegibles` son los que sí puede
+// elegir y `esValido`, el filtro de fecha, bloqueos y antelación.
+export function turnosSoloConMinimo({ clase, fecha, fechasHabilitadas, plazas, elegibles, esValido = () => true }) {
+  if (!abreDias(clase) || puedeAbrirDia(clase, plazas)) return null;
+  if (tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) return null;
+
+  const turnosMinimo = turnosDiasAbiertos(clase).filter((turno) => !elegibles.includes(turno) && esValido(turno));
+  return turnosMinimo.length ? { turnosMinimo, minimo: minPersonasHabilitar(clase) } : null;
+}
+
 // Días y turnos a los que puede pasar la reserva: con hueco para todas sus plazas
 export function opcionesDeCambio({
   reservas,
@@ -307,8 +319,9 @@ export function opcionesDeCambio({
   for (let i = 0; i <= ventanaDias; i += 1) {
     const fecha = fechaDeMs(hoy + i * DIA);
     const turnos = [];
+    const elegibles = turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos, plazas });
 
-    turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos, plazas }).forEach((turno) => {
+    elegibles.forEach((turno) => {
       if (motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias })) return;
       if (fecha === reserva.fecha && turno === limpiarTurno(reserva.turno)) return;
 
@@ -316,30 +329,25 @@ export function opcionesDeCambio({
       if (libres >= plazas) turnos.push({ turno, libres });
     });
 
-    if (turnos.length) {
+    {
       const opcion = { fecha, turnos };
 
-      // Día sin horario abierto solo en parte: los demás turnos de días abiertos se enseñan,
-      // pero solo se abren con el mínimo de personas, que esta reserva no llega a tener
-      if (
-        !reserva.desdeBono &&
-        abreDias(clase) &&
-        !puedeAbrirDia(clase, plazas) &&
-        !tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)
-      ) {
-        const elegibles = turnos.map((t) => t.turno);
-        const cerrados = turnosDiasAbiertos(clase).filter(
-          (turno) =>
-            !elegibles.includes(turno) &&
-            !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias })
-        );
-        if (cerrados.length) {
-          opcion.turnosMinimo = cerrados;
-          opcion.minimo = minPersonasHabilitar(clase);
-        }
+      // Días sin horario: los turnos de días abiertos que no se abren (todos, si el día
+      // está cerrado) se enseñan en azul, pero solo se abren con el mínimo de personas
+      if (!reserva.desdeBono) {
+        const cerrados = turnosSoloConMinimo({
+          clase,
+          fecha,
+          fechasHabilitadas,
+          plazas,
+          elegibles,
+          esValido: (turno) =>
+            !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias }),
+        });
+        if (cerrados) Object.assign(opcion, cerrados);
       }
 
-      opciones.push(opcion);
+      if (turnos.length || opcion.turnosMinimo) opciones.push(opcion);
     }
   }
 
@@ -405,13 +413,26 @@ export function opcionesDeCambioGrupo({
 
   for (let i = 0; i <= ventanaDias; i += 1) {
     const fecha = fechaDeMs(hoy + i * DIA);
-    const turnos = turnosDeGrupo({ grupo, clase, fecha, fechasHabilitadas, diasAbiertos }).filter(
-      (turno) =>
-        !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, ventanaDias }) &&
-        !(fecha === grupo.fecha && turno === grupo.turno)
-    ).map((turno) => ({ turno, libres: null }));
+    const elegibles = turnosDeGrupo({ grupo, clase, fecha, fechasHabilitadas, diasAbiertos });
+    const turnos = elegibles
+      .filter(
+        (turno) =>
+          !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, ventanaDias }) &&
+          !(fecha === grupo.fecha && turno === grupo.turno)
+      )
+      .map((turno) => ({ turno, libres: null }));
 
-    if (turnos.length) opciones.push({ fecha, turnos });
+    {
+      const cerrados = turnosSoloConMinimo({
+        clase,
+        fecha,
+        fechasHabilitadas,
+        plazas: Number(grupo?.plazas || 1),
+        elegibles,
+        esValido: (turno) => !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, ventanaDias }),
+      });
+      if (turnos.length || cerrados) opciones.push({ fecha, turnos, ...(cerrados || {}) });
+    }
   }
 
   return opciones;

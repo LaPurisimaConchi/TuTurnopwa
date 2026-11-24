@@ -556,6 +556,7 @@ export default function ReservaGrupos() {
               turnos={turnosDelDia}
               turnosMinimo={turnosMinimo}
               minimo={minAbrir}
+              botones
               deshabilitado={!fecha || !!fechaBloqueada}
               placeholder={!fecha ? "-- Primero selecciona el día --" : "-- Elige turno --"}
             />
