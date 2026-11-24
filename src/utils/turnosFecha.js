@@ -45,10 +45,10 @@ export const esTurnoConHoras = (turno) => {
   return !!m && Number(m[3]) * 60 + Number(m[4]) > Number(m[1]) * 60 + Number(m[2]);
 };
 
-// Solo los talleres del panel con horario semanal tienen turnos que piden el mínimo de
-// personas: los de siempre sin migrar, los monográficos (fechas fijas) y los bonos no.
+// Solo los talleres y bonos del panel con horario semanal tienen turnos que piden el mínimo
+// de personas: los de siempre sin migrar y los monográficos (fechas fijas) no.
 export const abreDias = (clase) =>
-  !!clase && clase.dinamica === true && clase.monografico !== true && clase.tipoProducto !== "bono";
+  !!clase && clase.dinamica === true && clase.monografico !== true;
 
 const minutosDe = (h, m) => Number(h) * 60 + Number(m);
 const RANGO = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/;

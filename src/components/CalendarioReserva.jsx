@@ -73,6 +73,8 @@ export default function CalendarioReserva({
 
   // Mínimo de personas de los días de grupo (para la leyenda); 0 si no hay ninguno
   let hayGrupo = 0;
+  // Días azules sin mínimo concreto (los de un bono: lo marca el taller que abre el turno)
+  let hayAzulSinNumero = false;
   let haySinTaller = false;
   let haySinHueco = false;
   const celdas = [];
@@ -119,6 +121,7 @@ export default function CalendarioReserva({
           const fuera = iso < hoy || iso > limite || (desde && iso < desde);
           const { estado = "disponible", motivo = "", minimo = 0 } = fuera ? {} : estadoDia(iso);
           if (estado === "solo-grupo" && minimo) hayGrupo = minimo;
+          if (estado === "solo-grupo" && !minimo) hayAzulSinNumero = true;
           if (estado === "sin-taller") haySinTaller = true;
           if (estado === "sin-hueco") haySinHueco = true;
           const seleccionado = iso === value;
@@ -133,7 +136,9 @@ export default function CalendarioReserva({
             : estado === "bloqueado"
             ? `No disponible${motivo ? `: ${motivo}` : ""}`
             : estado === "solo-grupo"
-            ? `Reserva mínima ${minimo} personas`
+            ? minimo
+              ? `Reserva mínima ${minimo} personas`
+              : "Cerrado: solo se abre cuando otra reserva llega al mínimo de personas del taller"
             : estado === "sin-taller"
             ? "No se imparte este día"
             : estado === "sin-hueco"
@@ -161,6 +166,12 @@ export default function CalendarioReserva({
         <li className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-mostaza-suave border border-mostaza" /> Disponible
         </li>
+        {hayGrupo === 0 && hayAzulSinNumero && (
+          <li className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-sky-50 border border-sky-300" /> Cerrado hasta que se abra con
+            un mínimo de personas
+          </li>
+        )}
         {hayGrupo > 0 && (
           <li className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded bg-sky-50 border border-sky-300" /> Reserva mínima{" "}

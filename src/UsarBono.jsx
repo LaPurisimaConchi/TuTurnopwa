@@ -117,14 +117,18 @@ export default function UsarBono() {
   const estadoVisible = useMemo(() => obtenerEstadoVisibleBono(bono), [bono]);
   const clase = useMemo(() => claseConfig || { horarios: {} }, [claseConfig]);
 
-  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
+  const { turnosDisponibles, turnosMinimo, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
     useDiaDeReserva({
       clase,
       fecha: fechaSesion,
       fechasBloqueadas,
       fechasHabilitadas,
+      permiteAbrir: true,
       diasAbiertos,
     });
+  // Una sesión de bono es de una plaza: nunca llega al mínimo, así que los turnos que lo piden y
+  // siguen cerrados se enseñan en azul pero no se pueden elegir
+  const turnoCerrado = !!turno && turnosMinimo.includes(turno);
 
   // Plazas libres del turno elegido
   const modalidad = bono?.modalidad || clase?.modalidad || "";
@@ -295,7 +299,7 @@ export default function UsarBono() {
                     setTurno("");
                   }}
                   estadoDia={(iso) =>
-                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
+                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos })
                   }
                   cargando={!contextoCargado}
                   fechaBloqueada={fechaBloqueada}
@@ -319,9 +323,17 @@ export default function UsarBono() {
                 value={turno}
                 onChange={setTurno}
                 turnos={turnosDisponibles}
+                turnosMinimo={turnosMinimo}
                 deshabilitado={!fechaSesion || diaNoDisponible || !!fechaBloqueada}
                 placeholder={!fechaSesion ? "-- Primero selecciona el día --" : "-- Elige turno --"}
               />
+
+              {turnoCerrado && (
+                <p className="text-sm text-red-600 font-medium" role="alert">
+                  Este turno está cerrado: solo se abre cuando otra reserva llega al mínimo de personas de su taller.
+                  Elige otro turno u otro día.
+                </p>
+              )}
 
               {turnoRepetido && (
                 <p className="text-sm text-red-600 font-medium" role="alert">
@@ -363,6 +375,7 @@ export default function UsarBono() {
                 guardando={guardando}
                 texto="Confirmar sesión con bono"
                 deshabilitado={
+                  turnoCerrado ||
                   !!errorContexto ||
                   !contextoCargado ||
                   !fechaSesion ||

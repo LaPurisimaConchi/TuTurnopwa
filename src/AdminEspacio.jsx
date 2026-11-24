@@ -78,11 +78,11 @@ export default function AdminEspacio() {
       const snap = await get(ref(dbRealtime, "clases"));
       const clases = snap.exists() ? snap.val() || {} : {};
       const ids = Object.keys(clases).filter((id) => abreDias(clases[id]) && clases[id].horariosPorDefecto !== false);
-      if (!ids.length) return setError("No hay talleres que usen los horarios por defecto.");
+      if (!ids.length) return setError("No hay talleres ni bonos que usen los horarios por defecto.");
 
       const seguro = await preguntar(
         `Vas a sustituir el horario semanal y los turnos que piden el mínimo de personas de ${ids.length} ${
-          ids.length === 1 ? "taller" : "talleres"
+          ids.length === 1 ? "taller o bono" : "talleres y bonos"
         } por los de esta caja, que también se guardan como horarios por defecto. Los horarios que tienen ahora se pierden. No se tocan sus reservas. ¿Aplicar?`
       );
       if (!seguro) return;
@@ -96,7 +96,7 @@ export default function AdminEspacio() {
       await update(ref(dbRealtime), cambios);
       setForm(aTexto(await guardarConfigEspacio(config)));
       setVersion((v) => v + 1);
-      avisar(`Horarios aplicados a ${ids.length} ${ids.length === 1 ? "taller" : "talleres"}.`);
+      avisar(`Horarios aplicados a ${ids.length} ${ids.length === 1 ? "taller o bono" : "talleres y bonos"}.`);
     } catch (err) {
       console.error("Error al aplicar los horarios a los talleres:", err);
       setError(
@@ -446,7 +446,7 @@ export default function AdminEspacio() {
                 </button>
                 <p className={ayuda}>
                   Sustituye el horario semanal y los turnos «Mín.» de los talleres del panel que usan los horarios por defecto
-                  (no los monográficos, los bonos ni los de siempre sin migrar) por los de esta caja,
+                  (bonos incluidos; no los monográficos ni los de siempre sin migrar) por los de esta caja,
                   tal como están ahora, y guarda todos los ajustes de esta página (también como horarios por defecto de los talleres nuevos). Pide confirmación antes.
                 </p>
               </div>

@@ -307,8 +307,8 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
         )
       : null,
     horarios,
-    horariosMinimo: esBono ? null : horariosMinimo,
-    horariosPorDefecto: esBono ? null : !!form.horariosPorDefecto,
+    horariosMinimo,
+    horariosPorDefecto: !!form.horariosPorDefecto,
     turnos,
     estado: form.estado,
     activa: form.estado === "activa",
