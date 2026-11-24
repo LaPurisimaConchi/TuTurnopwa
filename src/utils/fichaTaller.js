@@ -57,6 +57,9 @@ export const FORMULARIO_VACIO = {
   horarios: Object.fromEntries(DIAS.map(([dia]) => [dia, ""])),
   // Turnos de cada día que piden el mínimo de personas para abrirse (subconjunto del horario)
   horariosMinimo: Object.fromEntries(DIAS.map(([dia]) => [dia, ""])),
+  // Usa los horarios por defecto de «Espacio»: «Aplicar a todos los talleres» solo cambia
+  // los talleres que lo tienen marcado
+  horariosPorDefecto: true,
   estado: "activa",
   enPortada: true,
   regalable: true,
@@ -197,6 +200,8 @@ export function formularioDesdeClase(id, clase = {}) {
         Array.isArray(horarios[dia]) ? horarios[dia].join(", ") : String(horarios[dia] || ""),
       ])
     ),
+    // Los talleres anteriores a esta casilla cuentan como marcados
+    horariosPorDefecto: clase.horariosPorDefecto !== false,
     horariosMinimo: Object.fromEntries(
       DIAS.map(([dia]) => {
         const valor = clase.horariosMinimo?.[dia];
@@ -303,6 +308,7 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
       : null,
     horarios,
     horariosMinimo: esBono ? null : horariosMinimo,
+    horariosPorDefecto: esBono ? null : !!form.horariosPorDefecto,
     turnos,
     estado: form.estado,
     activa: form.estado === "activa",

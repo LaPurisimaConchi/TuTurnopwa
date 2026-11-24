@@ -215,12 +215,14 @@ export default function AdminTallerForm() {
       .finally(() => setCategoriasCargadas(true));
   }, []);
 
-  // Taller nuevo: se parte de los horarios por defecto de «Espacio»
+  // Horarios por defecto de «Espacio»; un taller nuevo parte de ellos
+  const [configEspacio, setConfigEspacio] = useState(null);
   useEffect(() => {
-    if (idEditar) return;
     let activo = true;
     cargarConfigEspacio().then((config) => {
       if (!activo) return;
+      setConfigEspacio(config);
+      if (idEditar) return;
       setForm((prev) =>
         DIAS.some(([dia]) => prev.horarios[dia])
           ? prev
@@ -289,6 +291,16 @@ export default function AdminTallerForm() {
 
   const cambiarHorario = (dia, valor) =>
     setForm((prev) => ({ ...prev, horarios: { ...prev.horarios, [dia]: valor } }));
+  // Marcar la casilla pone los horarios por defecto de «Espacio» (bloqueados); al
+  // desmarcarla se conserva lo que había y se puede personalizar
+  const cambiarHorariosPorDefecto = (usar) =>
+    setForm((prev) => ({
+      ...prev,
+      horariosPorDefecto: usar,
+      ...(usar && configEspacio
+        ? { horarios: { ...configEspacio.horariosDefecto }, horariosMinimo: { ...configEspacio.horariosMinimoDefecto } }
+        : {}),
+    }));
   const cambiarHorarioMinimo = (dia, valor) =>
     setForm((prev) => ({ ...prev, horariosMinimo: { ...prev.horariosMinimo, [dia]: valor } }));
 
@@ -1472,7 +1484,28 @@ export default function AdminTallerForm() {
                 el panel también se aplican.
               </p>
 
-              <div className="space-y-3">
+              {!esBono && (
+                <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.horariosPorDefecto}
+                    onChange={(e) => cambiarHorariosPorDefecto(e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <strong>Usar los horarios por defecto</strong>
+                    <span className="block text-xs text-tinta-suave mt-0.5">
+                      Los de «Espacio». Al marcarla se ponen esos horarios, y «Aplicar a todos los talleres» los
+                      actualiza en este taller. Desmárcala para personalizarlos: este taller ya no cambia con ese botón.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              <fieldset
+                disabled={!esBono && form.horariosPorDefecto}
+                className="space-y-3 border-0 p-0 m-0 min-w-0 disabled:opacity-60"
+              >
                 {DIAS.map(([dia, nombreDia]) => (
                   <div
                     key={dia}
@@ -1511,8 +1544,7 @@ export default function AdminTallerForm() {
                     </div>
                   </div>
                 ))}
-              </div>
-
+              </fieldset>
 
                 </>
               )}
