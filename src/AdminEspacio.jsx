@@ -77,8 +77,8 @@ export default function AdminEspacio() {
     try {
       const snap = await get(ref(dbRealtime, "clases"));
       const clases = snap.exists() ? snap.val() || {} : {};
-      const ids = Object.keys(clases).filter((id) => abreDias(clases[id]));
-      if (!ids.length) return setError("No hay talleres del panel a los que aplicar los horarios.");
+      const ids = Object.keys(clases).filter((id) => abreDias(clases[id]) && clases[id].horariosPorDefecto !== false);
+      if (!ids.length) return setError("No hay talleres que usen los horarios por defecto.");
 
       const seguro = await preguntar(
         `Vas a sustituir el horario semanal y los turnos que piden el mínimo de personas de ${ids.length} ${
@@ -410,9 +410,9 @@ export default function AdminEspacio() {
             <section className={seccion}>
               <h2 className="text-lg font-semibold text-tinta">Horarios por defecto</h2>
               <p className="text-sm text-tinta-suave">
-                Se ponen solos al crear un taller nuevo. Marca con «Mín.» los turnos que solo se
+                Se ponen solos al crear un taller nuevo (y en los que marcan «Usar los horarios por defecto»). Marca con «Mín.» los turnos que solo se
                 abren cuando una reserva llega al mínimo de personas del taller. Los talleres que
-                ya existen no cambian, salvo que pulses «Aplicar a todos los talleres».
+                ya existen no cambian, salvo que pulses «Aplicar a todos los talleres» (solo a los que usan los horarios por defecto).
               </p>
 
               <div>
@@ -445,7 +445,7 @@ export default function AdminEspacio() {
                   {aplicando ? "Aplicando…" : "Aplicar a todos los talleres"}
                 </button>
                 <p className={ayuda}>
-                  Sustituye el horario semanal y los turnos «Mín.» de todos los talleres del panel
+                  Sustituye el horario semanal y los turnos «Mín.» de los talleres del panel que usan los horarios por defecto
                   (no los monográficos, los bonos ni los de siempre sin migrar) por los de esta caja,
                   tal como están ahora, y guarda todos los ajustes de esta página (también como horarios por defecto de los talleres nuevos). Pide confirmación antes.
                 </p>
