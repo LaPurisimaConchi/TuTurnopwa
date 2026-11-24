@@ -16,7 +16,7 @@ import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
-import { calcularDiasAbiertos, puedeAbrirDia, tallerTieneHorarioEnFecha } from "../src/utils/diasAbiertos.js";
+import { calcularDiasAbiertos, puedeAbrirDia, tallerTieneHorarioEnFecha, turnoAbiertoEnDia } from "../src/utils/diasAbiertos.js";
 import { limpiarTurno, normalizarTurnos, turnosDiasAbiertos, turnosDisponiblesEnFecha } from "../src/utils/turnosFecha.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
 import { diasEntreSesionesDe, motivoSesionesNoValidas, sesionesDeTaller } from "../src/utils/sesionesTaller.js";
@@ -139,8 +139,8 @@ export async function motivoDiaCerrado({ clase, fecha, turno, plazas, fechasHabi
     return "";
   }
   if (!turnosDiasAbiertos(clase).includes(limpiarTurno(turno))) return "Ese día no hay taller.";
-  if (!puedeAbrirDia(clase, plazas) && !(await diasAbiertos())[fecha]) {
-    return "Ese día está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.";
+  if (!puedeAbrirDia(clase, plazas) && !turnoAbiertoEnDia(await diasAbiertos(), fecha, turno)) {
+    return "Ese turno está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.";
   }
   return "";
 }

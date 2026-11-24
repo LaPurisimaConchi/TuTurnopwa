@@ -13,6 +13,7 @@ import DateInputReserva from "./components/DateInputReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
+import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 const CLASE_ID = "creatugrancentrodemesa";
 const RESERVAS_PATH_KEY = "CreaTuGranCentroMesa";
 
@@ -560,35 +561,24 @@ export default function ReservaCreaTuGranCentroMesa() {
               </div>
 
               <div>
-                <label htmlFor="turno" className="block font-bold text-sm mb-1">
-                  Selecciona el turno:
-                </label>
-                <select
-                  id="turno"
+                <SelectorTurnoReserva
+                  etiqueta="Selecciona el turno:"
                   value={turno}
-                  onChange={(e) => {
-                    setTurno(e.target.value);
+                  onChange={(valor) => {
+                    setTurno(valor);
                     setPlazas("1");
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
-                  required
-                  disabled={!puedeElegirTurno}
-                >
-                  <option value="">
-                    {!fecha
+                  turnos={turnosDisponibles}
+                  deshabilitado={!puedeElegirTurno}
+                  placeholder={!fecha
                       ? "-- Primero selecciona el día --"
                       : !metodo
                       ? "-- Primero selecciona el método --"
                       : diaNoDisponible
                       ? "-- No hay turnos para este día --"
                       : "-- Elige turno --"}
-                  </option>
-                  {turnosDisponibles.map((turnoItem) => (
-                    <option key={turnoItem} value={turnoItem}>
-                      {turnoItem}
-                    </option>
-                  ))}
-                </select>
+                  botones
+                />
               </div>
 
               {metodo && fecha && !diaNoDisponible && (

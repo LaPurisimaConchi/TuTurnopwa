@@ -50,8 +50,32 @@ export const esTurnoConHoras = (turno) => {
 export const turnosDiasAbiertos = (clase) =>
   normalizarTurnos(clase?.turnos).map(limpiarTurno).filter(esTurnoConHoras);
 
-// `diaAbierto`: el día no tiene horario pero está abierto (por una reserva que llega
-// al mínimo de personas, o porque esta misma lo abre)
+// Un turno abierto por una franja debe empezar, como muy tarde, este margen antes de que
+// ella termine
+export const MARGEN_FIN_FRANJA_MIN = 30;
+
+// ¿El turno empieza dentro de alguna de las franjas? Solo cuenta la hora de inicio:
+// con la franja 10:00-14:00 se abre el turno 11:00-15:00 (y hasta uno que empiece a
+// las 13:30), pero no el 09:00-11:00, ni el 13:45, ni el 14:00-16:00.
+export function turnoEmpiezaEnFranjas(turno, franjas = []) {
+  const inicio = /^(\d{1,2}):(\d{2})\s*-/.exec(limpiarTurno(turno));
+  if (!inicio) return false;
+  const minutos = Number(inicio[1]) * 60 + Number(inicio[2]);
+
+  return franjas.some((franja) => {
+    const m = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/.exec(limpiarTurno(franja));
+    return (
+      !!m &&
+      minutos >= Number(m[1]) * 60 + Number(m[2]) &&
+      minutos <= Number(m[3]) * 60 + Number(m[4]) - MARGEN_FIN_FRANJA_MIN
+    );
+  });
+}
+
+// `diaAbierto`: el día no tiene horario pero está abierto. `true` abre todos los turnos
+// de días abiertos del taller (la reserva que se hace llega al mínimo de personas y
+// abre su propia franja); una lista de franjas ("10:00-14:00", las de las reservas que
+// llegaron al mínimo) abre solo los turnos que empiezan dentro de alguna.
 export function turnosDisponiblesEnFecha({
   clase,
   fecha,
@@ -79,7 +103,9 @@ export function turnosDisponiblesEnFecha({
 
   // Un día sin horario abierto por una reserva con el mínimo de personas del taller
   if (!turnos.length && diaAbierto && !habilitacion?.habilitada) {
-    turnosDiasAbiertos(clase).forEach((t) => turnos.push(t));
+    turnosDiasAbiertos(clase)
+      .filter((t) => !Array.isArray(diaAbierto) || turnoEmpiezaEnFranjas(t, diaAbierto))
+      .forEach((t) => turnos.push(t));
   }
 
   return turnos;

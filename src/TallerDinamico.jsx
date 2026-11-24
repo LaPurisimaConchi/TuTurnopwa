@@ -20,6 +20,7 @@ import {
   variantesDelTaller,
 } from "./catalogoTalleres";
 import { edicionesReservables, esMonografico } from "./utils/monografico";
+import { etiquetaSesiones } from "./catalogoBase";
 import { diasCaducidadBono } from "./utils/estadoBono";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 
@@ -265,6 +266,14 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                   {formatearEuros(precioMostrado)}
                 </span>
                 <span className="text-sm text-tinta-suave">{esBono ? "" : "por persona"}</span>
+              </p>
+            )}
+
+            {etiquetaSesiones({ id: claseId, ...clase }) && (
+              <p className="mb-2">
+                <span className="inline-block rounded-full bg-arena px-2.5 py-1 text-xs font-semibold text-tinta-suave">
+                  {etiquetaSesiones({ id: claseId, ...clase })}
+                </span>
               </p>
             )}
 

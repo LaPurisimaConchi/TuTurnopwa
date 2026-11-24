@@ -13,7 +13,7 @@ import CalendarioReserva from "./components/CalendarioReserva";
 import { fechaDMA, fechaHoraLegible, hoyMadrid } from "./utils/formatoFecha";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
 import { preguntar } from "./utils/avisos";
-import { turnosElegibles } from "./utils/cambioFecha";
+import { turnosElegibles, turnosSoloConMinimo } from "./utils/cambioFecha";
 import { calcularDiasAbiertos } from "./utils/diasAbiertos";
 import { estadoDiaTaller } from "./utils/turnosTaller";
 const AdminDetalleReservaNuevo = () => {
@@ -461,6 +461,23 @@ useEffect(() => {
     }).map(normalizarTurnoParaRuta);
   }, [claseParaFechas, nuevaFecha, fechasHabilitadas, diasAbiertos, plazasMovidas]);
 
+  // Turnos de un día abierto en parte que esta reserva no puede elegir por no llegar al
+  // mínimo del taller (en azul, como en la ficha)
+  const turnosMinimoReprogramacion = useMemo(() => {
+    if (!nuevaFecha) return { turnosMinimo: [], minimo: 0 };
+    return (
+      turnosSoloConMinimo({
+        clase: claseParaFechas,
+        fecha: nuevaFecha,
+        fechasHabilitadas,
+        plazas: plazasMovidas,
+        elegibles: turnosDisponiblesReprogramacion,
+      }) || { turnosMinimo: [], minimo: 0 }
+    );
+  }, [claseParaFechas, nuevaFecha, fechasHabilitadas, plazasMovidas, turnosDisponiblesReprogramacion]);
+  const nuevoTurnoCerrado =
+    !!nuevoTurno && turnosMinimoReprogramacion.turnosMinimo.includes(normalizarTurnoParaRuta(nuevoTurno));
+
   const fechaBloqueadaReprogramacion = useMemo(() => {
     if (!nuevaFecha) return null;
     const bloqueo = fechasBloqueadas?.[nuevaFecha];
@@ -469,8 +486,8 @@ useEffect(() => {
 
   const diaNoDisponibleReprogramacion = useMemo(() => {
     if (!nuevaFecha) return false;
-    return turnosDisponiblesReprogramacion.length === 0;
-  }, [nuevaFecha, turnosDisponiblesReprogramacion]);
+    return turnosDisponiblesReprogramacion.length === 0 && turnosMinimoReprogramacion.turnosMinimo.length === 0;
+  }, [nuevaFecha, turnosDisponiblesReprogramacion, turnosMinimoReprogramacion]);
 
   // Plazas libres del turno elegido con el aforo real del espacio (src/utils/aforo.js):
   // todos los talleres y los grupos, las plazas guardadas mientras alguien paga y los
@@ -512,6 +529,7 @@ useEffect(() => {
     plazasDisponiblesReprogramacion !== null &&
     plazasDisponiblesReprogramacion >= Number(reserva?.plazas || 1) &&
     hayCambiosReales &&
+    !nuevoTurnoCerrado &&
     !reservaYaCancelada;
 
   const buscarReservaUsuarioPorOrderId = async (uid, orderIdBuscado) => {
@@ -1268,15 +1286,20 @@ useEffect(() => {
                   <>
                     <p style={styles.ladoEtiqueta}>Turno</p>
                     <div style={styles.turnos}>
-                      {turnosDisponiblesReprogramacion.map((turno) => {
+                      {[...turnosDisponiblesReprogramacion, ...turnosMinimoReprogramacion.turnosMinimo].sort().map((turno) => {
                         const activo = normalizarTurnoParaRuta(nuevoTurno) === turno;
+                        const esMinimo = turnosMinimoReprogramacion.turnosMinimo.includes(turno);
                         return (
                           <button
                             key={turno}
                             type="button"
                             onClick={() => setNuevoTurno(turno)}
                             aria-pressed={activo}
-                            style={{ ...styles.turnoBoton, ...(activo ? styles.turnoBotonActivo : {}) }}
+                            style={{
+                              ...styles.turnoBoton,
+                              ...(esMinimo && !activo ? styles.turnoBotonMinimo : {}),
+                              ...(activo ? styles.turnoBotonActivo : {}),
+                            }}
                           >
                             {turno}
                           </button>
@@ -1284,8 +1307,10 @@ useEffect(() => {
                       })}
                     </div>
 
-                    <p style={faltaSitio ? styles.textoError : styles.textoVacio}>
-                      {!nuevoTurno ? (
+                    <p style={faltaSitio || nuevoTurnoCerrado ? styles.textoError : styles.textoVacio}>
+                      {nuevoTurnoCerrado ? (
+                        `Ese turno está cerrado: para abrirlo hacen falta al menos ${turnosMinimoReprogramacion.minimo} personas (esta reserva tiene ${plazasReserva}).`
+                      ) : !nuevoTurno ? (
                         "Elige un turno para ver las plazas libres."
                       ) : plazasDisponiblesReprogramacion === null ? (
                         "Comprobando plazas libres..."
@@ -1622,6 +1647,7 @@ const styles = {
     fontSize: "0.92rem",
     cursor: "pointer",
   },
+  turnoBotonMinimo: { backgroundColor: "#f0f9ff", borderColor: "#7dd3fc", color: "#075985" },
   turnoBotonActivo: { backgroundColor: "#b36a4a", borderColor: "#b36a4a", boxShadow: "0 0 0 2px #b36a4a55",
     color: "#ffffff",
   },

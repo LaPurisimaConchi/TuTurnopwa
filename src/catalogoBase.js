@@ -283,6 +283,20 @@ export const formatearEuros = (valor) => {
 // Algunas claves antiguas de Firebase llevan un espacio al final ("orden ")
 const leerCampo = (clase, campo) => clase?.[campo] ?? clase?.[`${campo} `];
 
+// Texto de sesiones para tarjetas y fichas: «2 sesiones», «4 clases» (bonos). Vacío si solo hay una.
+export function etiquetaSesiones(t = {}) {
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+  const clases =
+    Number(t.numeroClases ?? t.NumeroClases) ||
+    Number(String(t.id || "").match(/(\d+)clases$/)?.[1]) ||
+    0;
+  if (t.tipoProducto === "bono" || (clases && !(Number(t.sesiones) > 1))) {
+    return clases > 1 ? plural(clases, "clase", "clases") : "";
+  }
+  const n = Number(t.sesionesCurso) || Number(t.sesiones) || 1;
+  return n > 1 ? plural(n, "sesión", "sesiones") : "";
+}
+
 export function normalizarTaller(id, clase = {}) {
   const fijo = TALLERES_FIJOS[id];
   if (!fijo && !clase.dinamica) return null;

@@ -270,7 +270,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
     fechaHabilitadaManual,
     fechaBloqueada,
     diaNoDisponible,
-    diaSoloGrupo,
+    turnosMinimo,
   } =
     useDiaDeReserva({
       clase,
@@ -601,7 +601,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
   // con el mínimo global de grupo se sugiere reservar como grupo
   const minHabilitar = minPersonasHabilitar(clase);
   const minGrupo = configEspacio.minPersonasGrupo;
-  const faltanPersonasGrupo = diaSoloGrupo && plazasNum < minHabilitar;
+  const faltanPersonasGrupo = !!turno && turnosMinimo.includes(turno) && plazasNum < minHabilitar;
   const avisarMinimo = faltanPersonasGrupo && !!turno;
   const mostrarSugerencia = !desdeTarjeta && plazasNum >= minGrupo;
   const parametrosGrupo = new URLSearchParams({ taller: claseId, personas: String(plazasNum) });
@@ -828,7 +828,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
           )}
 
           <SelectorTurnoReserva
-            botones={incrustado}
+            botones
             value={turno}
             onChange={(valor) => {
               setTurno(valor);
@@ -836,6 +836,8 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
               setExtras([]);
             }}
             turnos={turnosDisponibles}
+            turnosMinimo={turnosMinimo}
+            minimo={minHabilitar}
             deshabilitado={!puedeElegirTurno}
             placeholder={
               !fecha
@@ -954,8 +956,8 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
 
           {avisarMinimo && (
             <p className="text-sm text-red-600 font-medium">
-              Este día está cerrado: para abrirlo hacen falta al menos {minHabilitar} personas (ahora tienes{" "}
-              {plazasNum}). Sube las plazas o elige otro día.
+              Este turno está cerrado: para abrirlo hacen falta al menos {minHabilitar} personas (ahora tienes{" "}
+              {plazasNum}). Sube las plazas o elige otro turno o día.
             </p>
           )}
 
