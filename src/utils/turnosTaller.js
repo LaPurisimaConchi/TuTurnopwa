@@ -4,7 +4,7 @@
 // reserva de siempre).
 import { useEffect, useMemo, useState } from "react";
 import { minPersonasHabilitar } from "../catalogoTalleres";
-import { abreDias } from "./diasAbiertos";
+import { abreDias, tallerTieneHorarioEnFecha } from "./diasAbiertos";
 import { bloqueoAfectaTurno, bloqueoEsParcial } from "./rangosHora";
 import { cargarContextoReserva } from "./disponibilidad";
 import { turnoYaEmpezado } from "./cambioFecha";
@@ -207,8 +207,31 @@ export function useDiaDeReserva({
   const diaSoloGrupo = turnosAbrir.length > 0 && !!fecha && !fechaBloqueada && turnosDelDia.length === 0;
   const diaNoDisponible = !!fecha && !fechaBloqueada && turnosDisponibles.length === 0 && !diaSoloGrupo;
 
+  // Turnos que se ofrecen pero solo se abren con el mínimo de personas del taller: todos
+  // los de un día cerrado y, en un día sin horario abierto solo en parte (una franja de
+  // otra reserva), los turnos de días abiertos que esa franja no abre
+  const turnosAbribles = turnosAbrir.filter((t) => libre(t) && aTiempo(t));
+  const diaAbiertoEnParte =
+    turnosAbrir.length > 0 &&
+    !!fecha &&
+    !fechaBloqueada &&
+    !diaSoloGrupo &&
+    !fechaHabilitadaManual &&
+    !tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas);
+  const turnosMinimo = diaSoloGrupo
+    ? turnosAbribles
+    : diaAbiertoEnParte
+    ? turnosAbribles.filter((t) => !turnosDisponibles.includes(t))
+    : [];
+  const turnosOfrecidos = diaAbiertoEnParte
+    ? turnosAbrir.filter((t) => turnosDisponibles.includes(t) || turnosMinimo.includes(t))
+    : diaSoloGrupo
+    ? turnosAbribles
+    : turnosDisponibles;
+
   return {
-    turnosDisponibles: diaSoloGrupo ? turnosAbrir.filter((t) => libre(t) && aTiempo(t)) : turnosDisponibles,
+    turnosDisponibles: turnosOfrecidos,
+    turnosMinimo,
     fechaHabilitadaManual,
     fechaBloqueada,
     bloqueoParcial,

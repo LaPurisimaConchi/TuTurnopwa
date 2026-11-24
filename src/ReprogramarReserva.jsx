@@ -88,10 +88,13 @@ export default function ReprogramarReserva() {
 
   const opciones = useMemo(() => datos?.opciones || [], [datos]);
   const diasConPlaza = useMemo(() => new Set(opciones.map((o) => o.fecha)), [opciones]);
-  const turnosDelDia = useMemo(
-    () => opciones.find((o) => o.fecha === fecha)?.turnos || [],
-    [opciones, fecha]
-  );
+  const opcionDelDia = useMemo(() => opciones.find((o) => o.fecha === fecha), [opciones, fecha]);
+  const turnosDelDia = useMemo(() => opcionDelDia?.turnos || [], [opcionDelDia]);
+  // Turnos del día que solo se abren con un mínimo de personas (azules: no se pueden elegir
+  // con esta reserva, que no llega)
+  const turnosMinimo = useMemo(() => opcionDelDia?.turnosMinimo || [], [opcionDelDia]);
+  const minimo = opcionDelDia?.minimo || 0;
+  const turnoCerrado = !!turno && turnosMinimo.includes(turno);
   const reserva = datos?.reserva;
   const puedeCambiar = !!reserva?.puedeCambiar;
 
@@ -202,7 +205,9 @@ export default function ReprogramarReserva() {
                 etiqueta="Selecciona el turno:"
                 value={turno}
                 onChange={setTurno}
-                turnos={turnosDelDia.map((t) => t.turno)}
+                turnos={[...turnosDelDia.map((t) => t.turno), ...turnosMinimo].sort()}
+                turnosMinimo={turnosMinimo}
+                minimo={minimo}
                 deshabilitado={!fecha}
                 placeholder={!fecha ? "-- Primero selecciona el día --" : "-- Elige turno --"}
               />
@@ -214,6 +219,13 @@ export default function ReprogramarReserva() {
                 </p>
               </div>
 
+              {turnoCerrado && (
+                <p className="text-sm text-red-600 font-medium" role="alert">
+                  Este turno está cerrado: para abrirlo hacen falta al menos {minimo} personas (tu reserva tiene{" "}
+                  {reserva.plazas || 1}). Elige otro turno.
+                </p>
+              )}
+
               {error && (
                 <p className="text-sm text-red-600" role="alert">
                   {error}
@@ -223,7 +235,7 @@ export default function ReprogramarReserva() {
               <BotonConfirmarReserva
                 guardando={guardando}
                 texto="Confirmar nueva fecha"
-                deshabilitado={!fecha || !turno}
+                deshabilitado={!fecha || !turno || turnoCerrado}
               />
             </div>
           )}

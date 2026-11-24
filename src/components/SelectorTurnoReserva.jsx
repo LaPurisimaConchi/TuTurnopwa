@@ -12,6 +12,8 @@ export default function SelectorTurnoReserva({
   placeholder = "-- Elige turno --",
   id = "turno",
   botones = false, // los turnos se ven como botones en lugar de un desplegable
+  turnosMinimo = [], // turnos que solo se abren con un mínimo de personas (en azul)
+  minimo = 0, // ese mínimo, para el texto del desplegable
 }) {
   const raiz = useRef(null);
 
@@ -50,6 +52,8 @@ export default function SelectorTurnoReserva({
                   className={`px-4 py-2 rounded-xl border text-sm font-semibold transition ${
                     elegido
                       ? "bg-terracota border-terracota text-white ring-2 ring-terracota-suave"
+                      : turnosMinimo.includes(turno)
+                      ? "bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100"
                       : "bg-mostaza-suave border-mostaza text-tinta hover:bg-mostaza/40"
                   }`}
                 >
@@ -78,8 +82,13 @@ export default function SelectorTurnoReserva({
       >
         <option value="">{placeholder}</option>
         {turnos.map((turno) => (
-          <option key={turno} value={turno}>
+          <option
+            key={turno}
+            value={turno}
+            className={turnosMinimo.includes(turno) ? "bg-sky-50 text-sky-800" : undefined}
+          >
             {turno}
+            {turnosMinimo.includes(turno) ? ` (desde ${minimo} personas)` : ""}
           </option>
         ))}
       </select>
