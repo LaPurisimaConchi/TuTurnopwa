@@ -3,8 +3,9 @@
 // (número de reserva + email). Sin React ni Firebase: lo usa api/cambiar-fecha.js
 // y la pantalla /gestionar-reserva para mostrar los mismos plazos.
 import { esReservaValida } from "./plazasOcupadas.js";
-import { esTurnoConsulta, limpiarTurno, turnosDisponiblesEnFecha } from "./turnosFecha.js";
-import { puedeAbrirDia } from "./diasAbiertos.js";
+import { esTurnoConsulta, limpiarTurno, turnosDiasAbiertos, turnosDisponiblesEnFecha } from "./turnosFecha.js";
+import { abreDias, puedeAbrirDia, tallerTieneHorarioEnFecha } from "./diasAbiertos.js";
+import { minPersonasHabilitar } from "../catalogoBase.js";
 import { contarFranja, plazasLibresFranja, usaTorno } from "./aforo.js";
 import { bloqueoAfectaTurno } from "./rangosHora.js";
 import { edicionesDeClase } from "./monografico.js";
@@ -278,7 +279,8 @@ export function motivoFechaNoValida({
 // Un día sin horario solo se ofrece si ya está abierto (`diasAbiertos`) o si la reserva
 // que se mueve (`plazas` personas) llega al mínimo del taller para abrirlo.
 export function turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos = {}, plazas = 0 }) {
-  const diaAbierto = !!diasAbiertos?.[fecha] || puedeAbrirDia(clase, plazas);
+  // Con personas de sobra la reserva abre su propia franja: valen todos los turnos
+  const diaAbierto = puedeAbrirDia(clase, plazas) || diasAbiertos?.[fecha] || false;
   const turnos = turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, diaAbierto });
   return esTurnoConsulta(turnos) ? [] : turnos.map(limpiarTurno);
 }
@@ -314,7 +316,31 @@ export function opcionesDeCambio({
       if (libres >= plazas) turnos.push({ turno, libres });
     });
 
-    if (turnos.length) opciones.push({ fecha, turnos });
+    if (turnos.length) {
+      const opcion = { fecha, turnos };
+
+      // Día sin horario abierto solo en parte: los demás turnos de días abiertos se enseñan,
+      // pero solo se abren con el mínimo de personas, que esta reserva no llega a tener
+      if (
+        !reserva.desdeBono &&
+        abreDias(clase) &&
+        !puedeAbrirDia(clase, plazas) &&
+        !tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)
+      ) {
+        const elegibles = turnos.map((t) => t.turno);
+        const cerrados = turnosDiasAbiertos(clase).filter(
+          (turno) =>
+            !elegibles.includes(turno) &&
+            !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias })
+        );
+        if (cerrados.length) {
+          opcion.turnosMinimo = cerrados;
+          opcion.minimo = minPersonasHabilitar(clase);
+        }
+      }
+
+      opciones.push(opcion);
+    }
   }
 
   return opciones;

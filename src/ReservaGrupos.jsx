@@ -241,7 +241,7 @@ export default function ReservaGrupos() {
     fechaBloqueada: bloqueoDia,
     fechaHabilitadaManual,
     diaNoDisponible,
-    diaSoloGrupo,
+    turnosMinimo,
   } = useDiaDeReserva({
     clase: taller,
     fecha,
@@ -267,7 +267,7 @@ export default function ReservaGrupos() {
     setPrevia(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previa, taller, contextoCargado, fecha, turnosDelDia, personas]);
-  const faltanPersonasDia = diaSoloGrupo && Number(personas) < minAbrir;
+  const faltanPersonasDia = !!horario && turnosMinimo.includes(horario) && Number(personas) < minAbrir;
 
   const whatsappUrl = `https://wa.me/34${configEspacio.telefonoWhatsapp}?text=${construirMensajeWhatsApp({
     nombre: nombreReserva,
@@ -333,7 +333,7 @@ export default function ReservaGrupos() {
     if (diaNoDisponible || faltanPersonasDia) {
       alert(
         faltanPersonasDia
-          ? `Ese día está cerrado: para abrirlo hacen falta al menos ${minAbrir} personas.`
+          ? `Ese turno está cerrado: para abrirlo hacen falta al menos ${minAbrir} personas.`
           : "Ese día no hay taller. Elige otro día."
       );
       return;
@@ -554,6 +554,8 @@ export default function ReservaGrupos() {
               value={horario}
               onChange={setHorario}
               turnos={turnosDelDia}
+              turnosMinimo={turnosMinimo}
+              minimo={minAbrir}
               deshabilitado={!fecha || !!fechaBloqueada}
               placeholder={!fecha ? "-- Primero selecciona el día --" : "-- Elige turno --"}
             />
@@ -584,7 +586,7 @@ export default function ReservaGrupos() {
               </p>
               {faltanPersonasDia && (
                 <p className="text-sm text-red-600 font-medium mt-1">
-                  Ese día está cerrado: para abrirlo hacen falta al menos {minAbrir} personas (ahora{" "}
+                  Ese turno está cerrado: para abrirlo hacen falta al menos {minAbrir} personas (ahora{" "}
                   {personasNum}).
                 </p>
               )}
