@@ -16,8 +16,8 @@ import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
-import { calcularDiasAbiertos, puedeAbrirDia, tallerTieneHorarioEnFecha, turnoAbiertoEnDia } from "../src/utils/diasAbiertos.js";
-import { limpiarTurno, normalizarTurnos, turnosDiasAbiertos, turnosDisponiblesEnFecha } from "../src/utils/turnosFecha.js";
+import { calcularDiasAbiertos, puedeAbrirDia } from "../src/utils/diasAbiertos.js";
+import { limpiarTurno, nombreDiaSemana, normalizarTurnos, turnoAbiertoSinMinimo, turnosMinimoDeClase } from "../src/utils/turnosFecha.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
 import { diasEntreSesionesDe, motivoSesionesNoValidas, sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 
@@ -121,28 +121,29 @@ export function diasAbiertosPerezosos(db, fechasHabilitadas) {
   };
 }
 
-// Un taller del panel solo da clase los días de su horario; un día sin horario se reserva
-// únicamente si ya está abierto por otra reserva o si esta llega al mínimo de personas del
-// taller. Devuelve el motivo si no se puede, o "" si sí. `diasAbiertos` es la función de
-// diasAbiertosPerezosos.
+// Un taller del panel solo da clase los días y turnos de su horario semanal. Un turno
+// marcado como «requiere el mínimo de personas» solo se reserva si ya está abierto (otra
+// reserva con el mínimo en una franja que lo abre, o una franja habilitada desde
+// administración) o si esta llega al mínimo de personas del taller. Devuelve el motivo si
+// no se puede, o "" si sí. `diasAbiertos` es la función de diasAbiertosPerezosos.
 export async function motivoDiaCerrado({ clase, fecha, turno, plazas, fechasHabilitadas, diasAbiertos }) {
   if (!clase || clase.dinamica !== true || esMonografico(clase)) return "";
-  if (tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas)) {
-    // Un día con horario solo admite los turnos de ese día (el navegador manda el turno)
-    const turnosDelDia = normalizarTurnos(
-      turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas })
-    ).map(limpiarTurno);
-    const soloConsulta = turnosDelDia.length === 1 && turnosDelDia[0].toLowerCase().includes("consultar");
-    if (turnosDelDia.length && !soloConsulta && !turnosDelDia.includes(limpiarTurno(turno))) {
-      return "Ese turno no existe ese día.";
-    }
-    return "";
-  }
-  if (!turnosDiasAbiertos(clase).includes(limpiarTurno(turno))) return "Ese día no hay taller.";
-  if (!puedeAbrirDia(clase, plazas) && !turnoAbiertoEnDia(await diasAbiertos(), fecha, turno)) {
-    return "Ese turno está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.";
-  }
-  return "";
+
+  const turnosDelDia = normalizarTurnos(clase.horarios?.[nombreDiaSemana(fecha)]).map(limpiarTurno);
+  if (!turnosDelDia.length) return "Ese día no hay taller.";
+  const soloConsulta = turnosDelDia.length === 1 && turnosDelDia[0].toLowerCase().includes("consultar");
+  if (soloConsulta) return "";
+
+  const turnoLimpio = limpiarTurno(turno);
+  // Solo valen los turnos de ese día (el navegador manda el turno)
+  if (!turnosDelDia.includes(turnoLimpio)) return "Ese turno no existe ese día.";
+
+  if (!turnosMinimoDeClase(clase, fecha).includes(turnoLimpio)) return "";
+  if (puedeAbrirDia(clase, plazas)) return "";
+  const habilitacion = fechasHabilitadas?.[fecha];
+  if (turnoAbiertoSinMinimo({ turno: turnoLimpio, habilitacion })) return "";
+  if (turnoAbiertoSinMinimo({ turno: turnoLimpio, diaAbierto: (await diasAbiertos())[fecha] || false })) return "";
+  return "Ese turno está cerrado: hace falta una reserva con el mínimo de personas del taller para abrirlo.";
 }
 
 export async function reservarConAforo(db, uid, claseId, items, { edicionId = "" } = {}) {

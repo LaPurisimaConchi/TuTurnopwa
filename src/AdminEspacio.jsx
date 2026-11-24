@@ -2,12 +2,16 @@
 // Ajustes del espacio: aforo total, tope de torno, mínimo para reservar en grupo,
 // plazos de cambio/cancelación y horarios por defecto de los talleres nuevos. Se guardan en configuracionEspacio.
 import React, { useEffect, useState } from "react";
+import { ref, get, update } from "firebase/database";
+import { dbRealtime } from "./firebase";
+import { preguntar, avisar } from "./utils/avisos";
+import { abreDias } from "./utils/turnosFecha";
 import BotonVolver from "./BotonVolver";
 import EditorTurnos from "./components/EditorTurnos";
 import OcupacionProximosDias from "./components/OcupacionProximosDias";
 import { cargarConfigEspacio, guardarConfigEspacio } from "./configuracionEspacio";
 import { normalizarTelefonoWhatsapp, telefonoVisible } from "./utils/configEspacio";
-import { DIAS } from "./utils/fichaTaller";
+import { DIAS, horariosDesdeTexto, leerTurnos, turnoInvalido } from "./utils/fichaTaller";
 
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
 const label = "block font-bold text-sm mb-1 text-tinta";
@@ -25,7 +29,7 @@ const aTexto = (config) => ({
   mesesCaducidadTarjeta: String(config.mesesCaducidadTarjeta),
   telefonoWhatsapp: telefonoVisible(config.telefonoWhatsapp),
   horariosDefecto: { ...config.horariosDefecto },
-  turnosDiasAbiertosDefecto: config.turnosDiasAbiertosDefecto,
+  horariosMinimoDefecto: { ...config.horariosMinimoDefecto },
 });
 
 export default function AdminEspacio() {
@@ -33,6 +37,7 @@ export default function AdminEspacio() {
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [aplicando, setAplicando] = useState(false);
   // Cambia al guardar para que el resumen de ocupación se vuelva a calcular
   const [version, setVersion] = useState(0);
 
@@ -48,6 +53,58 @@ export default function AdminEspacio() {
   const cambiarHorario = (dia, valor) => {
     setMensaje("");
     setForm((prev) => ({ ...prev, horariosDefecto: { ...prev.horariosDefecto, [dia]: valor } }));
+  };
+
+  const cambiarHorarioMinimo = (dia, valor) => {
+    setMensaje("");
+    setForm((prev) => ({ ...prev, horariosMinimoDefecto: { ...prev.horariosMinimoDefecto, [dia]: valor } }));
+  };
+
+  // Sustituye el horario semanal (y los turnos que piden el mínimo) de todos los talleres
+  // del panel por los de esta caja, tal como se ven ahora, guardados o no
+  const aplicarATodos = async () => {
+    setError("");
+    setMensaje("");
+
+    const invalidos = DIAS.flatMap(([dia]) => leerTurnos(form.horariosDefecto[dia])).filter(turnoInvalido);
+    if (invalidos.length) return setError(`Revisa los turnos (formato 17:30-20:30): ${invalidos.join(", ")}`);
+    const { horarios, horariosMinimo, turnos } = horariosDesdeTexto(form.horariosDefecto, form.horariosMinimoDefecto);
+    if (!Object.keys(horarios).length) {
+      return setError("Añade al menos un día con turnos antes de aplicar los horarios a los talleres.");
+    }
+
+    setAplicando(true);
+    try {
+      const snap = await get(ref(dbRealtime, "clases"));
+      const clases = snap.exists() ? snap.val() || {} : {};
+      const ids = Object.keys(clases).filter((id) => abreDias(clases[id]));
+      if (!ids.length) return setError("No hay talleres del panel a los que aplicar los horarios.");
+
+      const seguro = await preguntar(
+        `Vas a sustituir el horario semanal y los turnos que piden el mínimo de personas de ${ids.length} ${
+          ids.length === 1 ? "taller" : "talleres"
+        } por los de esta caja. Los horarios que tienen ahora se pierden. No se tocan sus reservas. ¿Aplicar?`
+      );
+      if (!seguro) return;
+
+      const cambios = {};
+      ids.forEach((id) => {
+        cambios[`clases/${id}/horarios`] = horarios;
+        cambios[`clases/${id}/horariosMinimo`] = Object.keys(horariosMinimo).length ? horariosMinimo : null;
+        cambios[`clases/${id}/turnos`] = turnos;
+      });
+      await update(ref(dbRealtime), cambios);
+      avisar(`Horarios aplicados a ${ids.length} ${ids.length === 1 ? "taller" : "talleres"}.`);
+    } catch (err) {
+      console.error("Error al aplicar los horarios a los talleres:", err);
+      setError(
+        err?.code === "PERMISSION_DENIED"
+          ? "No tienes permiso para cambiar los talleres."
+          : "No se han podido aplicar los horarios a los talleres."
+      );
+    } finally {
+      setAplicando(false);
+    }
   };
 
   const entero = (valor) => {
@@ -114,7 +171,7 @@ export default function AdminEspacio() {
         mesesCaducidadTarjeta,
         telefonoWhatsapp,
         horariosDefecto: form.horariosDefecto,
-        turnosDiasAbiertosDefecto: form.turnosDiasAbiertosDefecto,
+        horariosMinimoDefecto: form.horariosMinimoDefecto,
       });
       setForm(aTexto(guardada));
       setVersion((v) => v + 1);
@@ -337,8 +394,9 @@ export default function AdminEspacio() {
             <section className={seccion}>
               <h2 className="text-lg font-semibold text-tinta">Horarios por defecto</h2>
               <p className="text-sm text-tinta-suave">
-                Se ponen solos al crear un taller nuevo. Los talleres que ya existen no
-                cambian.
+                Se ponen solos al crear un taller nuevo. Marca con «Mín.» los turnos que solo se
+                abren cuando una reserva llega al mínimo de personas del taller. Los talleres que
+                ya existen no cambian, salvo que pulses «Aplicar a todos los talleres».
               </p>
 
               <div>
@@ -354,25 +412,26 @@ export default function AdminEspacio() {
                       id={`esp-horario-${dia}`}
                       value={form.horariosDefecto[dia]}
                       onChange={(valor) => cambiarHorario(dia, valor)}
+                      minimo={form.horariosMinimoDefecto[dia]}
+                      onMinimoChange={(valor) => cambiarHorarioMinimo(dia, valor)}
                     />
                   </div>
                 ))}
               </div>
 
-              <div className="pt-3">
-                <label htmlFor="esp-turnos-dias-abiertos" className="text-sm font-semibold">
-                  Turnos de días abiertos
-                </label>
-                <EditorTurnos
-                  id="esp-turnos-dias-abiertos"
-                  textoVacio="Los del horario semanal de cada taller"
-                  value={form.turnosDiasAbiertosDefecto}
-                  onChange={(valor) => cambiar("turnosDiasAbiertosDefecto", valor)}
-                />
+              <div className="pt-3 border-t border-arena space-y-2">
+                <button
+                  type="button"
+                  onClick={aplicarATodos}
+                  disabled={aplicando}
+                  className="px-5 py-2.5 rounded-full border border-terracota text-terracota font-bold text-sm hover:bg-terracota hover:text-white transition disabled:opacity-60"
+                >
+                  {aplicando ? "Aplicando…" : "Aplicar a todos los talleres"}
+                </button>
                 <p className={ayuda}>
-                  Los turnos que ofrece un taller en un día sin horario que se abre con una reserva
-                  del mínimo de personas (o que habilitas desde administración). Se ponen solos al
-                  crear un taller nuevo; después se cambian en la ficha de cada taller.
+                  Sustituye el horario semanal y los turnos «Mín.» de todos los talleres del panel
+                  (no los monográficos, los bonos ni los de siempre sin migrar) por los de esta caja,
+                  tal como están ahora, aunque no hayas guardado. Pide confirmación antes.
                 </p>
               </div>
             </section>

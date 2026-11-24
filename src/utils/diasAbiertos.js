@@ -1,62 +1,58 @@
 // src/utils/diasAbiertos.js
-// Franjas de días sin horario que se abren con una reserva del mínimo de personas del taller.
+// Franjas que abre una reserva con el mínimo de personas del taller en un turno que lo pide.
 // Sin React ni Firebase: lo usan las pantallas y las funciones de Vercel.
 //
-// Un taller del panel no tiene taller un día sin horario semanal (ni fecha habilitada
-// a mano). Ese día se puede abrir: una reserva (normal o de grupo) con, al menos, el
-// mínimo de personas que fija la ficha del taller (`minPersonasGrupo`, 5 por defecto)
-// lo abre, pero solo su franja (el turno de esa reserva): cualquier taller sin horario
-// ese día se puede reservar, con cualquier número de personas, en los «turnos de días
-// abiertos» de su ficha que empiecen dentro de alguna franja abierta. Los demás turnos
-// solo se reservan si la reserva llega por sí misma al mínimo (y abre su franja). No se
-// guarda nada: la franja está abierta mientras haya una reserva vigente (confirmada, o
-// pendiente con la plaza aún guardada) con el mínimo de personas hecha en un día sin
-// horario de su taller; sin ella, vuelve a estar cerrada.
+// Un taller del panel marca en su horario semanal los turnos que piden el mínimo de
+// personas (`horariosMinimo`). Ese turno solo se reserva si la reserva llega por sí sola
+// al mínimo que fija la ficha del taller (`minPersonasGrupo`, 5 por defecto) o si ya está
+// abierto. Una reserva (normal o de grupo) con el mínimo de personas en un turno marcado
+// lo abre, y con él los turnos marcados de cualquier taller que empiecen dentro de su
+// franja (ver `turnoEmpiezaEnFranjas`): entonces cualquiera los reserva con cualquier
+// número de personas. No se guarda nada: la franja está abierta mientras haya una reserva
+// vigente (confirmada, o pendiente con la plaza aún guardada) con el mínimo de personas
+// hecha en un turno marcado de su taller; sin ella, vuelve a estar cerrada. Los turnos
+// sin marcar no abren nada ni necesitan abrirse. Una fecha habilitada desde administración
+// abre además los turnos marcados que caben en sus franjas (`turnoAbiertoSinMinimo`).
 import { minPersonasHabilitar } from "../catalogoBase.js";
 import { recorrerOcupacion } from "./aforo.js";
 import {
+  abreDias,
   esTurnoConHoras,
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
   turnoEmpiezaEnFranjas,
-  turnosDiasAbiertos,
+  turnosMinimoDeClase,
 } from "./turnosFecha.js";
 
-// ¿El taller tiene horario ese día (semanal, o fecha habilitada desde el panel)?
-export function tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas = {}) {
-  if (fechasHabilitadas?.[fecha]?.habilitada) return true;
+export { abreDias };
+
+// ¿El taller da clase ese día? Solo cuenta el horario semanal: una fecha habilitada desde
+// administración no crea turnos, solo abre los que ya piden el mínimo.
+export function tallerTieneHorarioEnFecha(clase, fecha) {
   return normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)]).length > 0;
 }
 
-// Solo los talleres del panel con horario semanal abren días: los de siempre sin
-// migrar, los monográficos (fechas fijas) y los bonos no.
-export const abreDias = (clase) =>
-  !!clase && clase.dinamica === true && clase.monografico !== true && clase.tipoProducto !== "bono";
-
-// ¿Puede una reserva de `plazas` personas abrir un día cerrado de este taller?
+// ¿Puede una reserva de `plazas` personas abrir un turno de este taller que pide el mínimo?
 export const puedeAbrirDia = (clase, plazas) =>
-  abreDias(clase) &&
-  turnosDiasAbiertos(clase).length > 0 &&
-  Number(plazas) >= minPersonasHabilitar(clase);
+  abreDias(clase) && Number(plazas) >= minPersonasHabilitar(clase);
 
-// ¿Este turno se puede reservar en un día sin horario, sin llegar por sí mismo al
-// mínimo? Solo si empieza dentro de la franja de alguna reserva que abrió el día.
+// ¿Este turno se puede reservar con cualquier número de personas porque lo abrió otra
+// reserva? Solo si empieza dentro de la franja de alguna que llegó al mínimo.
 export const turnoAbiertoEnDia = (diasAbiertos, fecha, turno) => {
   const franjas = diasAbiertos?.[fecha];
   if (!franjas) return false;
   return Array.isArray(franjas) ? turnoEmpiezaEnFranjas(turno, franjas) : true;
 };
 
-// Días abiertos desde `desde`: { "2026-11-27": ["10:00-14:00"] }, con las franjas de las
-// reservas que llegaron al mínimo de personas de su taller (solo esas abren).
-// Un turno de otro taller queda abierto si empieza dentro de alguna franja. `reservas` y `grupos` son los
-// snapshots de /reservas y /reservasGrupos; `clases`, el contenido de /clases.
+// Franjas abiertas desde `desde`: { "2026-11-27": ["10:00-14:00"] }, las de las reservas
+// que llegaron al mínimo de personas de su taller en un turno marcado (solo esas abren).
+// `reservas` y `grupos` son los snapshots de /reservas y /reservasGrupos; `clases`, el
+// contenido de /clases.
 export function calcularDiasAbiertos({
   reservas,
   grupos,
   clases = {},
-  fechasHabilitadas = {},
   desde = "",
   ahoraMs = Date.now(),
 }) {
@@ -69,10 +65,10 @@ export function calcularDiasAbiertos({
       if (!e.claseId) return;
       const clase = clases?.[e.claseId];
       if (!abreDias(clase) || e.plazas < minPersonasHabilitar(clase)) return;
-      if (tallerTieneHorarioEnFecha(clase, e.fecha, fechasHabilitadas)) return;
 
       const franja = limpiarTurno(e.turno);
       if (!esTurnoConHoras(franja)) return;
+      if (!turnosMinimoDeClase(clase, e.fecha).includes(franja)) return;
       if (!dias[e.fecha]) dias[e.fecha] = [];
       if (!dias[e.fecha].includes(franja)) dias[e.fecha].push(franja);
     },
