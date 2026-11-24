@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Icono from "./components/Icono";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cargarTalleres } from "./catalogoTalleres";
@@ -58,6 +58,30 @@ export default function Portada() {
       },
       { replace: true, state: location.state }
     );
+
+  // Al llegar con ?categoria=…, la barra de categorías se desliza (solo en
+  // horizontal, sin tocar el scroll de la página) hasta dejar la marcada a la vista
+  const barraCentrada = useRef(false);
+  const hayBarra = grupos.length > 1;
+  useEffect(() => {
+    if (barraCentrada.current || !hayBarra) return;
+    barraCentrada.current = true;
+    if (grupoActivo === "todos") return;
+    // Con las fuentes ya cargadas: antes los botones miden menos y se queda corto
+    (document.fonts?.ready ?? Promise.resolve()).then(() => {
+      const boton = document.querySelector(`[data-grupo="${CSS.escape(grupoActivo)}"]`);
+      const barra = boton?.parentElement;
+      if (!barra) return;
+      const rb = boton.getBoundingClientRect();
+      const rr = barra.getBoundingClientRect();
+      // Instantáneo: un scroll suave se corta a medias con el de la página
+      barra.scrollTo({
+        left: barra.scrollLeft + rb.left - rr.left - (rr.width - rb.width) / 2,
+        behavior: "instant",
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hayBarra]);
 
   const talleresVisibles =
     grupoActivo === "todos"
@@ -182,6 +206,7 @@ export default function Portada() {
               {[{ id: "todos", titulo: "Todos" }, ...grupos].map((g) => (
                 <button
                   key={g.id}
+                  data-grupo={g.id}
                   type="button"
                   onClick={(e) => {
                     elegirGrupo(g.id);
