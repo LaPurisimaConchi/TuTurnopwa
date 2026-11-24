@@ -92,7 +92,7 @@ export function estadoDiaTaller({
     clase,
     fecha,
     fechasHabilitadas,
-    diaAbierto: !!diasAbiertos?.[fecha],
+    diaAbierto: diasAbiertos?.[fecha] || false,
   });
   const sinBloqueo = parcial ? turnosDelDia.filter((t) => !bloqueoAfectaTurno(bloqueo, t)) : turnosDelDia;
   if (parcial && turnosDelDia.length && !sinBloqueo.length) {
@@ -167,7 +167,7 @@ export function useDiaDeReserva({
   permiteAbrir = false,
   diasAbiertos = {},
 }) {
-  const diaAbierto = !!fecha && !!diasAbiertos?.[fecha];
+  const diaAbierto = (fecha && diasAbiertos?.[fecha]) || false;
   const turnosBase = useMemo(
     () => turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, diaAbierto }),
     [clase, fecha, fechasHabilitadas, diaAbierto]

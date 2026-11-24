@@ -278,7 +278,8 @@ export function motivoFechaNoValida({
 // Un día sin horario solo se ofrece si ya está abierto (`diasAbiertos`) o si la reserva
 // que se mueve (`plazas` personas) llega al mínimo del taller para abrirlo.
 export function turnosElegibles({ clase, fecha, fechasHabilitadas, diasAbiertos = {}, plazas = 0 }) {
-  const diaAbierto = !!diasAbiertos?.[fecha] || puedeAbrirDia(clase, plazas);
+  // Con personas de sobra la reserva abre su propia franja: valen todos los turnos
+  const diaAbierto = puedeAbrirDia(clase, plazas) || diasAbiertos?.[fecha] || false;
   const turnos = turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, diaAbierto });
   return esTurnoConsulta(turnos) ? [] : turnos.map(limpiarTurno);
 }
