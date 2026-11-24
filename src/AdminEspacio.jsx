@@ -61,10 +61,10 @@ export default function AdminEspacio() {
   };
 
   // Sustituye el horario semanal (y los turnos que piden el mínimo) de todos los talleres
-  // del panel por los de esta caja, tal como se ven ahora, guardados o no
+  // del panel por los de esta caja, tal como se ven ahora, y guarda los ajustes del formulario
   const aplicarATodos = async () => {
-    setError("");
-    setMensaje("");
+    const config = leerFormulario();
+    if (!config) return;
 
     const invalidos = DIAS.flatMap(([dia]) => leerTurnos(form.horariosDefecto[dia])).filter(turnoInvalido);
     if (invalidos.length) return setError(`Revisa los turnos (formato 17:30-20:30): ${invalidos.join(", ")}`);
@@ -83,7 +83,7 @@ export default function AdminEspacio() {
       const seguro = await preguntar(
         `Vas a sustituir el horario semanal y los turnos que piden el mínimo de personas de ${ids.length} ${
           ids.length === 1 ? "taller" : "talleres"
-        } por los de esta caja. Los horarios que tienen ahora se pierden. No se tocan sus reservas. ¿Aplicar?`
+        } por los de esta caja, que también se guardan como horarios por defecto. Los horarios que tienen ahora se pierden. No se tocan sus reservas. ¿Aplicar?`
       );
       if (!seguro) return;
 
@@ -94,6 +94,8 @@ export default function AdminEspacio() {
         cambios[`clases/${id}/turnos`] = turnos;
       });
       await update(ref(dbRealtime), cambios);
+      setForm(aTexto(await guardarConfigEspacio(config)));
+      setVersion((v) => v + 1);
       avisar(`Horarios aplicados a ${ids.length} ${ids.length === 1 ? "taller" : "talleres"}.`);
     } catch (err) {
       console.error("Error al aplicar los horarios a los talleres:", err);
@@ -112,10 +114,16 @@ export default function AdminEspacio() {
     return Number.isInteger(n) ? n : NaN;
   };
 
-  const guardar = async (e) => {
-    e.preventDefault();
+  // Valida el formulario entero y devuelve la configuración a guardar (null si algo falla,
+  // y entonces ya está el error en pantalla)
+  const leerFormulario = () => {
     setError("");
     setMensaje("");
+    const fallar = (texto) => {
+      setError(texto);
+      return null;
+    };
+
 
     const aforoTotal = entero(form.aforoTotal);
     const maxTorno = entero(form.maxTorno);
@@ -127,52 +135,60 @@ export default function AdminEspacio() {
     const mesesCaducidadTarjeta = entero(form.mesesCaducidadTarjeta);
 
     if (!(aforoTotal >= 1 && aforoTotal <= 500)) {
-      return setError("El aforo total debe ser un número entre 1 y 500.");
+      return fallar("El aforo total debe ser un número entre 1 y 500.");
     }
     if (!(maxTorno >= 0 && maxTorno <= aforoTotal)) {
-      return setError("Las plazas de torno deben estar entre 0 y el aforo total.");
+      return fallar("Las plazas de torno deben estar entre 0 y el aforo total.");
     }
     if (!(minPersonasGrupo >= 2 && minPersonasGrupo <= 45)) {
-      return setError("El mínimo de personas para un grupo debe estar entre 2 y 45.");
+      return fallar("El mínimo de personas para un grupo debe estar entre 2 y 45.");
     }
     if (!(minutosReserva >= 1 && minutosReserva <= 120)) {
-      return setError("Los minutos de reserva de plaza deben estar entre 1 y 120.");
+      return fallar("Los minutos de reserva de plaza deben estar entre 1 y 120.");
     }
     const horasValidas = [horasCambioReserva, horasCambioBono].every(
       (h) => h >= 0 && h <= 720
     );
     if (!horasValidas) {
-      return setError("Las horas de antelación deben ser un número entre 0 y 720.");
+      return fallar("Las horas de antelación deben ser un número entre 0 y 720.");
     }
 
     if (!(diasVentanaReprogramar >= 1 && diasVentanaReprogramar <= 730)) {
-      return setError("Los días por delante para reprogramar deben estar entre 1 y 730.");
+      return fallar("Los días por delante para reprogramar deben estar entre 1 y 730.");
     }
 
     if (!(mesesCaducidadTarjeta >= 1 && mesesCaducidadTarjeta <= 60)) {
-      return setError("Los meses de validez de las tarjetas regalo deben estar entre 1 y 60.");
+      return fallar("Los meses de validez de las tarjetas regalo deben estar entre 1 y 60.");
     }
 
     const telefonoWhatsapp = normalizarTelefonoWhatsapp(form.telefonoWhatsapp);
     if (!telefonoWhatsapp) {
-      return setError("El WhatsApp del taller debe ser un teléfono español de 9 cifras (por ejemplo, 644 671 664).");
+      return fallar("El WhatsApp del taller debe ser un teléfono español de 9 cifras (por ejemplo, 644 671 664).");
     }
+
+    return {
+      aforoTotal,
+      maxTorno,
+      minPersonasGrupo,
+      minutosReserva,
+      horasCambioReserva,
+      horasCambioBono,
+      diasVentanaReprogramar,
+      mesesCaducidadTarjeta,
+      telefonoWhatsapp,
+      horariosDefecto: form.horariosDefecto,
+      horariosMinimoDefecto: form.horariosMinimoDefecto,
+    };
+  };
+
+  const guardar = async (e) => {
+    e.preventDefault();
+    const config = leerFormulario();
+    if (!config) return;
 
     setGuardando(true);
     try {
-      const guardada = await guardarConfigEspacio({
-        aforoTotal,
-        maxTorno,
-        minPersonasGrupo,
-        minutosReserva,
-        horasCambioReserva,
-        horasCambioBono,
-        diasVentanaReprogramar,
-        mesesCaducidadTarjeta,
-        telefonoWhatsapp,
-        horariosDefecto: form.horariosDefecto,
-        horariosMinimoDefecto: form.horariosMinimoDefecto,
-      });
+      const guardada = await guardarConfigEspacio(config);
       setForm(aTexto(guardada));
       setVersion((v) => v + 1);
       setMensaje("Ajustes guardados.");
@@ -431,7 +447,7 @@ export default function AdminEspacio() {
                 <p className={ayuda}>
                   Sustituye el horario semanal y los turnos «Mín.» de todos los talleres del panel
                   (no los monográficos, los bonos ni los de siempre sin migrar) por los de esta caja,
-                  tal como están ahora, aunque no hayas guardado. Pide confirmación antes.
+                  tal como están ahora, y guarda todos los ajustes de esta página (también como horarios por defecto de los talleres nuevos). Pide confirmación antes.
                 </p>
               </div>
             </section>
