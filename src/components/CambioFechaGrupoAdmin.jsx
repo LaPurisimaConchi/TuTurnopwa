@@ -6,7 +6,7 @@
 // Los turnos son los de su taller (los mismos que ofrece ReservaGrupos.jsx).
 import { useState } from "react";
 import CalendarioReserva from "./CalendarioReserva";
-import { turnoYaEmpezado, turnosDeGrupo } from "../utils/cambioFecha";
+import { turnoYaEmpezado, turnosDeGrupo, turnosSoloConMinimo } from "../utils/cambioFecha";
 import { bloqueoAfectaTurno } from "../utils/rangosHora";
 import { contarFranja, plazasLibresFranja, turnosCompartenPlazas, usaTorno } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
@@ -47,8 +47,22 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
       (t) => !bloqueoAfectaTurno(bloqueos?.[iso], t) && !turnoYaEmpezado(iso, t)
     );
 
+  // Turnos de un día abierto en parte que el grupo no puede elegir por no llegar al
+  // mínimo del taller: se enseñan en azul, como en la ficha del taller
+  const cerradosDe = (iso) =>
+    turnosSoloConMinimo({
+      clase,
+      fecha: iso,
+      fechasHabilitadas,
+      plazas,
+      elegibles: turnosDeGrupo({ grupo, clase, fecha: iso, fechasHabilitadas, diasAbiertos }),
+      esValido: (t) => !bloqueoAfectaTurno(bloqueos?.[iso], t) && !turnoYaEmpezado(iso, t),
+    });
+
   const estadoDia = (iso) => {
     if (turnosDe(iso).length > 0) return { estado: "disponible" };
+    const cerrados = cerradosDe(iso);
+    if (cerrados) return { estado: "solo-grupo", minimo: cerrados.minimo };
     const bloqueo = bloqueos?.[iso];
     return bloqueo?.bloqueado ? { estado: "bloqueado", motivo: bloqueo.motivo || "" } : { estado: "sin-taller" };
   };
@@ -70,10 +84,13 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
   };
 
   const turnosDelDia = fecha ? turnosDe(fecha) : [];
+  const cerrados = fecha ? cerradosDe(fecha) : null;
+  const turnosMinimo = cerrados?.turnosMinimo || [];
+  const turnoCerrado = !!turno && turnosMinimo.includes(turno);
   const bloqueoDelDia = fecha ? bloqueos?.[fecha] : null;
   const libres = turno ? libresEn(turno) : null;
   const faltaSitio = libres !== null && libres < plazas;
-  const hayCambio = !!fecha && !!turno && (fecha !== grupo.fecha || turno !== grupo.turno);
+  const hayCambio = !!fecha && !!turno && !turnoCerrado && (fecha !== grupo.fecha || turno !== grupo.turno);
 
   const guardar = async () => {
     if (!hayCambio) return;
@@ -132,9 +149,10 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
           <div>
             <p className="font-semibold mb-1">Turno</p>
             <div className="flex flex-wrap gap-2">
-              {turnosDelDia.map((t) => {
+              {[...turnosDelDia, ...turnosMinimo].sort().map((t) => {
                 const activo = t === turno;
-                const libresTurno = libresEn(t);
+                const esMinimo = turnosMinimo.includes(t);
+                const libresTurno = esMinimo ? null : libresEn(t);
                 return (
                   <button
                     key={t}
@@ -144,6 +162,8 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
                     className={`px-3 py-2 rounded-lg border text-left ${
                       activo
                         ? "bg-terracota border-terracota text-white"
+                        : esMinimo
+                        ? "bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100"
                         : "bg-mostaza-suave border-mostaza text-tinta hover:bg-mostaza/40"
                     }`}
                   >
@@ -158,6 +178,12 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
               })}
             </div>
           </div>
+        )}
+
+        {turnoCerrado && (
+          <p className="text-red-600" role="alert">
+            Ese turno está cerrado: para abrirlo hacen falta al menos {cerrados.minimo} personas y el grupo es de {plazas}.
+          </p>
         )}
 
         {faltaSitio && (

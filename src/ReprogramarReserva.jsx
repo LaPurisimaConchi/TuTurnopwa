@@ -87,7 +87,15 @@ export default function ReprogramarReserva() {
   }, [usuario, esBono, id, reservaId, sesionCurso]);
 
   const opciones = useMemo(() => datos?.opciones || [], [datos]);
-  const diasConPlaza = useMemo(() => new Set(opciones.map((o) => o.fecha)), [opciones]);
+  const diasConPlaza = useMemo(
+    () => new Set(opciones.filter((o) => o.turnos?.length).map((o) => o.fecha)),
+    [opciones]
+  );
+  // Días cerrados que solo se abren con un mínimo de personas (azules, como en la ficha)
+  const diasMinimo = useMemo(
+    () => new Map(opciones.filter((o) => !o.turnos?.length && o.turnosMinimo?.length).map((o) => [o.fecha, o.minimo])),
+    [opciones]
+  );
   const opcionDelDia = useMemo(() => opciones.find((o) => o.fecha === fecha), [opciones, fecha]);
   const turnosDelDia = useMemo(() => opcionDelDia?.turnos || [], [opcionDelDia]);
   // Turnos del día que solo se abren con un mínimo de personas (azules: no se pueden elegir
@@ -188,11 +196,17 @@ export default function ReprogramarReserva() {
                     setFecha(iso);
                     setTurno("");
                   }}
-                  estadoDia={(iso) => ({ estado: diasConPlaza.has(iso) ? "disponible" : "sin-hueco" })}
+                  estadoDia={(iso) =>
+                    diasConPlaza.has(iso)
+                      ? { estado: "disponible" }
+                      : diasMinimo.has(iso)
+                      ? { estado: "solo-grupo", minimo: diasMinimo.get(iso) }
+                      : { estado: "sin-hueco" }
+                  }
                   desde={esBono ? reserva.validoDesde || "" : ""}
                   hasta={esBono ? reserva.validoHasta || "" : ""}
                 />
-                {opciones.length === 0 && (
+                {diasConPlaza.size === 0 && diasMinimo.size === 0 && (
                   <p className="mt-2 text-sm text-red-600">No hay días con plazas disponibles ahora mismo.</p>
                 )}
               </div>
@@ -206,6 +220,7 @@ export default function ReprogramarReserva() {
                 value={turno}
                 onChange={setTurno}
                 turnos={[...turnosDelDia.map((t) => t.turno), ...turnosMinimo].sort()}
+                botones
                 turnosMinimo={turnosMinimo}
                 minimo={minimo}
                 deshabilitado={!fecha}
