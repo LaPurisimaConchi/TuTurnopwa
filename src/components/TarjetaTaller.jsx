@@ -2,6 +2,7 @@
 // Tarjeta de taller con foto, usada en la portada y en los listados
 import { useNavigate } from "react-router-dom";
 import { formatearEuros, TALLERES_FIJOS } from "../catalogoTalleres";
+import { etiquetaSesiones } from "../catalogoBase";
 import ImagenTaller from "./ImagenTaller";
 
 export default function TarjetaTaller({ taller, imagen, textoBoton = "Ver taller", onElegir }) {
@@ -21,9 +22,9 @@ export default function TarjetaTaller({ taller, imagen, textoBoton = "Ver taller
           alt={taller.nombre}
           imgClassName="transition duration-300 group-hover:scale-105"
         />
-        {taller.sesiones > 1 && (
+        {etiquetaSesiones(taller) && (
           <span className="absolute left-2 top-2 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-tinta-suave shadow-sm">
-            {taller.sesiones} sesiones
+            {etiquetaSesiones(taller)}
           </span>
         )}
       </button>
