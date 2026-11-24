@@ -828,7 +828,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
           )}
 
           <SelectorTurnoReserva
-            botones={incrustado}
+            botones
             value={turno}
             onChange={(valor) => {
               setTurno(valor);

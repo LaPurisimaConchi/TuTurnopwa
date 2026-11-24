@@ -10,6 +10,7 @@ import DateInputReserva from "./components/DateInputReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
+import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 const CLASE_ID = "tornodecoracion4clases";
 const RESERVAS_PATH_KEY = "TornoAlfareroYDecoracion";
 
@@ -483,24 +484,15 @@ if (turnosConfig) {
             </div>
 
             <div>
-              <label htmlFor="turno" className="block font-bold text-sm mb-1">
-                Selecciona el turno habitual:
-              </label>
-              <select
-                id="turno"
-                value={turno}
-                onChange={(e) => setTurno(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base"
-                required
-                disabled={!fechaInicio || diaNoDisponible}
-              >
-                <option value="">-- Elige turno --</option>
-                {turnosDisponibles.map((turnoItem) => (
-                  <option key={turnoItem} value={turnoItem}>
-                    {turnoItem}
-                  </option>
-                ))}
-              </select>
+              <SelectorTurnoReserva
+                  etiqueta="Selecciona el turno habitual:"
+                  value={turno}
+                  onChange={(valor) => setTurno(valor)}
+                  turnos={turnosDisponibles}
+                  deshabilitado={!fechaInicio || diaNoDisponible}
+                  placeholder={"-- Elige turno --"}
+                  botones
+                />
             </div>
 
             <div className="bg-crema border border-linea rounded-xl p-3 text-sm text-tinta">

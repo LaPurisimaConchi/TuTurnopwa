@@ -14,6 +14,7 @@ import DateInputReserva from "./components/DateInputReserva";
 
 import { fechaDMA } from "./utils/formatoFecha";
 import { canjearTarjetaRegalo, mensajeErrorCanje } from "./utils/canjeServidor";
+import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
 const CLASE_ID = "creatumaceta";
 const RESERVAS_PATH_KEY = "CreaTuMaceta";
 
@@ -619,22 +620,16 @@ const plazasDisponibles = useMemo(() => {
               </div>
 
               <div>
-                <label htmlFor="turno" className="block font-bold text-sm mb-1">
-                  Selecciona turno:
-                </label>
-                <select
-                  id="turno"
+                <SelectorTurnoReserva
+                  etiqueta="Selecciona turno:"
                   value={turno}
-                  onChange={(e) => {
-                    setTurno(e.target.value);
+                  onChange={(valor) => {
+                    setTurno(valor);
                     setPlazas(1);
                   }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base disabled:bg-arena disabled:text-tinta-suave"
-                  required
-                  disabled={!puedeElegirTurno}
-                >
-                  <option value="">
-                    {!tamanoMaceta
+                  turnos={turnosDisponibles}
+                  deshabilitado={!puedeElegirTurno}
+                  placeholder={!tamanoMaceta
                       ? "-- Primero elige el tamaño --"
                       : !fecha
                       ? "-- Primero selecciona la fecha --"
@@ -643,13 +638,8 @@ const plazasDisponibles = useMemo(() => {
                       : diaNoDisponible
                       ? "-- No hay turnos para este día --"
                       : "-- Elige turno --"}
-                  </option>
-                  {turnosDisponibles.map((turnoItem) => (
-                    <option key={turnoItem} value={turnoItem}>
-                      {turnoItem}
-                    </option>
-                  ))}
-                </select>
+                  botones
+                />
               </div>
 
               {metodo && fecha && !diaNoDisponible && (

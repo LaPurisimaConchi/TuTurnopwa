@@ -314,6 +314,7 @@ export default function UsarBono() {
           {activo && (
             <div className="space-y-4">
               <SelectorTurnoReserva
+                botones
                 etiqueta="Selecciona el turno:"
                 value={turno}
                 onChange={setTurno}

@@ -33,9 +33,11 @@ export default function SelectorTurnoReserva({
   if (botones) {
     return (
       <div ref={raiz}>
-        <p id={`${id}-etiqueta`} className="block font-bold text-sm mb-2">
-          {etiqueta}
-        </p>
+        {etiqueta && (
+          <p id={`${id}-etiqueta`} className="block font-bold text-sm mb-2">
+            {etiqueta}
+          </p>
+        )}
         {deshabilitado || !turnos.length ? (
           <p className="text-sm text-tinta-suave">{placeholder.replace(/^-+\s*|\s*-+$/g, "")}</p>
         ) : (
