@@ -68,7 +68,7 @@ export default function Header() {
   const enGestion = pathname === "/gestionar-reserva";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-linea bg-crema/95 backdrop-blur">
+    <header className="sticky top-[var(--banda-entorno,0px)] z-40 border-b border-linea bg-crema/95 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:px-6">
         <Link
           to="/portada"

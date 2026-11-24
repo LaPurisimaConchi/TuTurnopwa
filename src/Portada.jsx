@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Icono from "./components/Icono";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { cargarTalleres } from "./catalogoTalleres";
 import TarjetaTaller from "./components/TarjetaTaller";
 import BarraDeslizable from "./components/BarraDeslizable";
@@ -14,7 +14,8 @@ export default function Portada() {
   const { config } = useConfigEspacio();
   const [talleres, setTalleres] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [grupoActivo, setGrupoActivo] = useState("todos");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const categoriaUrl = searchParams.get("categoria");
   const miniaturas = useMiniaturasTalleres(talleres);
   const categorias = useCategorias();
 
@@ -25,20 +26,38 @@ export default function Portada() {
       .finally(() => setCargando(false));
   }, []);
 
-  // Llegada desde «Ver todos los talleres»: baja con animación al listado
+  // Llegada desde «Ver todos los talleres» o desde un enlace con ?categoria=…:
+  // baja con animación al listado
+  const irAlListado = Boolean(location.state?.irATalleres || categoriaUrl);
   useEffect(() => {
-    if (cargando || !location.state?.irATalleres) return;
+    if (cargando || !irAlListado) return;
     const t = setTimeout(
       () => document.getElementById("talleres")?.scrollIntoView({ behavior: "smooth" }),
       150
     );
     return () => clearTimeout(t);
-  }, [cargando, location.state]);
+    // Solo al cargar: cambiar de categoría después no vuelve a hacer scroll
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cargando]);
 
   const grupos = useMemo(
     () => categorias.filter((g) => talleres.some((t) => t.grupo === g.id)),
     [categorias, talleres]
   );
+
+  // La categoría activa sale de la URL; si no existe, se enseñan todos
+  const grupoActivo = grupos.some((g) => g.id === categoriaUrl) ? categoriaUrl : "todos";
+
+  const elegirGrupo = (id) =>
+    setSearchParams(
+      (prev) => {
+        const nuevo = new URLSearchParams(prev);
+        if (id === "todos") nuevo.delete("categoria");
+        else nuevo.set("categoria", id);
+        return nuevo;
+      },
+      { replace: true, state: location.state }
+    );
 
   const talleresVisibles =
     grupoActivo === "todos"
@@ -143,7 +162,7 @@ export default function Portada() {
       </section>
 
       {/* CATÁLOGO */}
-      <section id="talleres" className="px-4 pb-12 scroll-mt-16">
+      <section id="talleres" className="px-4 pb-12 scroll-mt-[calc(4rem+var(--banda-entorno,0px))]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-5">
             <h2 className="text-2xl md:text-3xl font-serif font-semibold text-tinta">
@@ -165,7 +184,7 @@ export default function Portada() {
                   key={g.id}
                   type="button"
                   onClick={(e) => {
-                    setGrupoActivo(g.id);
+                    elegirGrupo(g.id);
                     e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
                   }}
                   className={`shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition ${
