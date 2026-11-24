@@ -3,7 +3,12 @@
 // (número de reserva + email). Sin React ni Firebase: lo usa api/cambiar-fecha.js
 // y la pantalla /gestionar-reserva para mostrar los mismos plazos.
 import { esReservaValida } from "./plazasOcupadas.js";
-import { esTurnoConsulta, limpiarTurno, turnosConMinimoEnFecha, turnosDisponiblesEnFecha } from "./turnosFecha.js";
+import {
+  esTurnoConsulta,
+  limpiarTurno,
+  turnosConMinimoEnFecha,
+  turnosDisponiblesEnFecha,
+} from "./turnosFecha.js";
 import { abreDias, puedeAbrirDia } from "./diasAbiertos.js";
 import { minPersonasHabilitar } from "../catalogoBase.js";
 import { contarFranja, plazasLibresFranja, usaTorno } from "./aforo.js";
@@ -347,9 +352,9 @@ export function opcionesDeCambio({
     {
       const opcion = { fecha, turnos };
 
-      // Días sin horario: los turnos de días abiertos que no se abren (todos, si el día
-      // está cerrado) se enseñan en azul, pero solo se abren con el mínimo de personas
-      if (!reserva.desdeBono) {
+      // Los turnos que piden el mínimo de personas y siguen cerrados se enseñan en azul
+      // (también en las sesiones de bono, que no pueden abrirlos: son de 1 plaza)
+      {
         const cerrados = turnosSoloConMinimo({
           clase,
           fecha,
@@ -360,7 +365,8 @@ export function opcionesDeCambio({
           esValido: (turno) =>
             !motivoFechaNoValida({ fecha, turno, ahoraMs, bloqueos, margenHoras, ventanaDias }),
         });
-        if (cerrados) Object.assign(opcion, cerrados);
+        // En una sesión de bono el mínimo lo marca el taller que abre el turno: sin número
+        if (cerrados) Object.assign(opcion, cerrados, reserva.desdeBono ? { minimo: 0 } : {});
       }
 
       if (turnos.length || opcion.turnosMinimo) opciones.push(opcion);

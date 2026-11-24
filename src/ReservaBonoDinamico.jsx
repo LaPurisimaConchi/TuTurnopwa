@@ -91,14 +91,18 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
   const distribucionClases = clase.distribucionClases || "";
   const incluyeDecoracion = Boolean(clase.incluyeDecoracion ?? false);
 
-  const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
+  const { turnosDisponibles, turnosMinimo, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
     useDiaDeReserva({
       clase,
       fecha: fechaInicio,
       fechasBloqueadas,
       fechasHabilitadas,
+      permiteAbrir: true,
       diasAbiertos,
     });
+  // Un bono es de una plaza: nunca llega al mínimo, así que los turnos que lo piden y siguen
+  // cerrados se enseñan en azul pero no se pueden comprar
+  const turnoCerrado = !!turno && turnosMinimo.includes(turno);
 
   const esTorno = /torno/i.test(modalidad);
   const plazasQuedan = plazasLibresFranja(
@@ -424,7 +428,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
               setTurno("");
             }}
             estadoDia={(iso) =>
-              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
+              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos })
             }
             cargando={!contextoCargado}
             fechaBloqueada={fechaBloqueada}
@@ -448,9 +452,17 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
             value={turno}
             onChange={setTurno}
             turnos={turnosDisponibles}
+            turnosMinimo={turnosMinimo}
             deshabilitado={!fechaInicio || diaNoDisponible}
             placeholder={!fechaInicio ? "-- Primero selecciona el día --" : "-- Elige turno --"}
           />
+
+          {turnoCerrado && (
+            <p className="text-sm text-red-600 font-medium" role="alert">
+              Este turno está cerrado: solo se abre cuando otra reserva llega al mínimo de personas de su taller.
+              Elige otro turno u otro día.
+            </p>
+          )}
 
           {!!turno && errorPlazas && (
             <p className="text-sm text-red-600" role="alert">
@@ -517,6 +529,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
             guardando={guardando}
             desdeTarjeta={desdeTarjeta}
             deshabilitado={
+              turnoCerrado ||
               !!fechaBloqueada ||
               diaNoDisponible ||
               !fechaInicio ||

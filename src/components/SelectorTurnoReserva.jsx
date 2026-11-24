@@ -90,7 +90,7 @@ export default function SelectorTurnoReserva({
             className={turnosMinimo.includes(turno) ? "bg-sky-50 text-sky-800" : undefined}
           >
             {turno}
-            {turnosMinimo.includes(turno) ? ` (desde ${minimo} personas)` : ""}
+            {turnosMinimo.includes(turno) ? (minimo ? ` (desde ${minimo} personas)` : " (cerrado)") : ""}
           </option>
         ))}
       </select>
