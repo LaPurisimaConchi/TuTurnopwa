@@ -470,11 +470,12 @@ useEffect(() => {
         clase: claseParaFechas,
         fecha: nuevaFecha,
         fechasHabilitadas,
+        diasAbiertos,
         plazas: plazasMovidas,
         elegibles: turnosDisponiblesReprogramacion,
       }) || { turnosMinimo: [], minimo: 0 }
     );
-  }, [claseParaFechas, nuevaFecha, fechasHabilitadas, plazasMovidas, turnosDisponiblesReprogramacion]);
+  }, [claseParaFechas, nuevaFecha, fechasHabilitadas, diasAbiertos, plazasMovidas, turnosDisponiblesReprogramacion]);
   const nuevoTurnoCerrado =
     !!nuevoTurno && turnosMinimoReprogramacion.turnosMinimo.includes(normalizarTurnoParaRuta(nuevoTurno));
 

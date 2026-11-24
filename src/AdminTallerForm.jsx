@@ -215,19 +215,21 @@ export default function AdminTallerForm() {
       .finally(() => setCategoriasCargadas(true));
   }, []);
 
-  // Taller nuevo: se parte de los horarios por defecto de «Espacio»
+  // Horarios por defecto de «Espacio»; un taller nuevo parte de ellos
+  const [configEspacio, setConfigEspacio] = useState(null);
   useEffect(() => {
-    if (idEditar) return;
     let activo = true;
     cargarConfigEspacio().then((config) => {
       if (!activo) return;
+      setConfigEspacio(config);
+      if (idEditar) return;
       setForm((prev) =>
         DIAS.some(([dia]) => prev.horarios[dia])
           ? prev
           : {
               ...prev,
               horarios: { ...prev.horarios, ...config.horariosDefecto },
-              turnos: prev.turnos || config.turnosDiasAbiertosDefecto || "",
+              horariosMinimo: { ...prev.horariosMinimo, ...config.horariosMinimoDefecto },
             }
       );
     });
@@ -289,6 +291,18 @@ export default function AdminTallerForm() {
 
   const cambiarHorario = (dia, valor) =>
     setForm((prev) => ({ ...prev, horarios: { ...prev.horarios, [dia]: valor } }));
+  // Marcar la casilla pone los horarios por defecto de «Espacio» (bloqueados); al
+  // desmarcarla se conserva lo que había y se puede personalizar
+  const cambiarHorariosPorDefecto = (usar) =>
+    setForm((prev) => ({
+      ...prev,
+      horariosPorDefecto: usar,
+      ...(usar && configEspacio
+        ? { horarios: { ...configEspacio.horariosDefecto }, horariosMinimo: { ...configEspacio.horariosMinimoDefecto } }
+        : {}),
+    }));
+  const cambiarHorarioMinimo = (dia, valor) =>
+    setForm((prev) => ({ ...prev, horariosMinimo: { ...prev.horariosMinimo, [dia]: valor } }));
 
   // --- Secciones de texto ---
   const cambiarSeccion = (indice, campo, valor) =>
@@ -345,20 +359,9 @@ export default function AdminTallerForm() {
       };
     });
 
-  // Sin turnos de días abiertos ni horario semanal, el taller no puede abrir días
-  const sinTurnosParaAbrir = useMemo(() => {
-    const propios = leerTurnos(form.turnos).filter((t) => !turnoInvalido(t));
-    const semanales = DIAS.flatMap(([dia]) => leerTurnos(form.horarios[dia])).filter((t) => !turnoInvalido(t));
-    return form.tipoProducto !== "bono" && propios.length === 0 && semanales.length === 0;
-  }, [form.turnos, form.horarios, form.tipoProducto]);
-
   const turnosInvalidos = useMemo(
-    () =>
-      [
-        ...DIAS.flatMap(([dia]) => leerTurnos(form.horarios[dia])),
-        ...leerTurnos(form.turnos),
-      ].filter(turnoInvalido),
-    [form.horarios, form.turnos]
+    () => DIAS.flatMap(([dia]) => leerTurnos(form.horarios[dia])).filter(turnoInvalido),
+    [form.horarios]
   );
 
   // --- Fotos ---
@@ -1473,11 +1476,36 @@ export default function AdminTallerForm() {
               <h2 className="text-lg font-semibold text-tinta">Horario semanal</h2>
               <p className="text-sm text-tinta-suave">
                 Elige los turnos de cada día con los atajos o con «Otra hora». Un día
-                sin turnos es un día sin taller. Las fechas bloqueadas y habilitadas
-                desde el panel también se aplican.
+                sin turnos es un día sin taller. Marca con «Mín.» los turnos que solo se
+                abren cuando una reserva llega al mínimo de personas del taller
+                ({form.minPersonasGrupo || 5}): hasta entonces salen en azul y solo los
+                reserva un grupo de ese tamaño. Los turnos sin marcar se reservan con
+                cualquier número de personas. Las fechas bloqueadas y habilitadas desde
+                el panel también se aplican.
               </p>
 
-              <div className="space-y-3">
+              {!esBono && (
+                <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.horariosPorDefecto}
+                    onChange={(e) => cambiarHorariosPorDefecto(e.target.checked)}
+                  />
+                  <span className="text-sm">
+                    <strong>Usar los horarios por defecto</strong>
+                    <span className="block text-xs text-tinta-suave mt-0.5">
+                      Los de «Espacio». Al marcarla se ponen esos horarios, y «Aplicar a todos los talleres» los
+                      actualiza en este taller. Desmárcala para personalizarlos: este taller ya no cambia con ese botón.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              <fieldset
+                disabled={!esBono && form.horariosPorDefecto}
+                className="space-y-3 border-0 p-0 m-0 min-w-0 disabled:opacity-60"
+              >
                 {DIAS.map(([dia, nombreDia]) => (
                   <div
                     key={dia}
@@ -1491,6 +1519,8 @@ export default function AdminTallerForm() {
                         id={`horario-${dia}`}
                         value={form.horarios[dia]}
                         onChange={(valor) => cambiarHorario(dia, valor)}
+                        minimo={form.horariosMinimo?.[dia] || ""}
+                        onMinimoChange={esBono ? undefined : (valor) => cambiarHorarioMinimo(dia, valor)}
                       />
                       {leerTurnos(form.horarios[dia]).length > 0 && (
                         <button
@@ -1500,6 +1530,9 @@ export default function AdminTallerForm() {
                               ...prev,
                               horarios: Object.fromEntries(
                                 DIAS.map(([d]) => [d, prev.horarios[dia]])
+                              ),
+                              horariosMinimo: Object.fromEntries(
+                                DIAS.map(([d]) => [d, prev.horariosMinimo?.[dia] || ""])
                               ),
                             }))
                           }
@@ -1511,31 +1544,7 @@ export default function AdminTallerForm() {
                     </div>
                   </div>
                 ))}
-              </div>
-
-              <div>
-                <label htmlFor="taller-turnos" className={label}>
-                  Turnos de días abiertos (opcional)
-                </label>
-                <EditorTurnos
-                  id="taller-turnos"
-                  textoVacio="Los del horario semanal"
-                  value={form.turnos}
-                  onChange={(valor) => cambiar("turnos", valor)}
-                />
-                <p className="text-xs text-tinta-suave mt-1">
-                  Son los turnos que se ofrecen en un día sin horario cuando se abre: con una
-                  reserva que llega al mínimo de personas del taller (o al habilitar la fecha
-                  desde administración). Sin ninguno, se usan los del horario semanal. Si el
-                  taller no tiene ningún turno válido, no podrá abrir días.
-                </p>
-                {sinTurnosParaAbrir && (
-                  <p className="text-sm text-red-600 mt-1">
-                    Este taller no tiene turnos válidos: no podrá abrir días sin horario. Añade
-                    turnos aquí o en el horario semanal.
-                  </p>
-                )}
-              </div>
+              </fieldset>
 
                 </>
               )}

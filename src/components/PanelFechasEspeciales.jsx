@@ -206,7 +206,7 @@ export default function PanelFechasEspeciales({
         <p style={estilos.ayuda}>
           {modo === "bloquear"
             ? "Horas a bloquear. Sin ninguna se bloquea el día entero; un turno se bloquea si se cruza con alguna de estas horas."
-            : "Turnos que se abren esos días."}
+            : "Franjas que se abren esos días: los turnos que piden el mínimo y caben en ellas dejan de exigirlo."}
         </p>
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 14 }}>
           <input
@@ -216,7 +216,7 @@ export default function PanelFechasEspeciales({
               (modo === "bloquear" ? setTodoBloqueo : setTodoHabilitar)(e.target.checked)
             }
           />
-          Todo el día{modo === "habilitar" ? " (todos los turnos del taller)" : ""}
+          Todo el día{modo === "habilitar" ? " (todos los turnos que piden el mínimo)" : ""}
         </label>
         {!(modo === "bloquear" ? todoBloqueo : todoHabilitar) && (
         <EditorTurnos

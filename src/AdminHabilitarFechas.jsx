@@ -14,9 +14,9 @@ const AdminHabilitarFechas = () => {
   const [fechaFin, setFechaFin] = useState("");
   const [motivo, setMotivo] = useState("");
   const [fechasHabilitadas, setFechasHabilitadas] = useState([]);
-  // Turnos que se ofrecen: los «turnos de días abiertos» de /admin-espacio
+  // Franjas que se abren ese día
   const [turnosElegidos, setTurnosElegidos] = useState([]);
-  // «Todo el día»: se abren todos los turnos del taller ese día (sin lista concreta)
+  // «Todo el día»: se abren todos los turnos que piden el mínimo ese día (sin lista concreta)
   const [todoElDia, setTodoElDia] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [eliminandoFecha, setEliminandoFecha] = useState("");
@@ -188,7 +188,7 @@ setFechaEditando(null);
 
         <h1 style={styles.titulo}>Abrir días</h1>
         <p style={styles.subtitulo}>
-          Abre un día sin horario para que cualquier taller se pueda reservar ese día, sin esperar a una reserva que llegue al mínimo de personas.
+          Abre una franja para que los turnos que piden el mínimo de personas y caben dentro de ella se puedan reservar con cualquier número de personas, sin esperar a una reserva que llegue al mínimo. No crea turnos: un taller sin turnos ese día sigue sin dar clase.
         </p>
 
         <div style={styles.card}>
@@ -226,7 +226,7 @@ setFechaEditando(null);
           </div>
 
           <div style={styles.campo}>
-            <label style={styles.label}>Turnos que se ofrecen</label>
+            <label style={styles.label}>Franjas que se abren</label>
 
             <label style={styles.checkboxLabel}>
               <input
@@ -234,7 +234,7 @@ setFechaEditando(null);
                 checked={todoElDia}
                 onChange={(e) => setTodoElDia(e.target.checked)}
               />
-              Todo el día (todos los turnos del taller)
+              Todo el día (todos los turnos que piden el mínimo)
             </label>
             {!todoElDia && (
               <EditorTurnos
@@ -245,7 +245,7 @@ setFechaEditando(null);
               />
             )}
             <p style={styles.avisoTurnos}>
-  Elige los turnos que quieras ofrecer ese día, con las horas que necesites, o marca «Todo el día».
+  Elige las franjas con las horas que necesites (un turno se abre si cabe entero en una franja), o marca «Todo el día».
 </p>
 {fechaEditando && (
   <p style={styles.avisoEdicion}>

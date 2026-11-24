@@ -45,13 +45,27 @@ export const esTurnoConHoras = (turno) => {
   return !!m && Number(m[3]) * 60 + Number(m[4]) > Number(m[1]) * 60 + Number(m[2]);
 };
 
-// Turnos que ofrece un taller en un día abierto (sin horario semanal): los «turnos de
-// días abiertos» de su ficha (`clase.turnos`). Sin turnos válidos no puede abrir días.
-export const turnosDiasAbiertos = (clase) =>
-  normalizarTurnos(clase?.turnos).map(limpiarTurno).filter(esTurnoConHoras);
+// Solo los talleres del panel con horario semanal tienen turnos que piden el mínimo de
+// personas: los de siempre sin migrar, los monográficos (fechas fijas) y los bonos no.
+export const abreDias = (clase) =>
+  !!clase && clase.dinamica === true && clase.monografico !== true && clase.tipoProducto !== "bono";
 
-// Un turno abierto por una franja debe empezar, como muy tarde, este margen antes de que
-// ella termine
+const minutosDe = (h, m) => Number(h) * 60 + Number(m);
+const RANGO = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/;
+
+// Turnos de un día de la semana que piden el mínimo de personas para abrirse
+// (`clase.horariosMinimo[dia]`, subconjunto de `clase.horarios[dia]`)
+export function turnosMinimoDeClase(clase, fecha) {
+  if (!abreDias(clase)) return [];
+  const dia = nombreDiaSemana(fecha);
+  const delDia = normalizarTurnos(clase?.horarios?.[dia]).map(limpiarTurno);
+  return normalizarTurnos(clase?.horariosMinimo?.[dia])
+    .map(limpiarTurno)
+    .filter((t) => esTurnoConHoras(t) && delDia.includes(t));
+}
+
+// Un turno abierto por una reserva debe empezar, como muy tarde, este margen antes de que
+// termine el turno de esa reserva
 export const MARGEN_FIN_FRANJA_MIN = 30;
 
 // ¿El turno empieza dentro de alguna de las franjas? Solo cuenta la hora de inicio:
@@ -60,53 +74,64 @@ export const MARGEN_FIN_FRANJA_MIN = 30;
 export function turnoEmpiezaEnFranjas(turno, franjas = []) {
   const inicio = /^(\d{1,2}):(\d{2})\s*-/.exec(limpiarTurno(turno));
   if (!inicio) return false;
-  const minutos = Number(inicio[1]) * 60 + Number(inicio[2]);
+  const minutos = minutosDe(inicio[1], inicio[2]);
 
   return franjas.some((franja) => {
-    const m = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/.exec(limpiarTurno(franja));
+    const m = RANGO.exec(limpiarTurno(franja));
     return (
       !!m &&
-      minutos >= Number(m[1]) * 60 + Number(m[2]) &&
-      minutos <= Number(m[3]) * 60 + Number(m[4]) - MARGEN_FIN_FRANJA_MIN
+      minutos >= minutosDe(m[1], m[2]) &&
+      minutos <= minutosDe(m[3], m[4]) - MARGEN_FIN_FRANJA_MIN
     );
   });
 }
 
-// `diaAbierto`: el día no tiene horario pero está abierto. `true` abre todos los turnos
-// de días abiertos del taller (la reserva que se hace llega al mínimo de personas y
-// abre su propia franja); una lista de franjas ("10:00-14:00", las de las reservas que
-// llegaron al mínimo) abre solo los turnos que empiezan dentro de alguna.
-export function turnosDisponiblesEnFecha({
-  clase,
-  fecha,
-  fechasHabilitadas = {},
-  diaAbierto = false,
-}) {
+// ¿El turno cabe entero dentro de alguna franja? Es la regla de las franjas que se abren
+// desde administración (sin margen: la franja 10:00-14:00 abre 11:00-13:00, no 13:00-15:00).
+export function turnoDentroDeFranjas(turno, franjas = []) {
+  const t = RANGO.exec(limpiarTurno(turno));
+  if (!t) return false;
+  const inicio = minutosDe(t[1], t[2]);
+  const fin = minutosDe(t[3], t[4]);
+
+  return franjas.some((franja) => {
+    const m = RANGO.exec(limpiarTurno(franja));
+    return !!m && inicio >= minutosDe(m[1], m[2]) && fin <= minutosDe(m[3], m[4]);
+  });
+}
+
+// ¿Este turno que pide el mínimo está abierto a cualquier número de personas?
+// `diaAbierto`: franjas de las reservas que llegaron al mínimo ese día (lista), o `true`
+// (la reserva que se hace abre su propia franja). Una fecha habilitada desde administración
+// abre los turnos que caben en sus franjas (o todos, si es el día entero).
+export function turnoAbiertoSinMinimo({ turno, diaAbierto = false, habilitacion = null }) {
+  if (diaAbierto === true) return true;
+  if (Array.isArray(diaAbierto) && turnoEmpiezaEnFranjas(turno, diaAbierto)) return true;
+  if (!habilitacion?.habilitada) return false;
+
+  const franjas = normalizarTurnos(habilitacion.turnosHabilitados || habilitacion.turnosDisponibles);
+  return franjas.length ? turnoDentroDeFranjas(turno, franjas) : true;
+}
+
+// Turnos del día que se reservan con cualquier número de personas: los del horario semanal
+// que no piden el mínimo y los que lo piden pero están abiertos (ver `turnoAbiertoSinMinimo`).
+export function turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas = {}, diaAbierto = false }) {
   if (!fecha) return [];
 
-  const turnos = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)]).map(
-    limpiarTurno
-  );
-
+  const turnos = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)]).map(limpiarTurno);
+  const minimo = turnosMinimoDeClase(clase, fecha);
   const habilitacion = fechasHabilitadas?.[fecha];
-  if (habilitacion?.habilitada) {
-    const configurados =
-      habilitacion.turnosHabilitados || habilitacion.turnosDisponibles;
-    const permitidos = configurados
-      ? normalizarTurnos(configurados)
-      : normalizarTurnos(clase?.turnos);
 
-    permitidos.map(limpiarTurno).forEach((t) => {
-      if (!turnos.includes(t)) turnos.push(t);
-    });
-  }
+  return turnos.filter(
+    (t) => !minimo.includes(t) || turnoAbiertoSinMinimo({ turno: t, diaAbierto, habilitacion })
+  );
+}
 
-  // Un día sin horario abierto por una reserva con el mínimo de personas del taller
-  if (!turnos.length && diaAbierto && !habilitacion?.habilitada) {
-    turnosDiasAbiertos(clase)
-      .filter((t) => !Array.isArray(diaAbierto) || turnoEmpiezaEnFranjas(t, diaAbierto))
-      .forEach((t) => turnos.push(t));
-  }
-
-  return turnos;
+// Turnos del día que piden el mínimo de personas y todavía no están abiertos
+export function turnosConMinimoEnFecha({ clase, fecha, fechasHabilitadas = {}, diaAbierto = false }) {
+  if (!fecha) return [];
+  const habilitacion = fechasHabilitadas?.[fecha];
+  return turnosMinimoDeClase(clase, fecha).filter(
+    (t) => !turnoAbiertoSinMinimo({ turno: t, diaAbierto, habilitacion })
+  );
 }

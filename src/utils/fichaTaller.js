@@ -55,7 +55,11 @@ export const FORMULARIO_VACIO = {
     extraCambioTorno: "",
   },
   horarios: Object.fromEntries(DIAS.map(([dia]) => [dia, ""])),
-  turnos: "",
+  // Turnos de cada día que piden el mínimo de personas para abrirse (subconjunto del horario)
+  horariosMinimo: Object.fromEntries(DIAS.map(([dia]) => [dia, ""])),
+  // Usa los horarios por defecto de «Espacio»: «Aplicar a todos los talleres» solo cambia
+  // los talleres que lo tienen marcado
+  horariosPorDefecto: true,
   estado: "activa",
   enPortada: true,
   regalable: true,
@@ -196,12 +200,14 @@ export function formularioDesdeClase(id, clase = {}) {
         Array.isArray(horarios[dia]) ? horarios[dia].join(", ") : String(horarios[dia] || ""),
       ])
     ),
-    // Turnos guardados que no son un horario válido (datos antiguos) se descartan:
-    // al guardar se recalculan a partir del horario semanal
-    turnos: (() => {
-      const guardados = Object.values(clase.turnos || {}).map((t) => String(t).trim());
-      return guardados.every((t) => !turnoInvalido(t)) ? guardados.join(", ") : "";
-    })(),
+    // Los talleres anteriores a esta casilla cuentan como marcados
+    horariosPorDefecto: clase.horariosPorDefecto !== false,
+    horariosMinimo: Object.fromEntries(
+      DIAS.map(([dia]) => {
+        const valor = clase.horariosMinimo?.[dia];
+        return [dia, Array.isArray(valor) ? valor.join(", ") : String(valor || "")];
+      })
+    ),
     estado: clase.estado || (clase.activa === false ? "oculta" : "activa"),
     enPortada: clase.enPortada !== false,
     regalable: clase.regalable !== false,
@@ -217,18 +223,25 @@ export function formularioDesdeClase(id, clase = {}) {
 }
 
 
+// Horario semanal escrito en el formulario → lo que se guarda en la ficha: `horarios` y
+// `horariosMinimo` por día, y `turnos` (todos los del horario, que leen las pantallas de
+// siempre). Solo valen como «mínimo» los turnos del día que tienen horas.
+export function horariosDesdeTexto(horariosTexto = {}, minimoTexto = {}) {
+  const horarios = {};
+  const horariosMinimo = {};
+  DIAS.forEach(([dia]) => {
+    const turnos = leerTurnos(horariosTexto[dia]);
+    if (turnos.length) horarios[dia] = turnos;
+    const marcados = leerTurnos(minimoTexto?.[dia]).filter((t) => TURNO_VALIDO.test(t) && turnos.includes(t));
+    if (marcados.length) horariosMinimo[dia] = marcados;
+  });
+  const turnos = [...new Set(Object.values(horarios).flat())].sort();
+  return { horarios, horariosMinimo, turnos };
+}
+
 export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) {
   const esBono = form.tipoProducto === "bono";
-  const horarios = {};
-  DIAS.forEach(([dia]) => {
-    const turnos = leerTurnos(form.horarios[dia]);
-    if (turnos.length) horarios[dia] = turnos;
-  });
-  // Turnos que se pueden abrir en fechas especiales: si no se indican, los del horario
-  const turnosEspeciales = leerTurnos(form.turnos);
-  const turnos = turnosEspeciales.length
-    ? turnosEspeciales
-    : [...new Set(Object.values(horarios).flat())].sort();
+  const { horarios, horariosMinimo, turnos } = horariosDesdeTexto(form.horarios, form.horariosMinimo);
 
   const conMetodos = !esBono && form.modalidad === "metodos";
   const conVariantes = !esBono && form.modalidad === "variante";
@@ -294,6 +307,8 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
         )
       : null,
     horarios,
+    horariosMinimo: esBono ? null : horariosMinimo,
+    horariosPorDefecto: esBono ? null : !!form.horariosPorDefecto,
     turnos,
     estado: form.estado,
     activa: form.estado === "activa",

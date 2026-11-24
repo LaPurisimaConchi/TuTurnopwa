@@ -47,13 +47,14 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
       (t) => !bloqueoAfectaTurno(bloqueos?.[iso], t) && !turnoYaEmpezado(iso, t)
     );
 
-  // Turnos de un día abierto en parte que el grupo no puede elegir por no llegar al
+  // Turnos cerrados que piden el mínimo de personas y que el grupo no puede elegir por no llegar al
   // mínimo del taller: se enseñan en azul, como en la ficha del taller
   const cerradosDe = (iso) =>
     turnosSoloConMinimo({
       clase,
       fecha: iso,
       fechasHabilitadas,
+      diasAbiertos,
       plazas,
       elegibles: turnosDeGrupo({ grupo, clase, fecha: iso, fechasHabilitadas, diasAbiertos }),
       esValido: (t) => !bloqueoAfectaTurno(bloqueos?.[iso], t) && !turnoYaEmpezado(iso, t),
