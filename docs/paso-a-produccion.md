@@ -155,13 +155,12 @@ con las nuevas, el código viejo no puede cobrar.
   `node scripts/completar-perfil-reservas.mjs --project la-purisima-conchi [--aplicar]`
 - [ ] **Reglas**: `usuarios/{uid}/listaReservas` ya solo la escriben el servidor y el panel (el cliente no
   puede fabricarse reservas en su perfil). Va en el despliegue de reglas del paso 2.
-- [ ] **Turnos de días abiertos**: un día sin horario se abre con una reserva del mínimo de personas del
-  taller (`minPersonasGrupo` de su ficha) y ofrece los «turnos de días abiertos» de la ficha
-  (`clases/{id}/turnos`). Revisa en `/admin-taller` que cada taller tenga turnos válidos (formato
-  `17:30-20:30`; sin turnos, el taller no puede abrir días). En staging había dos talleres de torno con
-  turnos como `viernes-tarde`/`otro-horario`: si en producción pasa lo mismo, abre y guarda la ficha
-  (se recalculan con el horario semanal). Opcional: fija el valor por defecto en `/admin-espacio`
-  («Turnos de días abiertos»). No hay reglas nuevas que desplegar.
+- [ ] **Turnos que piden el mínimo de personas**: en `/admin-taller` cada turno del horario semanal lleva
+  una marca «Mín.» (`clases/{id}/horariosMinimo`); un día sin turnos nunca abre. Ya no existen los
+  «turnos de días abiertos» de cada taller ni de Espacio: lo que tuvieran guardado se ignora y **no se
+  migra**. Tras desplegar, en `/admin-espacio` pon los horarios por defecto con sus marcas «Mín.» y pulsa
+  «Aplicar a todos los talleres» (sustituye el horario semanal de todos los talleres del panel; pide
+  confirmación). Después, revisa un taller de cada tipo. No hay reglas nuevas que desplegar.
 - [ ] **Categorías** (opcional, de un solo sentido, se puede repetir). Hasta entonces, las cuatro de
   siempre salen del código.
   ```bash

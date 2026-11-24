@@ -25,8 +25,8 @@ export const CONFIG_ESPACIO_DEFECTO = {
   // Hasta cuántos días por delante se puede elegir la nueva fecha al reprogramar una reserva
   diasVentanaReprogramar: 90,
   horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((d) => [d, ""])),
-  // Turnos por defecto de los días abiertos de un taller nuevo (separados por comas)
-  turnosDiasAbiertosDefecto: "",
+  // Turnos de cada día que piden el mínimo de personas (subconjunto de horariosDefecto)
+  horariosMinimoDefecto: Object.fromEntries(DIAS_CONFIG.map((d) => [d, ""])),
   // Meses de validez de una tarjeta regalo desde su compra (se guarda la fecha en cada tarjeta)
   mesesCaducidadTarjeta: 3,
   // WhatsApp del taller (9 cifras, sin prefijo): botón flotante, perfil, grupos…
@@ -60,6 +60,15 @@ export function normalizarConfigEspacio(raw) {
   const horarios = datos.horariosDefecto && typeof datos.horariosDefecto === "object"
     ? datos.horariosDefecto
     : {};
+  const minimos = datos.horariosMinimoDefecto && typeof datos.horariosMinimoDefecto === "object"
+    ? datos.horariosMinimoDefecto
+    : {};
+  const aTexto = (valor) =>
+    Array.isArray(valor)
+      ? valor.join(", ")
+      : valor && typeof valor === "object"
+      ? Object.values(valor).join(", ")
+      : String(valor || "");
 
   return {
     aforoTotal: entero(datos.aforoTotal, CONFIG_ESPACIO_DEFECTO.aforoTotal),
@@ -82,25 +91,8 @@ export function normalizarConfigEspacio(raw) {
     ),
     telefonoWhatsapp:
       normalizarTelefonoWhatsapp(datos.telefonoWhatsapp) || CONFIG_ESPACIO_DEFECTO.telefonoWhatsapp,
-    turnosDiasAbiertosDefecto: (() => {
-      const valor = datos.turnosDiasAbiertosDefecto;
-      return Array.isArray(valor)
-        ? valor.join(", ")
-        : valor && typeof valor === "object"
-        ? Object.values(valor).join(", ")
-        : String(valor || "");
-    })(),
-    horariosDefecto: Object.fromEntries(
-      DIAS_CONFIG.map((dia) => {
-        const valor = horarios[dia];
-        const texto = Array.isArray(valor)
-          ? valor.join(", ")
-          : valor && typeof valor === "object"
-          ? Object.values(valor).join(", ")
-          : String(valor || "");
-        return [dia, texto];
-      })
-    ),
+    horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, aTexto(horarios[dia])])),
+    horariosMinimoDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, aTexto(minimos[dia])])),
   };
 }
 

@@ -4,7 +4,6 @@
 // reserva de siempre).
 import { useEffect, useMemo, useState } from "react";
 import { minPersonasHabilitar } from "../catalogoTalleres";
-import { abreDias, tallerTieneHorarioEnFecha } from "./diasAbiertos";
 import { bloqueoAfectaTurno, bloqueoEsParcial } from "./rangosHora";
 import { cargarContextoReserva } from "./disponibilidad";
 import { turnoYaEmpezado } from "./cambioFecha";
@@ -13,7 +12,7 @@ import {
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
-  turnosDiasAbiertos,
+  turnosConMinimoEnFecha,
   turnosDisponiblesEnFecha,
 } from "./turnosFecha";
 
@@ -23,7 +22,7 @@ export {
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
-  turnosDiasAbiertos,
+  turnosConMinimoEnFecha,
   turnosDisponiblesEnFecha,
 };
 
@@ -72,9 +71,9 @@ export function resumenHorarios(clase = {}) {
 }
 
 // Cómo se marca un día en el calendario: bloqueado desde el panel, disponible, o
-// "solo-grupo" (día sin horario y cerrado: se abre con una reserva del mínimo de
-// personas del taller). `diasAbiertos` son los días sin horario ya abiertos por otra
-// reserva; `permiteAbrir` indica que esta pantalla puede abrir días sin horario con una reserva del mínimo de personas del taller (los bonos no abren días).
+// "solo-grupo" (todos sus turnos piden el mínimo de personas del taller y están cerrados).
+// `diasAbiertos` son las franjas abiertas por otras reservas; `permiteAbrir` indica que esta
+// pantalla puede abrir turnos con una reserva del mínimo de personas (los bonos no abren).
 export function estadoDiaTaller({
   clase,
   fecha,
@@ -87,31 +86,22 @@ export function estadoDiaTaller({
   const parcial = bloqueoEsParcial(bloqueo);
   if (bloqueo?.bloqueado && !parcial) return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
 
+  const contexto = { clase, fecha, fechasHabilitadas, diaAbierto: diasAbiertos?.[fecha] || false };
+  const libres = turnosDisponiblesEnFecha(contexto);
+  const conMinimo = permiteAbrir ? turnosConMinimoEnFecha(contexto) : [];
+
   // Un bloqueo por horas solo cierra el día si deja sin ningún turno
-  const turnosDelDia = turnosDisponiblesEnFecha({
-    clase,
-    fecha,
-    fechasHabilitadas,
-    diaAbierto: diasAbiertos?.[fecha] || false,
-  });
-  const sinBloqueo = parcial ? turnosDelDia.filter((t) => !bloqueoAfectaTurno(bloqueo, t)) : turnosDelDia;
-  if (parcial && turnosDelDia.length && !sinBloqueo.length) {
+  const delDia = [...libres, ...conMinimo];
+  const sinBloqueo = parcial ? delDia.filter((t) => !bloqueoAfectaTurno(bloqueo, t)) : delDia;
+  if (parcial && delDia.length && !sinBloqueo.length) {
     return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
   }
+
   // Hoy, los turnos que ya han empezado no se ofrecen
-  const turnos = sinBloqueo.filter((t) => !turnoYaEmpezado(fecha, t));
-  if (turnos.length) return { estado: "disponible" };
-  if (sinBloqueo.length) return { estado: "sin-taller" };
-
-  // Día sin horario y cerrado: solo lo abre un taller con turnos de días abiertos
-  const turnosAbrir = permiteAbrir && abreDias(clase) ? turnosDiasAbiertos(clase) : [];
-  if (!turnosAbrir.length) return { estado: "sin-taller" };
-  if (turnosAbrir.every((t) => turnoYaEmpezado(fecha, t))) return { estado: "sin-taller" };
-  if (parcial && turnosAbrir.every((t) => bloqueoAfectaTurno(bloqueo, t))) {
-    return { estado: "bloqueado", motivo: bloqueo.motivo || "" };
-  }
-
-  return { estado: "solo-grupo", minimo: minPersonasHabilitar(clase) };
+  const aTiempo = sinBloqueo.filter((t) => !turnoYaEmpezado(fecha, t));
+  if (aTiempo.some((t) => libres.includes(t))) return { estado: "disponible" };
+  if (aTiempo.length) return { estado: "solo-grupo", minimo: minPersonasHabilitar(clase) };
+  return { estado: "sin-taller" };
 }
 
 // Fechas bloqueadas, fechas habilitadas, reservas de grupo y días abiertos (solo lectura).
@@ -168,14 +158,14 @@ export function useDiaDeReserva({
   diasAbiertos = {},
 }) {
   const diaAbierto = (fecha && diasAbiertos?.[fecha]) || false;
-  const turnosBase = useMemo(
+  const turnosLibresBase = useMemo(
     () => turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas, diaAbierto }),
     [clase, fecha, fechasHabilitadas, diaAbierto]
   );
-  // Turnos con los que un taller abre un día sin horario (solo donde se puede abrir)
-  const turnosAbrir = useMemo(
-    () => (permiteAbrir && abreDias(clase) ? turnosDiasAbiertos(clase) : []),
-    [clase, permiteAbrir]
+  // Turnos que piden el mínimo de personas y siguen cerrados (solo donde se puede abrir)
+  const turnosMinimoBase = useMemo(
+    () => (permiteAbrir ? turnosConMinimoEnFecha({ clase, fecha, fechasHabilitadas, diaAbierto }) : []),
+    [clase, fecha, fechasHabilitadas, diaAbierto, permiteAbrir]
   );
 
   const fechaHabilitadaManual = useMemo(() => {
@@ -191,43 +181,29 @@ export function useDiaDeReserva({
   const aTiempo = (turno) => !turnoYaEmpezado(fecha, turno);
 
   // Con un bloqueo por horas, los turnos que se cruzan con él no se ofrecen
-  const turnosDelDia = bloqueoParcial ? turnosBase.filter(libre) : turnosBase;
-  const turnosDisponibles = turnosDelDia.filter(aTiempo);
+  const sinBloqueo = (turnos) => (bloqueoParcial ? turnos.filter(libre) : turnos);
+  const turnosLibresDelDia = sinBloqueo(turnosLibresBase);
+  const turnosDisponibles = turnosLibresDelDia.filter(aTiempo);
+  const turnosMinimo = sinBloqueo(turnosMinimoBase).filter(aTiempo);
 
   // Todo el día bloqueado, o un bloqueo por horas que deja el día sin turnos
   const fechaBloqueada = useMemo(() => {
     if (!fecha || !bloqueo?.bloqueado) return null;
     if (!bloqueoParcial) return bloqueo;
-    if (turnosBase.length) return turnosBase.some(libre) ? null : bloqueo;
-    return turnosAbrir.length && turnosAbrir.every((t) => !libre(t)) ? bloqueo : null;
+    const todos = [...turnosLibresBase, ...turnosMinimoBase];
+    return todos.length && todos.every((t) => !libre(t)) ? bloqueo : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fecha, bloqueo, bloqueoParcial, turnosBase, turnosAbrir]);
+  }, [fecha, bloqueo, bloqueoParcial, turnosLibresBase, turnosMinimoBase]);
 
-  // Día sin horario y cerrado: se abre reservando con el mínimo de personas del taller
-  const diaSoloGrupo = turnosAbrir.length > 0 && !!fecha && !fechaBloqueada && turnosDelDia.length === 0;
+  // Día en el que todos los turnos piden el mínimo de personas del taller y están cerrados
+  const diaSoloGrupo = !!fecha && !fechaBloqueada && turnosLibresDelDia.length === 0 && turnosMinimo.length > 0;
   const diaNoDisponible = !!fecha && !fechaBloqueada && turnosDisponibles.length === 0 && !diaSoloGrupo;
 
-  // Turnos que se ofrecen pero solo se abren con el mínimo de personas del taller: todos
-  // los de un día cerrado y, en un día sin horario abierto solo en parte (una franja de
-  // otra reserva), los turnos de días abiertos que esa franja no abre
-  const turnosAbribles = turnosAbrir.filter((t) => libre(t) && aTiempo(t));
-  const diaAbiertoEnParte =
-    turnosAbrir.length > 0 &&
-    !!fecha &&
-    !fechaBloqueada &&
-    !diaSoloGrupo &&
-    !fechaHabilitadaManual &&
-    !tallerTieneHorarioEnFecha(clase, fecha, fechasHabilitadas);
-  const turnosMinimo = diaSoloGrupo
-    ? turnosAbribles
-    : diaAbiertoEnParte
-    ? turnosAbribles.filter((t) => !turnosDisponibles.includes(t))
-    : [];
-  const turnosOfrecidos = diaAbiertoEnParte
-    ? turnosAbrir.filter((t) => turnosDisponibles.includes(t) || turnosMinimo.includes(t))
-    : diaSoloGrupo
-    ? turnosAbribles
-    : turnosDisponibles;
+  // Los turnos se ofrecen en el orden del horario, mezclados los libres y los azules
+  const ofrecidos = new Set([...turnosDisponibles, ...turnosMinimo]);
+  const turnosOfrecidos = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)])
+    .map(limpiarTurno)
+    .filter((t) => ofrecidos.has(t));
 
   return {
     turnosDisponibles: turnosOfrecidos,
