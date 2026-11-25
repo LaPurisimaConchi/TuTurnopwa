@@ -11,7 +11,7 @@ import {
 } from "./turnosFecha.js";
 import { abreDias, puedeAbrirDia } from "./diasAbiertos.js";
 import { minPersonasHabilitar } from "../catalogoBase.js";
-import { contarFranja, plazasLibresFranja, usaTorno } from "./aforo.js";
+import { aforoDeFranja, contarFranja, plazasLibresFranja, usaTorno } from "./aforo.js";
 import { bloqueoAfectaTurno } from "./rangosHora.js";
 import { edicionesDeClase } from "./monografico.js";
 import { CONFIG_ESPACIO_DEFECTO } from "./configEspacio.js";
@@ -210,7 +210,10 @@ export function plazasLibresParaReserva({ reservas, grupos, config, reserva, fec
   const ocupadas = contarFranja(reservas, grupos, fecha, turno);
   const conTorno = usaTorno(reserva || {});
 
-  return plazasLibresFranja(ocupadas, config, { conTorno }).reservables;
+  // `config.cupos` (opcional): topes por franja fijados desde el panel, { fecha: { turno: plazas } }
+  const limites = { ...config, aforoTotal: aforoDeFranja(config.aforoTotal, config.cupos?.[fecha], turno) };
+
+  return plazasLibresFranja(ocupadas, limites, { conTorno }).reservables;
 }
 
 // Ediciones de un monográfico a las que puede pasar una reserva: con hueco para

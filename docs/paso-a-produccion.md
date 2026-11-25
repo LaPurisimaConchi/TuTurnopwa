@@ -123,6 +123,8 @@ que recargue la página: mejor hacerlo en un momento con pocas compras.
    ```bash
    npx firebase-tools deploy --only database --project la-purisima-conchi
    ```
+   (Las reglas incluyen `cuposFranja`, los cupos por franja del calendario admin: sin ellas, fijar un
+   cupo falla con permisos denegados.)
 5. [ ] Comprobación rápida en producción:
    - compra de invitado hasta la pantalla de Redsys: el importe que enseña Redsys es el del taller;
    - un pago real pequeño de punta a punta (por ejemplo, el taller más barato; luego se devuelve

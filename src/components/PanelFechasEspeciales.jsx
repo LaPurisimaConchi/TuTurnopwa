@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ref, update, remove, get } from "firebase/database";
 import { dbRealtime } from "../firebase";
 import EditorTurnos from "./EditorTurnos";
-import { plazasEnBloqueo } from "../utils/aforo";
+import { CUPO_TODO_EL_DIA, plazasEnBloqueo } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
 import { leerTurnos } from "../utils/fichaTaller";
 import { rangosBloqueados } from "../utils/rangosHora";
@@ -36,6 +36,8 @@ export default function PanelFechasEspeciales({
   fin,
   bloqueos = {},
   habilitadas = {},
+  cupos = {},
+  aforoTotal = 45,
   onCambio,
 }) {
   const [modo, setModo] = useState("bloquear");
@@ -47,10 +49,16 @@ export default function PanelFechasEspeciales({
   const [todoBloqueo, setTodoBloqueo] = useState(true);
   const [todoHabilitar, setTodoHabilitar] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  // Cupo: turnos a los que se aplica y plazas máximas (por debajo del aforo total)
+  const [turnosCupo, setTurnosCupo] = useState("");
+  const [plazasCupo, setPlazasCupo] = useState("");
+  const [todoCupo, setTodoCupo] = useState(false);
 
   const fechas = useMemo(() => fechasDelRango(inicio, fin), [inicio, fin]);
   const bloqueadas = fechas.filter((f) => bloqueos[f]?.bloqueado);
   const conHabilitacion = fechas.filter((f) => habilitadas[f]?.habilitada);
+  // Cupos ya fijados en el rango: [fecha, turno, plazas]
+  const cuposDelRango = fechas.flatMap((f) => Object.entries(cupos[f] || {}).map(([t, n]) => [f, t, n]));
 
   // Con un solo día ya habilitado, el formulario sale con sus datos para editarlos
   useEffect(() => {
@@ -159,6 +167,35 @@ export default function PanelFechasEspeciales({
     }, "No se pudieron guardar las fechas habilitadas.");
   };
 
+  // Limita las plazas de unas franjas concretas (menos que el aforo del espacio)
+  const limitarCupo = async () => {
+    const turnos = todoCupo ? [CUPO_TODO_EL_DIA] : leerTurnos(turnosCupo);
+    const plazas = Number(plazasCupo);
+    if (!turnos.length) {
+      alert("Añade al menos un turno o marca «Todo el día».");
+      return;
+    }
+    if (plazasCupo === "" || !Number.isInteger(plazas) || plazas < 0 || plazas > aforoTotal) {
+      alert(`Las plazas del cupo deben ser un número entre 0 y ${aforoTotal} (el aforo del espacio).`);
+      return;
+    }
+
+    return ejecutar(async () => {
+      const updates = {};
+      fechas.forEach((f) => turnos.forEach((t) => (updates[`cuposFranja/${f}/${t}`] = plazas)));
+      await update(ref(dbRealtime), updates);
+    }, "No se pudo guardar el cupo.");
+  };
+
+  const quitarCupo = async (lista) => {
+    if (!await preguntar(`¿Quitar ${lista.length} cupo${lista.length !== 1 ? "s" : ""}? Esas franjas vuelven al aforo completo.`)) return;
+    return ejecutar(async () => {
+      const updates = {};
+      lista.forEach(([f, t]) => (updates[`cuposFranja/${f}/${t}`] = null));
+      await update(ref(dbRealtime), updates);
+    }, "No se pudo quitar el cupo.");
+  };
+
   const quitar = async (nodo, lista, texto) => {
     if (!await preguntar(`¿Seguro que quieres ${texto} (${lista.length} día${lista.length !== 1 ? "s" : ""})?`)) {
       return;
@@ -177,6 +214,7 @@ export default function PanelFechasEspeciales({
         {[
           ["bloquear", "bloquear", "Bloquear"],
           ["habilitar", "confirmado", "Habilitar"],
+          ["cupo", "usuarios", "Cupo"],
         ].map(([clave, icono, texto]) => (
           <button
             key={clave}
@@ -184,13 +222,13 @@ export default function PanelFechasEspeciales({
             onClick={() => setModo(clave)}
             style={{ ...estilos.pestana, ...(modo === clave ? estilos.pestanaActiva : {}) }}
           >
-            <Icono nombre={icono} className="mr-1" />
+            <Icono nombre={icono} className="mr-1" color={modo === clave ? "#ffffff" : undefined} />
             {texto}
           </button>
         ))}
       </div>
 
-      <input
+      {modo !== "cupo" && <input
         type="text"
         value={motivo}
         onChange={(e) => setMotivo(e.target.value)}
@@ -200,9 +238,46 @@ export default function PanelFechasEspeciales({
             : "Motivo (apertura especial, grupo confirmado…)"
         }
         style={estilos.input}
-      />
+      />}
 
-      <div style={estilos.turnos}>
+      {modo === "cupo" && (
+        <div style={estilos.turnos}>
+          <p style={estilos.ayuda}>
+            Limita las plazas de un turno esos días (todos los talleres y grupos juntos). Al llegar al cupo, el turno
+            se enseña como completo a los clientes. No cancela reservas ya hechas y no puede superar el aforo del
+            espacio ({aforoTotal}).
+          </p>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, fontSize: 14 }}>
+            <input type="checkbox" checked={todoCupo} onChange={(e) => setTodoCupo(e.target.checked)} />
+            Todo el día (el cupo vale para cada turno)
+          </label>
+          {!todoCupo && (
+            <EditorTurnos key="cupo" id="panel-cupo" value={turnosCupo} onChange={setTurnosCupo} textoVacio="Sin turnos" />
+          )}
+          <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, fontSize: 14 }}>
+            Plazas máximas
+            <input
+              type="number"
+              min={0}
+              max={aforoTotal}
+              value={plazasCupo}
+              onChange={(e) => setPlazasCupo(e.target.value)}
+              style={{ ...estilos.input, width: 90, marginBottom: 0 }}
+            />
+          </label>
+          {cuposDelRango.length > 0 && (
+            <ul style={{ margin: "10px 0 0", paddingLeft: 18, fontSize: 13, color: "#3f3128" }}>
+              {cuposDelRango.map(([f, t, n]) => (
+                <li key={`${f}-${t}`}>
+                  {fechaDMA(f)} · {t === CUPO_TODO_EL_DIA ? "Todo el día" : t.replace("-", " – ")}: {n} plaza{n !== 1 ? "s" : ""}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {modo !== "cupo" && <div style={estilos.turnos}>
         <p style={estilos.ayuda}>
           {modo === "bloquear"
             ? "Horas a bloquear. Sin ninguna se bloquea el día entero; un turno se bloquea si se cruza con alguna de estas horas."
@@ -227,17 +302,28 @@ export default function PanelFechasEspeciales({
           textoVacio="Sin turnos"
         />
         )}
-      </div>
+      </div>}
 
       <div style={estilos.acciones}>
         <button
           type="button"
           disabled={guardando}
-          onClick={modo === "bloquear" ? bloquear : habilitar}
+          onClick={modo === "bloquear" ? bloquear : modo === "cupo" ? limitarCupo : habilitar}
           style={estilos.botonPrincipal}
         >
-          {guardando ? "Guardando..." : modo === "bloquear" ? "Bloquear" : "Habilitar"}
+          {guardando ? "Guardando..." : modo === "bloquear" ? "Bloquear" : modo === "cupo" ? "Fijar cupo" : "Habilitar"}
         </button>
+
+        {cuposDelRango.length > 0 && (
+          <button
+            type="button"
+            disabled={guardando}
+            onClick={() => quitarCupo(cuposDelRango.map(([f, t]) => [f, t]))}
+            style={estilos.botonSecundario}
+          >
+            Quitar cupos ({cuposDelRango.length})
+          </button>
+        )}
 
         {bloqueadas.length > 0 && (
           <button

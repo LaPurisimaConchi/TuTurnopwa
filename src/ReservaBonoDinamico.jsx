@@ -52,6 +52,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
     fechasBloqueadas,
     fechasHabilitadas,
     diasAbiertos,
+    completo,
     cargado: contextoCargado,
   } = useContextoReserva();
 
@@ -428,7 +429,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
               setTurno("");
             }}
             estadoDia={(iso) =>
-              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos })
+              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos, completo })
             }
             cargando={!contextoCargado}
             fechaBloqueada={fechaBloqueada}
@@ -453,6 +454,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
             onChange={setTurno}
             turnos={turnosDisponibles}
             turnosMinimo={turnosMinimo}
+            turnosCompletos={turnosDisponibles.filter((t) => completo(fechaInicio, t))}
             deshabilitado={!fechaInicio || diaNoDisponible}
             placeholder={!fechaInicio ? "-- Primero selecciona el día --" : "-- Elige turno --"}
           />

@@ -123,6 +123,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
     fechasHabilitadas,
     reservasGrupos,
     diasAbiertos,
+    completo,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -340,7 +341,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
   };
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, diasAbiertos });
+    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, diasAbiertos, completo });
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
@@ -837,6 +838,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
             }}
             turnos={turnosDisponibles}
             turnosMinimo={turnosMinimo}
+            turnosCompletos={turnosDisponibles.filter((t) => completo(fecha, t))}
             minimo={minHabilitar}
             deshabilitado={!puedeElegirTurno}
             placeholder={

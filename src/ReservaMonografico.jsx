@@ -15,7 +15,7 @@ import BotonConfirmarReserva from "./components/BotonConfirmarReserva";
 import DatosContactoInvitado from "./components/DatosContactoInvitado";
 import { useContextoReserva } from "./utils/turnosTaller";
 import { cargarFranjas } from "./utils/disponibilidad";
-import { plazasLibresFranja, sumarSolapadas } from "./utils/aforo";
+import { aforoDeFranja, plazasLibresFranja, sumarSolapadas } from "./utils/aforo";
 import { bloqueoAfectaTurno } from "./utils/rangosHora";
 import { edicionesReservables } from "./utils/monografico";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
@@ -83,9 +83,11 @@ export default function ReservaMonografico({ claseId, clase }) {
         const libres = Math.min(
           ...edicion.fechas.map(
             (f) =>
-              plazasLibresFranja(sumarSolapadas(franjas?.franjas?.[f.fecha], f.turno), limites, {
-                conTorno: f.torno === true,
-              }).reservables
+              plazasLibresFranja(
+                sumarSolapadas(franjas?.franjas?.[f.fecha], f.turno),
+                { ...limites, aforoTotal: aforoDeFranja(limites.aforoTotal, franjas?.cupos?.[f.fecha], f.turno) },
+                { conTorno: f.torno === true }
+              ).reservables
           )
         );
         return [edicion.id, { bloqueada, libres }];

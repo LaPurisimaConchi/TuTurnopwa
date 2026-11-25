@@ -5,7 +5,7 @@ import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 import PanelFechasEspeciales, { fechasDelRango } from "./components/PanelFechasEspeciales";
 import { bloqueoEsParcial } from "./utils/rangosHora";
-import { ocupacionPorFranja, sumarSolapadas } from "./utils/aforo";
+import { aforoDeFranja, CUPO_TODO_EL_DIA, ocupacionPorFranja, sumarSolapadas } from "./utils/aforo";
 import { cargarConfigEspacio } from "./configuracionEspacio";
 import { fechaDMA } from "./utils/formatoFecha";
 import { useNavigate } from "react-router-dom";
@@ -41,6 +41,8 @@ const AdminCalendarioReservas = () => {
   // Días bloqueados y habilitados a mano, y selección de varios días seguidos
   const [bloqueos, setBloqueos] = useState({});
   const [habilitadas, setHabilitadas] = useState({});
+  // Cupos por franja fijados a mano: { fecha: { "10:00-12:00": plazas } }
+  const [cupos, setCupos] = useState({});
   const [modoRango, setModoRango] = useState(false);
   // El diálogo se mantiene montado mientras dura el fundido de salida
   const [rangoInicio, setRangoInicio] = useState("");
@@ -54,10 +56,13 @@ const AdminCalendarioReservas = () => {
 
   const cargarFechasEspeciales = async () => {
     try {
-      const [bloqueosSnap, habilitadasSnap] = await Promise.all([
+      const [bloqueosSnap, habilitadasSnap, cuposSnap] = await Promise.all([
         get(ref(dbRealtime, "bloqueosFechas")),
         get(ref(dbRealtime, "fechasHabilitadas")),
+        // Si las reglas aún no incluyen cuposFranja, el calendario sigue sin cupos
+        get(ref(dbRealtime, "cuposFranja")).catch(() => null),
       ]);
+      setCupos(cuposSnap?.exists() ? cuposSnap.val() || {} : {});
       setBloqueos(bloqueosSnap.exists() ? bloqueosSnap.val() || {} : {});
       setHabilitadas(habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {});
     } catch (error) {
@@ -396,17 +401,38 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     return mapa;
   }, [reservas]);
 
-  // Por día: plazas del turno más lleno (sumando turnos que se solapan) sobre el aforo
+  // Por día: el turno más lleno (sumando turnos que se solapan) respecto a su tope, que es
+  // el aforo o, si el panel fijó uno, el cupo de esa franja. `llena`: algún turno sin plazas.
   const ocupacionPorDia = useMemo(() => {
     const mapa = {};
+    const fechas = new Set([...Object.keys(ocupacionFranjas), ...Object.keys(cupos)]);
 
-    Object.entries(ocupacionFranjas).forEach(([fecha, turnos]) => {
-      const maximo = Math.max(...Object.keys(turnos).map((t) => sumarSolapadas(turnos, t).total));
-      if (maximo > 0) mapa[fecha] = { maximo, pct: Math.min(100, Math.round((maximo / aforoTotal) * 100)) };
+    fechas.forEach((fecha) => {
+      const turnos = ocupacionFranjas[fecha] || {};
+      const cuposDia = cupos[fecha] || {};
+      let mejor = null;
+
+      // Un cupo de todo el día sin turnos con reservas se mira como un turno más
+      const claves = new Set([...Object.keys(turnos), ...Object.keys(cuposDia)]);
+      claves.delete(CUPO_TODO_EL_DIA);
+      if (cuposDia[CUPO_TODO_EL_DIA] !== undefined && !claves.size) claves.add("Todo el día");
+
+      claves.forEach((turno) => {
+        const tope = aforoDeFranja(aforoTotal, cuposDia, turno === "Todo el día" ? CUPO_TODO_EL_DIA : turno);
+        const total = sumarSolapadas(turnos, turno).total;
+        // Un cupo de 0 cierra la franja aunque no tenga reservas
+        if (total === 0 && tope > 0) return;
+        const pct = tope > 0 ? Math.min(100, Math.round((total / tope) * 100)) : 100;
+        if (!mejor || pct > mejor.pct || (pct === mejor.pct && total > mejor.maximo)) {
+          mejor = { maximo: total, tope, pct, turno };
+        }
+      });
+
+      if (mejor) mapa[fecha] = mejor;
     });
 
     return mapa;
-  }, [ocupacionFranjas, aforoTotal]);
+  }, [ocupacionFranjas, aforoTotal, cupos]);
 
   const detalleDiaSeleccionado = useMemo(() => {
     return resumenPorFecha[fechaSeleccionada] || null;
@@ -675,6 +701,8 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
       fin={panelFin}
       bloqueos={bloqueos}
       habilitadas={habilitadas}
+      cupos={cupos}
+      aforoTotal={aforoTotal}
       onCambio={alCambiarFechas}
     />
   ) : null;
@@ -753,7 +781,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                 : "Pulsa otro día para empezar una nueva selección."}
             </span>
           )}
-          <span style={{ fontSize: 12, color: "#777" }}>Personas por día: verde = hay sitio · naranja = casi lleno · rojo = completo{isMobile ? " · punto: rojo cerrado, naranja por horas, verde abierto" : ""}</span>
+          <span style={{ fontSize: 12, color: "#777" }}>Personas por día: verde = hay sitio · naranja = casi lleno · rojo = turno completo (aforo o cupo){isMobile ? " · punto: rojo cerrado, naranja por horas, verde abierto" : ""}</span>
         </div>
 
         {cargando ? (
@@ -811,10 +839,10 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                   const bloqueo = bloqueos[celda.fechaISO];
 
                   // Verde: hay sitio · naranja: casi lleno · rojo: completo · gris: pago en curso
-                  const nivel = !resumen
-                    ? { color: "#6b6558", fondo: "#ece8dc" }
-                    : llena
+                  const nivel = llena
                     ? { color: "#a3281c", fondo: "#f8d7d3" }
+                    : !resumen
+                    ? { color: "#6b6558", fondo: "#ece8dc" }
                     : ocupacion?.pct >= 80
                     ? { color: "#8a5a00", fondo: "#fdebc8" }
                     : { color: "#2f6b2f", fondo: "#e0f0dc" };
@@ -826,6 +854,8 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                     ? { texto: "Cerrado", color: "#a3281c", fondo: "#f8d7d3" }
                     : habilitadas[celda.fechaISO]?.habilitada
                     ? { texto: "Abierto", color: "#2f6b2f", fondo: "#d9eed4" }
+                    : Object.keys(cupos[celda.fechaISO] || {}).length
+                    ? { texto: "Cupo", color: "#5b3a8a", fondo: "#ece3f7" }
                     : null;
 
                   // Detalle completo al pasar el ratón
@@ -836,7 +866,8 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                       : ocupacion
                       ? "Plazas guardadas mientras se paga"
                       : "Sin reservas",
-                    ocupacion ? `Turno más lleno: ${ocupacion.maximo}/${aforoTotal}${llena ? " (completo)" : ""}` : "",
+                    ocupacion ? `Turno más lleno (${ocupacion.turno}): ${ocupacion.maximo}/${ocupacion.tope}${llena ? " (completo)" : ""}` : "",
+                    ...Object.entries(cupos[celda.fechaISO] || {}).map(([t, n]) => `Cupo ${t === CUPO_TODO_EL_DIA ? "todo el día" : t}: ${n} plazas`),
                     bloqueoEsParcial(bloqueo)
                       ? "Cerrado por horas"
                       : bloqueo?.bloqueado
@@ -886,10 +917,13 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                               backgroundColor: nivel.fondo,
                             }}
                           >
+                            {llena && resumen && !isMobile ? "Completo · " : ""}
                             {resumen
                               ? isMobile
                                 ? resumen.totalPlazas
                                 : `${resumen.totalPlazas} pers.`
+                              : ocupacion.maximo === 0
+                              ? "Sin cupo"
                               : isMobile
                               ? "pago"
                               : "En pago"}

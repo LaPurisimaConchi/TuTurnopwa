@@ -91,9 +91,10 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
   const sesion = sesiones[claveSesion];
 
   const claseId = String(bono.claseId || "");
-  const [claseSnap, espacioSnap] = await Promise.all([
+  const [claseSnap, espacioSnap, cuposSnap] = await Promise.all([
     ID.test(claseId) ? db.ref(`clases/${claseId}`).get() : Promise.resolve(null),
     db.ref("configuracionEspacio").get(),
+    db.ref("cuposFranja").get(),
   ]);
   const carpeta = String(
     (claseSnap?.exists() ? claseSnap.val()?.reservasPath : "") || CARPETA_BONO_ANTIGUO[claseId] || claseId
@@ -109,7 +110,10 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
   if (!esReservaValida(reserva)) return fallo(409, "Esta reserva no está confirmada.");
 
   // Plazo de antelación
-  const config = normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null);
+  const config = {
+    ...normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null),
+    cupos: cuposSnap.val() || {}, // topes por franja (cuposFranja)
+  };
   const horas = horasAntelacionDe(reserva, config);
   const ahoraMs = ahoraMadridMs();
   const inicio = inicioClaseMs(sesion.fecha, sesion.turno);

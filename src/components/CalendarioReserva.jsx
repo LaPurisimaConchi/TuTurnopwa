@@ -4,6 +4,7 @@
 //   "disponible" → se puede elegir
 //   "bloqueado"  → cerrado desde el panel (con su motivo)
 //   "solo-grupo" → solo con un mínimo de personas (`minimo`); se puede elegir
+//   "completo"   → todos sus turnos tienen las plazas ocupadas (aforo o cupo): no se puede elegir
 //   "sin-taller" → ese día no se imparte
 //   "sin-hueco"  → no vale para esta reserva (sin plazas, fuera de plazo…): al cambiar una
 //                  reserva, el taller puede darse ese día y aun así no se puede elegir
@@ -34,6 +35,7 @@ const ESTILOS = {
   bloqueado: "bg-red-50 border border-red-200 text-red-400 line-through cursor-not-allowed",
   "solo-grupo":
     "bg-sky-50 border border-sky-300 text-sky-800 font-semibold hover:bg-sky-100 cursor-pointer",
+  completo: "bg-violet-100 border border-violet-300 text-violet-700 font-semibold cursor-not-allowed",
   "sin-taller": "bg-crema text-gray-300 cursor-not-allowed",
   "sin-hueco": "bg-crema text-gray-300 cursor-not-allowed",
   fuera: "text-gray-300 cursor-not-allowed",
@@ -76,6 +78,7 @@ export default function CalendarioReserva({
   // Días azules sin mínimo concreto (los de un bono: lo marca el taller que abre el turno)
   let hayAzulSinNumero = false;
   let haySinTaller = false;
+  let hayCompleto = false;
   let haySinHueco = false;
   const celdas = [];
   for (let i = 0; i < huecosIniciales; i += 1) celdas.push(null);
@@ -123,6 +126,7 @@ export default function CalendarioReserva({
           if (estado === "solo-grupo" && minimo) hayGrupo = minimo;
           if (estado === "solo-grupo" && !minimo) hayAzulSinNumero = true;
           if (estado === "sin-taller") haySinTaller = true;
+          if (estado === "completo") hayCompleto = true;
           if (estado === "sin-hueco") haySinHueco = true;
           const seleccionado = iso === value;
           const elegible = !fuera && (estado === "disponible" || estado === "solo-grupo");
@@ -139,6 +143,8 @@ export default function CalendarioReserva({
             ? minimo
               ? `Reserva mínima ${minimo} personas`
               : "Cerrado: solo se abre cuando otra reserva llega al mínimo de personas del taller"
+            : estado === "completo"
+            ? "Completo: no quedan plazas"
             : estado === "sin-taller"
             ? "No se imparte este día"
             : estado === "sin-hueco"
@@ -184,6 +190,11 @@ export default function CalendarioReserva({
         <li className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded bg-red-50 border border-red-200" /> Cerrado
         </li>
+        {hayCompleto && (
+          <li className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-violet-100 border border-violet-300" /> Completo
+          </li>
+        )}
         {haySinTaller && (
           <li className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded bg-arena" /> No se imparte

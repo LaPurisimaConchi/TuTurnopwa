@@ -8,6 +8,7 @@
 // cuenta la franja considerando solo las reservas que llegaron antes o a la vez.
 // Si no cabe, las borra y avisa. Dos personas a la vez nunca superan el aforo.
 import {
+  aforoDeFranja,
   contarFranja,
   ordenDeReserva,
 } from "../src/utils/aforo.js";
@@ -72,18 +73,24 @@ export async function escribirConAforo(db, preparadas, config, ahoraMs, alExito 
   };
 
   try {
-    const [reservas, grupos] = await Promise.all([db.ref("reservas").get(), db.ref("reservasGrupos").get()]);
+    const [reservas, grupos, cuposSnap] = await Promise.all([
+      db.ref("reservas").get(),
+      db.ref("reservasGrupos").get(),
+      db.ref("cuposFranja").get(),
+    ]);
+    const cupos = cuposSnap.exists() ? cuposSnap.val() || {} : {};
 
     for (const p of preparadas) {
+      const aforo = aforoDeFranja(config.aforoTotal, cupos[p.fecha], p.turno);
       const { total, torno } = contarFranja(reservas, grupos, p.fecha, p.turno, {
         hasta: ordenDeReserva(p.datos, p.clave),
         ahoraMs,
       });
 
-      if (total > config.aforoTotal || (p.torno && torno > config.maxTorno)) {
+      if (total > aforo || (p.torno && torno > config.maxTorno)) {
         await retirar();
         return fallo(409, "Esa franja se acaba de llenar", {
-          codigo: p.torno && torno > config.maxTorno && total <= config.aforoTotal ? "torno_lleno" : "franja_llena",
+          codigo: p.torno && torno > config.maxTorno && total <= aforo ? "torno_lleno" : "franja_llena",
           fecha: p.fecha,
           turno: p.turno,
         });
@@ -330,17 +337,19 @@ export async function marcarSobreaforo(db, confirmadas) {
     });
     if (!caducadas.length) return;
 
-    const [reservas, grupos, espacio] = await Promise.all([
+    const [reservas, grupos, espacio, cuposSnap] = await Promise.all([
       db.ref("reservas").get(),
       db.ref("reservasGrupos").get(),
       db.ref("configuracionEspacio").get(),
+      db.ref("cuposFranja").get(),
     ]);
     const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
+    const cupos = cuposSnap.exists() ? cuposSnap.val() || {} : {};
 
     const marcas = {};
     caducadas.forEach((c) => {
       const { total, torno } = contarFranja(reservas, grupos, c.fecha, c.turno, { ahoraMs });
-      if (total > config.aforoTotal || (c.torno && torno > config.maxTorno)) {
+      if (total > aforoDeFranja(config.aforoTotal, cupos[c.fecha], c.turno) || (c.torno && torno > config.maxTorno)) {
         marcas[`${c.ruta}/sobreaforo`] = true;
       }
     });
