@@ -23,6 +23,13 @@ import {
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
 const etiqueta = "block font-bold text-sm mb-1 text-tinta";
 const ayuda = "text-xs text-tinta-suave mt-1";
+// Filas y casillas grandes para tocarlas con el dedo (48 px de alto en móvil)
+const casilla = "h-6 w-6 shrink-0 accent-terracota sm:h-5 sm:w-5";
+const filaOpcion = (marcada) =>
+  `flex min-h-[48px] cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-base sm:min-h-0 sm:text-sm ${
+    marcada ? "border-terracota bg-terracota-suave" : "border-linea bg-white"
+  }`;
+const botonLista = "min-h-[44px] flex-1 rounded-xl border border-linea bg-white px-3 text-sm font-semibold text-tinta sm:min-h-0 sm:flex-none sm:py-1.5";
 const MAX_DIAS = 120;
 
 const nombresDe = (ids, clases) => ids.map((id) => clases[id]?.nombre || clases[id]?.["nombre "] || id);
@@ -243,38 +250,60 @@ export default function CrearTurnoExtra({ fechas: fechasFijas = null, onCambio }
 
       <div>
         <p className={etiqueta}>Talleres</p>
-        <label className="flex items-center gap-2 text-sm mb-1.5">
-          <input type="radio" name="turno-extra-talleres" checked={todos} onChange={() => setTodos(true)} />
-          Todos los talleres y bonos{total ? ` (${total})` : ""}
-        </label>
-        <label className="flex items-center gap-2 text-sm mb-2">
-          <input type="radio" name="turno-extra-talleres" checked={!todos} onChange={() => setTodos(false)} />
-          Elegir talleres
-        </label>
+        <div className="space-y-2 mb-3">
+          <label className={filaOpcion(todos)}>
+            <input
+              type="radio"
+              className={casilla}
+              name="turno-extra-talleres"
+              checked={todos}
+              onChange={() => setTodos(true)}
+            />
+            <span>Todos los talleres y bonos{total ? ` (${total})` : ""}</span>
+          </label>
+          <label className={filaOpcion(!todos)}>
+            <input
+              type="radio"
+              className={casilla}
+              name="turno-extra-talleres"
+              checked={!todos}
+              onChange={() => setTodos(false)}
+            />
+            <span>Elegir talleres</span>
+          </label>
+        </div>
         {!todos && (
-          <div className="rounded-xl border border-linea bg-crema p-3 space-y-1.5 max-h-64 overflow-auto">
-            <div className="flex gap-3 text-xs pb-1">
-              <button type="button" className="underline" onClick={() => setElegidos(talleres.map((t) => t.id))}>
+          <div className="rounded-xl border border-linea bg-crema max-h-[60vh] sm:max-h-72 overflow-auto">
+            {/* Sin relleno en el contenedor que se desplaza: así los botones se pegan arriba del todo */}
+            <div className="sticky top-0 z-10 flex gap-2 border-b border-linea bg-crema p-2 sm:static sm:border-0 sm:p-3 sm:pb-2">
+              <button type="button" className={botonLista} onClick={() => setElegidos(talleres.map((t) => t.id))}>
                 Marcar todos
               </button>
-              <button type="button" className="underline" onClick={() => setElegidos([])}>
+              <button type="button" className={botonLista} onClick={() => setElegidos([])}>
                 Quitar todos
               </button>
             </div>
-            {talleres.map((t) => (
-              <label key={t.id} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={elegidos.includes(t.id)} onChange={() => alternarTaller(t.id)} />
-                <span>
-                  {t.nombre}
-                  <span className="text-tinta-suave">
-                    {" "}· {textoDuracion(t.duracion)}
-                    {t.bono ? " · bono" : ""}
-                    {t.oculta ? " · oculto" : ""}
+            <div className="space-y-1.5 p-2 sm:p-3 sm:pt-0">
+              {talleres.map((t) => (
+                <label key={t.id} className={filaOpcion(elegidos.includes(t.id))}>
+                  <input
+                    type="checkbox"
+                    className={casilla}
+                    checked={elegidos.includes(t.id)}
+                    onChange={() => alternarTaller(t.id)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block break-words">{t.nombre}</span>
+                    <span className="block text-xs text-tinta-suave">
+                      {textoDuracion(t.duracion)}
+                      {t.bono ? " · bono" : ""}
+                      {t.oculta ? " · oculto" : ""}
+                    </span>
                   </span>
-                </span>
-              </label>
-            ))}
-            {!talleres.length && !cargando && <p className="text-sm text-tinta-suave">No hay talleres.</p>}
+                </label>
+              ))}
+              {!talleres.length && !cargando && <p className="text-sm text-tinta-suave">No hay talleres.</p>}
+            </div>
           </div>
         )}
         <p className={ayuda}>
