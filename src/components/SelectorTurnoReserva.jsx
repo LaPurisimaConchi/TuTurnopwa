@@ -14,6 +14,7 @@ export default function SelectorTurnoReserva({
   botones = false, // los turnos se ven como botones en lugar de un desplegable
   turnosMinimo = [], // turnos que solo se abren con un mínimo de personas (en azul)
   minimo = 0, // ese mínimo, para el texto del desplegable
+  turnosCompletos = [], // turnos sin plazas (aforo o cupo): se ven en violeta y no se pueden elegir
 }) {
   const raiz = useRef(null);
 
@@ -51,15 +52,20 @@ export default function SelectorTurnoReserva({
                   role="radio"
                   aria-checked={elegido}
                   onClick={() => elegirBoton(turno)}
+                  disabled={turnosCompletos.includes(turno) && !elegido}
+                  title={turnosCompletos.includes(turno) ? "Completo: no quedan plazas" : undefined}
                   className={`px-4 py-2 rounded-xl border text-sm font-semibold transition ${
                     elegido
                       ? "bg-terracota border-terracota text-white ring-2 ring-terracota-suave"
+                      : turnosCompletos.includes(turno)
+                      ? "bg-violet-100 border-violet-300 text-violet-700 cursor-not-allowed"
                       : turnosMinimo.includes(turno)
                       ? "bg-sky-50 border-sky-300 text-sky-800 hover:bg-sky-100"
                       : "bg-mostaza-suave border-mostaza text-tinta hover:bg-mostaza/40"
                   }`}
                 >
                   {turno}
+                  {turnosCompletos.includes(turno) && <span className="block text-xs font-medium">Completo</span>}
                 </button>
               );
             })}
@@ -88,8 +94,10 @@ export default function SelectorTurnoReserva({
             key={turno}
             value={turno}
             className={turnosMinimo.includes(turno) ? "bg-sky-50 text-sky-800" : undefined}
+            disabled={turnosCompletos.includes(turno)}
           >
             {turno}
+            {turnosCompletos.includes(turno) ? " (completo)" : ""}
             {turnosMinimo.includes(turno) ? (minimo ? ` (desde ${minimo} personas)` : " (cerrado)") : ""}
           </option>
         ))}

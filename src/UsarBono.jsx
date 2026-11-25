@@ -52,6 +52,7 @@ export default function UsarBono() {
     fechasBloqueadas,
     fechasHabilitadas,
     diasAbiertos,
+    completo,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -299,7 +300,7 @@ export default function UsarBono() {
                     setTurno("");
                   }}
                   estadoDia={(iso) =>
-                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos })
+                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos, completo })
                   }
                   cargando={!contextoCargado}
                   fechaBloqueada={fechaBloqueada}
@@ -324,6 +325,7 @@ export default function UsarBono() {
                 onChange={setTurno}
                 turnos={turnosDisponibles}
                 turnosMinimo={turnosMinimo}
+                turnosCompletos={turnosDisponibles.filter((t) => completo(fechaSesion, t))}
                 deshabilitado={!fechaSesion || diaNoDisponible || !!fechaBloqueada}
                 placeholder={!fechaSesion ? "-- Primero selecciona el día --" : "-- Elige turno --"}
               />

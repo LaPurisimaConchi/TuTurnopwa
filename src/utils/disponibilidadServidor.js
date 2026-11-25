@@ -7,7 +7,7 @@
 //   tipo=plazas&fecha=…&turno=…&ruta=<carpeta>             → ocupadas del taller
 //   tipo=franja&fecha=…&turno=…                            → aforo real: plazas de la franja
 //   tipo=franjas                                           → plazas de todas las franjas desde hoy
-import { contarFranja, ocupacionPorFranja } from "./aforo.js";
+import { aforoDeFranja, contarFranja, ocupacionPorFranja } from "./aforo.js";
 import { calcularDiasAbiertos } from "./diasAbiertos.js";
 import { hoyMadrid } from "./formatoFecha.js";
 import { normalizarConfigEspacio } from "./configEspacio.js";
@@ -67,10 +67,11 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
   }
 
   if (tipo === "franjas") {
-    const [reservas, grupos, espacio] = await Promise.all([
+    const [reservas, grupos, espacio, cupos] = await Promise.all([
       leer("reservas"),
       leer("reservasGrupos"),
       leer("configuracionEspacio"),
+      leer("cuposFranja"),
     ]);
     const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
 
@@ -79,6 +80,7 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
       cuerpo: {
         ok: true,
         franjas: ocupacionPorFranja(reservas, grupos, hoyMadrid()),
+        cupos: cupos.exists() ? cupos.val() || {} : {},
         aforoTotal: config.aforoTotal,
         maxTorno: config.maxTorno,
       },
@@ -89,17 +91,19 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
     if (!FECHA.test(fecha)) return mal("Fecha no válida");
     if (!turno || !(TURNO.test(turno) && sinControl(turno))) return mal("Turno no válido");
 
-    const [reservas, grupos, espacio] = await Promise.all([
+    const [reservas, grupos, espacio, cupos] = await Promise.all([
       leer("reservas"),
       leer("reservasGrupos"),
       leer("configuracionEspacio"),
+      leer(`cuposFranja/${fecha}`),
     ]);
     const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
     const { total, torno } = contarFranja(reservas, grupos, fecha, turno);
+    const aforoTotal = aforoDeFranja(config.aforoTotal, cupos.exists() ? cupos.val() : {}, turno);
 
     return {
       codigo: 200,
-      cuerpo: { ok: true, total, torno, aforoTotal: config.aforoTotal, maxTorno: config.maxTorno },
+      cuerpo: { ok: true, total, torno, aforoTotal, maxTorno: config.maxTorno },
     };
   }
 

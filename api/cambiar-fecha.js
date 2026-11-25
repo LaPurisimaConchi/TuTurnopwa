@@ -165,7 +165,7 @@ async function contextoDeLaClase(segmentos, reserva) {
   const carpeta = segmentos[1];
   const claseId = reserva.claseId || carpeta;
 
-  const [clase, bloqueos, habilitadas, grupos, reservas, espacio, clases] = await Promise.all([
+  const [clase, bloqueos, habilitadas, grupos, reservas, espacio, clases, cupos] = await Promise.all([
     adminDb.ref(`clases/${claseId}`).get(),
     adminDb.ref("bloqueosFechas").get(),
     adminDb.ref("fechasHabilitadas").get(),
@@ -173,6 +173,7 @@ async function contextoDeLaClase(segmentos, reserva) {
     adminDb.ref("reservas").get(),
     adminDb.ref("configuracionEspacio").get(),
     adminDb.ref("clases").get(),
+    adminDb.ref("cuposFranja").get(),
   ]);
 
   return {
@@ -191,7 +192,8 @@ async function contextoDeLaClase(segmentos, reserva) {
     }),
     // Snapshots y configuración para el aforo real (src/utils/aforo.js)
     grupos,
-    config: normalizarConfigEspacio(espacio.exists() ? espacio.val() : null),
+    // `cupos`: topes por franja fijados desde el panel (cuposFranja)
+    config: { ...normalizarConfigEspacio(espacio.exists() ? espacio.val() : null), cupos: cupos.val() || {} },
     reservas,
   };
 }
@@ -829,14 +831,17 @@ export default async function handler(req, res) {
     const datosReserva = encontrada.tipo === "grupo" ? encontrada.grupo : encontrada.reserva;
     if (!(await emailDeLaReserva(datosReserva)).includes(email)) return noEncontrada();
 
-    const espacio = await adminDb.ref("configuracionEspacio").get();
+    const [espacio, cupos] = await Promise.all([
+      adminDb.ref("configuracionEspacio").get(),
+      adminDb.ref("cuposFranja").get(),
+    ]);
     const contexto = {
       accion,
       encontrada,
       cuerpo,
       ahoraMs: ahoraMadridMs(),
       res,
-      config: normalizarConfigEspacio(espacio.exists() ? espacio.val() : null),
+      config: { ...normalizarConfigEspacio(espacio.exists() ? espacio.val() : null), cupos: cupos.val() || {} },
     };
 
     return encontrada.tipo === "grupo" ? await resolverGrupo(contexto) : await resolverIndividual(contexto);

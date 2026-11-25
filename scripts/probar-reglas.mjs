@@ -136,6 +136,8 @@ await caso("marcar tarjeta usada", false, pedir("PUT", "tarjetasRegalo/794082140
 await caso("crear tarjeta", false, pedir("PUT", "tarjetasRegalo/1", ANON_A, { codigo: "X" }));
 await caso("leer bloqueos", true, pedir("GET", "bloqueosFechas", ANON_A));
 await caso("bloquear un día", false, pedir("PUT", "bloqueosFechas/2026-12-25", ANON_A, { bloqueado: true }));
+await caso("leer cupos de franja", true, pedir("GET", "cuposFranja", ANON_A));
+await caso("fijar un cupo de franja", false, pedir("PUT", "cuposFranja/2026-12-25/10:00-12:00", ANON_A, 8));
 await caso("habilitar un día", false, pedir("PUT", "fechasHabilitadas/2026-12-25", ANON_A, { habilitada: true }));
 await caso("leer notas de usuarios", false, pedir("GET", "usuariosNotas", ANON_A));
 await caso("escribir notas de reservas", false, pedir("PUT", "reservasNotas/x", ANON_A, "n"));
@@ -168,6 +170,7 @@ await caso("confirmar una reserva", true, pedir("PATCH", `${F}/-Existente`, ADMI
 await caso("editar bonos de un usuario", true, pedir("PUT", "usuarios/uidA/bonos/b1/clasesRestantes", ADMIN, 3));
 await caso("el panel actualiza la listaReservas de un cliente", true, pedir("PUT", "usuarios/uidA/listaReservas/-L1/estado", ADMIN, "Cancelada"));
 await caso("bloquear un día", true, pedir("PUT", "bloqueosFechas/2026-12-25", ADMIN, { bloqueado: true }));
+await caso("fijar un cupo de franja", true, pedir("PUT", "cuposFranja/2026-12-25/10:00-12:00", ADMIN, 8));
 await caso("notas de reservas", true, pedir("PUT", "reservasNotas/x", ADMIN, "n"));
 await caso("leer tarjetas regalo", true, pedir("GET", "tarjetasRegalo", ADMIN));
 await caso("subir plantilla de tarjeta regalo", true, pedir("PUT", "plantillasTarjetaRegalo/p2", ADMIN, { nombre: "Nueva", archivo: "n.pdf" }));

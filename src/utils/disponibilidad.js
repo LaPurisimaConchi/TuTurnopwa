@@ -7,7 +7,7 @@ import { ref, get, child } from "firebase/database";
 import { auth, dbRealtime } from "../firebase";
 import { contarPlazasPorMetodo } from "./contarPlazasDia";
 import { plazasDeTurno, turnosConReservas } from "./plazasOcupadas";
-import { contarFranja, ocupacionPorFranja } from "./aforo";
+import { aforoDeFranja, contarFranja, ocupacionPorFranja } from "./aforo";
 import { calcularDiasAbiertos } from "./diasAbiertos";
 import { hoyMadrid } from "./formatoFecha";
 import { cargarConfigEspacio } from "../configuracionEspacio";
@@ -105,31 +105,35 @@ export async function cargarFranja(fecha, turno) {
     return { total, torno, aforoTotal, maxTorno };
   }
 
-  const [reservas, grupos, config] = await Promise.all([
+  const [reservas, grupos, config, cupos] = await Promise.all([
     get(ref(dbRealtime, "reservas")),
     get(ref(dbRealtime, "reservasGrupos")),
     cargarConfigEspacio(),
+    leerNodo(`cuposFranja/${fecha}`),
   ]);
   const { total, torno } = contarFranja(reservas, grupos, fecha, turno);
 
-  return { total, torno, aforoTotal: config.aforoTotal, maxTorno: config.maxTorno };
+  // El cupo de esa franja (si el panel fijó uno) baja el aforo total
+  return { total, torno, aforoTotal: aforoDeFranja(config.aforoTotal, cupos, turno), maxTorno: config.maxTorno };
 }
 
-// Plazas de todas las franjas desde hoy: { franjas: { fecha: { turno: { total, torno } } }, aforoTotal, maxTorno }
+// Plazas de todas las franjas desde hoy: { franjas: { fecha: { turno: { total, torno } } }, cupos: { fecha: { turno: plazas } }, aforoTotal, maxTorno }
 export async function cargarFranjas() {
   if (!(await leeBaseDeDatos())) {
-    const { franjas, aforoTotal, maxTorno } = await pedirApi({ tipo: "franjas" });
-    return { franjas: franjas || {}, aforoTotal, maxTorno };
+    const { franjas, cupos, aforoTotal, maxTorno } = await pedirApi({ tipo: "franjas" });
+    return { franjas: franjas || {}, cupos: cupos || {}, aforoTotal, maxTorno };
   }
 
-  const [reservas, grupos, config] = await Promise.all([
+  const [reservas, grupos, config, cupos] = await Promise.all([
     get(ref(dbRealtime, "reservas")),
     get(ref(dbRealtime, "reservasGrupos")),
     cargarConfigEspacio(),
+    leerNodo("cuposFranja"),
   ]);
 
   return {
     franjas: ocupacionPorFranja(reservas, grupos, hoyMadrid()),
+    cupos,
     aforoTotal: config.aforoTotal,
     maxTorno: config.maxTorno,
   };
