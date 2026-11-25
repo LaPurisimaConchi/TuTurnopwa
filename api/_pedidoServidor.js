@@ -32,6 +32,8 @@ import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { reservasDelPedido } from "./_canjeServidor.js";
 import { diasAbiertosPerezosos, motivoDiaCerrado } from "./_reservarServidor.js";
+import { conTurnosExtra } from "../src/utils/turnosFecha.js";
+import { turnosExtraDesde } from "../src/utils/turnosExtra.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
 
@@ -302,12 +304,14 @@ async function pedidoDeGrupo(db, uid, orderId, cuerpo) {
   }
 
   // El navegador crea la reserva de grupo él solo: aquí se comprueba lo que la web ya exige
-  const [espacioSnap, bloqueosSnap, claseSnap, habilitadasSnap] = await Promise.all([
+  const [espacioSnap, bloqueosSnap, claseSnap, habilitadasSnap, extrasSnap] = await Promise.all([
     db.ref("configuracionEspacio").get(),
     db.ref(`bloqueosFechas/${texto(grupo.fecha, 10)}`).get(),
     db.ref(`clases/${tallerId}`).get(),
     db.ref("fechasHabilitadas").get(),
+    db.ref("turnosExtra").get(),
   ]);
+  const turnosExtra = turnosExtraDesde(extrasSnap.val() || {}, hoyMadrid());
   const config = normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null);
   if (plazas < config.minPersonasGrupo) {
     return fallo(409, `Una reserva de grupo necesita al menos ${config.minPersonasGrupo} personas.`, {
@@ -319,12 +323,12 @@ async function pedidoDeGrupo(db, uid, orderId, cuerpo) {
   }
   const habilitadas = habilitadasSnap.val() || {};
   const cerrado = await motivoDiaCerrado({
-    clase: claseSnap.exists() ? claseSnap.val() : null,
+    clase: claseSnap.exists() ? conTurnosExtra(claseSnap.val(), turnosExtra[tallerId]) : null,
     fecha: texto(grupo.fecha, 10),
     turno: String(grupo.turno || ""),
     plazas,
     fechasHabilitadas: habilitadas,
-    diasAbiertos: diasAbiertosPerezosos(db, habilitadas),
+    diasAbiertos: diasAbiertosPerezosos(db, habilitadas, turnosExtra),
   });
   if (cerrado) return fallo(409, cerrado, { codigo: "dia_cerrado" });
 

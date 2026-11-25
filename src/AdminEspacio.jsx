@@ -11,7 +11,8 @@ import EditorTurnos from "./components/EditorTurnos";
 import OcupacionProximosDias from "./components/OcupacionProximosDias";
 import { cargarConfigEspacio, guardarConfigEspacio } from "./configuracionEspacio";
 import { normalizarTelefonoWhatsapp, telefonoVisible } from "./utils/configEspacio";
-import { DIAS, horariosDesdeTexto, leerTurnos, turnoInvalido } from "./utils/fichaTaller";
+import { DIAS, TURNO_VALIDO, horariosDesdeTexto } from "./utils/fichaTaller";
+import { duracionDeFicha, horasInvalidas, textoDuracion } from "./utils/duracionTurno";
 
 const input = "w-full border border-gray-300 rounded-xl px-3 py-2 text-base bg-white";
 const label = "block font-bold text-sm mb-1 text-tinta";
@@ -66,10 +67,9 @@ export default function AdminEspacio() {
     const config = leerFormulario();
     if (!config) return;
 
-    const invalidos = DIAS.flatMap(([dia]) => leerTurnos(form.horariosDefecto[dia])).filter(turnoInvalido);
-    if (invalidos.length) return setError(`Revisa los turnos (formato 17:30-20:30): ${invalidos.join(", ")}`);
-    const { horarios, horariosMinimo, turnos } = horariosDesdeTexto(form.horariosDefecto, form.horariosMinimoDefecto);
-    if (!Object.keys(horarios).length) {
+    const invalidos = horasInvalidas(form.horariosDefecto);
+    if (invalidos.length) return setError(`Revisa las horas de inicio (formato 17:30): ${invalidos.join(", ")}`);
+    if (!DIAS.some(([dia]) => form.horariosDefecto[dia]?.trim())) {
       return setError("Añade al menos un día con turnos antes de aplicar los horarios a los talleres.");
     }
 
@@ -80,6 +80,20 @@ export default function AdminEspacio() {
       const ids = Object.keys(clases).filter((id) => abreDias(clases[id]) && clases[id].horariosPorDefecto !== false);
       if (!ids.length) return setError("No hay talleres ni bonos que usen los horarios por defecto.");
 
+      // Cada taller termina según su duración: con la de cada uno se calcula su horario
+      const nuevosHorarios = {};
+      for (const id of ids) {
+        const duracion = duracionDeFicha(clases[id]);
+        const calculado = horariosDesdeTexto(form.horariosDefecto, form.horariosMinimoDefecto, duracion);
+        const noCabe = Object.values(calculado.horarios).flat().find((t) => !TURNO_VALIDO.test(t));
+        if (noCabe) {
+          return setError(
+            `«${clases[id].nombre || id}» dura ${textoDuracion(duracion)}: el turno de las ${noCabe} acabaría pasada la medianoche.`
+          );
+        }
+        nuevosHorarios[id] = { ...calculado, duracion };
+      }
+
       const seguro = await preguntar(
         `Vas a sustituir el horario semanal y los turnos que piden el mínimo de personas de ${ids.length} ${
           ids.length === 1 ? "taller o bono" : "talleres y bonos"
@@ -89,9 +103,12 @@ export default function AdminEspacio() {
 
       const cambios = {};
       ids.forEach((id) => {
+        const { horarios, horariosMinimo, turnos, duracion } = nuevosHorarios[id];
         cambios[`clases/${id}/horarios`] = horarios;
         cambios[`clases/${id}/horariosMinimo`] = Object.keys(horariosMinimo).length ? horariosMinimo : null;
         cambios[`clases/${id}/turnos`] = turnos;
+        // Los anteriores a la duración la dejan fijada con la de sus turnos de antes
+        if (!clases[id].duracionMinutos) cambios[`clases/${id}/duracionMinutos`] = duracion;
       });
       await update(ref(dbRealtime), cambios);
       setForm(aTexto(await guardarConfigEspacio(config)));
@@ -410,7 +427,7 @@ export default function AdminEspacio() {
             <section className={seccion}>
               <h2 className="text-lg font-semibold text-tinta">Horarios por defecto</h2>
               <p className="text-sm text-tinta-suave">
-                Se ponen solos al crear un taller nuevo (y en los que marcan «Usar los horarios por defecto»). Marca con «Mín.» los turnos que solo se
+                Solo la hora de inicio de cada turno: la de fin la pone la duración de cada taller (3 horas por defecto). Se ponen solos al crear un taller nuevo (y en los que marcan «Usar los horarios por defecto»). Marca con «Mín.» los turnos que solo se
                 abren cuando una reserva llega al mínimo de personas del taller. Los talleres que
                 ya existen no cambian, salvo que pulses «Aplicar a todos los talleres» (solo a los que usan los horarios por defecto).
               </p>
@@ -430,6 +447,7 @@ export default function AdminEspacio() {
                       onChange={(valor) => cambiarHorario(dia, valor)}
                       minimo={form.horariosMinimoDefecto[dia]}
                       onMinimoChange={(valor) => cambiarHorarioMinimo(dia, valor)}
+                      soloInicio
                     />
                   </div>
                 ))}
@@ -445,7 +463,7 @@ export default function AdminEspacio() {
                   {aplicando ? "Aplicando…" : "Aplicar a todos los talleres"}
                 </button>
                 <p className={ayuda}>
-                  Sustituye el horario semanal y los turnos «Mín.» de los talleres del panel que usan los horarios por defecto
+                  Sustituye el horario semanal y los turnos «Mín.» de los talleres del panel que usan los horarios por defecto (cada uno acaba según su duración)
                   (bonos incluidos; no los monográficos ni los de siempre sin migrar) por los de esta caja,
                   tal como están ahora, y guarda todos los ajustes de esta página (también como horarios por defecto de los talleres nuevos). Pide confirmación antes.
                 </p>

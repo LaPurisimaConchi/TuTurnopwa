@@ -14,6 +14,8 @@ import { enviarCorreoReserva } from "./_correoReserva.js";
 import { asegurarCodigo } from "./_codigosReserva.js";
 import { normalizarConfigEspacio, tarjetaCaducada } from "../src/utils/configEspacio.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
+import { conTurnosExtra } from "../src/utils/turnosFecha.js";
+import { turnosExtraDesde } from "../src/utils/turnosExtra.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import {
@@ -252,7 +254,9 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
     // El navegador puede dejar reservas pendientes sin pasar por el servidor: antes de
     // confirmarlas se vuelve a comprobar que su día de taller está abierto
     const habilitadas = (await db.ref("fechasHabilitadas").get()).val() || {};
-    const abiertos = diasAbiertosPerezosos(db, habilitadas);
+    // Turnos creados desde el panel para fechas concretas: también valen como turnos del taller
+    const turnosExtra = turnosExtraDesde((await db.ref("turnosExtra").get()).val() || {}, hoyMadrid());
+    const abiertos = diasAbiertosPerezosos(db, habilitadas, turnosExtra);
     const clasesCache = {};
     for (const { reserva } of pendientes) {
       if (reserva.desdeBono === true) continue; // un bono usa días abiertos, no los abre
@@ -260,7 +264,7 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
       if (!ID.test(id)) continue;
       if (!(id in clasesCache)) {
         const snap = await db.ref(`clases/${id}`).get();
-        clasesCache[id] = snap.exists() ? snap.val() : null;
+        clasesCache[id] = snap.exists() ? conTurnosExtra(snap.val(), turnosExtra[id]) : null;
       }
       const cerrado = await motivoDiaCerrado({
         clase: clasesCache[id],
@@ -510,8 +514,14 @@ export async function usarBono(db, uid, { bonoId, fecha, turno } = {}) {
   // Un bono usa los días sin horario ya abiertos por otras reservas, pero no puede abrirlos
   if (clase?.dinamica === true && !esMonografico(clase)) {
     const habilitadas = (await db.ref("fechasHabilitadas").get()).val() || {};
-    const abiertos = await diasAbiertosPerezosos(db, habilitadas)();
-    const turnos = turnosElegibles({ clase, fecha, fechasHabilitadas: habilitadas, diasAbiertos: abiertos });
+    const turnosExtra = turnosExtraDesde((await db.ref("turnosExtra").get()).val() || {}, hoyMadrid());
+    const abiertos = await diasAbiertosPerezosos(db, habilitadas, turnosExtra)();
+    const turnos = turnosElegibles({
+      clase: conTurnosExtra(clase, turnosExtra[claseId]),
+      fecha,
+      fechasHabilitadas: habilitadas,
+      diasAbiertos: abiertos,
+    });
     if (!turnos.includes(turno)) {
       return fallo(409, "Ese día está cerrado o ese turno no está disponible.", { codigo: "dia_cerrado" });
     }

@@ -9,6 +9,7 @@ import { contarPlazasPorMetodo } from "./contarPlazasDia";
 import { plazasDeTurno, turnosConReservas } from "./plazasOcupadas";
 import { aforoDeFranja, contarFranja, ocupacionPorFranja } from "./aforo";
 import { calcularDiasAbiertos } from "./diasAbiertos";
+import { turnosExtraPublicos } from "./turnosExtra";
 import { hoyMadrid } from "./formatoFecha";
 import { cargarConfigEspacio } from "../configuracionEspacio";
 import { esAdministrador } from "./administradores";
@@ -31,32 +32,43 @@ const leerNodo = async (ruta) => {
   }
 };
 
-// Fechas bloqueadas, fechas habilitadas, reservas de grupo y días sin horario abiertos
+// Fechas bloqueadas, fechas habilitadas, turnos extra, reservas de grupo y días sin horario
+// abiertos. `turnosExtra`: { claseId: { fecha: { inicio: { turno, minimo } } } } desde hoy.
 export async function cargarContextoReserva() {
   if (!(await leeBaseDeDatos())) {
-    const { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos } = await pedirApi({
+    const { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos, turnosExtra } = await pedirApi({
       tipo: "contexto",
     });
-    return { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos: diasAbiertos || {} };
+    return {
+      fechasBloqueadas,
+      fechasHabilitadas,
+      reservasGrupos,
+      diasAbiertos: diasAbiertos || {},
+      turnosExtra: turnosExtra || {},
+    };
   }
 
-  const [fechasBloqueadas, fechasHabilitadas, reservasGrupos, reservas, grupos, clases] = await Promise.all([
+  const [fechasBloqueadas, fechasHabilitadas, reservasGrupos, reservas, grupos, clases, extras] = await Promise.all([
     leerNodo("bloqueosFechas"),
     leerNodo("fechasHabilitadas"),
     leerNodo("reservasGrupos"),
     get(ref(dbRealtime, "reservas")),
     get(ref(dbRealtime, "reservasGrupos")),
     leerNodo("clases"),
+    leerNodo("turnosExtra"),
   ]);
+  const turnosExtra = turnosExtraPublicos(extras, hoyMadrid());
 
   return {
     fechasBloqueadas,
     fechasHabilitadas,
     reservasGrupos,
+    turnosExtra,
     diasAbiertos: calcularDiasAbiertos({
       reservas,
       grupos,
       clases,
+      turnosExtra,
       fechasHabilitadas,
       desde: hoyMadrid(),
     }),

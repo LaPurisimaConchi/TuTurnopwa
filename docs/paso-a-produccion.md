@@ -210,3 +210,18 @@ con las nuevas, el código viejo no puede cobrar.
   lleva los botones de PDF). Sin PDF gestionado, el correo enlaza la tarjeta clásica de `public/`.
 - [ ] Tras desplegar: subir, sustituir y borrar un PDF en `/admin-tarjetas-regalo` (cuenta admin con correo
   verificado), comprar una tarjeta de prueba y comprobar que el correo trae los botones de PDF y que descargan.
+
+## Turnos creados a mano (turnosExtra)
+- [ ] **Reglas**: el nodo nuevo `turnosExtra` (lectura y escritura solo admin con el correo verificado: lleva el
+  motivo escrito en el panel; el público recibe los turnos por `/api/disponibilidad`, sin el motivo)
+  va con el resto de reglas del paso a producción. Sin ellas, «Crear turno» en `/admin-habilitar-fechas` y en
+  el panel del calendario da «No tienes permiso para crear turnos» y la web no recibe ningún turno extra.
+  `npm run probar-reglas` cubre el nodo (0 fallos antes de desplegar).
+- [ ] **El servidor y la web van juntos**: `api/_reservarServidor.js` rechaza los turnos que no están en el
+  horario del taller ni en `turnosExtra` («Ese turno no existe ese día»), así que el despliegue de Vercel tiene
+  que incluir las funciones nuevas (reservar, cambiar fecha, bonos, canje de tarjeta, pago de grupo y
+  `/api/disponibilidad`, que ahora devuelve `turnosExtra` al público).
+- [ ] No hay datos que migrar: el nodo empieza vacío y los talleres existentes no cambian.
+- [ ] Comprobación: crear un turno de prueba para un solo taller y un día sin horario (por ejemplo un lunes),
+  verlo en `/reservar/:id` **sin sesión** (ventana privada), hacer una reserva de prueba en ese turno y quitar el
+  turno al terminar (las reservas ya hechas se conservan).

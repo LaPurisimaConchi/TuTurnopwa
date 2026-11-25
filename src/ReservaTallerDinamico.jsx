@@ -17,6 +17,7 @@ import { plazasDeTarjetaRegalo } from "./utils/tarjetasRegalo";
 import {
   esTurnoConsulta,
   estadoDiaTaller,
+  useClaseConTurnosExtra,
   useContextoReserva,
   useDiaDeReserva,
 } from "./utils/turnosTaller";
@@ -123,10 +124,13 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
     fechasHabilitadas,
     reservasGrupos,
     diasAbiertos,
+    turnosExtra,
     completo,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
+  // La ficha con los turnos creados desde el panel para fechas concretas (los que cuentan para el día)
+  const claseTurnos = useClaseConTurnosExtra(clase, claseId, turnosExtra);
 
   const [fecha, setFecha] = useState("");
   const [turno, setTurno] = useState("");
@@ -274,7 +278,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
     turnosMinimo,
   } =
     useDiaDeReserva({
-      clase,
+      clase: claseTurnos,
       fecha,
       fechasBloqueadas,
       fechasHabilitadas,
@@ -341,7 +345,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
   };
 
   const estadoDia = (iso) =>
-    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, diasAbiertos, completo });
+    estadoDiaTaller({ clase: claseTurnos, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, diasAbiertos, completo });
 
   const handleFechaChange = (iso) => {
     setFecha(iso);
@@ -775,7 +779,7 @@ function FormularioReservaInterno({ claseId, clase, incrustado = false, eleccion
                   <SesionExtraReserva
                     key={`${i}-${anterior}`}
                     numero={i + 2}
-                    clase={clase}
+                    clase={claseTurnos}
                     desde={fechaMinimaSiguiente(anterior, diasEntreSesiones[i])}
                     fecha={extraDe(i).fecha}
                     turno={extraDe(i).turno}

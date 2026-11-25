@@ -4,6 +4,17 @@
 import { edicionesDeClase } from "./monografico";
 import { diasEntreSesionesDe } from "./sesionesTaller";
 import {
+  DURACION_POR_DEFECTO_MIN,
+  duracionDeFicha,
+  horasDesdeMinutos,
+  iniciosDeTexto,
+  leerTurnos,
+  minutosDesdeHoras,
+  normalizarTurno,
+  textoDuracion,
+  turnosDesdeInicios,
+} from "./duracionTurno";
+import {
   GRUPOS_TALLER,
   METODOS_TALLER,
   exigeCuenta,
@@ -48,12 +59,14 @@ export const FORMULARIO_VACIO = {
   bono: {
     numeroClases: "4",
     diasCaducidad: "31",
-    duracionClase: "3 horas",
     modalidad: "",
     distribucionClases: "",
     incluyeDecoracion: false,
     extraCambioTorno: "",
   },
+  // Duración de cada sesión en horas (3 por defecto). El horario solo lleva la hora de
+  // inicio: la de fin sale de esta duración al guardar (`utils/duracionTurno.js`)
+  duracionHoras: horasDesdeMinutos(DURACION_POR_DEFECTO_MIN),
   horarios: Object.fromEntries(DIAS.map(([dia]) => [dia, ""])),
   // Turnos de cada día que piden el mínimo de personas para abrirse (subconjunto del horario)
   horariosMinimo: Object.fromEntries(DIAS.map(([dia]) => [dia, ""])),
@@ -80,16 +93,9 @@ export const generarId = (texto = "") =>
     .replace(/[^a-z0-9]/g, "")
     .slice(0, 40);
 
-// Acepta "17:30 - 20:30" y "17:30 a 20:30"
-export const normalizarTurno = (turno) =>
-  turno.replace(/\s+a\s+/gi, "-").replace(/\s+/g, "");
+// Acepta "17:30 - 20:30" y "17:30 a 20:30" (vive en `duracionTurno.js`, sin SDK)
+export { leerTurnos, normalizarTurno };
 export const TURNO_VALIDO = /^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/;
-
-export const leerTurnos = (texto = "") =>
-  texto
-    .split(/[,;\n]/)
-    .map((t) => normalizarTurno(t.trim()))
-    .filter(Boolean);
 
 // Los turnos «a consultar» (sin hora) se admiten tal cual
 export const turnoInvalido = (turno) =>
@@ -128,7 +134,8 @@ export function seccionesDesdeClase(clase = {}) {
       destacada: false,
     });
   }
-  if (typeof clase.duracion === "string" && clase.duracion.trim()) {
+  // Con `duracionMinutos`, `duracion` es el texto que genera el formulario, no una sección
+  if (!clase.duracionMinutos && typeof clase.duracion === "string" && clase.duracion.trim()) {
     secciones.push({ titulo: "Duración", texto: clase.duracion, items: "", destacada: false });
   }
   return secciones;
@@ -140,6 +147,7 @@ export function formularioDesdeClase(id, clase = {}) {
   const variantes = variantesDelTaller(clase);
   const metodosActivos = metodosDelTaller(clase).map((m) => m.id);
   const horarios = clase.horarios || {};
+  const duracionMin = duracionDeFicha(clase);
 
   const modalidad = esBono
     ? "unico"
@@ -164,6 +172,7 @@ export function formularioDesdeClase(id, clase = {}) {
     notaImportante: clase.notaImportante || "",
     mostrarAvisos: clase.mostrarAvisos !== false,
     secciones: seccionesDesdeClase(clase),
+    duracionHoras: horasDesdeMinutos(duracionMin),
     sesiones: String(clase.sesiones || 1),
     diasEntreSesiones: diasEntreSesionesDe(clase).map(String),
     modalidad,
@@ -186,7 +195,6 @@ export function formularioDesdeClase(id, clase = {}) {
     bono: {
       numeroClases: String(clase.numeroClases ?? clase.NumeroClases ?? "4"),
       diasCaducidad: String(clase.diasCaducidad ?? 31),
-      duracionClase: clase.duracionClase || clase.duracion || "",
       modalidad: clase.modalidad || "",
       distribucionClases: clase.distribucionClases || "",
       incluyeDecoracion: !!clase.incluyeDecoracion,
@@ -194,10 +202,11 @@ export function formularioDesdeClase(id, clase = {}) {
         ? String(clase.extraCambioTorno ?? clase.ExtraCambioTorno ?? "")
         : "",
     },
+    // En el formulario el horario solo lleva las horas de inicio («11:30, 17:30»)
     horarios: Object.fromEntries(
       DIAS.map(([dia]) => [
         dia,
-        Array.isArray(horarios[dia]) ? horarios[dia].join(", ") : String(horarios[dia] || ""),
+        iniciosDeTexto(Array.isArray(horarios[dia]) ? horarios[dia].join(", ") : String(horarios[dia] || "")),
       ])
     ),
     // Los talleres anteriores a esta casilla cuentan como marcados
@@ -205,7 +214,7 @@ export function formularioDesdeClase(id, clase = {}) {
     horariosMinimo: Object.fromEntries(
       DIAS.map(([dia]) => {
         const valor = clase.horariosMinimo?.[dia];
-        return [dia, Array.isArray(valor) ? valor.join(", ") : String(valor || "")];
+        return [dia, iniciosDeTexto(Array.isArray(valor) ? valor.join(", ") : String(valor || ""))];
       })
     ),
     estado: clase.estado || (clase.activa === false ? "oculta" : "activa"),
@@ -223,16 +232,19 @@ export function formularioDesdeClase(id, clase = {}) {
 }
 
 
-// Horario semanal escrito en el formulario → lo que se guarda en la ficha: `horarios` y
-// `horariosMinimo` por día, y `turnos` (todos los del horario, que leen las pantallas de
-// siempre). Solo valen como «mínimo» los turnos del día que tienen horas.
-export function horariosDesdeTexto(horariosTexto = {}, minimoTexto = {}) {
+// Horario semanal escrito en el formulario (horas de inicio por día) → lo que se guarda en
+// la ficha: `horarios` y `horariosMinimo` por día con su hora de fin (inicio + `duracionMin`),
+// y `turnos` (todos los del horario, que leen las pantallas de siempre). Solo valen como
+// «mínimo» los turnos del día que tienen horas.
+export function horariosDesdeTexto(horariosTexto = {}, minimoTexto = {}, duracionMin = DURACION_POR_DEFECTO_MIN) {
   const horarios = {};
   const horariosMinimo = {};
   DIAS.forEach(([dia]) => {
-    const turnos = leerTurnos(horariosTexto[dia]);
+    const turnos = turnosDesdeInicios(horariosTexto[dia], duracionMin);
     if (turnos.length) horarios[dia] = turnos;
-    const marcados = leerTurnos(minimoTexto?.[dia]).filter((t) => TURNO_VALIDO.test(t) && turnos.includes(t));
+    const marcados = turnosDesdeInicios(minimoTexto?.[dia], duracionMin).filter(
+      (t) => TURNO_VALIDO.test(t) && turnos.includes(t)
+    );
     if (marcados.length) horariosMinimo[dia] = marcados;
   });
   const turnos = [...new Set(Object.values(horarios).flat())].sort();
@@ -241,7 +253,12 @@ export function horariosDesdeTexto(horariosTexto = {}, minimoTexto = {}) {
 
 export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) {
   const esBono = form.tipoProducto === "bono";
-  const { horarios, horariosMinimo, turnos } = horariosDesdeTexto(form.horarios, form.horariosMinimo);
+  const duracionMinutos = minutosDesdeHoras(form.duracionHoras) || DURACION_POR_DEFECTO_MIN;
+  const { horarios, horariosMinimo, turnos } = horariosDesdeTexto(
+    form.horarios,
+    form.horariosMinimo,
+    duracionMinutos
+  );
 
   const conMetodos = !esBono && form.modalidad === "metodos";
   const conVariantes = !esBono && form.modalidad === "variante";
@@ -306,6 +323,9 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
           )
         )
       : null,
+    duracionMinutos,
+    // Texto de la duración para las pantallas («3 horas»); los bonos usan `duracionClase`
+    ...(esBono ? {} : { duracion: textoDuracion(duracionMinutos) }),
     horarios,
     horariosMinimo,
     horariosPorDefecto: !!form.horariosPorDefecto,
@@ -335,7 +355,7 @@ export function construirFicha(form, original = {}, categorias = GRUPOS_TALLER) 
       ? {
           numeroClases: Math.round(numeroPositivo(form.bono.numeroClases)),
           diasCaducidad: Math.round(numeroPositivo(form.bono.diasCaducidad)) || 31,
-          duracionClase: form.bono.duracionClase.trim(),
+          duracionClase: textoDuracion(duracionMinutos),
           modalidad: form.bono.modalidad.trim(),
           distribucionClases: form.bono.distribucionClases.trim() || null,
           ...(form.bono.incluyeDecoracion || original.incluyeDecoracion !== undefined

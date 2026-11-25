@@ -7,6 +7,7 @@ import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { preguntar } from "./utils/avisos";
 import { limpiarTurno } from "./utils/turnosFecha";
 import EditorTurnos from "./components/EditorTurnos";
+import CrearTurnoExtra from "./components/CrearTurnoExtra";
 import { leerTurnos } from "./utils/fichaTaller";
 
 const AdminHabilitarFechas = () => {
@@ -188,7 +189,7 @@ setFechaEditando(null);
 
         <h1 style={styles.titulo}>Abrir días</h1>
         <p style={styles.subtitulo}>
-          Abre una franja para que los turnos que piden el mínimo de personas y caben dentro de ella se puedan reservar con cualquier número de personas, sin esperar a una reserva que llegue al mínimo. No crea turnos: un taller sin turnos ese día sigue sin dar clase.
+          Abre una franja para que los turnos que piden el mínimo de personas y caben dentro de ella se puedan reservar con cualquier número de personas, sin esperar a una reserva que llegue al mínimo. No crea turnos: para eso está «Crear un turno», más abajo.
         </p>
 
         <div style={styles.card}>
@@ -266,6 +267,11 @@ setFechaEditando(null);
   ? "Guardar cambios"
   : "Abrir días"}
           </button>
+        </div>
+
+        <div style={styles.card}>
+          <h2 style={styles.subtituloBloque}>Crear un turno</h2>
+          <CrearTurnoExtra />
         </div>
 
         <div style={styles.card}>

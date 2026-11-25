@@ -40,7 +40,8 @@ import {
   formatearCodigo,
   normalizarCodigo,
 } from "./_codigosReserva.js";
-import { limpiarTurno } from "../src/utils/turnosFecha.js";
+import { conTurnosExtra, limpiarTurno } from "../src/utils/turnosFecha.js";
+import { turnosExtraDesde } from "../src/utils/turnosExtra.js";
 import { calcularDiasAbiertos } from "../src/utils/diasAbiertos.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { normalizarConfigEspacio } from "../src/utils/configEspacio.js";
@@ -165,7 +166,7 @@ async function contextoDeLaClase(segmentos, reserva) {
   const carpeta = segmentos[1];
   const claseId = reserva.claseId || carpeta;
 
-  const [clase, bloqueos, habilitadas, grupos, reservas, espacio, clases, cupos] = await Promise.all([
+  const [clase, bloqueos, habilitadas, grupos, reservas, espacio, clases, cupos, extras] = await Promise.all([
     adminDb.ref(`clases/${claseId}`).get(),
     adminDb.ref("bloqueosFechas").get(),
     adminDb.ref("fechasHabilitadas").get(),
@@ -174,11 +175,14 @@ async function contextoDeLaClase(segmentos, reserva) {
     adminDb.ref("configuracionEspacio").get(),
     adminDb.ref("clases").get(),
     adminDb.ref("cuposFranja").get(),
+    adminDb.ref("turnosExtra").get(),
   ]);
+  // Turnos creados desde el panel para fechas concretas: la ficha los lleva (conTurnosExtra)
+  const turnosExtra = turnosExtraDesde(extras.val() || {}, hoyMadrid());
 
   return {
     carpeta,
-    clase: clase.exists() ? clase.val() : null,
+    clase: clase.exists() ? conTurnosExtra(clase.val(), turnosExtra[claseId]) : null,
     bloqueos: bloqueos.val() || {},
     fechasHabilitadas: habilitadas.val() || {},
     reservasGrupos: grupos.val() || {},
@@ -187,6 +191,7 @@ async function contextoDeLaClase(segmentos, reserva) {
       reservas,
       grupos,
       clases: clases.val() || {},
+      turnosExtra,
       fechasHabilitadas: habilitadas.val() || {},
       desde: hoyMadrid(),
     }),

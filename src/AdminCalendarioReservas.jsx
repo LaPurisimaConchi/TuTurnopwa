@@ -940,6 +940,8 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
             </div>
 
             <div style={esAncho ? styles.columnaDerecha : { marginTop: 16 }}>
+            {/* En escritorio, las opciones de bloquear, habilitar y cupo van encima de los detalles del día */}
+            {!isMobile && panelFechasJsx && <div style={{ marginBottom: 16 }}>{panelFechasJsx}</div>}
             <div
               ref={detalleRef}
               style={{
@@ -986,7 +988,6 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               {detalleDiaSeleccionado?.reservas?.length > 0 && listaReservasJsx}
             </div>
 
-            {!isMobile && panelFechasJsx && <div style={{ marginTop: 16 }}>{panelFechasJsx}</div>}
             </div>
           </div>
         )}
@@ -997,7 +998,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
           <div style={styles.barraInferior}>
             <span style={styles.barraInferiorTexto}>{textoSeleccion}</span>
             <button type="button" style={styles.barraInferiorBoton} onClick={() => setHojaAbierta(true)}>
-              Bloquear / habilitar / cupo
+              Bloquear / habilitar / turno / cupo
             </button>
           </div>
 
@@ -1021,7 +1022,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               onClick={(e) => e.stopPropagation()}
             >
               <div style={styles.hojaCabecera}>
-                <span style={styles.hojaTitulo}>Bloquear, habilitar o limitar cupo</span>
+                <span style={styles.hojaTitulo}>Bloquear, habilitar, turno nuevo o cupo</span>
                 <button
                   type="button"
                   aria-label="Cerrar"

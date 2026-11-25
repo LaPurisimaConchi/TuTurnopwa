@@ -9,6 +9,7 @@ import { useLocation } from "react-router-dom";
 
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
 import { calcularDiasAbiertos } from "./utils/diasAbiertos";
+import { turnosExtraDesde } from "./utils/turnosExtra";
 import Icono from "./components/Icono";
 import "./AdminDashboard.css";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
@@ -544,26 +545,31 @@ const marcarGrupoPagado = async (r) => {
 const cargarContextoCambio = async () => {
   setContextoCambio({ cargando: true });
   try {
-    const [bloqueosSnap, reservasSnap, gruposSnap, clasesSnap, habilitadasSnap] = await Promise.all([
+    const [bloqueosSnap, reservasSnap, gruposSnap, clasesSnap, habilitadasSnap, extrasSnap] = await Promise.all([
       get(ref(dbRealtime, "bloqueosFechas")),
       get(ref(dbRealtime, "reservas")),
       get(ref(dbRealtime, "reservasGrupos")),
       get(ref(dbRealtime, "clases")),
       get(ref(dbRealtime, "fechasHabilitadas")),
+      get(ref(dbRealtime, "turnosExtra")),
     ]);
     const fechasHabilitadas = habilitadasSnap.val() || {};
     const clases = clasesSnap.val() || {};
+    // Turnos creados desde el panel para fechas concretas
+    const turnosExtra = turnosExtraDesde(extrasSnap.val() || {}, hoyMadrid());
     setContextoCambio({
       cargando: false,
       bloqueos: bloqueosSnap.val() || {},
       reservas: reservasSnap,
       grupos: gruposSnap,
       clases,
+      turnosExtra,
       fechasHabilitadas,
       diasAbiertos: calcularDiasAbiertos({
         reservas: reservasSnap,
         grupos: gruposSnap,
         clases,
+        turnosExtra,
         fechasHabilitadas,
         desde: hoyMadrid(),
       }),

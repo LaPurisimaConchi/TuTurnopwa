@@ -9,11 +9,13 @@ import { cargarContextoReserva, cargarFranjas } from "./disponibilidad";
 import { aforoDeFranja, sumarSolapadas } from "./aforo";
 import { turnoYaEmpezado } from "./cambioFecha";
 import {
+  conTurnosExtra,
   esTurnoConsulta,
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
   turnosConMinimoEnFecha,
+  turnosDelDia,
   turnosDisponiblesEnFecha,
 } from "./turnosFecha";
 
@@ -110,7 +112,15 @@ export function estadoDiaTaller({
   return { estado: "sin-taller" };
 }
 
-// Fechas bloqueadas, fechas habilitadas, reservas de grupo y días abiertos (solo lectura).
+// La ficha de un taller con sus turnos extra (los creados desde el panel para fechas concretas),
+// que es lo que hay que pasar a `useDiaDeReserva`, `estadoDiaTaller` y las reglas de turnos.
+// `turnosExtra` es el del contexto de reserva (todos los talleres).
+export function useClaseConTurnosExtra(clase, claseId, turnosExtra) {
+  const delTaller = claseId ? turnosExtra?.[claseId] : null;
+  return useMemo(() => conTurnosExtra(clase, delTaller), [clase, delTaller]);
+}
+
+// Fechas bloqueadas, fechas habilitadas, turnos extra, reservas de grupo y días abiertos (solo lectura).
 // `cargado` indica que ya llegaron los datos (hasta entonces el calendario no
 // debe dejar elegir día). `error` avisa de que no se ha podido leer: sin ellos no
 // se sabe qué días están bloqueados, así que la pantalla no debe dejar reservar.
@@ -120,6 +130,7 @@ export function useContextoReserva() {
     fechasHabilitadas: {},
     reservasGrupos: {},
     diasAbiertos: {},
+    turnosExtra: {},
     error: false,
     cargado: false,
   });
@@ -141,6 +152,7 @@ export function useContextoReserva() {
             fechasHabilitadas: {},
             reservasGrupos: {},
             diasAbiertos: {},
+            turnosExtra: {},
             error: true,
             cargado: true,
           });
@@ -225,9 +237,7 @@ export function useDiaDeReserva({
 
   // Los turnos se ofrecen en el orden del horario, mezclados los libres y los azules
   const ofrecidos = new Set([...turnosDisponibles, ...turnosMinimo]);
-  const turnosOfrecidos = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)])
-    .map(limpiarTurno)
-    .filter((t) => ofrecidos.has(t));
+  const turnosOfrecidos = turnosDelDia(clase, fecha).filter((t) => ofrecidos.has(t));
 
   return {
     turnosDisponibles: turnosOfrecidos,

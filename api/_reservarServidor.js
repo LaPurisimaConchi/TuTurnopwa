@@ -18,7 +18,8 @@ import { turnoYaEmpezado } from "../src/utils/cambioFecha.js";
 import { bloqueoAfectaTurno } from "../src/utils/rangosHora.js";
 import { normalizarMetodo } from "../src/utils/plazasOcupadas.js";
 import { calcularDiasAbiertos, puedeAbrirDia } from "../src/utils/diasAbiertos.js";
-import { limpiarTurno, nombreDiaSemana, normalizarTurnos, turnoAbiertoSinMinimo, turnosMinimoDeClase } from "../src/utils/turnosFecha.js";
+import { conTurnosExtra, limpiarTurno, turnoAbiertoSinMinimo, turnosDelDia, turnosMinimoDeClase } from "../src/utils/turnosFecha.js";
+import { turnosExtraDesde } from "../src/utils/turnosExtra.js";
 import { edicionPorId, edicionReservable, esMonografico } from "../src/utils/monografico.js";
 import { diasEntreSesionesDe, motivoSesionesNoValidas, sesionesDeTaller } from "../src/utils/sesionesTaller.js";
 
@@ -107,7 +108,7 @@ export async function escribirConAforo(db, preparadas, config, ahoraMs, alExito 
 }
 
 // Días abiertos (src/utils/diasAbiertos.js), calculados solo si alguien los pide y una vez
-export function diasAbiertosPerezosos(db, fechasHabilitadas) {
+export function diasAbiertosPerezosos(db, fechasHabilitadas, turnosExtra = {}) {
   let cache = null;
   return async () => {
     if (!cache) {
@@ -120,6 +121,7 @@ export function diasAbiertosPerezosos(db, fechasHabilitadas) {
         reservas,
         grupos,
         clases: clases.val() || {},
+        turnosExtra,
         fechasHabilitadas,
         desde: hoyMadrid(),
       });
@@ -128,7 +130,8 @@ export function diasAbiertosPerezosos(db, fechasHabilitadas) {
   };
 }
 
-// Un taller del panel solo da clase los días y turnos de su horario semanal. Un turno
+// Un taller del panel solo da clase los días y turnos de su horario semanal (más los turnos
+// extra creados desde el panel para esa fecha: `clase` ya los lleva, ver `conTurnosExtra`). Un turno
 // marcado como «requiere el mínimo de personas» solo se reserva si ya está abierto (otra
 // reserva con el mínimo en una franja que lo abre, o una franja habilitada desde
 // administración) o si esta llega al mínimo de personas del taller. Devuelve el motivo si
@@ -136,14 +139,14 @@ export function diasAbiertosPerezosos(db, fechasHabilitadas) {
 export async function motivoDiaCerrado({ clase, fecha, turno, plazas, fechasHabilitadas, diasAbiertos }) {
   if (!clase || clase.dinamica !== true || esMonografico(clase)) return "";
 
-  const turnosDelDia = normalizarTurnos(clase.horarios?.[nombreDiaSemana(fecha)]).map(limpiarTurno);
-  if (!turnosDelDia.length) return "Ese día no hay taller.";
-  const soloConsulta = turnosDelDia.length === 1 && turnosDelDia[0].toLowerCase().includes("consultar");
+  const delDia = turnosDelDia(clase, fecha);
+  if (!delDia.length) return "Ese día no hay taller.";
+  const soloConsulta = delDia.length === 1 && delDia[0].toLowerCase().includes("consultar");
   if (soloConsulta) return "";
 
   const turnoLimpio = limpiarTurno(turno);
   // Solo valen los turnos de ese día (el navegador manda el turno)
-  if (!turnosDelDia.includes(turnoLimpio)) return "Ese turno no existe ese día.";
+  if (!delDia.includes(turnoLimpio)) return "Ese turno no existe ese día.";
 
   if (!turnosMinimoDeClase(clase, fecha).includes(turnoLimpio)) return "";
   if (puedeAbrirDia(clase, plazas)) return "";
@@ -159,17 +162,20 @@ export async function reservarConAforo(db, uid, claseId, items, { edicionId = ""
     return fallo(400, "Reserva no válida");
   }
 
-  const [claseSnap, bloqueosSnap, espacioSnap, habilitadasSnap] = await Promise.all([
+  const [claseSnap, bloqueosSnap, espacioSnap, habilitadasSnap, extrasSnap] = await Promise.all([
     db.ref(`clases/${claseId}`).get(),
     db.ref("bloqueosFechas").get(),
     db.ref("configuracionEspacio").get(),
     db.ref("fechasHabilitadas").get(),
+    db.ref("turnosExtra").get(),
   ]);
   const fechasHabilitadas = habilitadasSnap.exists() ? habilitadasSnap.val() || {} : {};
+  const turnosExtra = turnosExtraDesde(extrasSnap.val() || {}, hoyMadrid());
   // Días sin horario abiertos por otras reservas: se calculan solo si hace falta
-  const diasAbiertos = diasAbiertosPerezosos(db, fechasHabilitadas);
+  const diasAbiertos = diasAbiertosPerezosos(db, fechasHabilitadas, turnosExtra);
 
-  const clase = claseSnap.exists() ? claseSnap.val() : null;
+  // La ficha con sus turnos extra (los creados desde el panel para fechas concretas)
+  const clase = claseSnap.exists() ? conTurnosExtra(claseSnap.val(), turnosExtra[claseId]) : null;
   const activa = clase && (clase.estado ? clase.estado === "activa" : clase.activa !== false);
   // Monográfico: se reserva una edición entera. Las fechas y los turnos los pone el
   // servidor a partir de la edición; del navegador solo se toman plazas y datos.

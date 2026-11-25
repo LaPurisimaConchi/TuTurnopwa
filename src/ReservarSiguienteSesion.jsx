@@ -10,7 +10,7 @@ import { dbRealtime } from "./firebase";
 import { cargarFranja } from "./utils/disponibilidad";
 import { plazasLibresFranja } from "./utils/aforo";
 import { useConfigEspacio } from "./configuracionEspacio";
-import { estadoDiaTaller, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
+import { estadoDiaTaller, useClaseConTurnosExtra, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
 import { reservarSiguienteSesion, sesionesPendientes } from "./utils/canjeServidor";
 import PantallaReserva from "./components/PantallaReserva";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
@@ -27,6 +27,7 @@ export default function ReservarSiguienteSesion() {
     fechasBloqueadas,
     fechasHabilitadas,
     diasAbiertos,
+    turnosExtra,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -80,11 +81,13 @@ export default function ReservarSiguienteSesion() {
   }, [user, orderId]);
 
   const clase = useMemo(() => claseConfig || { horarios: {} }, [claseConfig]);
+  // La ficha con los turnos creados desde el panel para fechas concretas
+  const claseTurnos = useClaseConTurnosExtra(clase, pendiente?.claseId, turnosExtra);
   const disponible = pendiente?.fechaDisponible || "";
   const yaSePuede = !!pendiente && (!disponible || !hoy || hoy >= disponible);
 
   const { turnosDisponibles, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } = useDiaDeReserva({
-    clase,
+    clase: claseTurnos,
     fecha,
     fechasBloqueadas,
     fechasHabilitadas,
@@ -251,7 +254,7 @@ export default function ReservarSiguienteSesion() {
                     setTurno("");
                   }}
                   estadoDia={(iso) =>
-                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
+                    estadoDiaTaller({ clase: claseTurnos, fecha: iso, fechasBloqueadas, fechasHabilitadas, diasAbiertos })
                   }
                   cargando={!contextoCargado}
                   fechaBloqueada={fechaBloqueada}

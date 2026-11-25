@@ -9,6 +9,7 @@
 //   tipo=franjas                                           → plazas de todas las franjas desde hoy
 import { aforoDeFranja, contarFranja, ocupacionPorFranja } from "./aforo.js";
 import { calcularDiasAbiertos } from "./diasAbiertos.js";
+import { turnosExtraPublicos } from "./turnosExtra.js";
 import { hoyMadrid } from "./formatoFecha.js";
 import { normalizarConfigEspacio } from "./configEspacio.js";
 import {
@@ -30,14 +31,17 @@ const mal = (error) => ({ codigo: 400, cuerpo: { ok: false, error } });
 
 export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer) {
   if (tipo === "contexto") {
-    const [bloqueos, habilitadas, grupos, reservas, clases] = await Promise.all([
+    const [bloqueos, habilitadas, grupos, reservas, clases, extras] = await Promise.all([
       leer("bloqueosFechas"),
       leer("fechasHabilitadas"),
       leer("reservasGrupos"),
       leer("reservas"),
       leer("clases"),
+      leer("turnosExtra"),
     ]);
     const habilitadasPublicas = habilitacionesPublicas(habilitadas.val() || {});
+    // Turnos creados desde el panel para fechas concretas (de hoy en adelante, sin el motivo)
+    const turnosExtra = turnosExtraPublicos(extras.val() || {}, hoyMadrid());
 
     return {
       codigo: 200,
@@ -45,12 +49,14 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
         ok: true,
         fechasBloqueadas: bloqueosPublicos(bloqueos.val() || {}),
         fechasHabilitadas: habilitadasPublicas,
+        turnosExtra,
         reservasGrupos: gruposPublicos(grupos.val() || {}),
         // Días sin horario abiertos por una reserva con el mínimo de personas (solo fechas)
         diasAbiertos: calcularDiasAbiertos({
           reservas,
           grupos,
           clases: clases.val() || {},
+          turnosExtra,
           fechasHabilitadas: habilitadasPublicas,
           desde: hoyMadrid(),
         }),
