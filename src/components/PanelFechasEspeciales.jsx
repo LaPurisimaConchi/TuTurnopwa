@@ -208,7 +208,7 @@ export default function PanelFechasEspeciales({
 
   return (
     <div style={estilos.caja}>
-      <h3 style={estilos.titulo}>Bloquear o habilitar · {textoRango}</h3>
+      <h3 style={estilos.titulo}>Bloquear, habilitar o cupo · {textoRango}</h3>
 
       <div style={estilos.pestanas}>
         {[
@@ -314,7 +314,7 @@ export default function PanelFechasEspeciales({
           {guardando ? "Guardando..." : modo === "bloquear" ? "Bloquear" : modo === "cupo" ? "Fijar cupo" : "Habilitar"}
         </button>
 
-        {cuposDelRango.length > 0 && (
+        {modo === "cupo" && cuposDelRango.length > 0 && (
           <button
             type="button"
             disabled={guardando}
