@@ -23,6 +23,7 @@ import { edicionesReservables, esMonografico } from "./utils/monografico";
 import { etiquetaSesiones } from "./catalogoBase";
 import { diasCaducidadBono } from "./utils/estadoBono";
 import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
+import { esSeccionDuracion, resumenDuracion } from "./utils/duracionTurno";
 
 const NOTA_TARIFAS =
   "Las tarifas están sujetas a cambios. Si no asistes a tu formación en la fecha original y deseas reprogramarla cuando las tarifas hayan cambiado, deberás abonar la diferencia o elegir una formación acorde a la cantidad ya pagada.";
@@ -121,6 +122,14 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
   const incluye =
     !secciones.length && Array.isArray(clase.incluye) ? clase.incluye.filter(Boolean) : [];
   const mostrarAvisos = clase.mostrarAvisos !== false;
+  // La duración sale del campo de la ficha; las fichas con una sección «Duración» escrita a mano
+  // la conservan, y las anteriores a todo esto siguen con su texto de siempre
+  const textoDuracionFicha = secciones.some(esSeccionDuracion)
+    ? ""
+    : resumenDuracion(clase) ||
+      (!secciones.length
+        ? [sesiones > 1 ? `${sesiones} sesiones` : "", clase.duracion].filter(Boolean).join(" · ")
+        : "");
 
   // Los talleres y los bonos se reservan aquí mismo, en el panel de reserva de la
   // ficha. Los monográficos (ediciones con fechas fijas) siguen con su pantalla
@@ -510,15 +519,13 @@ export function VistaTaller({ claseId, clase, imagenes = [] }) {
                 </>
               )}
 
-              {!secciones.length && (clase.duracion || sesiones > 1) && (
+              {textoDuracionFicha && (
                 <>
                   <p className="text-sm text-tinta mb-2 font-semibold">
                     Duración:
                   </p>
                   <p className="text-sm text-tinta mb-4 leading-relaxed break-words">
-                    {[sesiones > 1 ? `${sesiones} sesiones` : "", clase.duracion]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {textoDuracionFicha}
                   </p>
                 </>
               )}

@@ -37,9 +37,19 @@ import {
   generarId,
   leerTurnos,
   numeroPositivo,
-  turnoInvalido,
   TURNO_VALIDO,
 } from "./utils/fichaTaller";
+import {
+  DURACION_MAX,
+  DURACION_MIN,
+  DURACION_POR_DEFECTO_MIN,
+  duracionDeFicha,
+  duracionesDeHorarios,
+  esSeccionDuracion,
+  horasInvalidas,
+  minutosDesdeHoras,
+  textoDuracion,
+} from "./utils/duracionTurno";
 import {
   LADO_MINIATURA,
   comprimirArchivoImagen,
@@ -47,7 +57,7 @@ import {
   reducirImagen,
 } from "./utils/imagenes";
 import { obtenerEstadoVisibleBono } from "./utils/bonos";
-import { preguntar } from "./utils/avisos";
+import { avisar, preguntar } from "./utils/avisos";
 
 const MAX_IMAGENES = 8;
 
@@ -359,10 +369,17 @@ export default function AdminTallerForm() {
       };
     });
 
+  // Duración de cada sesión en minutos (0 si lo escrito no vale); el horario solo lleva inicios
+  const duracionMin = minutosDesdeHoras(form.duracionHoras);
   const turnosInvalidos = useMemo(
-    () => DIAS.flatMap(([dia]) => leerTurnos(form.horarios[dia])).filter(turnoInvalido),
-    [form.horarios]
+    () => horasInvalidas(form.horarios, duracionMin || DURACION_POR_DEFECTO_MIN),
+    [form.horarios, duracionMin]
   );
+  // Al editar: si cambia la duración, las reservas ya hechas conservan su horario antiguo
+  const duracionAntes = claseOriginal && claseOriginal.dinamica ? duracionDeFicha(claseOriginal) : 0;
+  const duracionCambia = !!duracionAntes && !!duracionMin && duracionMin !== duracionAntes;
+  const hayDuracionesDistintas =
+    !!claseOriginal && claseOriginal.dinamica && duracionesDeHorarios(claseOriginal.horarios).length > 1;
 
   // --- Fotos ---
   const handleSubirImagenes = async (e) => {
@@ -460,6 +477,13 @@ export default function AdminTallerForm() {
       return fallo("precios", "El mínimo de personas para habilitar un día debe estar entre 2 y 45.");
     }
 
+    if (!duracionMin) {
+      return fallo(
+        "horario",
+        `La duración de cada sesión debe estar entre ${textoDuracion(DURACION_MIN)} y ${textoDuracion(DURACION_MAX)}.`
+      );
+    }
+
     if (form.monografico && !esBono) {
       const sesiones = Math.round(numeroPositivo(form.sesionesCurso));
       if (!(sesiones >= 1 && sesiones <= 30)) {
@@ -474,7 +498,7 @@ export default function AdminTallerForm() {
         }
         for (const f of edicion.fechas) {
           if (!TURNO_VALIDO.test(f.turno || "")) {
-            return fallo("horario", `Indica la hora de inicio y fin de cada sesión (edición ${i + 1}).`);
+            return fallo("horario", `Indica la hora de inicio y una duración válida de cada sesión (edición ${i + 1}).`);
           }
         }
         // Un día puede tener dos sesiones, pero no a la misma hora ni solapadas
@@ -495,7 +519,10 @@ export default function AdminTallerForm() {
       return "";
     }
     if (turnosInvalidos.length) {
-      return fallo("horario", `Revisa los turnos (formato 17:30-20:30): ${turnosInvalidos.join(", ")}`);
+      return fallo(
+        "horario",
+        `Revisa las horas de inicio (formato 17:30; con ${textoDuracion(duracionMin)} la clase debe acabar antes de medianoche): ${turnosInvalidos.join(", ")}`
+      );
     }
     if (!DIAS.some(([dia]) => leerTurnos(form.horarios[dia]).length)) {
       return fallo("horario", "Añade al menos un día con turnos para que se pueda reservar.");
@@ -572,9 +599,21 @@ export default function AdminTallerForm() {
         setImagenesCambiadas(false);
       }
 
-      // Guardado con éxito: vuelve a la página de la que se venía
-      if (window.history.state?.idx > 0) navigate(-1);
-      else navigate("/admin-clases", { replace: true });
+      // Guardado con éxito: se queda en el formulario, en la misma pestaña
+      if (esNuevo) {
+        // Pasa a editar el taller recién creado (si no, el siguiente guardado intentaría
+        // crearlo otra vez); el formulario se carga de la base de datos
+        navigate(`/admin-taller?id=${encodeURIComponent(id)}&tab=${pestana}`, { replace: true });
+        avisar("Taller creado.");
+      } else {
+        // Lo guardado pasa a ser el estado «anterior» (avisos de cambio de duración, etc.)
+        const guardado = await get(ref(dbRealtime, `clases/${id}`));
+        if (guardado.exists()) {
+          setClaseOriginal(guardado.val() || {});
+          setForm(formularioDesdeClase(id, guardado.val() || {}));
+        }
+        avisar("Cambios guardados.");
+      }
       return;
     } catch (err) {
       console.error("Error al guardar el taller:", err);
@@ -1029,7 +1068,7 @@ export default function AdminTallerForm() {
               <h2 className="text-lg font-semibold text-tinta">Secciones de la página</h2>
               <p className="text-sm text-tinta-suave">
                 Bloques de texto que salen bajo la descripción, en este orden:
-                «Qué aprenderás», «Qué incluye», «Duración», «Entrega de tu pieza»…
+                «Qué aprenderás», «Qué incluye», «Entrega de tu pieza»… (la duración sale sola del campo de la pestaña Horario)
                 Cada uno puede llevar un título, texto (separa los párrafos con
                 una línea en blanco) y una lista, y puede destacarse en una caja.
               </p>
@@ -1110,9 +1149,6 @@ export default function AdminTallerForm() {
                 </button>
                 <button type="button" className={botonMini} onClick={() => añadirSeccion("Qué incluye")}>
                   <Icono nombre="mas" className="mr-1" />Qué incluye
-                </button>
-                <button type="button" className={botonMini} onClick={() => añadirSeccion("Duración")}>
-                  <Icono nombre="mas" className="mr-1" />Duración
                 </button>
               </div>
 
@@ -1363,14 +1399,11 @@ export default function AdminTallerForm() {
                     </p>
                   </div>
                   <div>
-                    <label htmlFor="bono-duracion" className={label}>Duración de cada clase</label>
-                    <input
-                      id="bono-duracion"
-                      className={input}
-                      value={form.bono.duracionClase}
-                      onChange={(e) => cambiarAnidado("bono", "duracionClase", e.target.value)}
-                      placeholder="3 horas"
-                    />
+                    <p className={label}>Duración de cada clase</p>
+                    <p className="text-sm text-tinta">{textoDuracion(duracionMin) || "—"}</p>
+                    <p className="text-xs text-tinta-suave mt-1">
+                      Se cambia en la pestaña Horario, junto a las horas de inicio.
+                    </p>
                   </div>
                   <div>
                     <label htmlFor="bono-modalidad" className={label}>Modalidad</label>
@@ -1440,6 +1473,70 @@ export default function AdminTallerForm() {
                 </label>
               )}
 
+              <div className="rounded-xl border border-linea bg-crema p-4 space-y-2">
+                <label htmlFor="taller-duracion" className={label}>
+                  {esBono
+                    ? "Duración de cada clase (horas)"
+                    : Number(form.sesiones) > 1 || form.monografico
+                    ? "Duración de cada sesión (horas)"
+                    : "Duración del taller (horas)"}
+                </label>
+                <div className="flex flex-wrap items-center gap-3">
+                  <input
+                    id="taller-duracion"
+                    type="number"
+                    min={DURACION_MIN / 60}
+                    max={DURACION_MAX / 60}
+                    step="0.25"
+                    inputMode="decimal"
+                    className={input + " max-w-[8rem]"}
+                    value={form.duracionHoras}
+                    onChange={(e) => cambiar("duracionHoras", e.target.value)}
+                  />
+                  <span className="text-sm text-tinta-suave">
+                    {duracionMin ? `= ${textoDuracion(duracionMin)}` : "Entre 15 minutos y 12 horas"}
+                  </span>
+                </div>
+                <p className="text-xs text-tinta-suave">
+                  {form.monografico && !esBono
+                    ? "En cada sesión de las ediciones solo se pone la hora de inicio: la de fin sale de esta duración (se puede cambiar en una sesión concreta)."
+                    : "En el horario solo se pone la hora de inicio: la de fin sale de esta duración. Con 3 horas, un turno que empieza a las 11:30 acaba a las 14:30."}
+                  {" "}Las 3 horas son lo habitual; usa 2,5 para dos horas y media.
+                </p>
+                {duracionCambia && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    Pasa de {textoDuracion(duracionAntes)} a {textoDuracion(duracionMin)}. Al guardar, los turnos del horario
+                    se recalculan para las reservas nuevas; las ya hechas conservan su horario de antes.
+                  </p>
+                )}
+                {hayDuracionesDistintas && (
+                  <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    Este taller tiene turnos de distinta duración. Al guardar, todos pasarán a durar {textoDuracion(duracionMin)}.
+                  </p>
+                )}
+                {form.secciones.map((seccion, indice) =>
+                  esSeccionDuracion(seccion) ? (
+                    <div
+                      key={indice}
+                      className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2 space-y-1"
+                    >
+                      <p>
+                        La página tiene una sección escrita a mano, «{seccion.titulo}», que habla de la duración. No se
+                        actualiza sola con este campo: revísala cuando lo cambies. Si la quitas, la ficha enseña la
+                        duración de aquí ({textoDuracion(duracionMin) || "—"}).
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => quitarSeccion(indice)}
+                        className="underline font-semibold"
+                      >
+                        Quitar esta sección y usar la duración automática
+                      </button>
+                    </div>
+                  ) : null
+                )}
+              </div>
+
               {form.monografico && !esBono && (
                 <>
                   <h2 className="text-lg font-semibold text-tinta">Ediciones</h2>
@@ -1466,6 +1563,7 @@ export default function AdminTallerForm() {
                   <EditorEdiciones
                     ediciones={form.ediciones}
                     sesionesCurso={form.sesionesCurso}
+                    duracionDefecto={duracionMin || DURACION_POR_DEFECTO_MIN}
                     onChange={(ediciones) => cambiar("ediciones", ediciones)}
                   />
                 </>
@@ -1475,8 +1573,8 @@ export default function AdminTallerForm() {
                 <>
               <h2 className="text-lg font-semibold text-tinta">Horario semanal</h2>
               <p className="text-sm text-tinta-suave">
-                Elige los turnos de cada día con los atajos o con «Otra hora». Un día
-                sin turnos es un día sin taller. Marca con «Mín.» los turnos que solo se
+                Elige la hora de inicio de cada turno con los atajos o con «Otra hora» (la de fin
+                sale de la duración). Un día sin turnos es un día sin taller. Marca con «Mín.» los turnos que solo se
                 abren cuando una reserva llega al mínimo de personas del taller
                 ({form.minPersonasGrupo || 5}): hasta entonces salen en azul y solo los
                 reserva un grupo de ese tamaño. Los turnos sin marcar se reservan con
@@ -1519,6 +1617,7 @@ export default function AdminTallerForm() {
                         onChange={(valor) => cambiarHorario(dia, valor)}
                         minimo={form.horariosMinimo?.[dia] || ""}
                         onMinimoChange={(valor) => cambiarHorarioMinimo(dia, valor)}
+                        duracion={duracionMin || DURACION_POR_DEFECTO_MIN}
                       />
                       {leerTurnos(form.horarios[dia]).length > 0 && (
                         <button
@@ -1549,7 +1648,7 @@ export default function AdminTallerForm() {
 
               {turnosInvalidos.length > 0 && (
                 <p className="text-sm text-red-600">
-                  Formato no válido: {turnosInvalidos.join(", ")} (usa 17:30-20:30)
+                  Hora no válida: {turnosInvalidos.join(", ")} (usa 17:30; con {textoDuracion(duracionMin || DURACION_POR_DEFECTO_MIN)} la clase debe acabar antes de medianoche)
                 </p>
               )}
             </section>

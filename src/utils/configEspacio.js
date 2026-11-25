@@ -2,6 +2,7 @@
 // Configuración del espacio (nodo configuracionEspacio): aforo, tope de torno,
 // mínimo de personas para una reserva de grupo y horarios por defecto.
 // Sin React ni Firebase: la usan las pantallas y las funciones de Vercel.
+import { iniciosDeTexto } from "./duracionTurno.js";
 
 export const DIAS_CONFIG = [
   "lunes",
@@ -91,8 +92,10 @@ export function normalizarConfigEspacio(raw) {
     ),
     telefonoWhatsapp:
       normalizarTelefonoWhatsapp(datos.telefonoWhatsapp) || CONFIG_ESPACIO_DEFECTO.telefonoWhatsapp,
-    horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, aTexto(horarios[dia])])),
-    horariosMinimoDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, aTexto(minimos[dia])])),
+    // Los horarios por defecto solo llevan la hora de inicio («11:30, 17:30»): la de fin la
+    // pone la duración de cada taller. Los guardados con rango («11:30-14:30») se leen así.
+    horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, iniciosDeTexto(aTexto(horarios[dia]))])),
+    horariosMinimoDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, iniciosDeTexto(aTexto(minimos[dia]))])),
   };
 }
 
