@@ -917,9 +917,10 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                               backgroundColor: nivel.fondo,
                             }}
                           >
-                            {llena && resumen && !isMobile ? "Completo · " : ""}
                             {resumen
-                              ? isMobile
+                              ? llena && !isMobile
+                                ? "Completo"
+                                : isMobile
                                 ? resumen.totalPlazas
                                 : `${resumen.totalPlazas} pers.`
                               : ocupacion.maximo === 0
@@ -1362,6 +1363,7 @@ const styles = {
   diaPie: {
     marginTop: "auto",
     display: "flex",
+    justifyContent: "center",
   },
   diaPersonas: {
     fontSize: "0.82rem",
