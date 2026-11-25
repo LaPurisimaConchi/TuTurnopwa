@@ -996,7 +996,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
           <div style={styles.barraInferior}>
             <span style={styles.barraInferiorTexto}>{textoSeleccion}</span>
             <button type="button" style={styles.barraInferiorBoton} onClick={() => setHojaAbierta(true)}>
-              Bloquear / habilitar
+              Bloquear / habilitar / cupo
             </button>
           </div>
 
@@ -1020,7 +1020,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               onClick={(e) => e.stopPropagation()}
             >
               <div style={styles.hojaCabecera}>
-                <span style={styles.hojaTitulo}>Bloquear o habilitar días</span>
+                <span style={styles.hojaTitulo}>Bloquear, habilitar o limitar cupo</span>
                 <button
                   type="button"
                   aria-label="Cerrar"
