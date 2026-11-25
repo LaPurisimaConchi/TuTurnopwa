@@ -92,6 +92,10 @@
       ".read": true,
       ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"
     },
+    "turnosExtra": {
+      ".read": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')",
+      ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"
+    },
     "clases": {
       ".read": true,
       ".write": "auth != null && auth.token.email_verified === true && (auth.token.email === 'lapurisimaconchioficial@gmail.com' || auth.token.email === 'kymuweb@gmail.com' || auth.token.email === 'panabuntu@gmail.com')"

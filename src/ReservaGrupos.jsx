@@ -15,7 +15,7 @@ import {
   minPersonasHabilitar,
   variantesDelTaller,
 } from "./catalogoTalleres";
-import { estadoDiaTaller, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
+import { estadoDiaTaller, useClaseConTurnosExtra, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
 import { useConfigEspacio } from "./configuracionEspacio";
 import BloqueoReserva from "./BloqueoReserva";
 import PantallaReserva from "./components/PantallaReserva";
@@ -69,6 +69,7 @@ export default function ReservaGrupos() {
     fechasBloqueadas,
     fechasHabilitadas,
     diasAbiertos,
+    turnosExtra,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -164,6 +165,8 @@ export default function ReservaGrupos() {
   }, [talleres, location.search, location.state]);
 
   const taller = talleres.find((t) => t.id === tallerId) || null;
+  // El taller con los turnos creados desde el panel para fechas concretas
+  const tallerTurnos = useClaseConTurnosExtra(taller, taller?.id, turnosExtra);
 
   // Esta página solo se abre desde la ficha de un taller, con su opción y método ya
   // elegidos: sin ellos, un error en vez de un formulario que no sirve
@@ -225,7 +228,7 @@ export default function ReservaGrupos() {
   const estadoDia = (iso) => {
     if (!taller) return { estado: "sin-taller" };
     const estado = estadoDiaTaller({
-      clase: taller,
+      clase: tallerTurnos,
       fecha: iso,
       fechasBloqueadas,
       fechasHabilitadas,
@@ -243,7 +246,7 @@ export default function ReservaGrupos() {
     diaNoDisponible,
     turnosMinimo,
   } = useDiaDeReserva({
-    clase: taller,
+    clase: tallerTurnos,
     fecha,
     fechasBloqueadas,
     fechasHabilitadas,

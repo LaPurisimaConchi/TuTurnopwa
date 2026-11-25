@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ref, update, remove, get } from "firebase/database";
 import { dbRealtime } from "../firebase";
 import EditorTurnos from "./EditorTurnos";
+import CrearTurnoExtra from "./CrearTurnoExtra";
 import { CUPO_TODO_EL_DIA, plazasEnBloqueo } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
 import { leerTurnos } from "../utils/fichaTaller";
@@ -208,12 +209,13 @@ export default function PanelFechasEspeciales({
 
   return (
     <div style={estilos.caja}>
-      <h3 style={estilos.titulo}>Bloquear, habilitar o cupo · {textoRango}</h3>
+      <h3 style={estilos.titulo}>Bloquear, habilitar, turno nuevo o cupo · {textoRango}</h3>
 
       <div style={estilos.pestanas}>
         {[
           ["bloquear", "bloquear", "Bloquear"],
           ["habilitar", "confirmado", "Habilitar"],
+          ["turno", "mas", "Turno nuevo"],
           ["cupo", "usuarios", "Cupo"],
         ].map(([clave, icono, texto]) => (
           <button
@@ -222,13 +224,13 @@ export default function PanelFechasEspeciales({
             onClick={() => setModo(clave)}
             style={{ ...estilos.pestana, ...(modo === clave ? estilos.pestanaActiva : {}) }}
           >
-            <Icono nombre={icono} className="mr-1" color={modo === clave ? "#ffffff" : undefined} />
+            <Icono nombre={icono} color={modo === clave ? "#ffffff" : undefined} />
             {texto}
           </button>
         ))}
       </div>
 
-      {modo !== "cupo" && <input
+      {modo !== "cupo" && modo !== "turno" && <input
         type="text"
         value={motivo}
         onChange={(e) => setMotivo(e.target.value)}
@@ -277,7 +279,9 @@ export default function PanelFechasEspeciales({
         </div>
       )}
 
-      {modo !== "cupo" && <div style={estilos.turnos}>
+      {modo === "turno" && <CrearTurnoExtra key={`${inicio}-${fin}`} fechas={fechas} onCambio={onCambio} />}
+
+      {modo !== "cupo" && modo !== "turno" && <div style={estilos.turnos}>
         <p style={estilos.ayuda}>
           {modo === "bloquear"
             ? "Horas a bloquear. Sin ninguna se bloquea el día entero; un turno se bloquea si se cruza con alguna de estas horas."
@@ -304,7 +308,7 @@ export default function PanelFechasEspeciales({
         )}
       </div>}
 
-      <div style={estilos.acciones}>
+      {modo !== "turno" && <div style={estilos.acciones}>
         <button
           type="button"
           disabled={guardando}
@@ -346,7 +350,7 @@ export default function PanelFechasEspeciales({
             Quitar habilitación ({conHabilitacion.length})
           </button>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
@@ -360,19 +364,23 @@ const estilos = {
     marginBottom: 16,
   },
   titulo: { margin: "0 0 12px", fontSize: 16, color: "#3f3128" },
-  pestanas: { display: "flex", gap: 8, marginBottom: 12 },
+  // Cuatro pestañas en dos filas (2 × 2): en una sola fila no caben en la columna del calendario
+  pestanas: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginBottom: 12 },
   pestana: {
-    flex: 1,
-    padding: "8px 12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    padding: "9px 12px",
     borderRadius: 10,
     border: "1px solid #e5e0d2",
     background: "#faf7ee",
     cursor: "pointer",
     fontWeight: 600,
+    whiteSpace: "nowrap",
   },
-  pestanaActiva: { background: "#b36a4a", borderColor: "#b36a4a",
-    color: "#ffffff",
-  },
+  // Sin `borderColor` suelto: mezclarlo con el `border` de la pestaña da un aviso de React al cambiar de una a otra
+  pestanaActiva: { background: "#b36a4a", border: "1px solid #b36a4a", color: "#ffffff" },
   input: {
     width: "100%",
     boxSizing: "border-box",
