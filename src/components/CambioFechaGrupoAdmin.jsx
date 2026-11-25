@@ -7,6 +7,7 @@
 import { useState } from "react";
 import CalendarioReserva from "./CalendarioReserva";
 import { turnoYaEmpezado, turnosDeGrupo, turnosSoloConMinimo } from "../utils/cambioFecha";
+import { conTurnosExtra } from "../utils/turnosFecha";
 import { bloqueoAfectaTurno } from "../utils/rangosHora";
 import { contarFranja, plazasLibresFranja, turnosCompartenPlazas, usaTorno } from "../utils/aforo";
 import { fechaDMA } from "../utils/formatoFecha";
@@ -33,12 +34,14 @@ export default function CambioFechaGrupoAdmin({ grupo, contexto, config, guardan
     reservas = null,
     grupos = null,
     clases = {},
+    turnosExtra = {},
     fechasHabilitadas = {},
     diasAbiertos = {},
   } = contexto || {};
   const plazas = Math.max(1, Number(grupo.plazas || 1));
   const conTorno = usaTorno(grupo);
-  const clase = clases?.[grupo.tallerId] || null;
+  // El taller con los turnos creados desde el panel para fechas concretas
+  const clase = conTurnosExtra(clases?.[grupo.tallerId] || null, turnosExtra?.[grupo.tallerId]);
 
   // Turnos que se pueden elegir un día: los de su taller, sin bloqueo que los toque y
   // sin haber empezado

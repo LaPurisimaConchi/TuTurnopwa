@@ -17,20 +17,21 @@ import { minPersonasHabilitar } from "../catalogoBase.js";
 import { recorrerOcupacion } from "./aforo.js";
 import {
   abreDias,
+  conTurnosExtra,
   esTurnoConHoras,
   limpiarTurno,
-  nombreDiaSemana,
-  normalizarTurnos,
   turnoEmpiezaEnFranjas,
+  turnosDelDia,
   turnosMinimoDeClase,
 } from "./turnosFecha.js";
 
 export { abreDias };
 
-// ¿El taller da clase ese día? Solo cuenta el horario semanal: una fecha habilitada desde
-// administración no crea turnos, solo abre los que ya piden el mínimo.
+// ¿El taller da clase ese día? Cuenta el horario semanal y los turnos extra creados para esa
+// fecha: una fecha habilitada desde administración no crea turnos, solo abre los que ya
+// piden el mínimo.
 export function tallerTieneHorarioEnFecha(clase, fecha) {
-  return normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)]).length > 0;
+  return turnosDelDia(clase, fecha).length > 0;
 }
 
 // ¿Puede una reserva de `plazas` personas abrir un turno de este taller que pide el mínimo?
@@ -48,22 +49,29 @@ export const turnoAbiertoEnDia = (diasAbiertos, fecha, turno) => {
 // Franjas abiertas desde `desde`: { "2026-11-27": ["10:00-14:00"] }, las de las reservas
 // que llegaron al mínimo de personas de su taller en un turno marcado (solo esas abren).
 // `reservas` y `grupos` son los snapshots de /reservas y /reservasGrupos; `clases`, el
-// contenido de /clases.
+// contenido de /clases. `turnosExtra` es el nodo /turnosExtra: los turnos extra creados con el
+// mínimo de personas también abren la franja.
 export function calcularDiasAbiertos({
   reservas,
   grupos,
   clases = {},
+  turnosExtra = {},
   desde = "",
   ahoraMs = Date.now(),
 }) {
   const dias = {};
+  const conExtras = new Map();
+  const claseDe = (id) => {
+    if (!conExtras.has(id)) conExtras.set(id, conTurnosExtra(clases?.[id], turnosExtra?.[id]));
+    return conExtras.get(id);
+  };
 
   recorrerOcupacion(
     reservas,
     grupos,
     (e) => {
       if (!e.claseId) return;
-      const clase = clases?.[e.claseId];
+      const clase = claseDe(e.claseId);
       if (!abreDias(clase) || e.plazas < minPersonasHabilitar(clase)) return;
 
       const franja = limpiarTurno(e.turno);

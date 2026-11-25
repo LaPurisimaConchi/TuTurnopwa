@@ -63,6 +63,7 @@ await pedir("PUT", "", "owner", {
   plantillasTarjetaRegalo: { p1: { nombre: "Clásica", archivo: "clasica.pdf" } },
   plantillasTarjetaRegaloPdf: { p1: "JVBERi0=" },
   bloqueosFechas: { "2026-12-24": { bloqueado: true, motivo: "Cerrado" } },
+  turnosExtra: { Taller: { "2026-12-26": { "10:00": { turno: "10:00-13:00", minimo: false } } } },
   clases: { Taller: { nombre: "Taller" } },
   usuariosNotas: { uidA: "nota" },
   pedidosPendientes: { "999988887777": { uid: "uidB", estadoPago: "pendiente" } },
@@ -76,6 +77,7 @@ await caso("listar todos los PDF a la vez", false, pedir("GET", "plantillasTarje
 await caso("escribir plantilla de tarjeta regalo", false, pedir("PUT", "plantillasTarjetaRegalo/p2", null, { nombre: "X" }));
 await caso("escribir un PDF de tarjeta regalo", false, pedir("PUT", "plantillasTarjetaRegaloPdf/p2", null, "JVBERi0="));
 await caso("leer bloqueosFechas", true, pedir("GET", "bloqueosFechas", null));
+await caso("leer turnos extra sin sesión", false, pedir("GET", "turnosExtra", null));
 await caso("leer usuarios", false, pedir("GET", "usuarios", null));
 await caso("leer reservas", false, pedir("GET", "reservas", null));
 await caso("crear pedido pendiente", false, pedir("PUT", "pedidosPendientes/123412341234", null, { orderId: "123412341234", uid: "x", estadoPago: "pendiente", procesado: false }));
@@ -136,7 +138,12 @@ await caso("marcar tarjeta usada", false, pedir("PUT", "tarjetasRegalo/794082140
 await caso("crear tarjeta", false, pedir("PUT", "tarjetasRegalo/1", ANON_A, { codigo: "X" }));
 await caso("leer bloqueos", true, pedir("GET", "bloqueosFechas", ANON_A));
 await caso("bloquear un día", false, pedir("PUT", "bloqueosFechas/2026-12-25", ANON_A, { bloqueado: true }));
+await caso("leer cupos de franja", true, pedir("GET", "cuposFranja", ANON_A));
+await caso("fijar un cupo de franja", false, pedir("PUT", "cuposFranja/2026-12-25/10:00-12:00", ANON_A, 8));
 await caso("habilitar un día", false, pedir("PUT", "fechasHabilitadas/2026-12-25", ANON_A, { habilitada: true }));
+await caso("leer turnos extra (solo admin: llevan el motivo)", false, pedir("GET", "turnosExtra", ANON_A));
+await caso("crear un turno extra", false, pedir("PUT", "turnosExtra/Taller/2026-12-25/10:00", ANON_A, { turno: "10:00-13:00", minimo: false }));
+await caso("borrar un turno extra", false, pedir("DELETE", "turnosExtra/Taller/2026-12-26/10:00", ANON_A));
 await caso("leer notas de usuarios", false, pedir("GET", "usuariosNotas", ANON_A));
 await caso("escribir notas de reservas", false, pedir("PUT", "reservasNotas/x", ANON_A, "n"));
 await caso("leer solicitudesEliminacion", false, pedir("GET", "solicitudesEliminacion", ANON_A));
@@ -155,6 +162,8 @@ await caso("leer bonos de otro", false, pedir("GET", "usuarios/uidA/bonos", USER
 console.log("— Admin con el email sin verificar");
 await caso("leer /reservas", false, pedir("GET", "reservas", ADMIN_SIN));
 await caso("editar un taller", false, pedir("PUT", "clases/Taller/nombre", ADMIN_SIN, "x"));
+await caso("leer turnos extra", false, pedir("GET", "turnosExtra", ADMIN_SIN));
+await caso("crear un turno extra", false, pedir("PUT", "turnosExtra/Taller/2026-12-27/10:00", ADMIN_SIN, { turno: "10:00-13:00", minimo: false }));
 
 console.log("— Admin nuevo (panabuntu@gmail.com)");
 await caso("sin verificar no lee /reservas", false, pedir("GET", "reservas", ADMIN_PANABUNTU_SIN));
@@ -168,6 +177,10 @@ await caso("confirmar una reserva", true, pedir("PATCH", `${F}/-Existente`, ADMI
 await caso("editar bonos de un usuario", true, pedir("PUT", "usuarios/uidA/bonos/b1/clasesRestantes", ADMIN, 3));
 await caso("el panel actualiza la listaReservas de un cliente", true, pedir("PUT", "usuarios/uidA/listaReservas/-L1/estado", ADMIN, "Cancelada"));
 await caso("bloquear un día", true, pedir("PUT", "bloqueosFechas/2026-12-25", ADMIN, { bloqueado: true }));
+await caso("fijar un cupo de franja", true, pedir("PUT", "cuposFranja/2026-12-25/10:00-12:00", ADMIN, 8));
+await caso("leer turnos extra", true, pedir("GET", "turnosExtra", ADMIN));
+await caso("crear un turno extra", true, pedir("PUT", "turnosExtra/Taller/2026-12-25/10:00", ADMIN, { turno: "10:00-13:00", minimo: false }));
+await caso("quitar un turno extra", true, pedir("DELETE", "turnosExtra/Taller/2026-12-26/10:00", ADMIN));
 await caso("notas de reservas", true, pedir("PUT", "reservasNotas/x", ADMIN, "n"));
 await caso("leer tarjetas regalo", true, pedir("GET", "tarjetasRegalo", ADMIN));
 await caso("subir plantilla de tarjeta regalo", true, pedir("PUT", "plantillasTarjetaRegalo/p2", ADMIN, { nombre: "Nueva", archivo: "n.pdf" }));

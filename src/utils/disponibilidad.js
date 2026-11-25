@@ -7,8 +7,9 @@ import { ref, get, child } from "firebase/database";
 import { auth, dbRealtime } from "../firebase";
 import { contarPlazasPorMetodo } from "./contarPlazasDia";
 import { plazasDeTurno, turnosConReservas } from "./plazasOcupadas";
-import { contarFranja, ocupacionPorFranja } from "./aforo";
+import { aforoDeFranja, contarFranja, ocupacionPorFranja } from "./aforo";
 import { calcularDiasAbiertos } from "./diasAbiertos";
+import { turnosExtraPublicos } from "./turnosExtra";
 import { hoyMadrid } from "./formatoFecha";
 import { cargarConfigEspacio } from "../configuracionEspacio";
 import { esAdministrador } from "./administradores";
@@ -31,32 +32,43 @@ const leerNodo = async (ruta) => {
   }
 };
 
-// Fechas bloqueadas, fechas habilitadas, reservas de grupo y días sin horario abiertos
+// Fechas bloqueadas, fechas habilitadas, turnos extra, reservas de grupo y días sin horario
+// abiertos. `turnosExtra`: { claseId: { fecha: { inicio: { turno, minimo } } } } desde hoy.
 export async function cargarContextoReserva() {
   if (!(await leeBaseDeDatos())) {
-    const { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos } = await pedirApi({
+    const { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos, turnosExtra } = await pedirApi({
       tipo: "contexto",
     });
-    return { fechasBloqueadas, fechasHabilitadas, reservasGrupos, diasAbiertos: diasAbiertos || {} };
+    return {
+      fechasBloqueadas,
+      fechasHabilitadas,
+      reservasGrupos,
+      diasAbiertos: diasAbiertos || {},
+      turnosExtra: turnosExtra || {},
+    };
   }
 
-  const [fechasBloqueadas, fechasHabilitadas, reservasGrupos, reservas, grupos, clases] = await Promise.all([
+  const [fechasBloqueadas, fechasHabilitadas, reservasGrupos, reservas, grupos, clases, extras] = await Promise.all([
     leerNodo("bloqueosFechas"),
     leerNodo("fechasHabilitadas"),
     leerNodo("reservasGrupos"),
     get(ref(dbRealtime, "reservas")),
     get(ref(dbRealtime, "reservasGrupos")),
     leerNodo("clases"),
+    leerNodo("turnosExtra"),
   ]);
+  const turnosExtra = turnosExtraPublicos(extras, hoyMadrid());
 
   return {
     fechasBloqueadas,
     fechasHabilitadas,
     reservasGrupos,
+    turnosExtra,
     diasAbiertos: calcularDiasAbiertos({
       reservas,
       grupos,
       clases,
+      turnosExtra,
       fechasHabilitadas,
       desde: hoyMadrid(),
     }),
@@ -105,31 +117,35 @@ export async function cargarFranja(fecha, turno) {
     return { total, torno, aforoTotal, maxTorno };
   }
 
-  const [reservas, grupos, config] = await Promise.all([
+  const [reservas, grupos, config, cupos] = await Promise.all([
     get(ref(dbRealtime, "reservas")),
     get(ref(dbRealtime, "reservasGrupos")),
     cargarConfigEspacio(),
+    leerNodo(`cuposFranja/${fecha}`),
   ]);
   const { total, torno } = contarFranja(reservas, grupos, fecha, turno);
 
-  return { total, torno, aforoTotal: config.aforoTotal, maxTorno: config.maxTorno };
+  // El cupo de esa franja (si el panel fijó uno) baja el aforo total
+  return { total, torno, aforoTotal: aforoDeFranja(config.aforoTotal, cupos, turno), maxTorno: config.maxTorno };
 }
 
-// Plazas de todas las franjas desde hoy: { franjas: { fecha: { turno: { total, torno } } }, aforoTotal, maxTorno }
+// Plazas de todas las franjas desde hoy: { franjas: { fecha: { turno: { total, torno } } }, cupos: { fecha: { turno: plazas } }, aforoTotal, maxTorno }
 export async function cargarFranjas() {
   if (!(await leeBaseDeDatos())) {
-    const { franjas, aforoTotal, maxTorno } = await pedirApi({ tipo: "franjas" });
-    return { franjas: franjas || {}, aforoTotal, maxTorno };
+    const { franjas, cupos, aforoTotal, maxTorno } = await pedirApi({ tipo: "franjas" });
+    return { franjas: franjas || {}, cupos: cupos || {}, aforoTotal, maxTorno };
   }
 
-  const [reservas, grupos, config] = await Promise.all([
+  const [reservas, grupos, config, cupos] = await Promise.all([
     get(ref(dbRealtime, "reservas")),
     get(ref(dbRealtime, "reservasGrupos")),
     cargarConfigEspacio(),
+    leerNodo("cuposFranja"),
   ]);
 
   return {
     franjas: ocupacionPorFranja(reservas, grupos, hoyMadrid()),
+    cupos,
     aforoTotal: config.aforoTotal,
     maxTorno: config.maxTorno,
   };

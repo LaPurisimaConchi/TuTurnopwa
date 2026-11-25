@@ -166,6 +166,36 @@ export function ocupacionPorFranja(reservas, reservasGrupos, desde = "", ahoraMs
   return resultado;
 }
 
+// Cupo que el admin fija para una franja concreta (`cuposFranja/{fecha}/{turno}`): un tope
+// por debajo del aforo total del espacio, solo para ese turno (cuenta, como siempre, los
+// turnos que se solapan con él). Sin cupo vale el aforo total.
+const claveTurno = (turno) =>
+  String(turno || "")
+    .replace(/(\d{1,2}:\d{2})\s+a\s+(\d{1,2}:\d{2})/i, "$1-$2")
+    .trim();
+
+// Clave del cupo que vale para todos los turnos de un día
+export const CUPO_TODO_EL_DIA = "todoElDia";
+
+const cupoValido = (valor) => {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const cupo = Number(valor);
+  return Number.isFinite(cupo) && cupo >= 0 ? Math.floor(cupo) : null;
+};
+
+// El de ese turno y el de todo el día: vale el más bajo de los que haya
+export function cupoDeFranja(cuposDia, turno) {
+  const topes = [cupoValido(cuposDia?.[claveTurno(turno)]), cupoValido(cuposDia?.[CUPO_TODO_EL_DIA])].filter(
+    (c) => c !== null
+  );
+  return topes.length ? Math.min(...topes) : null;
+}
+
+export function aforoDeFranja(aforoTotal, cuposDia, turno) {
+  const cupo = cupoDeFranja(cuposDia, turno);
+  return cupo === null ? aforoTotal : Math.min(aforoTotal, cupo);
+}
+
 // Plazas libres con los límites de la configuración del espacio
 export function plazasLibresFranja({ total = 0, torno = 0 }, config, { conTorno = false } = {}) {
   const libresTotal = Math.max(config.aforoTotal - total, 0);

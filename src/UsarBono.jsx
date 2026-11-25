@@ -9,7 +9,7 @@ import { dbRealtime } from "./firebase";
 import { cargarFranja } from "./utils/disponibilidad";
 import { plazasLibresFranja } from "./utils/aforo";
 import { useConfigEspacio } from "./configuracionEspacio";
-import { estadoDiaTaller, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
+import { estadoDiaTaller, useClaseConTurnosExtra, useContextoReserva, useDiaDeReserva } from "./utils/turnosTaller";
 import PantallaReserva from "./components/PantallaReserva";
 import SelectorDiaReserva from "./components/SelectorDiaReserva";
 import SelectorTurnoReserva from "./components/SelectorTurnoReserva";
@@ -52,6 +52,8 @@ export default function UsarBono() {
     fechasBloqueadas,
     fechasHabilitadas,
     diasAbiertos,
+    turnosExtra,
+    completo,
     error: errorContexto,
     cargado: contextoCargado,
   } = useContextoReserva();
@@ -116,10 +118,12 @@ export default function UsarBono() {
 
   const estadoVisible = useMemo(() => obtenerEstadoVisibleBono(bono), [bono]);
   const clase = useMemo(() => claseConfig || { horarios: {} }, [claseConfig]);
+  // La ficha con los turnos creados desde el panel para fechas concretas
+  const claseTurnos = useClaseConTurnosExtra(clase, bono?.claseId, turnosExtra);
 
   const { turnosDisponibles, turnosMinimo, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
     useDiaDeReserva({
-      clase,
+      clase: claseTurnos,
       fecha: fechaSesion,
       fechasBloqueadas,
       fechasHabilitadas,
@@ -299,7 +303,7 @@ export default function UsarBono() {
                     setTurno("");
                   }}
                   estadoDia={(iso) =>
-                    estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos })
+                    estadoDiaTaller({ clase: claseTurnos, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos, completo })
                   }
                   cargando={!contextoCargado}
                   fechaBloqueada={fechaBloqueada}
@@ -324,6 +328,7 @@ export default function UsarBono() {
                 onChange={setTurno}
                 turnos={turnosDisponibles}
                 turnosMinimo={turnosMinimo}
+                turnosCompletos={turnosDisponibles.filter((t) => completo(fechaSesion, t))}
                 deshabilitado={!fechaSesion || diaNoDisponible || !!fechaBloqueada}
                 placeholder={!fechaSesion ? "-- Primero selecciona el día --" : "-- Elige turno --"}
               />

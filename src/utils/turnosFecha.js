@@ -2,6 +2,8 @@
 // Turnos de un taller en una fecha. Sin React ni Firebase: lo usan las pantallas
 // (turnosTaller.js) y las funciones de Vercel (api/cambiar-fecha.js).
 
+import { horaAMinutos, inicioDeTurno } from "./duracionTurno.js";
+
 const DIAS_SEMANA = [
   "domingo",
   "lunes",
@@ -53,15 +55,69 @@ export const abreDias = (clase) =>
 const minutosDe = (h, m) => Number(h) * 60 + Number(m);
 const RANGO = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})$/;
 
-// Turnos de un día de la semana que piden el mínimo de personas para abrirse
-// (`clase.horariosMinimo[dia]`, subconjunto de `clase.horarios[dia]`)
+// --- Turnos extra: turnos creados desde el panel para fechas concretas ---------------------
+// Se guardan en `turnosExtra/{claseId}/{fecha}/{inicio}` = { turno: "10:00-13:00", minimo, … }
+// (el fin sale de la duración del taller al crearlos; es la clave de las reservas, como los del
+// horario semanal). `conTurnosExtra` los pega a la ficha como `turnosExtraPorFecha`, y las
+// funciones de abajo los suman a los del horario semanal: así los ven la reserva, el cambio
+// de fecha, los bonos y el servidor sin cambiar sus llamadas. Si el horario semanal ya tiene
+// un turno con la misma hora de inicio, manda el del horario.
+
+// Ficha del taller + sus turnos extra (`extrasDelTaller` = turnosExtra[claseId]: { fecha: { inicio: {...} } })
+export function conTurnosExtra(clase, extrasDelTaller) {
+  if (!clase || !extrasDelTaller || typeof extrasDelTaller !== "object") return clase;
+
+  const porFecha = {};
+  for (const [fecha, entradas] of Object.entries(extrasDelTaller)) {
+    const lista = Object.values(entradas && typeof entradas === "object" ? entradas : {})
+      .map((e) => ({ turno: limpiarTurno(e?.turno || ""), minimo: e?.minimo === true }))
+      .filter((e) => esTurnoConHoras(e.turno));
+    if (lista.length) porFecha[fecha] = lista;
+  }
+
+  return Object.keys(porFecha).length ? { ...clase, turnosExtraPorFecha: porFecha } : clase;
+}
+
+// Turnos extra de ese día que el horario semanal no tiene ya: [{ turno, minimo }]
+export function turnosExtraDeFecha(clase, fecha) {
+  if (!abreDias(clase)) return [];
+  const extras = clase?.turnosExtraPorFecha?.[fecha];
+  if (!Array.isArray(extras) || !extras.length) return [];
+
+  const semanales = new Set(
+    normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)])
+      .map((t) => inicioDeTurno(limpiarTurno(t)))
+      .filter(Boolean)
+  );
+  return extras.filter((e) => !semanales.has(inicioDeTurno(e.turno)));
+}
+
+const inicioEnMinutos = (turno) => horaAMinutos(inicioDeTurno(turno)) ?? Number.MAX_SAFE_INTEGER;
+
+// Todos los turnos de un día: los del horario semanal y los extra, por hora de inicio
+export function turnosDelDia(clase, fecha) {
+  const semanales = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)]).map(limpiarTurno);
+  const extra = turnosExtraDeFecha(clase, fecha)
+    .map((e) => e.turno)
+    .filter((t) => !semanales.includes(t));
+  if (!extra.length) return semanales;
+  return [...semanales, ...extra].sort((a, b) => inicioEnMinutos(a) - inicioEnMinutos(b));
+}
+
+// Turnos de un día que piden el mínimo de personas para abrirse: los marcados «Mín.» del
+// horario semanal (`clase.horariosMinimo[dia]`, subconjunto de `clase.horarios[dia]`) y los
+// turnos extra creados con el mínimo
 export function turnosMinimoDeClase(clase, fecha) {
   if (!abreDias(clase)) return [];
   const dia = nombreDiaSemana(fecha);
   const delDia = normalizarTurnos(clase?.horarios?.[dia]).map(limpiarTurno);
-  return normalizarTurnos(clase?.horariosMinimo?.[dia])
+  const semanales = normalizarTurnos(clase?.horariosMinimo?.[dia])
     .map(limpiarTurno)
     .filter((t) => esTurnoConHoras(t) && delDia.includes(t));
+  const extra = turnosExtraDeFecha(clase, fecha)
+    .filter((e) => e.minimo)
+    .map((e) => e.turno);
+  return extra.length ? [...semanales, ...extra] : semanales;
 }
 
 // Un turno abierto por una reserva debe empezar, como muy tarde, este margen antes de que
@@ -118,7 +174,7 @@ export function turnoAbiertoSinMinimo({ turno, diaAbierto = false, habilitacion 
 export function turnosDisponiblesEnFecha({ clase, fecha, fechasHabilitadas = {}, diaAbierto = false }) {
   if (!fecha) return [];
 
-  const turnos = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)]).map(limpiarTurno);
+  const turnos = turnosDelDia(clase, fecha);
   const minimo = turnosMinimoDeClase(clase, fecha);
   const habilitacion = fechasHabilitadas?.[fecha];
 

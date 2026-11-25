@@ -15,6 +15,8 @@ import EtiquetaInvitado from "./components/EtiquetaInvitado";
 import { preguntar } from "./utils/avisos";
 import { turnosElegibles, turnosSoloConMinimo } from "./utils/cambioFecha";
 import { calcularDiasAbiertos } from "./utils/diasAbiertos";
+import { turnosExtraDesde } from "./utils/turnosExtra";
+import { conTurnosExtra } from "./utils/turnosFecha";
 import { estadoDiaTaller } from "./utils/turnosTaller";
 const AdminDetalleReservaNuevo = () => {
   const [searchParams] = useSearchParams();
@@ -36,6 +38,9 @@ const AdminDetalleReservaNuevo = () => {
   const [precioTarjeta, setPrecioTarjeta] = useState(null);
   const [fechasBloqueadas, setFechasBloqueadas] = useState({});
   const [fechasHabilitadas, setFechasHabilitadas] = useState({});
+  // Turnos creados desde el panel para fechas concretas ({ claseId: { fecha: { inicio: … } } }) y el taller de esta reserva
+  const [turnosExtra, setTurnosExtra] = useState({});
+  const [claseIdTurnos, setClaseIdTurnos] = useState("");
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [nuevoTurno, setNuevoTurno] = useState("");
   // Snapshots de /reservas y /reservasGrupos para contar el aforo real
@@ -272,12 +277,15 @@ useEffect(() => {
         }
 
         if (encontrada?.claseId) {
-          const [claseConfigSnap, bloqueosSnap, habilitadasSnap] =
+          const [claseConfigSnap, bloqueosSnap, habilitadasSnap, extrasSnap] =
             await Promise.all([
               get(ref(dbRealtime, `clases/${encontrada.claseId}`)),
               get(ref(dbRealtime, "bloqueosFechas")),
               get(ref(dbRealtime, "fechasHabilitadas")),
+              get(ref(dbRealtime, "turnosExtra")),
             ]);
+          setTurnosExtra(turnosExtraDesde(extrasSnap.exists() ? extrasSnap.val() || {} : {}, hoyMadrid()));
+          setClaseIdTurnos(encontrada.claseId);
 
           setClaseConfig(claseConfigSnap.exists() ? claseConfigSnap.val() : null);
           setFechasBloqueadas(
@@ -293,6 +301,7 @@ useEffect(() => {
           setClaseConfig(null);
           setFechasBloqueadas({});
           setFechasHabilitadas({});
+          setTurnosExtra({});
           setNuevaFecha("");
           setNuevoTurno("");
         }
@@ -417,8 +426,12 @@ useEffect(() => {
   // los días abiertos a mano o por otra reserva, y un día sin horario se abre si esta misma
   // reserva llega al mínimo de personas del taller
   const claseParaFechas = useMemo(
-    () => (claseConfig && !claseConfig.horarios && claseConfig.horario ? { ...claseConfig, horarios: claseConfig.horario } : claseConfig),
-    [claseConfig]
+    () =>
+      conTurnosExtra(
+        claseConfig && !claseConfig.horarios && claseConfig.horario ? { ...claseConfig, horarios: claseConfig.horario } : claseConfig,
+        turnosExtra?.[claseIdTurnos]
+      ),
+    [claseConfig, turnosExtra, claseIdTurnos]
   );
   const diasAbiertos = useMemo(
     () =>
@@ -427,11 +440,12 @@ useEffect(() => {
             reservas: ocupacion.reservas,
             grupos: ocupacion.grupos,
             clases: ocupacion.clases,
+            turnosExtra,
             fechasHabilitadas,
             desde: hoyMadrid(),
           })
         : {},
-    [ocupacion, fechasHabilitadas]
+    [ocupacion, fechasHabilitadas, turnosExtra]
   );
   const plazasMovidas = Number(reserva?.plazas || 1);
 

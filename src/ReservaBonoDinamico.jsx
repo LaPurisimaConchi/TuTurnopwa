@@ -16,6 +16,7 @@ import { reservarEnServidor } from "./utils/reservaServidor";
 import { useConfigEspacio } from "./configuracionEspacio";
 import {
   estadoDiaTaller,
+  useClaseConTurnosExtra,
   useContextoReserva,
   useDiaDeReserva,
 } from "./utils/turnosTaller";
@@ -52,8 +53,12 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
     fechasBloqueadas,
     fechasHabilitadas,
     diasAbiertos,
+    turnosExtra,
+    completo,
     cargado: contextoCargado,
   } = useContextoReserva();
+  // La ficha con los turnos creados desde el panel para fechas concretas
+  const claseTurnos = useClaseConTurnosExtra(clase, claseId, turnosExtra);
 
   // Quien vuelve de registrarse o iniciar sesión recupera el día y el turno elegidos
   const elegidoAntes = location.state?.bonoElegido;
@@ -93,7 +98,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
 
   const { turnosDisponibles, turnosMinimo, fechaHabilitadaManual, fechaBloqueada, diaNoDisponible } =
     useDiaDeReserva({
-      clase,
+      clase: claseTurnos,
       fecha: fechaInicio,
       fechasBloqueadas,
       fechasHabilitadas,
@@ -428,7 +433,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
               setTurno("");
             }}
             estadoDia={(iso) =>
-              estadoDiaTaller({ clase, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos })
+              estadoDiaTaller({ clase: claseTurnos, fecha: iso, fechasBloqueadas, fechasHabilitadas, permiteAbrir: true, sinNumeroMinimo: true, diasAbiertos, completo })
             }
             cargando={!contextoCargado}
             fechaBloqueada={fechaBloqueada}
@@ -453,6 +458,7 @@ function ReservaBonoInterna({ claseId, clase, incrustado = false }) {
             onChange={setTurno}
             turnos={turnosDisponibles}
             turnosMinimo={turnosMinimo}
+            turnosCompletos={turnosDisponibles.filter((t) => completo(fechaInicio, t))}
             deshabilitado={!fechaInicio || diaNoDisponible}
             placeholder={!fechaInicio ? "-- Primero selecciona el día --" : "-- Elige turno --"}
           />

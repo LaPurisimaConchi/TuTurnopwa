@@ -7,8 +7,9 @@
 //   tipo=plazas&fecha=…&turno=…&ruta=<carpeta>             → ocupadas del taller
 //   tipo=franja&fecha=…&turno=…                            → aforo real: plazas de la franja
 //   tipo=franjas                                           → plazas de todas las franjas desde hoy
-import { contarFranja, ocupacionPorFranja } from "./aforo.js";
+import { aforoDeFranja, contarFranja, ocupacionPorFranja } from "./aforo.js";
 import { calcularDiasAbiertos } from "./diasAbiertos.js";
+import { turnosExtraPublicos } from "./turnosExtra.js";
 import { hoyMadrid } from "./formatoFecha.js";
 import { normalizarConfigEspacio } from "./configEspacio.js";
 import {
@@ -30,14 +31,17 @@ const mal = (error) => ({ codigo: 400, cuerpo: { ok: false, error } });
 
 export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer) {
   if (tipo === "contexto") {
-    const [bloqueos, habilitadas, grupos, reservas, clases] = await Promise.all([
+    const [bloqueos, habilitadas, grupos, reservas, clases, extras] = await Promise.all([
       leer("bloqueosFechas"),
       leer("fechasHabilitadas"),
       leer("reservasGrupos"),
       leer("reservas"),
       leer("clases"),
+      leer("turnosExtra"),
     ]);
     const habilitadasPublicas = habilitacionesPublicas(habilitadas.val() || {});
+    // Turnos creados desde el panel para fechas concretas (de hoy en adelante, sin el motivo)
+    const turnosExtra = turnosExtraPublicos(extras.val() || {}, hoyMadrid());
 
     return {
       codigo: 200,
@@ -45,12 +49,14 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
         ok: true,
         fechasBloqueadas: bloqueosPublicos(bloqueos.val() || {}),
         fechasHabilitadas: habilitadasPublicas,
+        turnosExtra,
         reservasGrupos: gruposPublicos(grupos.val() || {}),
         // Días sin horario abiertos por una reserva con el mínimo de personas (solo fechas)
         diasAbiertos: calcularDiasAbiertos({
           reservas,
           grupos,
           clases: clases.val() || {},
+          turnosExtra,
           fechasHabilitadas: habilitadasPublicas,
           desde: hoyMadrid(),
         }),
@@ -67,10 +73,11 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
   }
 
   if (tipo === "franjas") {
-    const [reservas, grupos, espacio] = await Promise.all([
+    const [reservas, grupos, espacio, cupos] = await Promise.all([
       leer("reservas"),
       leer("reservasGrupos"),
       leer("configuracionEspacio"),
+      leer("cuposFranja"),
     ]);
     const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
 
@@ -79,6 +86,7 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
       cuerpo: {
         ok: true,
         franjas: ocupacionPorFranja(reservas, grupos, hoyMadrid()),
+        cupos: cupos.exists() ? cupos.val() || {} : {},
         aforoTotal: config.aforoTotal,
         maxTorno: config.maxTorno,
       },
@@ -89,17 +97,19 @@ export async function resolverDisponibilidad({ tipo, fecha, turno, ruta }, leer)
     if (!FECHA.test(fecha)) return mal("Fecha no válida");
     if (!turno || !(TURNO.test(turno) && sinControl(turno))) return mal("Turno no válido");
 
-    const [reservas, grupos, espacio] = await Promise.all([
+    const [reservas, grupos, espacio, cupos] = await Promise.all([
       leer("reservas"),
       leer("reservasGrupos"),
       leer("configuracionEspacio"),
+      leer(`cuposFranja/${fecha}`),
     ]);
     const config = normalizarConfigEspacio(espacio.exists() ? espacio.val() : null);
     const { total, torno } = contarFranja(reservas, grupos, fecha, turno);
+    const aforoTotal = aforoDeFranja(config.aforoTotal, cupos.exists() ? cupos.val() : {}, turno);
 
     return {
       codigo: 200,
-      cuerpo: { ok: true, total, torno, aforoTotal: config.aforoTotal, maxTorno: config.maxTorno },
+      cuerpo: { ok: true, total, torno, aforoTotal, maxTorno: config.maxTorno },
     };
   }
 

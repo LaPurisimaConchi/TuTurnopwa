@@ -2,17 +2,20 @@
 // Turnos de un taller en una fecha: horario semanal + fechas habilitadas desde
 // el admin + reservas de grupo confirmadas (misma lógica que las pantallas de
 // reserva de siempre).
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { minPersonasHabilitar } from "../catalogoTalleres";
 import { bloqueoAfectaTurno, bloqueoEsParcial } from "./rangosHora";
-import { cargarContextoReserva } from "./disponibilidad";
+import { cargarContextoReserva, cargarFranjas } from "./disponibilidad";
+import { aforoDeFranja, sumarSolapadas } from "./aforo";
 import { turnoYaEmpezado } from "./cambioFecha";
 import {
+  conTurnosExtra,
   esTurnoConsulta,
   limpiarTurno,
   nombreDiaSemana,
   normalizarTurnos,
   turnosConMinimoEnFecha,
+  turnosDelDia,
   turnosDisponiblesEnFecha,
 } from "./turnosFecha";
 
@@ -82,6 +85,7 @@ export function estadoDiaTaller({
   permiteAbrir = false,
   diasAbiertos = {},
   sinNumeroMinimo = false, // bonos: el mínimo lo marca el taller que abre el turno, no el bono
+  completo = null, // (fecha, turno) → true si el turno no tiene plazas (useContextoReserva)
 }) {
   const bloqueo = fechasBloqueadas?.[fecha];
   const parcial = bloqueoEsParcial(bloqueo);
@@ -99,13 +103,24 @@ export function estadoDiaTaller({
   }
 
   // Hoy, los turnos que ya han empezado no se ofrecen
-  const aTiempo = sinBloqueo.filter((t) => !turnoYaEmpezado(fecha, t));
+  const aTiempoTodos = sinBloqueo.filter((t) => !turnoYaEmpezado(fecha, t));
+  // Los turnos sin plazas no cuentan: si no queda ninguno con hueco, el día está completo
+  const aTiempo = completo ? aTiempoTodos.filter((t) => !completo(fecha, t)) : aTiempoTodos;
+  if (aTiempoTodos.length && !aTiempo.length) return { estado: "completo" };
   if (aTiempo.some((t) => libres.includes(t))) return { estado: "disponible" };
   if (aTiempo.length) return { estado: "solo-grupo", minimo: sinNumeroMinimo ? 0 : minPersonasHabilitar(clase) };
   return { estado: "sin-taller" };
 }
 
-// Fechas bloqueadas, fechas habilitadas, reservas de grupo y días abiertos (solo lectura).
+// La ficha de un taller con sus turnos extra (los creados desde el panel para fechas concretas),
+// que es lo que hay que pasar a `useDiaDeReserva`, `estadoDiaTaller` y las reglas de turnos.
+// `turnosExtra` es el del contexto de reserva (todos los talleres).
+export function useClaseConTurnosExtra(clase, claseId, turnosExtra) {
+  const delTaller = claseId ? turnosExtra?.[claseId] : null;
+  return useMemo(() => conTurnosExtra(clase, delTaller), [clase, delTaller]);
+}
+
+// Fechas bloqueadas, fechas habilitadas, turnos extra, reservas de grupo y días abiertos (solo lectura).
 // `cargado` indica que ya llegaron los datos (hasta entonces el calendario no
 // debe dejar elegir día). `error` avisa de que no se ha podido leer: sin ellos no
 // se sabe qué días están bloqueados, así que la pantalla no debe dejar reservar.
@@ -115,9 +130,12 @@ export function useContextoReserva() {
     fechasHabilitadas: {},
     reservasGrupos: {},
     diasAbiertos: {},
+    turnosExtra: {},
     error: false,
     cargado: false,
   });
+  // Plazas ocupadas de cada franja y cupos, para marcar lo que está completo (si no llegan, no se marca nada)
+  const [franjas, setFranjas] = useState(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -134,18 +152,35 @@ export function useContextoReserva() {
             fechasHabilitadas: {},
             reservasGrupos: {},
             diasAbiertos: {},
+            turnosExtra: {},
             error: true,
             cargado: true,
           });
         }
       });
 
+    cargarFranjas()
+      .then((datos) => {
+        if (!cancelado) setFranjas(datos);
+      })
+      .catch((error) => console.error("Error al cargar las plazas de las franjas:", error));
+
     return () => {
       cancelado = true;
     };
   }, []);
 
-  return contexto;
+  // ¿Se ha llenado el turno (sumando los que se solapan, con su cupo si lo hay)?
+  const completo = useCallback(
+    (fecha, turno) => {
+      if (!franjas || !fecha || !turno) return false;
+      const tope = aforoDeFranja(franjas.aforoTotal, franjas.cupos?.[fecha], turno);
+      return sumarSolapadas(franjas.franjas?.[fecha], turno).total >= tope;
+    },
+    [franjas]
+  );
+
+  return { ...contexto, completo };
 }
 
 // Lo que se sabe del día elegido en una reserva (talleres y bonos): turnos que se
@@ -202,9 +237,7 @@ export function useDiaDeReserva({
 
   // Los turnos se ofrecen en el orden del horario, mezclados los libres y los azules
   const ofrecidos = new Set([...turnosDisponibles, ...turnosMinimo]);
-  const turnosOfrecidos = normalizarTurnos(clase?.horarios?.[nombreDiaSemana(fecha)])
-    .map(limpiarTurno)
-    .filter((t) => ofrecidos.has(t));
+  const turnosOfrecidos = turnosDelDia(clase, fecha).filter((t) => ofrecidos.has(t));
 
   return {
     turnosDisponibles: turnosOfrecidos,

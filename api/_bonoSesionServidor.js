@@ -19,7 +19,8 @@ import {
   opcionesDeCambio,
   turnosElegibles,
 } from "../src/utils/cambioFecha.js";
-import { limpiarTurno } from "../src/utils/turnosFecha.js";
+import { conTurnosExtra, limpiarTurno } from "../src/utils/turnosFecha.js";
+import { turnosExtraDesde } from "../src/utils/turnosExtra.js";
 import { calcularDiasAbiertos } from "../src/utils/diasAbiertos.js";
 import { hoyMadrid } from "../src/utils/formatoFecha.js";
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
@@ -47,16 +48,19 @@ const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
 
 // Lo que necesitan las reglas de cambio de fecha (src/utils/cambioFecha.js) del taller
 async function contextoDeLaClase(db, claseSnap, carpeta) {
-  const [bloqueos, habilitadas, grupos, reservas, clases] = await Promise.all([
+  const [bloqueos, habilitadas, grupos, reservas, clases, extras] = await Promise.all([
     db.ref("bloqueosFechas").get(),
     db.ref("fechasHabilitadas").get(),
     db.ref("reservasGrupos").get(),
     db.ref("reservas").get(),
     db.ref("clases").get(),
+    db.ref("turnosExtra").get(),
   ]);
+  // Turnos creados desde el panel para fechas concretas: la ficha los lleva (conTurnosExtra)
+  const turnosExtra = turnosExtraDesde(extras.val() || {}, hoyMadrid());
   return {
     carpeta,
-    clase: claseSnap?.exists() ? claseSnap.val() : null,
+    clase: claseSnap?.exists() ? conTurnosExtra(claseSnap.val(), turnosExtra[claseSnap.key]) : null,
     bloqueos: bloqueos.val() || {},
     fechasHabilitadas: habilitadas.val() || {},
     reservasGrupos: grupos.val() || {},
@@ -65,6 +69,7 @@ async function contextoDeLaClase(db, claseSnap, carpeta) {
       reservas,
       grupos,
       clases: clases.val() || {},
+      turnosExtra,
       fechasHabilitadas: habilitadas.val() || {},
       desde: hoyMadrid(),
     }),
@@ -91,9 +96,10 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
   const sesion = sesiones[claveSesion];
 
   const claseId = String(bono.claseId || "");
-  const [claseSnap, espacioSnap] = await Promise.all([
+  const [claseSnap, espacioSnap, cuposSnap] = await Promise.all([
     ID.test(claseId) ? db.ref(`clases/${claseId}`).get() : Promise.resolve(null),
     db.ref("configuracionEspacio").get(),
+    db.ref("cuposFranja").get(),
   ]);
   const carpeta = String(
     (claseSnap?.exists() ? claseSnap.val()?.reservasPath : "") || CARPETA_BONO_ANTIGUO[claseId] || claseId
@@ -109,7 +115,10 @@ export async function gestionarSesionBono(db, uid, { accion, bonoId, reservaId, 
   if (!esReservaValida(reserva)) return fallo(409, "Esta reserva no está confirmada.");
 
   // Plazo de antelación
-  const config = normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null);
+  const config = {
+    ...normalizarConfigEspacio(espacioSnap.exists() ? espacioSnap.val() : null),
+    cupos: cuposSnap.val() || {}, // topes por franja (cuposFranja)
+  };
   const horas = horasAntelacionDe(reserva, config);
   const ahoraMs = ahoraMadridMs();
   const inicio = inicioClaseMs(sesion.fecha, sesion.turno);
