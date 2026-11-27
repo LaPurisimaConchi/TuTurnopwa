@@ -51,6 +51,12 @@ export function canjearTarjetaRegalo({ codigo, orderId, bono }) {
   return llamar({ tipo: "canjear", codigo, orderId, ...(bono ? { bono } : {}) });
 }
 
+// Solo el panel: cancela una tarjeta regalo (ya no se podrá canjear) y, si se pide,
+// avisa por correo a quien la compró
+export function cancelarTarjetaRegalo({ tarjetaId, enviarCorreo }) {
+  return llamar({ tipo: "cancelarTarjeta", tarjetaId, enviarCorreo });
+}
+
 // Reserva una clase de un bono del perfil y la descuenta
 export function reservarConBono({ bonoId, fecha, turno }) {
   return llamar({ tipo: "usarBono", bonoId, fecha, turno });

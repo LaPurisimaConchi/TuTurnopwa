@@ -4,9 +4,30 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { dbRealtime } from "./firebase";
 import BotonVolver from "./BotonVolver";
 
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, fechaHoraLegible } from "./utils/formatoFecha";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
-import { preguntar } from "./utils/avisos";
+import CancelarTarjetaRegalo from "./components/CancelarTarjetaRegalo";
+import { AvisoPagoTarjeta, EtiquetaEstadoTarjeta } from "./components/EtiquetasTarjetaRegalo";
+import { avisar, preguntar } from "./utils/avisos";
+
+const Bloque = ({ titulo, children }) => (
+  <section className="rounded-2xl border border-linea bg-white p-4">
+    <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-terracota">{titulo}</h2>
+    <dl className="grid gap-3">{children}</dl>
+  </section>
+);
+
+// Sin valor no se pinta: así no quedan filas con «—»
+const Dato = ({ etiqueta, children }) =>
+  children ? (
+    <div>
+      <dt className="text-xs text-tinta-suave">{etiqueta}</dt>
+      <dd className="break-words text-sm text-tinta">{children}</dd>
+    </div>
+  ) : null;
+
+const enlace = "text-left font-semibold text-terracota underline underline-offset-2 hover:text-terracota-oscuro";
+
 const AdminDetalleTarjetaRegaloNuevo = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -18,17 +39,7 @@ const AdminDetalleTarjetaRegaloNuevo = () => {
   const [guardandoNota, setGuardandoNota] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [eliminandoNotaId, setEliminandoNotaId] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-
-useEffect(() => {
-  const onResize = () => {
-    setIsMobile(window.innerWidth <= 768);
-  };
-
-  window.addEventListener("resize", onResize);
-
-  return () => window.removeEventListener("resize", onResize);
-}, []);
+  const [cancelando, setCancelando] = useState(false);
 
   useEffect(() => {
     const cargarDetalleTarjeta = async () => {
@@ -124,6 +135,26 @@ useEffect(() => {
               invitado: comprador.invitado === true,
               emailUsuario: comprador.email || "",
             };
+          }
+        }
+
+        // El estado que manda para el canje es el de /tarjetasRegalo (la copia del
+        // perfil puede ir por detrás)
+        if (encontrada) {
+          const raiz = (await get(ref(dbRealtime, `tarjetasRegalo/${encontrada.id}`))).val();
+          if (raiz) {
+            encontrada.estado = raiz.estadoCanje || encontrada.estado;
+            encontrada.cancelada = raiz.cancelada === true;
+            encontrada.canceladaEn = raiz.canceladaEn || "";
+            encontrada.fechaCaducidad = raiz.fechaCaducidad || "";
+            encontrada.fechaCanje = raiz.fechaCanje || raiz.fechaUso || "";
+            encontrada.fechaReserva = raiz.fechaReserva || "";
+            encontrada.turnoReserva = raiz.turnoReserva || "";
+            encontrada.sePuedeCancelar =
+              !raiz.cancelada &&
+              !raiz.usado &&
+              !raiz.canjeado &&
+              !["usada", "canjeado"].includes(String(raiz.estadoCanje || "").toLowerCase());
           }
         }
 
@@ -234,284 +265,221 @@ useEffect(() => {
     }
   };
 
+  const copiarCodigo = async () => {
+    try {
+      await navigator.clipboard.writeText(tarjeta.codigo);
+      avisar("Código copiado.", "ok");
+    } catch {
+      avisar("No se pudo copiar el código.", "error");
+    }
+  };
+
   if (cargando) {
-    return <p style={styles.mensaje}>Cargando tarjeta regalo...</p>;
+    return <p className="p-10 text-center text-tinta-suave">Cargando tarjeta regalo...</p>;
   }
 
   if (!tarjeta) {
-    return <p style={styles.mensaje}>Tarjeta regalo no encontrada.</p>;
+    return <p className="p-10 text-center text-tinta-suave">Tarjeta regalo no encontrada.</p>;
   }
 
+  const hayDestinatario =
+    tarjeta.nombreDestinatario || tarjeta.emailDestinatario || tarjeta.mensajePersonalizado;
+
   return (
-   <div
-  style={{
-    ...styles.body,
-    ...(isMobile ? styles.bodyMobile : {}),
-  }}
->
-  <div
-    style={{
-      ...styles.container,
-      ...(isMobile ? styles.containerMobile : {}),
-    }}
-  >
+    <div className="p-1 sm:p-6">
+      <div className="mx-auto max-w-3xl rounded-2xl bg-white p-3 shadow-md sm:p-6">
         <BotonVolver />
 
-        <h1 style={styles.titulo}>Detalle de tarjeta regalo</h1>
+        <header className="mb-4 rounded-2xl border border-linea bg-mostaza-suave p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h1 className="text-xs font-bold uppercase tracking-wider text-terracota">Tarjeta regalo</h1>
+            <div className="flex flex-wrap gap-1">
+              <EtiquetaEstadoTarjeta tarjeta={tarjeta} />
+              <AvisoPagoTarjeta tarjeta={tarjeta} />
+            </div>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <p className="break-all font-mono text-xl font-bold tracking-wide text-tinta sm:text-2xl">
+              {tarjeta.codigo || "Sin código"}
+            </p>
+            {tarjeta.codigo && (
+              <button
+                type="button"
+                onClick={copiarCodigo}
+                className="rounded-full border border-linea bg-white px-3 py-1 text-xs font-semibold text-tinta"
+              >
+                Copiar
+              </button>
+            )}
+          </div>
+          <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <button
+                type="button"
+                className={enlace}
+                onClick={() =>
+                  navigate(
+                    `/admin-detalle-clase?clase=${encodeURIComponent(
+                      tarjeta.clase || ""
+                    )}&nombre=${encodeURIComponent(tarjeta.clase || "")}`
+                  )
+                }
+              >
+                {tarjeta.clase}
+              </button>
+              <p className="text-sm text-tinta-suave">
+                {[
+                  tarjeta.subtipo,
+                  `${tarjeta.plazas} ${tarjeta.plazas === 1 ? "plaza" : "plazas"}`,
+                  tarjeta.numeroClases > 0 && `${tarjeta.numeroClases} clases`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+            <p className="text-2xl font-bold text-tinta">{tarjeta.precioTotal} €</p>
+          </div>
+        </header>
 
-        <div style={styles.card}>
-          <p>
-            <strong>Clase:</strong>{" "}
-            <span
-              style={styles.linkClase}
-              onClick={() =>
-                navigate(
-                  `/admin-detalle-clase?clase=${encodeURIComponent(
-                    tarjeta.clase || ""
-                  )}&nombre=${encodeURIComponent(tarjeta.clase || "")}`
-                )
-              }
-            >
-              {tarjeta.clase}
-            </span>
-          </p>
-          <p><strong>Código:</strong> {tarjeta.codigo || "—"}</p>
-          <p><strong>Fecha compra:</strong> {fechaDMA(tarjeta.fecha)}</p>
-          <p><strong>Estado canje:</strong> {tarjeta.estado}</p>
-          <p><strong>Estado pago:</strong> {tarjeta.estadoPago}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Bloque titulo="Fechas">
+            <Dato etiqueta="Comprada">{tarjeta.fecha !== "—" && fechaDMA(tarjeta.fecha)}</Dato>
+            <Dato etiqueta="Válida hasta">
+              {tarjeta.fechaCaducidad && fechaDMA(tarjeta.fechaCaducidad)}
+            </Dato>
+            <Dato etiqueta="Canjeada">
+              {tarjeta.fechaCanje && fechaHoraLegible(tarjeta.fechaCanje)}
+            </Dato>
+            <Dato etiqueta="Reservó al canjear">
+              {tarjeta.fechaCanje &&
+                tarjeta.fechaReserva &&
+                [fechaDMA(tarjeta.fechaReserva), tarjeta.turnoReserva].filter(Boolean).join(" · ")}
+            </Dato>
+            <Dato etiqueta="Cancelada">
+              {tarjeta.canceladaEn && fechaHoraLegible(tarjeta.canceladaEn)}
+            </Dato>
+          </Bloque>
 
-          <hr style={styles.hr} />
+          <Bloque titulo="Comprador">
+            <Dato etiqueta="Nombre">
+              <button
+                type="button"
+                className={enlace}
+                onClick={() => navigate(`/admin-detalle-usuario?uid=${tarjeta.uid}`)}
+              >
+                {tarjeta.nombreUsuario || "Ver usuario"}
+              </button>
+              <EtiquetaInvitado invitado={tarjeta.invitado} />
+            </Dato>
+            <Dato etiqueta="Email">{tarjeta.emailUsuario}</Dato>
+          </Bloque>
 
-          <p><strong>Precio unitario:</strong> {tarjeta.precioUnitario}€</p>
-          <p><strong>Precio total:</strong> {tarjeta.precioTotal}€</p>
-          <p><strong>Plazas:</strong> {tarjeta.plazas}</p>
-          <p><strong>Número de clases:</strong> {tarjeta.numeroClases || 0}</p>
-
-          <hr style={styles.hr} />
-
-          <p><strong>Destinatario:</strong> {tarjeta.nombreDestinatario || "—"}</p>
-          <p><strong>Email destinatario:</strong> {tarjeta.emailDestinatario || "—"}</p>
-          <p><strong>Mensaje:</strong> {tarjeta.mensajePersonalizado || "—"}</p>
-          <p><strong>Subtipo:</strong> {tarjeta.subtipo || "—"}</p>
-          <p><strong>Tipo:</strong> {tarjeta.tipo || "—"}</p>
-
-          <hr style={styles.hr} />
-
-          <p>
-            <strong>UID comprador:</strong>{" "}
-            <span
-              style={styles.uidLink}
-              onClick={() =>
-                navigate(`/admin-detalle-usuario?uid=${tarjeta.uid}`)
-              }
-            >
-              {tarjeta.uid}
-            </span>
-          </p>
-          <p><strong>Nombre comprador:</strong> {tarjeta.nombreUsuario || "—"}<EtiquetaInvitado invitado={tarjeta.invitado} /></p>
-          <p><strong>Email comprador:</strong> {tarjeta.emailUsuario || "—"}</p>
-          <p><strong>Order ID:</strong> {tarjeta.orderId}</p>
-          <p><strong>Procesado:</strong> {tarjeta.procesado ? "Sí" : "No"}</p>
+          {hayDestinatario && (
+            <div className="sm:col-span-2">
+              <Bloque titulo="Para quién es">
+                <Dato etiqueta="Nombre">{tarjeta.nombreDestinatario}</Dato>
+                <Dato etiqueta="Email">{tarjeta.emailDestinatario}</Dato>
+                <Dato etiqueta="Mensaje">
+                  {tarjeta.mensajePersonalizado && (
+                    <span className="whitespace-pre-wrap italic">«{tarjeta.mensajePersonalizado}»</span>
+                  )}
+                </Dato>
+              </Bloque>
+            </div>
+          )}
         </div>
 
-        <div style={styles.notasBox}>
-          <h2 style={styles.subtituloBloque}>Notas internas </h2>
+        <details className="mt-4 rounded-2xl border border-linea px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-tinta-suave">Datos técnicos</summary>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Dato etiqueta="Número de pedido">{tarjeta.orderId}</Dato>
+            <Dato etiqueta="UID del comprador">{tarjeta.uid}</Dato>
+            <Dato etiqueta="Precio unitario">{`${tarjeta.precioUnitario} €`}</Dato>
+            <Dato etiqueta="Estado del pago">{tarjeta.estadoPago}</Dato>
+            <Dato etiqueta="Tipo">{tarjeta.tipo}</Dato>
+            <Dato etiqueta="Procesado">{tarjeta.procesado ? "Sí" : "No"}</Dato>
+          </dl>
+        </details>
+
+        <section className="mt-4 rounded-2xl border border-linea bg-white p-4">
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-terracota">Notas internas</h2>
 
           {notasInternas.length > 0 ? (
-            notasInternas.map((nota) => (
-              <div
-  key={nota.id}
-  style={{
-    ...styles.notaItem,
-    ...(isMobile ? styles.notaItemMobile : {}),
-  }}
->
-                <div
-  style={{
-    ...styles.notaHeader,
-    ...(isMobile ? styles.notaHeaderMobile : {}),
-  }}
->
-                  <div>
-                    <p style={styles.notaTexto}>{nota.texto}</p>
-                    <p style={styles.notaFecha}>{formatearFechaNota(nota.fecha)}</p>
+            <ul className="mb-3 divide-y divide-linea">
+              {notasInternas.map((nota) => (
+                <li key={nota.id} className="flex items-start justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="whitespace-pre-wrap break-words text-sm text-tinta">{nota.texto}</p>
+                    <p className="text-xs text-tinta-suave">{formatearFechaNota(nota.fecha)}</p>
                   </div>
-
                   <button
+                    type="button"
                     onClick={() => eliminarNotaInterna(nota.id)}
-                    style={styles.botonEliminar}
                     disabled={eliminandoNotaId === nota.id}
+                    className="shrink-0 text-sm font-semibold text-red-700 underline-offset-2 hover:underline disabled:opacity-50"
                   >
                     {eliminandoNotaId === nota.id ? "Borrando..." : "Eliminar"}
                   </button>
-                </div>
-              </div>
-            ))
+                </li>
+              ))}
+            </ul>
           ) : (
-            <p style={styles.textoVacio}>Aún no hay notas.</p>
+            <p className="mb-3 text-sm italic text-tinta-suave">Aún no hay notas.</p>
           )}
 
           <textarea
             value={nuevaNota}
             onChange={(e) => setNuevaNota(e.target.value)}
             placeholder="Escribe aquí una nota..."
-            style={styles.textarea}
-            rows={4}
+            aria-label="Nueva nota interna"
+            rows={3}
+            className="w-full resize-y rounded-xl border border-linea p-3 text-sm focus:outline-none focus:ring-2 focus:ring-terracota"
           />
-
           <button
+            type="button"
             onClick={guardarNotaInterna}
-            style={styles.botonGuardar}
             disabled={guardandoNota}
+            className="mt-2 rounded-full border border-linea bg-mostaza-suave px-4 py-2 text-sm font-semibold text-tinta disabled:opacity-50"
           >
             {guardandoNota ? "Guardando..." : "Guardar nota"}
           </button>
-        </div>
+        </section>
+
+        {(tarjeta.sePuedeCancelar || tarjeta.cancelada) && (
+          <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="text-sm text-tinta">
+              {tarjeta.cancelada
+                ? "Tarjeta cancelada: su código ya no se puede canjear."
+                : "Cancelar la tarjeta impide que se canjee. No devuelve el dinero."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setCancelando(true)}
+              className="rounded-full border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+            >
+              {tarjeta.cancelada ? "Enviar correo de cancelación" : "Cancelar tarjeta regalo"}
+            </button>
+          </section>
+        )}
+
+        {cancelando && (
+          <CancelarTarjetaRegalo
+            tarjeta={tarjeta}
+            onCerrar={() => setCancelando(false)}
+            onCancelada={() =>
+              setTarjeta((t) => ({
+                ...t,
+                estado: "cancelada",
+                cancelada: true,
+                canceladaEn: t.canceladaEn || new Date().toISOString(),
+                sePuedeCancelar: false,
+              }))
+            }
+          />
+        )}
       </div>
     </div>
   );
-};
-
-const styles = {
-  body: {
-    padding: 30,
-  },
-  bodyMobile: {
-  padding: 4,
-},
-  container: {
-    maxWidth: 700,
-    margin: "0 auto",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    boxShadow: "0 10px 20px rgba(0,0,0,0.1)",
-  },
-  containerMobile: {
-  width: "100%",
-  maxWidth: "100%",
-  borderRadius: 16,
-  padding: 10,
-  boxSizing: "border-box",
-},
-notaItemMobile: {
-  paddingBottom: 10,
-},
-  titulo: {
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  card: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    fontSize: "0.95rem",
-  },
-  hr: {
-    margin: "10px 0",
-    border: "none",
-    borderTop: "1px solid #eee",
-  },
-  uidLink: {
-    color: "#7c5c2e",
-    cursor: "pointer",
-    textDecoration: "underline",
-    fontWeight: 500,
-  },
-  notaHeaderMobile: {
-  flexDirection: "column",
-  alignItems: "stretch",
-},
-  mensaje: {
-    textAlign: "center",
-    padding: 40,
-  },
-  notasBox: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: "#fdfaf5",
-    border: "1px solid #eadfd2",
-    borderRadius: 16,
-  },
-  subtituloBloque: {
-    marginTop: 0,
-    marginBottom: 12,
-    color: "#3f3128",
-    fontSize: "1.15rem",
-  },
-  notaItem: {
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottom: "1px solid #eee",
-  },
-  notaHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  notaTexto: {
-    margin: 0,
-    color: "#333",
-    whiteSpace: "pre-wrap",
-  },
-  notaFecha: {
-    margin: "4px 0 0 0",
-    fontSize: "0.82rem",
-    color: "#777",
-  },
-  textoVacio: {
-    color: "#777",
-    fontStyle: "italic",
-  },
-  textarea: {
-    width: "100%",
-    marginTop: 14,
-    padding: 10,
-    borderRadius: 10,
-    border: "1px solid #ddd",
-    fontSize: "0.95rem",
-    resize: "vertical",
-    boxSizing: "border-box",
-  },
-  botonGuardar: {
-    marginTop: 10,
-    padding: "10px 14px",
-    border: "1px solid #eadfd2",
-    backgroundColor: "#fff6d6",
-    borderRadius: 12,
-    cursor: "pointer",
-    fontWeight: 600,
-    color: "#3f3128",
-  },
-  botonEliminar: {
-    padding: "8px 12px",
-    border: "1px solid #e7c9c9",
-    backgroundColor: "#fff1f1",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 600,
-    color: "#8a3b3b",
-    flexShrink: 0,
-  },
-  bloqueVolverLista: {
-    marginBottom: 16,
-  },
-  botonVolverLista: {
-    padding: "10px 14px",
-    border: "1px solid #eadfd2",
-    backgroundColor: "#fff6d6",
-    borderRadius: 12,
-    cursor: "pointer",
-    fontWeight: 600,
-    color: "#3f3128",
-  },
-  linkClase: {
-    color: "#7c5c2e",
-    cursor: "pointer",
-    textDecoration: "underline",
-    fontWeight: 500,
-  },
 };
 
 export default AdminDetalleTarjetaRegaloNuevo;

@@ -122,6 +122,12 @@ const CanjearTarjetaRegalo = () => {
         return;
       }
 
+      if (tarjeta.cancelada) {
+        setMensaje("Esta tarjeta regalo está cancelada. Si crees que es un error, escríbenos.");
+        setValidando(false);
+        return;
+      }
+
       if (tarjeta.usada) {
         setMensaje("Este código ya ha sido usado.");
         setValidando(false);

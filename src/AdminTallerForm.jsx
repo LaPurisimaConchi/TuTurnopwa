@@ -114,7 +114,8 @@ async function comprobarDependencias(claseId, clase = {}) {
       idsTarjeta.includes(tarjeta.claseId) &&
       String(tarjeta.estadoPago || "").toLowerCase() === "pagado" &&
       !tarjeta.usado &&
-      !tarjeta.canjeado
+      !tarjeta.canjeado &&
+      !tarjeta.cancelada
     ) {
       tarjetasPendientes += 1;
     }
