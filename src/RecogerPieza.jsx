@@ -31,7 +31,8 @@ function Enlace({ href, children }) {
 
 export default function RecogerPieza() {
   const { config: configEspacio } = useConfigEspacio();
-  const enlaceWa = enlaceWhatsapp(configEspacio.telefonoWhatsapp);
+  // Teléfono propio de piezas y envíos (Espacio → Contacto)
+  const enlaceWa = enlaceWhatsapp(configEspacio.telefonoPiezas);
   return (
     <div className="text-tinta px-4 py-8 font-sans">
       <div className="max-w-3xl mx-auto">
@@ -62,8 +63,8 @@ export default function RecogerPieza() {
           <p>✅ Las piezas solamente están listas para recoger cuando aparecen publicadas en la carpeta.</p>
           <p>Si tu pieza aparece publicada, puedes escribirnos para organizar su recogida.</p>
           <p>
-            📞 Para consultas sobre piezas, concretar cita de recogida, preparar envíos,
-            reservas, cambios de fecha y pagos:
+            📞 Consultas sobre piezas, para concretar cita para recoger piezas y preparación
+            de envíos:
           </p>
           <a
             href={enlaceWa}
