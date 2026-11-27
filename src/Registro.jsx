@@ -288,10 +288,10 @@ export default function Registro() {
           />
         </div>
 
-        <label className="flex items-start gap-2 text-sm text-tinta">
+        <label className="flex items-start gap-3 text-sm text-tinta">
           <input
             type="checkbox"
-            className="mt-1"
+            className="-mt-0.5 sm:mt-0"
             checked={aceptaPrivacidad}
             onChange={(e) => setAceptaPrivacidad(e.target.checked)}
             required

@@ -355,7 +355,7 @@ export default function ResumenPago() {
           <label className="flex items-start">
             <input
               type="checkbox"
-              className="mr-2 mt-1"
+              className="mr-3 -mt-0.5 sm:mt-0"
               checked={aceptaPoliticas}
               onChange={(e) => setAceptaPoliticas(e.target.checked)}
             />

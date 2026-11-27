@@ -1188,7 +1188,7 @@ export default function AdminTallerForm() {
                     ["variante", "Un precio por tipo o tamaño (con torno o a mano)"],
                     ["unico", "Precio único (sin elegir método)"],
                   ].map(([valor, texto]) => (
-                    <label key={valor} className="flex items-center gap-2 text-sm">
+                    <label key={valor} className="flex items-center gap-3 text-sm">
                       <input
                         type="radio"
                         name="modalidad"
@@ -1458,7 +1458,7 @@ export default function AdminTallerForm() {
                 <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="mt-1"
+                    className="-mt-0.5 sm:mt-0"
                     checked={form.monografico}
                     onChange={(e) => cambiar("monografico", e.target.checked)}
                   />
@@ -1585,7 +1585,7 @@ export default function AdminTallerForm() {
               <label className="flex items-start gap-3 rounded-xl border border-linea bg-crema p-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    className="mt-1"
+                    className="-mt-0.5 sm:mt-0"
                     checked={form.horariosPorDefecto}
                     onChange={(e) => cambiarHorariosPorDefecto(e.target.checked)}
                   />
