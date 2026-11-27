@@ -888,17 +888,21 @@ export default function PerfilUsuario() {
                               <p className="font-semibold">{tarjeta.clase || "Tarjeta regalo"}</p>
                               <p className="text-tinta-suave">{tarjeta.precioTotal} €</p>
                             </div>
-                            <Chip tono={usada ? "neutro" : "verde"}>{usada ? "Usada" : "Disponible"}</Chip>
+                            <Chip tono={usada || tarjeta.cancelada ? "neutro" : "verde"}>
+                              {tarjeta.cancelada ? "Cancelada" : usada ? "Usada" : "Disponible"}
+                            </Chip>
                           </div>
                           <p className="mt-2">
                             <span className="font-semibold">Código:</span>{" "}
                             <span className="font-mono tracking-wider">{tarjeta.codigo || "—"}</span>
                           </p>
-                          <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                            {plantillasTarjeta.map((plantilla) => (
-                              <BotonPlantilla key={plantilla.id} plantilla={plantilla} className={botonSecundario} />
-                            ))}
-                          </div>
+                          {!tarjeta.cancelada && (
+                            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                              {plantillasTarjeta.map((plantilla) => (
+                                <BotonPlantilla key={plantilla.id} plantilla={plantilla} className={botonSecundario} />
+                              ))}
+                            </div>
+                          )}
                         </li>
                       );
                     })}

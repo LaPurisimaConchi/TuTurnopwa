@@ -6,6 +6,7 @@
 // POST Authorization: Bearer <idToken de Firebase>
 //      { tipo: "grupo", grupoId }  |  { tipo: "pedido", orderId }
 //      { tipo: "cancelacion", ruta, enviarCorreo, permitirReprogramar? }
+//      { tipo: "cancelarTarjeta", tarjetaId, enviarCorreo }  (solo admins)
 //      { tipo: "reservar", claseId, items: [{ fecha, turno, metodo, plazas, reserva }], edicionId? }
 //      { tipo: "tarjeta", codigo }  |  { tipo: "canjear", codigo, orderId, bono? }
 //      { tipo: "restablecerContrasena", email }  (sin sesión: correo de «has olvidado tu contraseña»)
@@ -38,6 +39,7 @@ import {
 import { esReservaValida } from "../src/utils/plazasOcupadas.js";
 import { reservarConAforo } from "./_reservarServidor.js";
 import { registrarCancelacion } from "./_cancelacionReserva.js";
+import { cancelarTarjeta } from "./_anularTarjeta.js";
 import { canjearTarjeta, consultarTarjeta, usarBono } from "./_canjeServidor.js";
 import { gestionarSesionBono } from "./_bonoSesionServidor.js";
 import { reservarSiguienteSesion, sesionesPendientes } from "./_sesionesServidor.js";
@@ -124,6 +126,18 @@ export default async function handler(req, res) {
         ruta: cuerpo.ruta,
         enviarCorreo: cuerpo.enviarCorreo === true,
         permitirReprogramar: cuerpo.permitirReprogramar !== false,
+      });
+      return res.status(status).json(resto);
+    }
+
+    // Solo el panel: cancela una tarjeta regalo para que no se pueda canjear
+    if (cuerpo.tipo === "cancelarTarjeta") {
+      if (!esTokenAdministrador(decodificado)) {
+        return res.status(403).json({ ok: false, error: "Solo los administradores" });
+      }
+      const { status, ...resto } = await cancelarTarjeta(adminDb, {
+        tarjetaId: cuerpo.tarjetaId,
+        enviarCorreo: cuerpo.enviarCorreo === true,
       });
       return res.status(status).json(resto);
     }

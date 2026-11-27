@@ -567,6 +567,7 @@ const limpiarFiltros = () => {
         <option value="pendiente">Pendiente</option>
         <option value="canjeada">Canjeada</option>
         <option value="caducada">Caducada</option>
+        <option value="cancelada">Cancelada</option>
       </>
     ) : (
       <>

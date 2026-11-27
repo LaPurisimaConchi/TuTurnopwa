@@ -35,7 +35,7 @@ const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const PEDIDO = /^\d{4,20}$/;
 const TURNO = /^[^./$#[\]]{1,60}$/;
 const CODIGO_TARJETA = /^[A-Z0-9-]{4,40}$/;
-const RECLAMO_CADUCA_MS = 2 * 60 * 1000;
+export const RECLAMO_CADUCA_MS = 2 * 60 * 1000;
 const MAX_CLASES_BONO = 20;
 
 const sinControl = (texto) => [...texto].every((c) => c.charCodeAt(0) >= 32);
@@ -45,7 +45,7 @@ const texto = (valor, max = 200) => String(valor ?? "").slice(0, max);
 // compartidas con el panel); se reexportan para api/_bonoSesionServidor.js
 export { CARPETA_BONO_ANTIGUO };
 
-const tarjetaUsada = (t) =>
+export const tarjetaUsada = (t) =>
   t?.usado === true ||
   t?.canjeado === true ||
   ["usada", "canjeado"].includes(String(t?.estadoCanje || "").toLowerCase());
@@ -105,7 +105,7 @@ async function reclamar(db, tarjetaId, uid) {
   const { committed, snapshot } = await db.ref(`tarjetasRegalo/${tarjetaId}`).transaction((t) => {
     // Sin datos en caché: se devuelve tal cual y se repite con los del servidor
     if (t === null) return t;
-    if (tarjetaUsada(t)) return;
+    if (t.cancelada === true || tarjetaUsada(t)) return;
     if (t.canjeadoPorUID && t.canjeadoPorUID !== uid) return;
 
     const enCurso = t.reclamadaEn && ahora - Number(t.reclamadaEn) < RECLAMO_CADUCA_MS;
@@ -152,6 +152,7 @@ export async function consultarTarjeta(db, uid, codigo) {
       numeroClases: Number(tarjeta.numeroClases) || 0,
       pagada: String(tarjeta.estadoPago || "").toLowerCase() === "pagado",
       usada: tarjetaUsada(tarjeta),
+      cancelada: tarjeta.cancelada === true,
       caducada: tarjetaCaducada(tarjeta, hoyISO()),
       fechaCaducidad: texto(tarjeta.fechaCaducidad, 10),
       deOtraPersona: !!tarjeta.canjeadoPorUID && tarjeta.canjeadoPorUID !== uid,
@@ -209,6 +210,9 @@ export async function canjearTarjeta(db, uid, { codigo, orderId, bono } = {}) {
 
   const tarjeta = await buscarTarjeta(db, codigo);
   if (!tarjeta) return fallo(404, "Código no válido", { codigo: "no_existe" });
+  if (tarjeta.cancelada === true) {
+    return fallo(409, "Esta tarjeta regalo está cancelada.", { codigo: "tarjeta_cancelada" });
+  }
   if (String(tarjeta.estadoPago || "").toLowerCase() !== "pagado") {
     return fallo(409, "Esta tarjeta regalo aún no consta como pagada.", { codigo: "no_pagada" });
   }

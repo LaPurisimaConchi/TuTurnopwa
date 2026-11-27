@@ -7,8 +7,29 @@ import Icono from "./components/Icono";
 import "./AdminDashboard.css";
 import { formatearEuros } from "./utils/estadisticasAdmin";
 import GestionPlantillasTarjetaRegalo from "./components/GestionPlantillasTarjetaRegalo";
-import { fechaDMA } from "./utils/formatoFecha";
+import { fechaDMA, hoyMadrid } from "./utils/formatoFecha";
+import { situacionDe } from "./utils/estadoTarjetaRegalo";
+import { AvisoPagoTarjeta, EtiquetaEstadoTarjeta } from "./components/EtiquetasTarjetaRegalo";
 import EtiquetaInvitado from "./components/EtiquetaInvitado";
+import CancelarTarjetaRegalo from "./components/CancelarTarjetaRegalo";
+
+// Día (en Madrid) en que se canjeó; las tarjetas antiguas pueden no tenerlo
+const diaDeCanje = (t) => {
+  const momento = new Date(t.fechaCanje || "");
+  return Number.isNaN(momento.getTime()) ? "" : fechaDMA(hoyMadrid(momento));
+};
+
+// Para buscar sin distinguir mayúsculas ni tildes
+const normalizar = (texto) =>
+  String(texto || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+
+// Hasta cuándo se puede canjear: solo interesa mientras sigue disponible
+const validezDe = (t) =>
+  t.fechaCaducidad && situacionDe(t, hoyMadrid()) === "disponible" ? fechaDMA(t.fechaCaducidad) : "";
 
 const AdminTarjetasRegalo = () => {
   const navigate = useNavigate();
@@ -17,9 +38,11 @@ const AdminTarjetasRegalo = () => {
   const [cargando, setCargando] = useState(true);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
 
+  const [busqueda, setBusqueda] = useState("");
   const [filtroFecha, setFiltroFecha] = useState("");
   const [filtroEstadoCanje, setFiltroEstadoCanje] = useState("");
   const [filtroEstadoPago, setFiltroEstadoPago] = useState("");
+  const [aCancelar, setACancelar] = useState(null);
 
   useEffect(() => {
     const onResize = () => {
@@ -65,7 +88,7 @@ const AdminTarjetasRegalo = () => {
         const usuarios = usuariosSnap.exists() ? usuariosSnap.val() || {} : {};
         const yaListadas = new Set();
 
-        const agregar = (tarjetaId, tarjeta, uid) => {
+        const agregar = (tarjetaId, tarjeta, uid, enRaiz = false) => {
           const t = tarjeta || {};
           const userData = usuarios[uid] || {};
           const orderIdReal = t.orderId || tarjetaId;
@@ -84,6 +107,16 @@ const AdminTarjetasRegalo = () => {
             metodo: t.codigo || "—",
             plazas: Number(t.plazas || 1),
             estado: t.estadoCanje || "pendiente",
+            cancelada: t.cancelada === true,
+            fechaCaducidad: t.fechaCaducidad || "",
+            fechaCanje: t.fechaCanje || t.fechaUso || "",
+            // Solo las de /tarjetasRegalo se pueden canjear (y, por tanto, cancelar)
+            sePuedeCancelar:
+              enRaiz &&
+              !t.cancelada &&
+              !t.usado &&
+              !t.canjeado &&
+              !["usada", "canjeado"].includes(String(t.estadoCanje || "").toLowerCase()),
             estadoPago: t.estadoPago || "—",
             precioTotal: Number(t.precioTotal || 0),
             uid: uid,
@@ -108,7 +141,7 @@ const AdminTarjetasRegalo = () => {
         if (tarjetasRaizSnap.exists()) {
           tarjetasRaizSnap.forEach((tarjetaSnap) => {
             const t = tarjetaSnap.val() || {};
-            agregar(tarjetaSnap.key, t, String(t.uidComprador || ""));
+            agregar(tarjetaSnap.key, t, String(t.uidComprador || ""), true);
           });
         }
 
@@ -137,21 +170,30 @@ const AdminTarjetasRegalo = () => {
   }, []);
 
   const tarjetasFiltradas = useMemo(() => {
+    const hoy = hoyMadrid();
+    const buscado = normalizar(busqueda);
+
     return tarjetasRegalo.filter((t) => {
+      const cumpleBusqueda =
+        !buscado ||
+        [t.codigo, t.nombreUsuario, t.emailUsuario, t.nombreDestinatario, t.emailDestinatario].some(
+          (campo) => normalizar(campo).includes(buscado)
+        );
       const cumpleFecha = !filtroFecha || t.fecha === filtroFecha;
       const cumpleEstadoCanje =
-        !filtroEstadoCanje || t.estado === filtroEstadoCanje;
+        !filtroEstadoCanje || situacionDe(t, hoy) === filtroEstadoCanje;
       const cumpleEstadoPago =
         !filtroEstadoPago || t.estadoPago === filtroEstadoPago;
 
-      return cumpleFecha && cumpleEstadoCanje && cumpleEstadoPago;
+      return cumpleBusqueda && cumpleFecha && cumpleEstadoCanje && cumpleEstadoPago;
     });
-  }, [tarjetasRegalo, filtroFecha, filtroEstadoCanje, filtroEstadoPago]);
+  }, [tarjetasRegalo, busqueda, filtroFecha, filtroEstadoCanje, filtroEstadoPago]);
 
   const totalTarjetas = tarjetasRegalo.length;
 
-  const totalPagadas = tarjetasRegalo.filter(
-    (t) => String(t.estadoPago).toLowerCase() === "pagado"
+  const hoy = hoyMadrid();
+  const totalDisponibles = tarjetasRegalo.filter(
+    (t) => situacionDe(t, hoy) === "disponible"
   ).length;
 
   const totalCanjeadas = tarjetasRegalo.filter(
@@ -166,10 +208,33 @@ const AdminTarjetasRegalo = () => {
   }, 0);
 
   const limpiarFiltros = () => {
+    setBusqueda("");
     setFiltroFecha("");
     setFiltroEstadoCanje("");
     setFiltroEstadoPago("");
   };
+
+  const marcarCancelada = (id) => {
+    setTarjetasRegalo((lista) =>
+      lista.map((t) =>
+        t.id === id ? { ...t, cancelada: true, estado: "cancelada", sePuedeCancelar: false } : t
+      )
+    );
+  };
+
+  const botonCancelar = (t) =>
+    t.sePuedeCancelar ? (
+      <button
+        type="button"
+        className="mt-2 whitespace-nowrap rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+        onClick={(e) => {
+          e.stopPropagation();
+          setACancelar(t);
+        }}
+      >
+        Cancelar
+      </button>
+    ) : null;
 
   const irADetalle = (orderId) => {
     navigate(`/admin-detalle-tarjeta-regalo?id=${orderId}`);
@@ -200,7 +265,7 @@ const AdminTarjetasRegalo = () => {
         <div className="pa-grid" aria-busy={cargando}>
           {[
             { etiqueta: "Total tarjetas", icono: "regalo", tono: "terracota", valor: totalTarjetas },
-            { etiqueta: "Pagadas", icono: "confirmado", tono: "verde", valor: totalPagadas },
+            { etiqueta: "Disponibles", icono: "confirmado", tono: "verde", valor: totalDisponibles },
             { etiqueta: "Canjeadas", icono: "bono", tono: "azul", valor: totalCanjeadas },
             { etiqueta: "Ingresos estimados", icono: "euro", tono: "mostaza", valor: formatearEuros(ingresosEstimados) },
           ].map(({ etiqueta, icono, tono, valor }) => (
@@ -226,6 +291,17 @@ const AdminTarjetasRegalo = () => {
             ...(isMobile ? styles.filtrosBoxMobile : {}),
           }}
         >
+          <div style={{ ...styles.campo, marginBottom: 14 }}>
+            <label style={styles.label} htmlFor="buscar-tarjeta">Buscar</label>
+            <input
+              id="buscar-tarjeta"
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Código, comprador o destinatario"
+              style={styles.input}
+            />
+          </div>
           <div
             style={{
               ...styles.filtrosGrid,
@@ -243,16 +319,17 @@ const AdminTarjetasRegalo = () => {
             </div>
 
             <div style={styles.campo}>
-              <label style={styles.label}>Estado canje</label>
+              <label style={styles.label}>Estado</label>
               <select
                 value={filtroEstadoCanje}
                 onChange={(e) => setFiltroEstadoCanje(e.target.value)}
                 style={styles.input}
               >
                 <option value="">Todos</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="canjeado">Canjeada</option>
+                <option value="disponible">Disponible</option>
+                <option value="canjeada">Canjeada</option>
                 <option value="caducada">Caducada</option>
+                <option value="cancelada">Cancelada</option>
               </select>
             </div>
 
@@ -290,8 +367,8 @@ const AdminTarjetasRegalo = () => {
         ) : isMobile ? (
           <div style={styles.cardsList}>
             {tarjetasFiltradas.map((t) => (
+              <div key={`${t.claseId}-${t.fecha}-${t.orderId}-${t.id}`} style={styles.cardConAccion}>
               <button
-                key={`${t.claseId}-${t.fecha}-${t.orderId}-${t.id}`}
                 type="button"
                 onClick={() => irADetalle(t.orderId)}
                 style={styles.cardMobile}
@@ -299,7 +376,8 @@ const AdminTarjetasRegalo = () => {
                 <div style={styles.cardTop}>
                   <div>
                     <p style={styles.cardTitulo}>{t.clase}</p>
-                    <p style={styles.cardFecha}>{fechaDMA(t.fecha)}</p>
+                    {t.subtipo && <p style={styles.cardFecha}>{t.subtipo}</p>}
+                    <p style={styles.cardFecha}>Comprada el {fechaDMA(t.fecha)}</p>
                   </div>
 
                   <div style={styles.cardPrecio}>{t.precioTotal}€</div>
@@ -311,26 +389,21 @@ const AdminTarjetasRegalo = () => {
                     <span style={styles.cardValue}>{t.codigo || "—"}</span>
                   </div>
 
-                  <div style={styles.cardItem}>
-                    <span style={styles.cardLabel}>Plazas</span>
-                    <span style={styles.cardValue}>{t.plazas}</span>
-                  </div>
-
-                  <div style={styles.cardItem}>
-                    <span style={styles.cardLabel}>Estado canje</span>
-                    <span style={styles.cardValue}>{t.estado}</span>
-                  </div>
-
-                  <div style={styles.cardItem}>
-                    <span style={styles.cardLabel}>Pago</span>
-                    <span style={styles.cardValue}>{t.estadoPago}</span>
-                  </div>
+                  {t.plazas > 1 && (
+                    <div style={styles.cardItem}>
+                      <span style={styles.cardLabel}>Plazas</span>
+                      <span style={styles.cardValue}>{t.plazas}</span>
+                    </div>
+                  )}
 
                   <div style={styles.cardItemFull}>
-                    <span style={styles.cardLabel}>Destinatario</span>
-                    <span style={styles.cardValue}>
-                      {t.nombreDestinatario || t.emailDestinatario || "—"}
+                    <span style={styles.cardLabel}>Estado</span>
+                    <span className="flex flex-wrap gap-1">
+                      <EtiquetaEstadoTarjeta tarjeta={t} />
+                      <AvisoPagoTarjeta tarjeta={t} />
                     </span>
+                    {diaDeCanje(t) && <span style={styles.cardValue}>Canjeada el {diaDeCanje(t)}</span>}
+                    {validezDe(t) && <span style={styles.cardValue}>Válida hasta el {validezDe(t)}</span>}
                   </div>
 
                   <div style={styles.cardItemFull}>
@@ -341,37 +414,39 @@ const AdminTarjetasRegalo = () => {
                     </span>
                   </div>
 
-                  <div style={styles.cardItemFull}>
-                    <span style={styles.cardLabel}>Notas</span>
-                    <span style={styles.cardValue}>
-                      {t.notasInternas > 0 ? (
-                        <span style={styles.badgeNotas}>
-                          {t.notasInternas}{" "}
-                          {t.notasInternas === 1 ? "nota" : "notas"}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </span>
-                  </div>
                 </div>
               </button>
+              {t.sePuedeCancelar && (
+                <div className="px-3.5 pb-3.5">
+                  <button
+                    type="button"
+                    onClick={() => setACancelar(t)}
+                    className="min-h-[44px] w-full rounded-full border border-red-200 bg-red-50 text-sm font-semibold text-red-700 active:bg-red-100"
+                  >
+                    Cancelar tarjeta
+                  </button>
+                </div>
+              )}
+              </div>
             ))}
           </div>
         ) : (
           <div style={styles.tablaWrapper}>
+            {/* Datos relacionados comparten columna para que la tabla quepa sin scroll horizontal */}
             <table style={styles.table}>
+              <colgroup>
+                <col style={{ width: "27%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "21%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "16%" }} />
+              </colgroup>
               <thead>
                 <tr>
-                  <th style={styles.th}>Fecha</th>
-                  <th style={styles.th}>Código</th>
+                  <th style={styles.th}>Tarjeta</th>
                   <th style={styles.th}>Clase</th>
-                  <th style={styles.th}>Destinatario / Info</th>
-                  <th style={styles.th}>Usuario</th>
-                  <th style={styles.th}>Plazas</th>
-                  <th style={styles.th}>Estado canje</th>
-                  <th style={styles.th}>Pago</th>
-                  <th style={styles.th}>Notas</th>
+                  <th style={styles.th}>Comprador</th>
+                  <th style={styles.th}>Estado</th>
                   <th style={styles.th}>Precio</th>
                 </tr>
               </thead>
@@ -380,32 +455,53 @@ const AdminTarjetasRegalo = () => {
                   <tr
                     key={`${t.claseId}-${t.fecha}-${t.orderId}-${t.id}`}
                     onClick={() => irADetalle(t.orderId)}
-                    style={styles.trClickable}
+                    className="cursor-pointer transition-colors hover:bg-mostaza-suave"
                   >
-                    <td style={styles.td}>{fechaDMA(t.fecha)}</td>
-                    <td style={styles.td}>{t.codigo || "—"}</td>
-                    <td style={styles.td}>{t.clase}</td>
                     <td style={styles.td}>
-                      {t.nombreDestinatario || t.emailDestinatario || "—"}
+                      <span style={styles.codigo}>{t.codigo || "—"}</span>
+                      <span style={styles.secundario}>
+                        Comprada el <span className="whitespace-nowrap">{fechaDMA(t.fecha)}</span>
+                      </span>
                     </td>
                     <td style={styles.td}>
-                      {t.nombreUsuario || t.emailUsuario || t.uid}
-                      <EtiquetaInvitado invitado={t.invitado} />
+                      <span style={styles.principal}>{t.clase}</span>
+                      {t.subtipo && <span style={styles.secundario}>{t.subtipo}</span>}
+                      {t.plazas > 1 && <span style={styles.secundario}>{t.plazas} plazas</span>}
                     </td>
-                    <td style={styles.td}>{t.plazas}</td>
-                    <td style={styles.td}>{t.estado}</td>
-                    <td style={styles.td}>{t.estadoPago}</td>
                     <td style={styles.td}>
-                      {t.notasInternas > 0 ? (
-                        <span style={styles.badgeNotas}>
-                          {t.notasInternas}{" "}
-                          {t.notasInternas === 1 ? "nota" : "notas"}
+                      <span style={styles.principal}>
+                        {t.nombreUsuario || t.emailUsuario || t.uid}
+                        <EtiquetaInvitado invitado={t.invitado} />
+                      </span>
+                      {(t.nombreDestinatario || t.emailDestinatario) && (
+                        <span style={styles.secundario}>
+                          Para: {t.nombreDestinatario || t.emailDestinatario}
                         </span>
-                      ) : (
-                        "—"
                       )}
                     </td>
-                    <td style={styles.td}>{t.precioTotal}€</td>
+                    <td style={styles.td}>
+                      <div className="flex flex-col items-start gap-1">
+                        <EtiquetaEstadoTarjeta tarjeta={t} />
+                        {diaDeCanje(t) && (
+                          <span className="whitespace-nowrap text-xs text-tinta-suave">
+                            el {diaDeCanje(t)}
+                          </span>
+                        )}
+                        {validezDe(t) && (
+                          <span className="text-xs text-tinta-suave">Válida hasta {validezDe(t)}</span>
+                        )}
+                        <AvisoPagoTarjeta tarjeta={t} />
+                        {t.notasInternas > 0 && (
+                          <span className="whitespace-nowrap text-xs text-tinta-suave">
+                            {t.notasInternas} {t.notasInternas === 1 ? "nota" : "notas"}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={styles.principal}>{t.precioTotal}€</span>
+                      {botonCancelar(t)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -413,6 +509,14 @@ const AdminTarjetasRegalo = () => {
           </div>
         )}
       </div>
+
+      {aCancelar && (
+        <CancelarTarjetaRegalo
+          tarjeta={aCancelar}
+          onCerrar={() => setACancelar(null)}
+          onCancelada={marcarCancelada}
+        />
+      )}
     </div>
   );
 };
@@ -553,42 +657,60 @@ const styles = {
     padding: 20,
   },
   tablaWrapper: {
-    overflowX: "auto",
     borderRadius: 18,
   },
   table: {
     width: "100%",
+    tableLayout: "fixed",
     borderCollapse: "collapse",
     backgroundColor: "#fdfaf5",
     overflow: "hidden",
   },
   th: {
     textAlign: "left",
-    padding: 14,
+    padding: "10px 8px",
     backgroundColor: "#fff6d6",
     color: "#3f3128",
     borderBottom: "1px solid #eadfd2",
     fontSize: "0.95rem",
   },
   td: {
-    padding: 14,
+    padding: "10px 8px",
+    verticalAlign: "top",
+    overflowWrap: "anywhere",
     borderBottom: "1px solid #f6efe6",
     color: "#333",
     fontSize: "0.95rem",
   },
-  trClickable: {
-    cursor: "pointer",
-    transition: "0.2s",
+  codigo: {
+    display: "block",
+    fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+    fontSize: "0.78rem",
+    whiteSpace: "nowrap",
+  },
+  principal: {
+    display: "block",
+  },
+  secundario: {
+    display: "block",
+    marginTop: 4,
+    color: "#7a6858",
+    fontSize: "0.85rem",
   },
   cardsList: {
     display: "grid",
     gap: 12,
   },
-  cardMobile: {
-    width: "100%",
+  cardConAccion: {
     border: "1px solid #eadfd2",
     backgroundColor: "#fdfaf5",
     borderRadius: 18,
+    overflow: "hidden",
+  },
+  cardMobile: {
+    width: "100%",
+    border: "none",
+    background: "none",
     padding: 14,
     textAlign: "left",
     cursor: "pointer",
@@ -651,16 +773,6 @@ cardGrid: {
     color: "#333",
     lineHeight: 1.35,
     wordBreak: "break-word",
-  },
-  badgeNotas: {
-    display: "inline-block",
-    padding: "4px 10px",
-    borderRadius: 999,
-    backgroundColor: "#fff6d6",
-    border: "1px solid #eadfd2",
-    color: "#3f3128",
-    fontSize: "0.85rem",
-    fontWeight: 600,
   },
 };
 

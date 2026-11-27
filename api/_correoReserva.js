@@ -531,3 +531,112 @@ export async function enviarCorreoCancelacion({ reserva, orderId, motivo, codigo
     return { estado: "error", email: "" };
   }
 }
+
+// --- Tarjeta regalo cancelada ---------------------------------------------------
+// Aviso a quien compró la tarjeta de que el estudio la ha cancelado.
+export function construirCorreoTarjetaCancelada({ tarjeta, nombre }) {
+  const saludo = nombre ? `Hola ${nombre.split(" ")[0]},` : "Hola,";
+  const titulo = "Hemos cancelado tu tarjeta regalo";
+  const intro = "te informamos de que la tarjeta regalo que compraste ha quedado cancelada y su código ya no se puede canjear.";
+  const nota = "Si tienes cualquier duda, escríbenos y te ayudamos.";
+  const filas = [
+    ["Código de la tarjeta", tarjeta.codigo || ""],
+    ["Regalo", [tarjeta.clase, tarjeta.subtipo].filter(Boolean).join(" · ")],
+    ["Para", tarjeta.nombreDestinatario || ""],
+  ].filter(([, valor]) => valor);
+
+  const base = urlBase();
+  const logo = base
+    ? `<img src="${escapar(base)}/img/logoPCsin.png" alt="La Purísima Conchi" height="64" style="display:block;margin:0 auto 16px;height:64px;width:auto;">`
+    : `<div style="text-align:center;font-size:18px;font-weight:bold;color:${COLOR_TERRACOTA};margin-bottom:16px;">La Purísima Conchi</div>`;
+
+  const html = `<!doctype html>
+<html lang="es">
+  <body style="margin:0;padding:24px;background:#fdfaf5;font-family:Arial,Helvetica,sans-serif;color:#2d2a26;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #eadfd2;border-radius:12px;padding:28px;">
+      <tr><td>
+        ${logo}
+        <h1 style="margin:0 0 12px;font-size:22px;text-align:center;color:${COLOR_TERRACOTA};">${titulo}</h1>
+        <p style="margin:0 0 16px;font-size:15px;line-height:1.5;">${escapar(saludo)} ${escapar(intro)}</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="font-size:15px;border-top:1px solid #eee;margin-bottom:16px;">
+          ${filas
+            .map(
+              ([etiqueta, valor]) =>
+                `<tr><td style="padding:8px 0;border-bottom:1px solid #eee;color:#7a736a;width:38%;">${escapar(etiqueta)}</td><td style="padding:8px 0;border-bottom:1px solid #eee;font-weight:bold;">${escapar(valor)}</td></tr>`
+            )
+            .join("")}
+        </table>
+        <p style="margin:0;font-size:14px;line-height:1.5;">${escapar(nota)}</p>
+        <p style="margin:20px 0 0;font-size:12px;line-height:1.6;color:#7a736a;text-align:center;">
+          La Purísima Conchi · C/ Israel, local 5, 14009 Córdoba<br>
+          +34 644 67 16 64 · <a href="mailto:${EMAIL_ESTUDIO}" style="color:${COLOR_TERRACOTA};">${EMAIL_ESTUDIO}</a>
+        </p>
+      </td></tr>
+    </table>
+  </body>
+</html>`;
+
+  const texto = [
+    titulo,
+    "",
+    `${saludo} ${intro}`,
+    "",
+    ...filas.map(([etiqueta, valor]) => `${etiqueta}: ${valor}`),
+    "",
+    nota,
+    "",
+    "La Purísima Conchi · C/ Israel, local 5, 14009 Córdoba",
+    `+34 644 67 16 64 · ${EMAIL_ESTUDIO}`,
+  ].join("\n");
+
+  return { asunto: titulo, html, texto };
+}
+
+/**
+ * Envía el aviso a quien compró la tarjeta. Devuelve { estado, email } con los mismos
+ * estados que enviarCorreoCancelacion. No lanza nunca.
+ */
+export async function enviarCorreoTarjetaCancelada({ tarjeta, orderId }) {
+  try {
+    const clave = String(process.env.RESEND_API_KEY || "").trim();
+    if (!clave) {
+      console.warn("Correo tarjeta cancelada: falta RESEND_API_KEY, no se envía.", { orderId });
+      return { estado: "sin_clave", email: "" };
+    }
+
+    const { nombre, email } = await datosDelCliente(tarjeta.uidComprador);
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      console.warn("Correo tarjeta cancelada: la persona no tiene email.", { orderId });
+      return { estado: "sin_email", email: "" };
+    }
+
+    const { asunto, html, texto } = construirCorreoTarjetaCancelada({ tarjeta, nombre });
+    const copia = String(process.env.CORREO_COPIA_ADMIN || "").trim();
+    const responderA = String(process.env.CORREO_RESPONDER_A || "").trim();
+
+    const respuesta = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${clave}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: String(process.env.CORREO_REMITENTE || "").trim() || REMITENTE_POR_DEFECTO,
+        to: [email],
+        ...(copia ? { bcc: [copia] } : {}),
+        ...(responderA ? { reply_to: responderA } : {}),
+        subject: asunto,
+        html,
+        text: texto,
+      }),
+    });
+
+    if (!respuesta.ok) {
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("Correo tarjeta cancelada: Resend rechazó el envío:", respuesta.status, detalle);
+      return { estado: "rechazado", email };
+    }
+
+    return { estado: "enviado", email };
+  } catch (error) {
+    console.error("Correo tarjeta cancelada: error inesperado:", error);
+    return { estado: "error", email: "" };
+  }
+}
