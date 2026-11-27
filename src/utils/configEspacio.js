@@ -32,6 +32,8 @@ export const CONFIG_ESPACIO_DEFECTO = {
   mesesCaducidadTarjeta: 3,
   // WhatsApp del taller (9 cifras, sin prefijo): botón flotante, perfil, grupos…
   telefonoWhatsapp: "644671664",
+  // Segundo WhatsApp, para recogida de piezas y envíos (/recoger-pieza)
+  telefonoPiezas: "611804664",
 };
 
 // "+34 644 67 16 64" → "644671664"; "" si no es un móvil o fijo español de 9 cifras
@@ -92,6 +94,8 @@ export function normalizarConfigEspacio(raw) {
     ),
     telefonoWhatsapp:
       normalizarTelefonoWhatsapp(datos.telefonoWhatsapp) || CONFIG_ESPACIO_DEFECTO.telefonoWhatsapp,
+    telefonoPiezas:
+      normalizarTelefonoWhatsapp(datos.telefonoPiezas) || CONFIG_ESPACIO_DEFECTO.telefonoPiezas,
     // Los horarios por defecto solo llevan la hora de inicio («11:30, 17:30»): la de fin la
     // pone la duración de cada taller. Los guardados con rango («11:30-14:30») se leen así.
     horariosDefecto: Object.fromEntries(DIAS_CONFIG.map((dia) => [dia, iniciosDeTexto(aTexto(horarios[dia]))])),

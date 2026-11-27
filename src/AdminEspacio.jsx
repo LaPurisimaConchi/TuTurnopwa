@@ -29,6 +29,7 @@ const aTexto = (config) => ({
   diasVentanaReprogramar: String(config.diasVentanaReprogramar),
   mesesCaducidadTarjeta: String(config.mesesCaducidadTarjeta),
   telefonoWhatsapp: telefonoVisible(config.telefonoWhatsapp),
+  telefonoPiezas: telefonoVisible(config.telefonoPiezas),
   horariosDefecto: { ...config.horariosDefecto },
   horariosMinimoDefecto: { ...config.horariosMinimoDefecto },
 });
@@ -183,6 +184,11 @@ export default function AdminEspacio() {
       return fallar("El WhatsApp del taller debe ser un teléfono español de 9 cifras (por ejemplo, 644 671 664).");
     }
 
+    const telefonoPiezas = normalizarTelefonoWhatsapp(form.telefonoPiezas);
+    if (!telefonoPiezas) {
+      return fallar("El WhatsApp de recogida de piezas debe ser un teléfono español de 9 cifras (por ejemplo, 611 804 664).");
+    }
+
     return {
       aforoTotal,
       maxTorno,
@@ -193,6 +199,7 @@ export default function AdminEspacio() {
       diasVentanaReprogramar,
       mesesCaducidadTarjeta,
       telefonoWhatsapp,
+      telefonoPiezas,
       horariosDefecto: form.horariosDefecto,
       horariosMinimoDefecto: form.horariosMinimoDefecto,
     };
@@ -337,8 +344,24 @@ export default function AdminEspacio() {
                   onChange={(e) => cambiar("telefonoWhatsapp", e.target.value)}
                 />
                 <p className={ayuda}>
-                  Es el número de toda la web: el botón verde, el perfil («Contacto» y «Mi
+                  Es el número general de la web: el botón verde, el perfil («Contacto» y «Mi
                   pieza»), las reservas de grupo y los cambios de fecha.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="esp-telefono-piezas" className={label}>
+                  WhatsApp de recogida de piezas y envíos
+                </label>
+                <input
+                  id="esp-telefono-piezas"
+                  type="tel"
+                  inputMode="tel"
+                  className={input}
+                  value={form.telefonoPiezas}
+                  onChange={(e) => cambiar("telefonoPiezas", e.target.value)}
+                />
+                <p className={ayuda}>
+                  Solo se usa en la página «Quiero recoger mi pieza».
                 </p>
               </div>
             </section>
