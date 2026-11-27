@@ -13,6 +13,31 @@ import EtiquetaInvitado from "./components/EtiquetaInvitado";
 
 
 
+// Mañana: turnos que empiezan antes de las 15:00. Tarde: desde las 15:00.
+// Los turnos sin hora («Horario a consultar») van aparte.
+const FRANJAS_DIA = [
+  { id: "manana", nombre: "Mañana", icono: "sol" },
+  { id: "tarde", nombre: "Tarde", icono: "luna" },
+];
+const SIN_HORA = { id: "sinHora", nombre: "Sin horario" };
+
+const franjaDeTurno = (turno) => {
+  const hora = /^\s*(\d{1,2}):\d{2}/.exec(String(turno || ""));
+  if (!hora) return SIN_HORA.id;
+  return Number(hora[1]) < 15 ? "manana" : "tarde";
+};
+
+const sumarPlazas = (lista) => lista.reduce((total, r) => total + Number(r.plazas || 1), 0);
+
+// Verde: hay sitio · naranja: casi lleno · rojo: completo · gris: pago en curso o nada
+const NIVELES = {
+  completo: { color: "#a3281c", backgroundColor: "#f8d7d3" },
+  casi: { color: "#8a5a00", backgroundColor: "#fdebc8" },
+  libre: { color: "#2f6b2f", backgroundColor: "#e0f0dc" },
+  pago: { color: "#6b6558", backgroundColor: "#ece8dc" },
+  vacio: { color: "#a39b8b", backgroundColor: "transparent" },
+};
+
 const AdminCalendarioReservas = () => {
   const navigate = useNavigate();
 
@@ -401,8 +426,8 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     return mapa;
   }, [reservas]);
 
-  // Por día: el turno más lleno (sumando turnos que se solapan) respecto a su tope, que es
-  // el aforo o, si el panel fijó uno, el cupo de esa franja. `llena`: algún turno sin plazas.
+  // Por día y franja (mañana o tarde): el turno más lleno (sumando turnos que se solapan)
+  // respecto a su tope, que es el aforo o, si el panel fijó uno, el cupo de ese turno.
   const ocupacionPorDia = useMemo(() => {
     const mapa = {};
     const fechas = new Set([...Object.keys(ocupacionFranjas), ...Object.keys(cupos)]);
@@ -410,25 +435,33 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
     fechas.forEach((fecha) => {
       const turnos = ocupacionFranjas[fecha] || {};
       const cuposDia = cupos[fecha] || {};
-      let mejor = null;
+      const porFranja = {};
 
-      // Un cupo de todo el día sin turnos con reservas se mira como un turno más
-      const claves = new Set([...Object.keys(turnos), ...Object.keys(cuposDia)]);
-      claves.delete(CUPO_TODO_EL_DIA);
-      if (cuposDia[CUPO_TODO_EL_DIA] !== undefined && !claves.size) claves.add("Todo el día");
-
-      claves.forEach((turno) => {
-        const tope = aforoDeFranja(aforoTotal, cuposDia, turno === "Todo el día" ? CUPO_TODO_EL_DIA : turno);
+      const mirar = (franja, turno, claveCupo = turno) => {
+        const tope = aforoDeFranja(aforoTotal, cuposDia, claveCupo);
         const total = sumarSolapadas(turnos, turno).total;
-        // Un cupo de 0 cierra la franja aunque no tenga reservas
+        // Un cupo de 0 cierra el turno aunque no tenga reservas
         if (total === 0 && tope > 0) return;
         const pct = tope > 0 ? Math.min(100, Math.round((total / tope) * 100)) : 100;
+        const mejor = porFranja[franja];
         if (!mejor || pct > mejor.pct || (pct === mejor.pct && total > mejor.maximo)) {
-          mejor = { maximo: total, tope, pct, turno };
+          porFranja[franja] = { maximo: total, tope, pct, turno };
         }
-      });
+      };
 
-      if (mejor) mapa[fecha] = mejor;
+      const claves = new Set([...Object.keys(turnos), ...Object.keys(cuposDia)]);
+      claves.delete(CUPO_TODO_EL_DIA);
+      claves.forEach((turno) => mirar(franjaDeTurno(turno), turno));
+
+      // Un cupo de todo el día cuenta también en la franja sin turnos con reservas
+      if (cuposDia[CUPO_TODO_EL_DIA] !== undefined) {
+        const conTurnos = new Set([...claves].map(franjaDeTurno));
+        FRANJAS_DIA.forEach(({ id }) => {
+          if (!conTurnos.has(id)) mirar(id, "Todo el día", CUPO_TODO_EL_DIA);
+        });
+      }
+
+      if (Object.keys(porFranja).length) mapa[fecha] = porFranja;
     });
 
     return mapa;
@@ -631,7 +664,21 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
   // Lista de reservas del día seleccionado (diálogo en móvil, columna en escritorio)
   const listaReservasJsx = (
     <div style={styles.listaReservas}>
-      {reservasDelDia.map((r, index) => {
+      {[...FRANJAS_DIA, SIN_HORA].map((franja) => {
+        const deLaFranja = reservasDelDia.filter((r) => franjaDeTurno(r.turno) === franja.id);
+        if (!deLaFranja.length) return null;
+        const personas = sumarPlazas(deLaFranja);
+
+        return (
+          <React.Fragment key={franja.id}>
+            <h4 style={styles.franjaTitulo}>
+              {franja.icono && <Icono nombre={franja.icono} />}
+              {franja.nombre}
+              <span style={styles.franjaSubtotal}>
+                {personas} persona{personas !== 1 ? "s" : ""}
+              </span>
+            </h4>
+            {deLaFranja.map((r, index) => {
         const enProceso = r.estadoCalendario === "grupo_individual_en_proceso";
         const pagado = String(r.estadoPago || "").toLowerCase() === "pagado";
 
@@ -680,6 +727,9 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
               )}
             </div>
           </div>
+        );
+      })}
+          </React.Fragment>
         );
       })}
     </div>
@@ -781,7 +831,7 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                 : "Pulsa otro día para empezar una nueva selección."}
             </span>
           )}
-          <span style={{ fontSize: 12, color: "#777" }}>Personas por día: verde = hay sitio · naranja = casi lleno · rojo = turno completo (aforo o cupo){isMobile ? " · punto: rojo cerrado, naranja por horas, verde abierto" : ""}</span>
+          <span style={{ fontSize: 12, color: "#777" }}>Personas de mañana (sol, turnos que empiezan antes de las 15:00) y de tarde (luna): verde = hay sitio · naranja = casi lleno · rojo = turno completo (aforo o cupo){isMobile ? " · punto: rojo cerrado, naranja por horas, verde abierto" : ""}</span>
         </div>
 
         {cargando ? (
@@ -834,18 +884,41 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                   }
 
                   const resumen = resumenPorFecha[celda.fechaISO];
-                  const ocupacion = ocupacionPorDia[celda.fechaISO];
-                  const llena = ocupacion?.pct >= 100;
+                  const ocupacion = ocupacionPorDia[celda.fechaISO] || {};
                   const bloqueo = bloqueos[celda.fechaISO];
 
-                  // Verde: hay sitio · naranja: casi lleno · rojo: completo · gris: pago en curso
-                  const nivel = llena
-                    ? { color: "#a3281c", fondo: "#f8d7d3" }
-                    : !resumen
-                    ? { color: "#6b6558", fondo: "#ece8dc" }
-                    : ocupacion?.pct >= 80
-                    ? { color: "#8a5a00", fondo: "#fdebc8" }
-                    : { color: "#2f6b2f", fondo: "#e0f0dc" };
+                  // Un dato por franja: personas confirmadas y lo lleno que está su turno más ocupado
+                  const franjas = [...FRANJAS_DIA, SIN_HORA].map((franja) => {
+                    const lista = (resumen?.reservas || []).filter((r) => franjaDeTurno(r.turno) === franja.id);
+                    const ocupada = ocupacion[franja.id];
+                    const personas = sumarPlazas(lista);
+                    const llena = ocupada?.pct >= 100;
+                    const nivel = llena
+                      ? "completo"
+                      : !lista.length
+                      ? ocupada
+                        ? "pago"
+                        : "vacio"
+                      : ocupada?.pct >= 80
+                      ? "casi"
+                      : "libre";
+                    const texto = lista.length
+                      ? personas
+                      : !ocupada
+                      ? "—"
+                      : ocupada.maximo === 0
+                      ? isMobile ? "0" : "Sin cupo"
+                      : isMobile ? "pago" : "En pago";
+
+                    return { ...franja, lista, personas, ocupada, llena, nivel, texto };
+                  });
+                  const hayDatos = franjas.some((f) => f.lista.length || f.ocupada);
+                  const cerradoEntero = bloqueo?.bloqueado && !bloqueoEsParcial(bloqueo);
+                  // Un día cerrado sin nada reservado se queda solo con su etiqueta
+                  const franjasVisibles =
+                    cerradoEntero && !hayDatos
+                      ? []
+                      : franjas.filter((f) => f.id !== SIN_HORA.id || f.lista.length || f.ocupada);
 
                   // Estado del día cuando no es normal
                   const estadoDia = bloqueoEsParcial(bloqueo)
@@ -861,12 +934,18 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                   // Detalle completo al pasar el ratón
                   const titulo = [
                     fechaDMA(celda.fechaISO),
-                    resumen
-                      ? `${resumen.totalReservas} reserva${resumen.totalReservas !== 1 ? "s" : ""} · ${resumen.totalPlazas} plaza${resumen.totalPlazas !== 1 ? "s" : ""}`
-                      : ocupacion
-                      ? "Plazas guardadas mientras se paga"
-                      : "Sin reservas",
-                    ocupacion ? `Turno más lleno (${ocupacion.turno}): ${ocupacion.maximo}/${ocupacion.tope}${llena ? " (completo)" : ""}` : "",
+                    ...(hayDatos
+                      ? franjas
+                          .filter((f) => f.lista.length || f.ocupada)
+                          .flatMap((f) => [
+                            f.lista.length
+                              ? `${f.nombre}: ${f.lista.length} reserva${f.lista.length !== 1 ? "s" : ""} · ${f.personas} persona${f.personas !== 1 ? "s" : ""}`
+                              : `${f.nombre}: sin reservas confirmadas`,
+                            f.ocupada
+                              ? `  Turno más lleno (${f.ocupada.turno}): ${f.ocupada.maximo}/${f.ocupada.tope}${f.llena ? " (completo)" : ""}`
+                              : "",
+                          ])
+                      : ["Sin reservas"]),
                     ...Object.entries(cupos[celda.fechaISO] || {}).map(([t, n]) => `Cupo ${t === CUPO_TODO_EL_DIA ? "todo el día" : t}: ${n} plazas`),
                     bloqueoEsParcial(bloqueo)
                       ? "Cerrado por horas"
@@ -906,29 +985,22 @@ plazasPendientes: Number(grupo.plazasPendientes || 0),
                           ))}
                       </div>
 
-                      {/* Un solo dato por día: personas, con el color de lo lleno que está el turno más ocupado */}
-                      {(resumen || ocupacion) && (
+                      {franjasVisibles.length > 0 && (
                         <div style={styles.diaPie}>
-                          <span
-                            style={{
-                              ...styles.diaPersonas,
-                              ...(isMobile ? styles.diaPersonasMobile : {}),
-                              color: nivel.color,
-                              backgroundColor: nivel.fondo,
-                            }}
-                          >
-                            {resumen
-                              ? llena && !isMobile
-                                ? "Completo"
-                                : isMobile
-                                ? resumen.totalPlazas
-                                : `${resumen.totalPlazas} pers.`
-                              : ocupacion.maximo === 0
-                              ? "Sin cupo"
-                              : isMobile
-                              ? "pago"
-                              : "En pago"}
-                          </span>
+                          {franjasVisibles.map((f) => (
+                            <span
+                              key={f.id}
+                              aria-label={`${f.nombre}: ${f.texto === "—" ? "sin reservas" : f.texto}`}
+                              style={{
+                                ...styles.diaPersonas,
+                                ...(isMobile ? styles.diaPersonasMobile : {}),
+                                ...NIVELES[f.nivel],
+                              }}
+                            >
+                              {f.icono && <Icono nombre={f.icono} color="currentColor" />}
+                              {f.texto}
+                            </span>
+                          ))}
                         </div>
                       )}
                     </button>
@@ -1363,20 +1435,43 @@ const styles = {
   },
   diaPie: {
     marginTop: "auto",
+    paddingTop: 4,
     display: "flex",
-    justifyContent: "center",
+    flexDirection: "column",
+    gap: 3,
   },
   diaPersonas: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
     fontSize: "0.82rem",
     fontWeight: 700,
     lineHeight: 1,
-    padding: "5px 10px",
-    borderRadius: 999,
+    padding: "4px 6px",
+    borderRadius: 8,
     whiteSpace: "nowrap",
   },
   diaPersonasMobile: {
-    fontSize: "0.72rem",
-    padding: "3px 7px",
+    gap: 2,
+    fontSize: "0.7rem",
+    padding: "3px 1px",
+    borderRadius: 6,
+  },
+  franjaTitulo: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    margin: "4px 0 0",
+    fontSize: "0.95rem",
+    fontWeight: 700,
+    color: "#3f3128",
+  },
+  franjaSubtotal: {
+    marginLeft: "auto",
+    fontSize: "0.82rem",
+    fontWeight: 600,
+    color: "#777",
   },
   dialogoCerrar: {
     border: "none",
