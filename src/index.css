@@ -31,6 +31,33 @@ body {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
+/* ---- CASILLAS (checkbox) Y BOTONES DE OPCIÓN (radio) MÁS GRANDES EN TODA LA WEB ----
+   24 px en móvil (para tocarlos con el dedo) y 20 px desde 640 px, en el terracota de la
+   marca. Va en la capa base: una clase de Tailwind (`h-4 w-4`, `mt-1`…) lo sigue pudiendo
+   cambiar en un caso concreto. Las filas con casilla y texto largo llevan `-mt-0.5 sm:mt-0`
+   para alinearla con la primera línea. */
+@layer base {
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+    accent-color: #b36a4a; /* terracota */
+    cursor: pointer;
+  }
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled {
+    cursor: not-allowed;
+  }
+  @media (min-width: 640px) {
+    input[type="checkbox"],
+    input[type="radio"] {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
+  }
+}
+
 /* Mantén solo lo que de verdad necesites como clase, no global */
 .vasija-icon {
   width: 70px;

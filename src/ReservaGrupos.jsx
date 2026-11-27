@@ -691,7 +691,7 @@ export default function ReservaGrupos() {
               <label className="flex items-start mt-3 text-sm text-tinta">
                 <input
                   type="checkbox"
-                  className="mr-2 mt-1"
+                  className="mr-3 -mt-0.5 sm:mt-0"
                   checked={contactoConfirmado}
                   onChange={(e) => setContactoConfirmado(e.target.checked)}
                 />

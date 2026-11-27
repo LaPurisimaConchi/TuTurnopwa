@@ -342,18 +342,19 @@ export default function ReservaMonografico({ claseId, clase }) {
                           : "border-gray-300 bg-white hover:bg-crema"
                       } ${sinPlazas ? "opacity-60 cursor-not-allowed" : ""}`}
                     >
-                      <input
-                        type="radio"
-                        name="edicion"
-                        className="mr-2"
-                        value={ed.id}
-                        checked={edicionId === ed.id}
-                        disabled={sinPlazas}
-                        onChange={() => elegirEdicion(ed.id)}
-                      />
-                      <strong>Edición {indice + 1}</strong>
-                      {sinPlazas && <span className="ml-2 text-red-600 font-medium">Completa</span>}
-                      <ul className="mt-1 ml-6 list-disc text-tinta">
+                      <span className="flex items-center gap-3">
+                        <input
+                          type="radio"
+                          name="edicion"
+                          value={ed.id}
+                          checked={edicionId === ed.id}
+                          disabled={sinPlazas}
+                          onChange={() => elegirEdicion(ed.id)}
+                        />
+                        <strong>Edición {indice + 1}</strong>
+                        {sinPlazas && <span className="text-red-600 font-medium">Completa</span>}
+                      </span>
+                      <ul className="mt-1 ml-9 sm:ml-8 list-disc text-tinta">
                         {ed.fechas.map((f) => (
                           <li key={`${f.fecha}-${f.turno}`}>
                             {fechaDMA(f.fecha)} · {f.turno.replace("-", " – ")}{f.torno ? " · torno" : ""}
