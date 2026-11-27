@@ -565,7 +565,7 @@ const limpiarFiltros = () => {
     {mostrandoTarjetas ? (
       <>
         <option value="pendiente">Pendiente</option>
-        <option value="canjeada">Canjeada</option>
+        <option value="canjeado">Canjeada</option>
         <option value="caducada">Caducada</option>
         <option value="cancelada">Cancelada</option>
       </>
