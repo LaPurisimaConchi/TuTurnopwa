@@ -33,6 +33,7 @@ import {
   LockKey,
   MagnifyingGlass,
   MapPin,
+  Moon,
   NotePencil,
   PaperPlaneTilt,
   Phone,
@@ -44,6 +45,7 @@ import {
   SmileySad,
   Sparkle,
   Star,
+  Sun,
   Tag,
   Ticket,
   UserCircle,
@@ -87,6 +89,8 @@ function Vasija({ size = "1.15em", color = HEREDA, className = "", ...resto }) {
 
 // nombre → [componente, color por defecto]
 const ICONOS = {
+  sol: [Sun, MOSTAZA],
+  luna: [Moon, AZUL],
   aviso: [Warning, MOSTAZA],
   abajo: [ArrowDown, HEREDA],
   izquierda: [ArrowLeft, HEREDA],
